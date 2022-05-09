@@ -6,6 +6,7 @@ require 'repository_pb'
 
 module Gitaly
   module RepositoryService
+    # RepositoryService is a service providing RPCs accessing repositories as a whole.
     class Service
 
       include ::GRPC::GenericService
@@ -14,6 +15,7 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.RepositoryService'
 
+      # This comment is left unintentionally blank.
       rpc :RepositoryExists, ::Gitaly::RepositoryExistsRequest, ::Gitaly::RepositoryExistsResponse
       # RepackIncremental is deprecated in favor of OptimizeRepository.
       rpc :RepackIncremental, ::Gitaly::RepackIncrementalRequest, ::Gitaly::RepackIncrementalResponse
@@ -25,21 +27,31 @@ module Gitaly
       rpc :GarbageCollect, ::Gitaly::GarbageCollectRequest, ::Gitaly::GarbageCollectResponse
       # WriteCommitGraph is deprecated in favor of OptimizeRepository.
       rpc :WriteCommitGraph, ::Gitaly::WriteCommitGraphRequest, ::Gitaly::WriteCommitGraphResponse
+      # This comment is left unintentionally blank.
       rpc :RepositorySize, ::Gitaly::RepositorySizeRequest, ::Gitaly::RepositorySizeResponse
+      # This comment is left unintentionally blank.
       rpc :ApplyGitattributes, ::Gitaly::ApplyGitattributesRequest, ::Gitaly::ApplyGitattributesResponse
       # FetchRemote fetches references from a remote repository into the local
       # repository.
       rpc :FetchRemote, ::Gitaly::FetchRemoteRequest, ::Gitaly::FetchRemoteResponse
+      # This comment is left unintentionally blank.
       rpc :CreateRepository, ::Gitaly::CreateRepositoryRequest, ::Gitaly::CreateRepositoryResponse
+      # This comment is left unintentionally blank.
       rpc :GetArchive, ::Gitaly::GetArchiveRequest, stream(::Gitaly::GetArchiveResponse)
+      # This comment is left unintentionally blank.
       rpc :HasLocalBranches, ::Gitaly::HasLocalBranchesRequest, ::Gitaly::HasLocalBranchesResponse
       # FetchSourceBranch fetches a branch from a second (potentially remote)
       # repository into the given repository.
       rpc :FetchSourceBranch, ::Gitaly::FetchSourceBranchRequest, ::Gitaly::FetchSourceBranchResponse
+      # This comment is left unintentionally blank.
       rpc :Fsck, ::Gitaly::FsckRequest, ::Gitaly::FsckResponse
+      # This comment is left unintentionally blank.
       rpc :WriteRef, ::Gitaly::WriteRefRequest, ::Gitaly::WriteRefResponse
+      # This comment is left unintentionally blank.
       rpc :FindMergeBase, ::Gitaly::FindMergeBaseRequest, ::Gitaly::FindMergeBaseResponse
+      # This comment is left unintentionally blank.
       rpc :CreateFork, ::Gitaly::CreateForkRequest, ::Gitaly::CreateForkResponse
+      # This comment is left unintentionally blank.
       rpc :CreateRepositoryFromURL, ::Gitaly::CreateRepositoryFromURLRequest, ::Gitaly::CreateRepositoryFromURLResponse
       # CreateBundle creates a bundle from all refs
       rpc :CreateBundle, ::Gitaly::CreateBundleRequest, stream(::Gitaly::CreateBundleResponse)
@@ -50,28 +62,42 @@ module Gitaly
       # Refs will be mirrored to the target repository with the refspec
       # "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
       rpc :FetchBundle, stream(::Gitaly::FetchBundleRequest), ::Gitaly::FetchBundleResponse
+      # This comment is left unintentionally blank.
       rpc :CreateRepositoryFromBundle, stream(::Gitaly::CreateRepositoryFromBundleRequest), ::Gitaly::CreateRepositoryFromBundleResponse
       # GetConfig reads the target repository's gitconfig and streams its contents
       # back. Returns a NotFound error in case no gitconfig was found.
       rpc :GetConfig, ::Gitaly::GetConfigRequest, stream(::Gitaly::GetConfigResponse)
+      # This comment is left unintentionally blank.
       rpc :FindLicense, ::Gitaly::FindLicenseRequest, ::Gitaly::FindLicenseResponse
+      # This comment is left unintentionally blank.
       rpc :GetInfoAttributes, ::Gitaly::GetInfoAttributesRequest, stream(::Gitaly::GetInfoAttributesResponse)
+      # This comment is left unintentionally blank.
       rpc :CalculateChecksum, ::Gitaly::CalculateChecksumRequest, ::Gitaly::CalculateChecksumResponse
       # Cleanup is deprecated in favor of OptimizeRepository.
       rpc :Cleanup, ::Gitaly::CleanupRequest, ::Gitaly::CleanupResponse
+      # This comment is left unintentionally blank.
       rpc :GetSnapshot, ::Gitaly::GetSnapshotRequest, stream(::Gitaly::GetSnapshotResponse)
+      # This comment is left unintentionally blank.
       rpc :CreateRepositoryFromSnapshot, ::Gitaly::CreateRepositoryFromSnapshotRequest, ::Gitaly::CreateRepositoryFromSnapshotResponse
+      # This comment is left unintentionally blank.
       rpc :GetRawChanges, ::Gitaly::GetRawChangesRequest, stream(::Gitaly::GetRawChangesResponse)
+      # This comment is left unintentionally blank.
       rpc :SearchFilesByContent, ::Gitaly::SearchFilesByContentRequest, stream(::Gitaly::SearchFilesByContentResponse)
+      # This comment is left unintentionally blank.
       rpc :SearchFilesByName, ::Gitaly::SearchFilesByNameRequest, stream(::Gitaly::SearchFilesByNameResponse)
+      # This comment is left unintentionally blank.
       rpc :RestoreCustomHooks, stream(::Gitaly::RestoreCustomHooksRequest), ::Gitaly::RestoreCustomHooksResponse
+      # This comment is left unintentionally blank.
       rpc :BackupCustomHooks, ::Gitaly::BackupCustomHooksRequest, stream(::Gitaly::BackupCustomHooksResponse)
+      # This comment is left unintentionally blank.
       rpc :GetObjectDirectorySize, ::Gitaly::GetObjectDirectorySizeRequest, ::Gitaly::GetObjectDirectorySizeResponse
       # RemoveRepository will move the repository to `+gitaly/tmp/<relative_path>_removed` and
       # eventually remove it. This ensures that even on networked filesystems the
       # data is actually removed even if there's someone still handling the data.
       rpc :RemoveRepository, ::Gitaly::RemoveRepositoryRequest, ::Gitaly::RemoveRepositoryResponse
+      # This comment is left unintentionally blank.
       rpc :RenameRepository, ::Gitaly::RenameRepositoryRequest, ::Gitaly::RenameRepositoryResponse
+      # This comment is left unintentionally blank.
       rpc :ReplicateRepository, ::Gitaly::ReplicateRepositoryRequest, ::Gitaly::ReplicateRepositoryResponse
       # OptimizeRepository performs all maintenance tasks in a repository to keep
       # it in an efficient state. It cleans up stale data, repacks objects,

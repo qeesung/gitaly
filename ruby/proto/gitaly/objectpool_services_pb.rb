@@ -6,6 +6,10 @@ require 'objectpool_pb'
 
 module Gitaly
   module ObjectPoolService
+    # ObjectPoolService is a service containing RPCs to manipulate object pools.
+    # An object pool is a separate repository that can be linked to from multiple
+    # satellite repositories in order to deduplicate common objects between them.
+    # This is mostly used in the contexet of repository forks.
     class Service
 
       include ::GRPC::GenericService
@@ -14,13 +18,19 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.ObjectPoolService'
 
+      # This comment is left unintentionally blank.
       rpc :CreateObjectPool, ::Gitaly::CreateObjectPoolRequest, ::Gitaly::CreateObjectPoolResponse
+      # This comment is left unintentionally blank.
       rpc :DeleteObjectPool, ::Gitaly::DeleteObjectPoolRequest, ::Gitaly::DeleteObjectPoolResponse
       # Repositories are assumed to be stored on the same disk
       rpc :LinkRepositoryToObjectPool, ::Gitaly::LinkRepositoryToObjectPoolRequest, ::Gitaly::LinkRepositoryToObjectPoolResponse
+      # This comment is left unintentionally blank.
       rpc :ReduplicateRepository, ::Gitaly::ReduplicateRepositoryRequest, ::Gitaly::ReduplicateRepositoryResponse
+      # This comment is left unintentionally blank.
       rpc :DisconnectGitAlternates, ::Gitaly::DisconnectGitAlternatesRequest, ::Gitaly::DisconnectGitAlternatesResponse
+      # This comment is left unintentionally blank.
       rpc :FetchIntoObjectPool, ::Gitaly::FetchIntoObjectPoolRequest, ::Gitaly::FetchIntoObjectPoolResponse
+      # This comment is left unintentionally blank.
       rpc :GetObjectPool, ::Gitaly::GetObjectPoolRequest, ::Gitaly::GetObjectPoolResponse
     end
 

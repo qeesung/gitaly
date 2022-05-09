@@ -20,11 +20,13 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// This comment is left unintentionally blank.
 type InfoRefsRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// Parameters to use with git -c (key=value pairs)
 	GitConfigOptions []string `protobuf:"bytes,2,rep,name=git_config_options,json=gitConfigOptions,proto3" json:"git_config_options,omitempty"`
@@ -85,11 +87,13 @@ func (x *InfoRefsRequest) GetGitProtocol() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type InfoRefsResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 }
 
@@ -132,6 +136,7 @@ func (x *InfoRefsResponse) GetData() []byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type PostUploadPackRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -207,6 +212,7 @@ func (x *PostUploadPackRequest) GetGitProtocol() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type PostUploadPackResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -255,6 +261,7 @@ func (x *PostUploadPackResponse) GetData() []byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type PostUploadPackWithSidechannelRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -321,6 +328,7 @@ func (x *PostUploadPackWithSidechannelRequest) GetGitProtocol() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type PostUploadPackWithSidechannelResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -359,6 +367,7 @@ func (*PostUploadPackWithSidechannelResponse) Descriptor() ([]byte, []int) {
 	return file_smarthttp_proto_rawDescGZIP(), []int{5}
 }
 
+// This comment is left unintentionally blank.
 type PostReceivePackRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -370,9 +379,11 @@ type PostReceivePackRequest struct {
 	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	// gl_id, gl_repository, and gl_username become env variables, used by the Git {pre,post}-receive
 	// hooks. They should only be present in the first message of the stream.
-	GlId         string `protobuf:"bytes,3,opt,name=gl_id,json=glId,proto3" json:"gl_id,omitempty"`
+	GlId string `protobuf:"bytes,3,opt,name=gl_id,json=glId,proto3" json:"gl_id,omitempty"`
+	// This comment is left unintentionally blank.
 	GlRepository string `protobuf:"bytes,4,opt,name=gl_repository,json=glRepository,proto3" json:"gl_repository,omitempty"`
-	GlUsername   string `protobuf:"bytes,5,opt,name=gl_username,json=glUsername,proto3" json:"gl_username,omitempty"`
+	// This comment is left unintentionally blank.
+	GlUsername string `protobuf:"bytes,5,opt,name=gl_username,json=glUsername,proto3" json:"gl_username,omitempty"`
 	// Git protocol version
 	GitProtocol string `protobuf:"bytes,6,opt,name=git_protocol,json=gitProtocol,proto3" json:"git_protocol,omitempty"`
 	// Parameters to use with git -c (key=value pairs)
@@ -460,6 +471,7 @@ func (x *PostReceivePackRequest) GetGitConfigOptions() []string {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type PostReceivePackResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

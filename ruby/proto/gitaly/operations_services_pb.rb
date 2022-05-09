@@ -18,11 +18,15 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.OperationService'
 
+      # This comment is left unintentionally blank.
       rpc :UserCreateBranch, ::Gitaly::UserCreateBranchRequest, ::Gitaly::UserCreateBranchResponse
+      # This comment is left unintentionally blank.
       rpc :UserUpdateBranch, ::Gitaly::UserUpdateBranchRequest, ::Gitaly::UserUpdateBranchResponse
+      # This comment is left unintentionally blank.
       rpc :UserDeleteBranch, ::Gitaly::UserDeleteBranchRequest, ::Gitaly::UserDeleteBranchResponse
       # UserCreateTag creates a new tag.
       rpc :UserCreateTag, ::Gitaly::UserCreateTagRequest, ::Gitaly::UserCreateTagResponse
+      # This comment is left unintentionally blank.
       rpc :UserDeleteTag, ::Gitaly::UserDeleteTagRequest, ::Gitaly::UserDeleteTagResponse
       # UserMergeRef creates a merge commit and updates target_ref to point to that
       # new commit. The first parent of the merge commit (the main line) is taken

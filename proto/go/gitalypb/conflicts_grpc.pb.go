@@ -18,6 +18,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConflictsServiceClient interface {
+	// ListConflictFiles returns all conflicting files which result from a merge
+	// of two specified commit objects.
 	ListConflictFiles(ctx context.Context, in *ListConflictFilesRequest, opts ...grpc.CallOption) (ConflictsService_ListConflictFilesClient, error)
 	// ResolveConflicts tries to resolve a conflicting merge with a set of
 	// user-provided merge resolutions. If resolving the conflict succeeds, the
@@ -103,6 +105,8 @@ func (x *conflictsServiceResolveConflictsClient) CloseAndRecv() (*ResolveConflic
 // All implementations must embed UnimplementedConflictsServiceServer
 // for forward compatibility
 type ConflictsServiceServer interface {
+	// ListConflictFiles returns all conflicting files which result from a merge
+	// of two specified commit objects.
 	ListConflictFiles(*ListConflictFilesRequest, ConflictsService_ListConflictFilesServer) error
 	// ResolveConflicts tries to resolve a conflicting merge with a set of
 	// user-provided merge resolutions. If resolving the conflict succeeds, the

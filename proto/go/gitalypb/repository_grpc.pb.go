@@ -18,6 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RepositoryServiceClient interface {
+	// This comment is left unintentionally blank.
 	RepositoryExists(ctx context.Context, in *RepositoryExistsRequest, opts ...grpc.CallOption) (*RepositoryExistsResponse, error)
 	// Deprecated: Do not use.
 	// RepackIncremental is deprecated in favor of OptimizeRepository.
@@ -34,21 +35,31 @@ type RepositoryServiceClient interface {
 	// Deprecated: Do not use.
 	// WriteCommitGraph is deprecated in favor of OptimizeRepository.
 	WriteCommitGraph(ctx context.Context, in *WriteCommitGraphRequest, opts ...grpc.CallOption) (*WriteCommitGraphResponse, error)
+	// This comment is left unintentionally blank.
 	RepositorySize(ctx context.Context, in *RepositorySizeRequest, opts ...grpc.CallOption) (*RepositorySizeResponse, error)
+	// This comment is left unintentionally blank.
 	ApplyGitattributes(ctx context.Context, in *ApplyGitattributesRequest, opts ...grpc.CallOption) (*ApplyGitattributesResponse, error)
 	// FetchRemote fetches references from a remote repository into the local
 	// repository.
 	FetchRemote(ctx context.Context, in *FetchRemoteRequest, opts ...grpc.CallOption) (*FetchRemoteResponse, error)
+	// This comment is left unintentionally blank.
 	CreateRepository(ctx context.Context, in *CreateRepositoryRequest, opts ...grpc.CallOption) (*CreateRepositoryResponse, error)
+	// This comment is left unintentionally blank.
 	GetArchive(ctx context.Context, in *GetArchiveRequest, opts ...grpc.CallOption) (RepositoryService_GetArchiveClient, error)
+	// This comment is left unintentionally blank.
 	HasLocalBranches(ctx context.Context, in *HasLocalBranchesRequest, opts ...grpc.CallOption) (*HasLocalBranchesResponse, error)
 	// FetchSourceBranch fetches a branch from a second (potentially remote)
 	// repository into the given repository.
 	FetchSourceBranch(ctx context.Context, in *FetchSourceBranchRequest, opts ...grpc.CallOption) (*FetchSourceBranchResponse, error)
+	// This comment is left unintentionally blank.
 	Fsck(ctx context.Context, in *FsckRequest, opts ...grpc.CallOption) (*FsckResponse, error)
+	// This comment is left unintentionally blank.
 	WriteRef(ctx context.Context, in *WriteRefRequest, opts ...grpc.CallOption) (*WriteRefResponse, error)
+	// This comment is left unintentionally blank.
 	FindMergeBase(ctx context.Context, in *FindMergeBaseRequest, opts ...grpc.CallOption) (*FindMergeBaseResponse, error)
+	// This comment is left unintentionally blank.
 	CreateFork(ctx context.Context, in *CreateForkRequest, opts ...grpc.CallOption) (*CreateForkResponse, error)
+	// This comment is left unintentionally blank.
 	CreateRepositoryFromURL(ctx context.Context, in *CreateRepositoryFromURLRequest, opts ...grpc.CallOption) (*CreateRepositoryFromURLResponse, error)
 	// CreateBundle creates a bundle from all refs
 	CreateBundle(ctx context.Context, in *CreateBundleRequest, opts ...grpc.CallOption) (RepositoryService_CreateBundleClient, error)
@@ -59,29 +70,43 @@ type RepositoryServiceClient interface {
 	// Refs will be mirrored to the target repository with the refspec
 	// "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
 	FetchBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_FetchBundleClient, error)
+	// This comment is left unintentionally blank.
 	CreateRepositoryFromBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_CreateRepositoryFromBundleClient, error)
 	// GetConfig reads the target repository's gitconfig and streams its contents
 	// back. Returns a NotFound error in case no gitconfig was found.
 	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (RepositoryService_GetConfigClient, error)
+	// This comment is left unintentionally blank.
 	FindLicense(ctx context.Context, in *FindLicenseRequest, opts ...grpc.CallOption) (*FindLicenseResponse, error)
+	// This comment is left unintentionally blank.
 	GetInfoAttributes(ctx context.Context, in *GetInfoAttributesRequest, opts ...grpc.CallOption) (RepositoryService_GetInfoAttributesClient, error)
+	// This comment is left unintentionally blank.
 	CalculateChecksum(ctx context.Context, in *CalculateChecksumRequest, opts ...grpc.CallOption) (*CalculateChecksumResponse, error)
 	// Deprecated: Do not use.
 	// Cleanup is deprecated in favor of OptimizeRepository.
 	Cleanup(ctx context.Context, in *CleanupRequest, opts ...grpc.CallOption) (*CleanupResponse, error)
+	// This comment is left unintentionally blank.
 	GetSnapshot(ctx context.Context, in *GetSnapshotRequest, opts ...grpc.CallOption) (RepositoryService_GetSnapshotClient, error)
+	// This comment is left unintentionally blank.
 	CreateRepositoryFromSnapshot(ctx context.Context, in *CreateRepositoryFromSnapshotRequest, opts ...grpc.CallOption) (*CreateRepositoryFromSnapshotResponse, error)
+	// This comment is left unintentionally blank.
 	GetRawChanges(ctx context.Context, in *GetRawChangesRequest, opts ...grpc.CallOption) (RepositoryService_GetRawChangesClient, error)
+	// This comment is left unintentionally blank.
 	SearchFilesByContent(ctx context.Context, in *SearchFilesByContentRequest, opts ...grpc.CallOption) (RepositoryService_SearchFilesByContentClient, error)
+	// This comment is left unintentionally blank.
 	SearchFilesByName(ctx context.Context, in *SearchFilesByNameRequest, opts ...grpc.CallOption) (RepositoryService_SearchFilesByNameClient, error)
+	// This comment is left unintentionally blank.
 	RestoreCustomHooks(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_RestoreCustomHooksClient, error)
+	// This comment is left unintentionally blank.
 	BackupCustomHooks(ctx context.Context, in *BackupCustomHooksRequest, opts ...grpc.CallOption) (RepositoryService_BackupCustomHooksClient, error)
+	// This comment is left unintentionally blank.
 	GetObjectDirectorySize(ctx context.Context, in *GetObjectDirectorySizeRequest, opts ...grpc.CallOption) (*GetObjectDirectorySizeResponse, error)
 	// RemoveRepository will move the repository to `+gitaly/tmp/<relative_path>_removed` and
 	// eventually remove it. This ensures that even on networked filesystems the
 	// data is actually removed even if there's someone still handling the data.
 	RemoveRepository(ctx context.Context, in *RemoveRepositoryRequest, opts ...grpc.CallOption) (*RemoveRepositoryResponse, error)
+	// This comment is left unintentionally blank.
 	RenameRepository(ctx context.Context, in *RenameRepositoryRequest, opts ...grpc.CallOption) (*RenameRepositoryResponse, error)
+	// This comment is left unintentionally blank.
 	ReplicateRepository(ctx context.Context, in *ReplicateRepositoryRequest, opts ...grpc.CallOption) (*ReplicateRepositoryResponse, error)
 	// OptimizeRepository performs all maintenance tasks in a repository to keep
 	// it in an efficient state. It cleans up stale data, repacks objects,
@@ -800,6 +825,7 @@ func (c *repositoryServiceClient) SetFullPath(ctx context.Context, in *SetFullPa
 // All implementations must embed UnimplementedRepositoryServiceServer
 // for forward compatibility
 type RepositoryServiceServer interface {
+	// This comment is left unintentionally blank.
 	RepositoryExists(context.Context, *RepositoryExistsRequest) (*RepositoryExistsResponse, error)
 	// Deprecated: Do not use.
 	// RepackIncremental is deprecated in favor of OptimizeRepository.
@@ -816,21 +842,31 @@ type RepositoryServiceServer interface {
 	// Deprecated: Do not use.
 	// WriteCommitGraph is deprecated in favor of OptimizeRepository.
 	WriteCommitGraph(context.Context, *WriteCommitGraphRequest) (*WriteCommitGraphResponse, error)
+	// This comment is left unintentionally blank.
 	RepositorySize(context.Context, *RepositorySizeRequest) (*RepositorySizeResponse, error)
+	// This comment is left unintentionally blank.
 	ApplyGitattributes(context.Context, *ApplyGitattributesRequest) (*ApplyGitattributesResponse, error)
 	// FetchRemote fetches references from a remote repository into the local
 	// repository.
 	FetchRemote(context.Context, *FetchRemoteRequest) (*FetchRemoteResponse, error)
+	// This comment is left unintentionally blank.
 	CreateRepository(context.Context, *CreateRepositoryRequest) (*CreateRepositoryResponse, error)
+	// This comment is left unintentionally blank.
 	GetArchive(*GetArchiveRequest, RepositoryService_GetArchiveServer) error
+	// This comment is left unintentionally blank.
 	HasLocalBranches(context.Context, *HasLocalBranchesRequest) (*HasLocalBranchesResponse, error)
 	// FetchSourceBranch fetches a branch from a second (potentially remote)
 	// repository into the given repository.
 	FetchSourceBranch(context.Context, *FetchSourceBranchRequest) (*FetchSourceBranchResponse, error)
+	// This comment is left unintentionally blank.
 	Fsck(context.Context, *FsckRequest) (*FsckResponse, error)
+	// This comment is left unintentionally blank.
 	WriteRef(context.Context, *WriteRefRequest) (*WriteRefResponse, error)
+	// This comment is left unintentionally blank.
 	FindMergeBase(context.Context, *FindMergeBaseRequest) (*FindMergeBaseResponse, error)
+	// This comment is left unintentionally blank.
 	CreateFork(context.Context, *CreateForkRequest) (*CreateForkResponse, error)
+	// This comment is left unintentionally blank.
 	CreateRepositoryFromURL(context.Context, *CreateRepositoryFromURLRequest) (*CreateRepositoryFromURLResponse, error)
 	// CreateBundle creates a bundle from all refs
 	CreateBundle(*CreateBundleRequest, RepositoryService_CreateBundleServer) error
@@ -841,29 +877,43 @@ type RepositoryServiceServer interface {
 	// Refs will be mirrored to the target repository with the refspec
 	// "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
 	FetchBundle(RepositoryService_FetchBundleServer) error
+	// This comment is left unintentionally blank.
 	CreateRepositoryFromBundle(RepositoryService_CreateRepositoryFromBundleServer) error
 	// GetConfig reads the target repository's gitconfig and streams its contents
 	// back. Returns a NotFound error in case no gitconfig was found.
 	GetConfig(*GetConfigRequest, RepositoryService_GetConfigServer) error
+	// This comment is left unintentionally blank.
 	FindLicense(context.Context, *FindLicenseRequest) (*FindLicenseResponse, error)
+	// This comment is left unintentionally blank.
 	GetInfoAttributes(*GetInfoAttributesRequest, RepositoryService_GetInfoAttributesServer) error
+	// This comment is left unintentionally blank.
 	CalculateChecksum(context.Context, *CalculateChecksumRequest) (*CalculateChecksumResponse, error)
 	// Deprecated: Do not use.
 	// Cleanup is deprecated in favor of OptimizeRepository.
 	Cleanup(context.Context, *CleanupRequest) (*CleanupResponse, error)
+	// This comment is left unintentionally blank.
 	GetSnapshot(*GetSnapshotRequest, RepositoryService_GetSnapshotServer) error
+	// This comment is left unintentionally blank.
 	CreateRepositoryFromSnapshot(context.Context, *CreateRepositoryFromSnapshotRequest) (*CreateRepositoryFromSnapshotResponse, error)
+	// This comment is left unintentionally blank.
 	GetRawChanges(*GetRawChangesRequest, RepositoryService_GetRawChangesServer) error
+	// This comment is left unintentionally blank.
 	SearchFilesByContent(*SearchFilesByContentRequest, RepositoryService_SearchFilesByContentServer) error
+	// This comment is left unintentionally blank.
 	SearchFilesByName(*SearchFilesByNameRequest, RepositoryService_SearchFilesByNameServer) error
+	// This comment is left unintentionally blank.
 	RestoreCustomHooks(RepositoryService_RestoreCustomHooksServer) error
+	// This comment is left unintentionally blank.
 	BackupCustomHooks(*BackupCustomHooksRequest, RepositoryService_BackupCustomHooksServer) error
+	// This comment is left unintentionally blank.
 	GetObjectDirectorySize(context.Context, *GetObjectDirectorySizeRequest) (*GetObjectDirectorySizeResponse, error)
 	// RemoveRepository will move the repository to `+gitaly/tmp/<relative_path>_removed` and
 	// eventually remove it. This ensures that even on networked filesystems the
 	// data is actually removed even if there's someone still handling the data.
 	RemoveRepository(context.Context, *RemoveRepositoryRequest) (*RemoveRepositoryResponse, error)
+	// This comment is left unintentionally blank.
 	RenameRepository(context.Context, *RenameRepositoryRequest) (*RenameRepositoryResponse, error)
+	// This comment is left unintentionally blank.
 	ReplicateRepository(context.Context, *ReplicateRepositoryRequest) (*ReplicateRepositoryResponse, error)
 	// OptimizeRepository performs all maintenance tasks in a repository to keep
 	// it in an efficient state. It cleans up stale data, repacks objects,

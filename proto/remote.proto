@@ -7,6 +7,8 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// RemoteService is a service providing RPCs to interact with a remote
+// repository that is hosted on another Git server.
 service RemoteService {
 
   // UpdateRemoteMirror compares the references in the target repository and its remote mirror
@@ -19,6 +21,8 @@ service RemoteService {
         op: ACCESSOR
       };
   }
+
+  // This comment is left unintentionally blank.
   rpc FindRemoteRepository(FindRemoteRepositoryRequest) returns (FindRemoteRepositoryResponse) {
     option (op_type) = {
         op: ACCESSOR
@@ -38,7 +42,9 @@ service RemoteService {
   }
 }
 
+// This comment is left unintentionally blank.
 message UpdateRemoteMirrorRequest {
+  // This comment is left unintentionally blank.
   message Remote {
     // URL is the URL of the remote repository.
     string url = 1;
@@ -78,13 +84,16 @@ message UpdateRemoteMirrorRequest {
   reserved "ref_name";
 }
 
+// This comment is left unintentionally blank.
 message UpdateRemoteMirrorResponse {
   // DivergentRefs contains a list of references that had diverged in the
   // mirror from the source repository.
   repeated bytes divergent_refs = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindRemoteRepositoryRequest {
+  // This comment is left unintentionally blank.
   string remote = 1;
   // This field is used to redirect request to proper storage where it can be handled.
   // As of now it doesn't matter what storage will be used, but it still must be a valid.
@@ -95,6 +104,7 @@ message FindRemoteRepositoryRequest {
 // This migth throw a GRPC Unavailable code, to signal the request failure
 // is transient.
 message FindRemoteRepositoryResponse {
+  // This comment is left unintentionally blank.
   bool exists = 1;
 }
 

@@ -14,12 +14,6 @@ lint:
       # opt-in to enable these linting warnings, but right now we just want to
       # get protolint included in our workflow with minimal required changes.
       - FILE_HAS_COMMENT
-      - RPCS_HAVE_COMMENT
-      - FIELDS_HAVE_COMMENT
-      - SERVICES_HAVE_COMMENT
-      - MESSAGES_HAVE_COMMENT
-      - ENUMS_HAVE_COMMENT
-      - ENUM_FIELDS_HAVE_COMMENT
       # Many of our fields and messages have prepositions in them, and
       # furthermore this rule doesn't feel all that sensible after all. We thus
       # disable it.

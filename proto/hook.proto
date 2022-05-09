@@ -7,27 +7,39 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// HookService is a service which provides the implementation of a subset of
+// Git hooks. These are typically invoked via the `gitaly-hooks` binary to
+// ensure that the actual hook logic is executed in the context of the server.
 service HookService {
+
+  // This comment is left unintentionally blank.
   rpc PreReceiveHook(stream PreReceiveHookRequest) returns (stream PreReceiveHookResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc PostReceiveHook(stream PostReceiveHookRequest) returns  (stream PostReceiveHookResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc UpdateHook(UpdateHookRequest) returns (stream UpdateHookResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc ReferenceTransactionHook(stream ReferenceTransactionHookRequest) returns (stream ReferenceTransactionHookResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
   // PackObjectsHookWithSidechannel is an optimized version of PackObjectsHook that uses
   // a unix socket side channel.
   rpc PackObjectsHookWithSidechannel(PackObjectsHookWithSidechannelRequest) returns (PackObjectsHookWithSidechannelResponse) {
@@ -35,71 +47,117 @@ service HookService {
       op: ACCESSOR
     };
   }
+
 }
 
+// This comment is left unintentionally blank.
 message PreReceiveHookRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   repeated string environment_variables = 2;
+  // This comment is left unintentionally blank.
   bytes stdin = 4;
+  // This comment is left unintentionally blank.
   repeated string git_push_options = 5;
 }
 
+// This comment is left unintentionally blank.
 message PreReceiveHookResponse{
+  // This comment is left unintentionally blank.
   bytes stdout = 1;
+  // This comment is left unintentionally blank.
   bytes stderr = 2;
+  // This comment is left unintentionally blank.
   ExitStatus exit_status = 3;
 }
 
+// This comment is left unintentionally blank.
 message PostReceiveHookRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   repeated string environment_variables = 2;
+  // This comment is left unintentionally blank.
   bytes stdin = 3;
+  // This comment is left unintentionally blank.
   repeated string git_push_options = 4;
 }
 
+// This comment is left unintentionally blank.
 message PostReceiveHookResponse{
+  // This comment is left unintentionally blank.
   bytes stdout = 1;
+  // This comment is left unintentionally blank.
   bytes stderr = 2;
+  // This comment is left unintentionally blank.
   ExitStatus exit_status = 3;
 }
 
+// This comment is left unintentionally blank.
 message UpdateHookRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   repeated string environment_variables = 2;
+  // This comment is left unintentionally blank.
   bytes ref = 3;
+  // This comment is left unintentionally blank.
   string old_value = 4;
+  // This comment is left unintentionally blank.
   string new_value = 5;
 }
 
+// This comment is left unintentionally blank.
 message UpdateHookResponse{
+  // This comment is left unintentionally blank.
   bytes stdout = 1;
+  // This comment is left unintentionally blank.
   bytes stderr = 2;
+  // This comment is left unintentionally blank.
   ExitStatus exit_status = 3;
 }
 
+// This comment is left unintentionally blank.
 message ReferenceTransactionHookRequest {
-  Repository repository = 1 [(target_repository)=true];
-  repeated string environment_variables = 2;
-  bytes stdin = 3;
+  // This comment is left unintentionally blank.
   enum State {
+    // This comment is left unintentionally blank.
     PREPARED = 0;
+    // This comment is left unintentionally blank.
     COMMITTED = 1;
+    // This comment is left unintentionally blank.
     ABORTED = 2;
   }
+
+  // This comment is left unintentionally blank.
+  Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
+  repeated string environment_variables = 2;
+  // This comment is left unintentionally blank.
+  bytes stdin = 3;
+  // This comment is left unintentionally blank.
   State state = 4;
 }
 
+// This comment is left unintentionally blank.
 message ReferenceTransactionHookResponse {
+  // This comment is left unintentionally blank.
   bytes stdout = 1;
+  // This comment is left unintentionally blank.
   bytes stderr = 2;
+  // This comment is left unintentionally blank.
   ExitStatus exit_status = 3;
 }
 
+// This comment is left unintentionally blank.
 message PackObjectsHookWithSidechannelRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // args contains the arguments passed to the pack-objects hook, without the leading "git"
   repeated string args = 2;
 }
 
+// This comment is left unintentionally blank.
 message PackObjectsHookWithSidechannelResponse {
 }

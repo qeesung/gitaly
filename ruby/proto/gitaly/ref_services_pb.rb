@@ -6,6 +6,7 @@ require 'ref_pb'
 
 module Gitaly
   module RefService
+    # RefService is a service that provides RPCs to list and modify Git references.
     class Service
 
       include ::GRPC::GenericService
@@ -14,28 +15,39 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.RefService'
 
+      # This comment is left unintentionally blank.
       rpc :FindDefaultBranchName, ::Gitaly::FindDefaultBranchNameRequest, ::Gitaly::FindDefaultBranchNameResponse
+      # This comment is left unintentionally blank.
       rpc :FindAllBranchNames, ::Gitaly::FindAllBranchNamesRequest, stream(::Gitaly::FindAllBranchNamesResponse)
+      # This comment is left unintentionally blank.
       rpc :FindAllTagNames, ::Gitaly::FindAllTagNamesRequest, stream(::Gitaly::FindAllTagNamesResponse)
       # Return a stream so we can divide the response in chunks of branches
       rpc :FindLocalBranches, ::Gitaly::FindLocalBranchesRequest, stream(::Gitaly::FindLocalBranchesResponse)
+      # This comment is left unintentionally blank.
       rpc :FindAllBranches, ::Gitaly::FindAllBranchesRequest, stream(::Gitaly::FindAllBranchesResponse)
       # Returns a stream of tags repository has.
       rpc :FindAllTags, ::Gitaly::FindAllTagsRequest, stream(::Gitaly::FindAllTagsResponse)
+      # This comment is left unintentionally blank.
       rpc :FindTag, ::Gitaly::FindTagRequest, ::Gitaly::FindTagResponse
+      # This comment is left unintentionally blank.
       rpc :FindAllRemoteBranches, ::Gitaly::FindAllRemoteBranchesRequest, stream(::Gitaly::FindAllRemoteBranchesResponse)
+      # This comment is left unintentionally blank.
       rpc :RefExists, ::Gitaly::RefExistsRequest, ::Gitaly::RefExistsResponse
       # FindBranch finds a branch by its unqualified name (like "master") and
       # returns the commit it currently points to.
       rpc :FindBranch, ::Gitaly::FindBranchRequest, ::Gitaly::FindBranchResponse
+      # This comment is left unintentionally blank.
       rpc :DeleteRefs, ::Gitaly::DeleteRefsRequest, ::Gitaly::DeleteRefsResponse
+      # This comment is left unintentionally blank.
       rpc :ListBranchNamesContainingCommit, ::Gitaly::ListBranchNamesContainingCommitRequest, stream(::Gitaly::ListBranchNamesContainingCommitResponse)
+      # This comment is left unintentionally blank.
       rpc :ListTagNamesContainingCommit, ::Gitaly::ListTagNamesContainingCommitRequest, stream(::Gitaly::ListTagNamesContainingCommitResponse)
       # GetTagSignatures returns signatures for annotated tags resolved from a set of revisions. Revisions
       # which don't resolve to an annotated tag are silently discarded. Revisions which cannot be resolved
       # result in an error. Tags which are annotated but not signed will return a TagSignature response
       # which has no signature, but its unsigned contents will still be returned.
       rpc :GetTagSignatures, ::Gitaly::GetTagSignaturesRequest, stream(::Gitaly::GetTagSignaturesResponse)
+      # This comment is left unintentionally blank.
       rpc :GetTagMessages, ::Gitaly::GetTagMessagesRequest, stream(::Gitaly::GetTagMessagesResponse)
       # PackRefs is deprecated in favor of OptimizeRepository.
       rpc :PackRefs, ::Gitaly::PackRefsRequest, ::Gitaly::PackRefsResponse

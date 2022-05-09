@@ -6,6 +6,11 @@ require 'transaction_pb'
 
 module Gitaly
   module RefTransaction
+    # RefTransaction is a service which provides RPCs to interact with reference
+    # transactions. Reference transactions are used in the context of Gitaly
+    # Cluster to ensure that all nodes part of a single transaction perform the
+    # same change: given a set of changes, the changes are hashed and the hash is
+    # then voted on.
     class Service
 
       include ::GRPC::GenericService
@@ -14,7 +19,28 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.RefTransaction'
 
+      # VoteTransaction casts a vote on a transaction to establish whether the
+      # node is doing the same change as all the other nodes part of the
+      # transaction. This RPC blocks until quorum has been reached, which may be
+      # _before_ all nodes have cast a vote.
+      #
+      # This RPC may return one of the following error codes:
+      #
+      # - `NotFound` in case the transaction could not be found.
+      # - `Canceled` in case the transaction has been canceled before quorum was
+      #   reached.
       rpc :VoteTransaction, ::Gitaly::VoteTransactionRequest, ::Gitaly::VoteTransactionResponse
+      # StopTransaction gracefully stops a transaction. This RPC can be used if
+      # only a subset of nodes executes specific code which may cause the
+      # transaction to fail. One such example is Git hooks, which only execute on
+      # the primary Gitaly noded. Other nodes which vote on this transaction will
+      # get a response with the `STOP` state being set.
+      #
+      # This RPC may return one of the following error codes:
+      #
+      # - `NotFound` in case the transaction could not be found.
+      # - `Canceled` in case the transaction has been canceled before quorum was
+      #   reached.
       rpc :StopTransaction, ::Gitaly::StopTransactionRequest, ::Gitaly::StopTransactionResponse
     end
 

@@ -6,6 +6,7 @@ require 'server_pb'
 
 module Gitaly
   module ServerService
+    # ServerService is a service that provides information about a Gitaly server.
     class Service
 
       include ::GRPC::GenericService
@@ -14,7 +15,9 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.ServerService'
 
+      # This comment is left unintentionally blank.
       rpc :ServerInfo, ::Gitaly::ServerInfoRequest, ::Gitaly::ServerInfoResponse
+      # This comment is left unintentionally blank.
       rpc :DiskStatistics, ::Gitaly::DiskStatisticsRequest, ::Gitaly::DiskStatisticsResponse
       # ClockSynced checks if machine clock is synced
       # (the offset is less that the one passed in the request).

@@ -6,6 +6,9 @@ require 'namespace_pb'
 
 module Gitaly
   module NamespaceService
+    # NamespaceService is a service which provides RPCs to manage namespaces of a
+    # storage. Namespaces had been used before Gitaly migrated to hashed storages
+    # and shouldn't be used nowadays anymore.
     class Service
 
       include ::GRPC::GenericService
@@ -14,9 +17,13 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.NamespaceService'
 
+      # This comment is left unintentionally blank.
       rpc :AddNamespace, ::Gitaly::AddNamespaceRequest, ::Gitaly::AddNamespaceResponse
+      # This comment is left unintentionally blank.
       rpc :RemoveNamespace, ::Gitaly::RemoveNamespaceRequest, ::Gitaly::RemoveNamespaceResponse
+      # This comment is left unintentionally blank.
       rpc :RenameNamespace, ::Gitaly::RenameNamespaceRequest, ::Gitaly::RenameNamespaceResponse
+      # This comment is left unintentionally blank.
       rpc :NamespaceExists, ::Gitaly::NamespaceExistsRequest, ::Gitaly::NamespaceExistsResponse
     end
 

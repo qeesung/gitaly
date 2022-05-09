@@ -7,12 +7,20 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// ObjectPoolService is a service containing RPCs to manipulate object pools.
+// An object pool is a separate repository that can be linked to from multiple
+// satellite repositories in order to deduplicate common objects between them.
+// This is mostly used in the contexet of repository forks.
 service ObjectPoolService {
+
+  // This comment is left unintentionally blank.
   rpc CreateObjectPool(CreateObjectPoolRequest) returns (CreateObjectPoolResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc DeleteObjectPool(DeleteObjectPoolRequest) returns (DeleteObjectPoolResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -26,77 +34,114 @@ service ObjectPoolService {
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc ReduplicateRepository(ReduplicateRepositoryRequest) returns (ReduplicateRepositoryResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc DisconnectGitAlternates(DisconnectGitAlternatesRequest) returns (DisconnectGitAlternatesResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc FetchIntoObjectPool(FetchIntoObjectPoolRequest) returns (FetchIntoObjectPoolResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc GetObjectPool(GetObjectPoolRequest) returns (GetObjectPoolResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
 }
 
 // Creates an object pool from the repository. The client is responsible for
 // joining this pool later with this repository.
 message CreateObjectPoolRequest {
+  // This comment is left unintentionally blank.
   ObjectPool object_pool = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   Repository origin = 2 [(additional_repository)=true];
 }
+
+// This comment is left unintentionally blank.
 message CreateObjectPoolResponse {
 }
 
 // Removes the directory from disk, caller is responsible for leaving the object
 // pool before calling this RPC
 message DeleteObjectPoolRequest {
+  // This comment is left unintentionally blank.
   ObjectPool object_pool = 1 [(target_repository)=true];
 }
+
+// This comment is left unintentionally blank.
 message DeleteObjectPoolResponse {
 }
 
+// This comment is left unintentionally blank.
 message LinkRepositoryToObjectPoolRequest {
+  // This comment is left unintentionally blank.
   ObjectPool object_pool = 1 [(additional_repository)=true];
+  // This comment is left unintentionally blank.
   Repository repository = 2 [(target_repository)=true];
 }
+
+// This comment is left unintentionally blank.
 message LinkRepositoryToObjectPoolResponse {
 }
 
+// This comment is left unintentionally blank.
 message ReduplicateRepositoryRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
+
+// This comment is left unintentionally blank.
 message ReduplicateRepositoryResponse {
 }
 
+// This comment is left unintentionally blank.
 message DisconnectGitAlternatesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1  [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message DisconnectGitAlternatesResponse {
 }
 
+// This comment is left unintentionally blank.
 message FetchIntoObjectPoolRequest {
+  // This comment is left unintentionally blank.
   Repository origin = 1 [(additional_repository)=true];
+  // This comment is left unintentionally blank.
   ObjectPool object_pool = 2 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bool repack = 3;
 }
+
+// This comment is left unintentionally blank.
 message FetchIntoObjectPoolResponse {
 }
 
+// This comment is left unintentionally blank.
 message GetObjectPoolRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message GetObjectPoolResponse {
+  // This comment is left unintentionally blank.
   ObjectPool object_pool = 1;
 }

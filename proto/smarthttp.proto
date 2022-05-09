@@ -7,6 +7,8 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// SmartHTTPService is a service that provides RPCs required for HTTP-based Git
+// clones via the smart HTTP protocol.
 service SmartHTTPService {
   // The response body for GET /info/refs?service=git-upload-pack
   // Will be invoked when the user executes a `git fetch`, meaning the server
@@ -48,7 +50,9 @@ service SmartHTTPService {
   }
 }
 
+// This comment is left unintentionally blank.
 message InfoRefsRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // Parameters to use with git -c (key=value pairs)
   repeated string git_config_options = 2;
@@ -57,10 +61,13 @@ message InfoRefsRequest {
   string git_protocol = 3;
 }
 
+// This comment is left unintentionally blank.
 message InfoRefsResponse {
+  // This comment is left unintentionally blank.
   bytes data = 1;
 }
 
+// This comment is left unintentionally blank.
 message PostUploadPackRequest {
   // repository should only be present in the first message of the stream
   Repository repository = 1 [(target_repository)=true];
@@ -73,11 +80,13 @@ message PostUploadPackRequest {
   string git_protocol = 4;
 }
 
+// This comment is left unintentionally blank.
 message PostUploadPackResponse {
   // Raw data from stdout of 'git upload-pack'
   bytes data = 1;
 }
 
+// This comment is left unintentionally blank.
 message PostUploadPackWithSidechannelRequest {
   // repository should only be present in the first message of the stream
   Repository repository = 1 [(target_repository)=true];
@@ -87,9 +96,11 @@ message PostUploadPackWithSidechannelRequest {
   string git_protocol = 3;
 }
 
+// This comment is left unintentionally blank.
 message PostUploadPackWithSidechannelResponse {
 }
 
+// This comment is left unintentionally blank.
 message PostReceivePackRequest {
   // repository should only be present in the first message of the stream
   Repository repository = 1 [(target_repository)=true];
@@ -98,7 +109,9 @@ message PostReceivePackRequest {
   // gl_id, gl_repository, and gl_username become env variables, used by the Git {pre,post}-receive
   // hooks. They should only be present in the first message of the stream.
   string gl_id = 3;
+  // This comment is left unintentionally blank.
   string gl_repository = 4;
+  // This comment is left unintentionally blank.
   string gl_username = 5;
   // Git protocol version
   string git_protocol = 6;
@@ -107,6 +120,7 @@ message PostReceivePackRequest {
   repeated string git_config_options = 7;
 }
 
+// This comment is left unintentionally blank.
 message PostReceivePackResponse {
   // Raw data from stdout of 'git receive-pack'
   bytes data = 1;

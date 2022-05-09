@@ -18,11 +18,15 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WikiServiceClient interface {
+	// This comment is left unintentionally blank.
 	WikiWritePage(ctx context.Context, opts ...grpc.CallOption) (WikiService_WikiWritePageClient, error)
+	// This comment is left unintentionally blank.
 	WikiUpdatePage(ctx context.Context, opts ...grpc.CallOption) (WikiService_WikiUpdatePageClient, error)
 	// WikiFindPage returns a stream because the page's raw_data field may be arbitrarily large.
 	WikiFindPage(ctx context.Context, in *WikiFindPageRequest, opts ...grpc.CallOption) (WikiService_WikiFindPageClient, error)
+	// This comment is left unintentionally blank.
 	WikiGetAllPages(ctx context.Context, in *WikiGetAllPagesRequest, opts ...grpc.CallOption) (WikiService_WikiGetAllPagesClient, error)
+	// This comment is left unintentionally blank.
 	WikiListPages(ctx context.Context, in *WikiListPagesRequest, opts ...grpc.CallOption) (WikiService_WikiListPagesClient, error)
 }
 
@@ -202,11 +206,15 @@ func (x *wikiServiceWikiListPagesClient) Recv() (*WikiListPagesResponse, error) 
 // All implementations must embed UnimplementedWikiServiceServer
 // for forward compatibility
 type WikiServiceServer interface {
+	// This comment is left unintentionally blank.
 	WikiWritePage(WikiService_WikiWritePageServer) error
+	// This comment is left unintentionally blank.
 	WikiUpdatePage(WikiService_WikiUpdatePageServer) error
 	// WikiFindPage returns a stream because the page's raw_data field may be arbitrarily large.
 	WikiFindPage(*WikiFindPageRequest, WikiService_WikiFindPageServer) error
+	// This comment is left unintentionally blank.
 	WikiGetAllPages(*WikiGetAllPagesRequest, WikiService_WikiGetAllPagesServer) error
+	// This comment is left unintentionally blank.
 	WikiListPages(*WikiListPagesRequest, WikiService_WikiListPagesServer) error
 	mustEmbedUnimplementedWikiServiceServer()
 }

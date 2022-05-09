@@ -18,7 +18,28 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RefTransactionClient interface {
+	// VoteTransaction casts a vote on a transaction to establish whether the
+	// node is doing the same change as all the other nodes part of the
+	// transaction. This RPC blocks until quorum has been reached, which may be
+	// _before_ all nodes have cast a vote.
+	//
+	// This RPC may return one of the following error codes:
+	//
+	// - `NotFound` in case the transaction could not be found.
+	// - `Canceled` in case the transaction has been canceled before quorum was
+	//   reached.
 	VoteTransaction(ctx context.Context, in *VoteTransactionRequest, opts ...grpc.CallOption) (*VoteTransactionResponse, error)
+	// StopTransaction gracefully stops a transaction. This RPC can be used if
+	// only a subset of nodes executes specific code which may cause the
+	// transaction to fail. One such example is Git hooks, which only execute on
+	// the primary Gitaly noded. Other nodes which vote on this transaction will
+	// get a response with the `STOP` state being set.
+	//
+	// This RPC may return one of the following error codes:
+	//
+	// - `NotFound` in case the transaction could not be found.
+	// - `Canceled` in case the transaction has been canceled before quorum was
+	//   reached.
 	StopTransaction(ctx context.Context, in *StopTransactionRequest, opts ...grpc.CallOption) (*StopTransactionResponse, error)
 }
 
@@ -52,7 +73,28 @@ func (c *refTransactionClient) StopTransaction(ctx context.Context, in *StopTran
 // All implementations must embed UnimplementedRefTransactionServer
 // for forward compatibility
 type RefTransactionServer interface {
+	// VoteTransaction casts a vote on a transaction to establish whether the
+	// node is doing the same change as all the other nodes part of the
+	// transaction. This RPC blocks until quorum has been reached, which may be
+	// _before_ all nodes have cast a vote.
+	//
+	// This RPC may return one of the following error codes:
+	//
+	// - `NotFound` in case the transaction could not be found.
+	// - `Canceled` in case the transaction has been canceled before quorum was
+	//   reached.
 	VoteTransaction(context.Context, *VoteTransactionRequest) (*VoteTransactionResponse, error)
+	// StopTransaction gracefully stops a transaction. This RPC can be used if
+	// only a subset of nodes executes specific code which may cause the
+	// transaction to fail. One such example is Git hooks, which only execute on
+	// the primary Gitaly noded. Other nodes which vote on this transaction will
+	// get a response with the `STOP` state being set.
+	//
+	// This RPC may return one of the following error codes:
+	//
+	// - `NotFound` in case the transaction could not be found.
+	// - `Canceled` in case the transaction has been canceled before quorum was
+	//   reached.
 	StopTransaction(context.Context, *StopTransactionRequest) (*StopTransactionResponse, error)
 	mustEmbedUnimplementedRefTransactionServer()
 }

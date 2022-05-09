@@ -18,28 +18,39 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RefServiceClient interface {
+	// This comment is left unintentionally blank.
 	FindDefaultBranchName(ctx context.Context, in *FindDefaultBranchNameRequest, opts ...grpc.CallOption) (*FindDefaultBranchNameResponse, error)
+	// This comment is left unintentionally blank.
 	FindAllBranchNames(ctx context.Context, in *FindAllBranchNamesRequest, opts ...grpc.CallOption) (RefService_FindAllBranchNamesClient, error)
+	// This comment is left unintentionally blank.
 	FindAllTagNames(ctx context.Context, in *FindAllTagNamesRequest, opts ...grpc.CallOption) (RefService_FindAllTagNamesClient, error)
 	// Return a stream so we can divide the response in chunks of branches
 	FindLocalBranches(ctx context.Context, in *FindLocalBranchesRequest, opts ...grpc.CallOption) (RefService_FindLocalBranchesClient, error)
+	// This comment is left unintentionally blank.
 	FindAllBranches(ctx context.Context, in *FindAllBranchesRequest, opts ...grpc.CallOption) (RefService_FindAllBranchesClient, error)
 	// Returns a stream of tags repository has.
 	FindAllTags(ctx context.Context, in *FindAllTagsRequest, opts ...grpc.CallOption) (RefService_FindAllTagsClient, error)
+	// This comment is left unintentionally blank.
 	FindTag(ctx context.Context, in *FindTagRequest, opts ...grpc.CallOption) (*FindTagResponse, error)
+	// This comment is left unintentionally blank.
 	FindAllRemoteBranches(ctx context.Context, in *FindAllRemoteBranchesRequest, opts ...grpc.CallOption) (RefService_FindAllRemoteBranchesClient, error)
+	// This comment is left unintentionally blank.
 	RefExists(ctx context.Context, in *RefExistsRequest, opts ...grpc.CallOption) (*RefExistsResponse, error)
 	// FindBranch finds a branch by its unqualified name (like "master") and
 	// returns the commit it currently points to.
 	FindBranch(ctx context.Context, in *FindBranchRequest, opts ...grpc.CallOption) (*FindBranchResponse, error)
+	// This comment is left unintentionally blank.
 	DeleteRefs(ctx context.Context, in *DeleteRefsRequest, opts ...grpc.CallOption) (*DeleteRefsResponse, error)
+	// This comment is left unintentionally blank.
 	ListBranchNamesContainingCommit(ctx context.Context, in *ListBranchNamesContainingCommitRequest, opts ...grpc.CallOption) (RefService_ListBranchNamesContainingCommitClient, error)
+	// This comment is left unintentionally blank.
 	ListTagNamesContainingCommit(ctx context.Context, in *ListTagNamesContainingCommitRequest, opts ...grpc.CallOption) (RefService_ListTagNamesContainingCommitClient, error)
 	// GetTagSignatures returns signatures for annotated tags resolved from a set of revisions. Revisions
 	// which don't resolve to an annotated tag are silently discarded. Revisions which cannot be resolved
 	// result in an error. Tags which are annotated but not signed will return a TagSignature response
 	// which has no signature, but its unsigned contents will still be returned.
 	GetTagSignatures(ctx context.Context, in *GetTagSignaturesRequest, opts ...grpc.CallOption) (RefService_GetTagSignaturesClient, error)
+	// This comment is left unintentionally blank.
 	GetTagMessages(ctx context.Context, in *GetTagMessagesRequest, opts ...grpc.CallOption) (RefService_GetTagMessagesClient, error)
 	// Deprecated: Do not use.
 	// PackRefs is deprecated in favor of OptimizeRepository.
@@ -482,28 +493,39 @@ func (c *refServiceClient) FindRefsByOID(ctx context.Context, in *FindRefsByOIDR
 // All implementations must embed UnimplementedRefServiceServer
 // for forward compatibility
 type RefServiceServer interface {
+	// This comment is left unintentionally blank.
 	FindDefaultBranchName(context.Context, *FindDefaultBranchNameRequest) (*FindDefaultBranchNameResponse, error)
+	// This comment is left unintentionally blank.
 	FindAllBranchNames(*FindAllBranchNamesRequest, RefService_FindAllBranchNamesServer) error
+	// This comment is left unintentionally blank.
 	FindAllTagNames(*FindAllTagNamesRequest, RefService_FindAllTagNamesServer) error
 	// Return a stream so we can divide the response in chunks of branches
 	FindLocalBranches(*FindLocalBranchesRequest, RefService_FindLocalBranchesServer) error
+	// This comment is left unintentionally blank.
 	FindAllBranches(*FindAllBranchesRequest, RefService_FindAllBranchesServer) error
 	// Returns a stream of tags repository has.
 	FindAllTags(*FindAllTagsRequest, RefService_FindAllTagsServer) error
+	// This comment is left unintentionally blank.
 	FindTag(context.Context, *FindTagRequest) (*FindTagResponse, error)
+	// This comment is left unintentionally blank.
 	FindAllRemoteBranches(*FindAllRemoteBranchesRequest, RefService_FindAllRemoteBranchesServer) error
+	// This comment is left unintentionally blank.
 	RefExists(context.Context, *RefExistsRequest) (*RefExistsResponse, error)
 	// FindBranch finds a branch by its unqualified name (like "master") and
 	// returns the commit it currently points to.
 	FindBranch(context.Context, *FindBranchRequest) (*FindBranchResponse, error)
+	// This comment is left unintentionally blank.
 	DeleteRefs(context.Context, *DeleteRefsRequest) (*DeleteRefsResponse, error)
+	// This comment is left unintentionally blank.
 	ListBranchNamesContainingCommit(*ListBranchNamesContainingCommitRequest, RefService_ListBranchNamesContainingCommitServer) error
+	// This comment is left unintentionally blank.
 	ListTagNamesContainingCommit(*ListTagNamesContainingCommitRequest, RefService_ListTagNamesContainingCommitServer) error
 	// GetTagSignatures returns signatures for annotated tags resolved from a set of revisions. Revisions
 	// which don't resolve to an annotated tag are silently discarded. Revisions which cannot be resolved
 	// result in an error. Tags which are annotated but not signed will return a TagSignature response
 	// which has no signature, but its unsigned contents will still be returned.
 	GetTagSignatures(*GetTagSignaturesRequest, RefService_GetTagSignaturesServer) error
+	// This comment is left unintentionally blank.
 	GetTagMessages(*GetTagMessagesRequest, RefService_GetTagMessagesServer) error
 	// Deprecated: Do not use.
 	// PackRefs is deprecated in favor of OptimizeRepository.

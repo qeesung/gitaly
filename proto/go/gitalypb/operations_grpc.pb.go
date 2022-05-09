@@ -18,11 +18,15 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OperationServiceClient interface {
+	// This comment is left unintentionally blank.
 	UserCreateBranch(ctx context.Context, in *UserCreateBranchRequest, opts ...grpc.CallOption) (*UserCreateBranchResponse, error)
+	// This comment is left unintentionally blank.
 	UserUpdateBranch(ctx context.Context, in *UserUpdateBranchRequest, opts ...grpc.CallOption) (*UserUpdateBranchResponse, error)
+	// This comment is left unintentionally blank.
 	UserDeleteBranch(ctx context.Context, in *UserDeleteBranchRequest, opts ...grpc.CallOption) (*UserDeleteBranchResponse, error)
 	// UserCreateTag creates a new tag.
 	UserCreateTag(ctx context.Context, in *UserCreateTagRequest, opts ...grpc.CallOption) (*UserCreateTagResponse, error)
+	// This comment is left unintentionally blank.
 	UserDeleteTag(ctx context.Context, in *UserDeleteTagRequest, opts ...grpc.CallOption) (*UserDeleteTagResponse, error)
 	// UserMergeRef creates a merge commit and updates target_ref to point to that
 	// new commit. The first parent of the merge commit (the main line) is taken
@@ -316,11 +320,15 @@ func (c *operationServiceClient) UserUpdateSubmodule(ctx context.Context, in *Us
 // All implementations must embed UnimplementedOperationServiceServer
 // for forward compatibility
 type OperationServiceServer interface {
+	// This comment is left unintentionally blank.
 	UserCreateBranch(context.Context, *UserCreateBranchRequest) (*UserCreateBranchResponse, error)
+	// This comment is left unintentionally blank.
 	UserUpdateBranch(context.Context, *UserUpdateBranchRequest) (*UserUpdateBranchResponse, error)
+	// This comment is left unintentionally blank.
 	UserDeleteBranch(context.Context, *UserDeleteBranchRequest) (*UserDeleteBranchResponse, error)
 	// UserCreateTag creates a new tag.
 	UserCreateTag(context.Context, *UserCreateTagRequest) (*UserCreateTagResponse, error)
+	// This comment is left unintentionally blank.
 	UserDeleteTag(context.Context, *UserDeleteTagRequest) (*UserDeleteTagResponse, error)
 	// UserMergeRef creates a merge commit and updates target_ref to point to that
 	// new commit. The first parent of the merge commit (the main line) is taken

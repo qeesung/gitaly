@@ -20,11 +20,15 @@ service InternalGitaly {
   }
 }
 
+// This comment is left unintentionally blank.
 message WalkReposRequest {
+  // This comment is left unintentionally blank.
   string storage_name = 1 [(storage)=true];
 }
 
+// This comment is left unintentionally blank.
 message WalkReposResponse {
+  // This comment is left unintentionally blank.
   string relative_path = 1;
   // modification_time is the modification time of the repository directory.
   // This can be used as a proxy for when the repository was last

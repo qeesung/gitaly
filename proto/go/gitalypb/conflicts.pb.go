@@ -21,14 +21,18 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// This comment is left unintentionally blank.
 type ListConflictFilesRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Repository     *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	OurCommitOid   string      `protobuf:"bytes,2,opt,name=our_commit_oid,json=ourCommitOid,proto3" json:"our_commit_oid,omitempty"`
-	TheirCommitOid string      `protobuf:"bytes,3,opt,name=their_commit_oid,json=theirCommitOid,proto3" json:"their_commit_oid,omitempty"`
+	// This comment is left unintentionally blank.
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	// This comment is left unintentionally blank.
+	OurCommitOid string `protobuf:"bytes,2,opt,name=our_commit_oid,json=ourCommitOid,proto3" json:"our_commit_oid,omitempty"`
+	// This comment is left unintentionally blank.
+	TheirCommitOid string `protobuf:"bytes,3,opt,name=their_commit_oid,json=theirCommitOid,proto3" json:"their_commit_oid,omitempty"`
 	// AllowTreeConflicts will not cause the request to fail in case there are
 	// tree conflicts. If set to true, then responses may contain conflict files
 	// where some of the paths are unset.
@@ -95,15 +99,21 @@ func (x *ListConflictFilesRequest) GetAllowTreeConflicts() bool {
 	return false
 }
 
+// This comment is left unintentionally blank.
 type ConflictFileHeader struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	CommitOid    string `protobuf:"bytes,2,opt,name=commit_oid,json=commitOid,proto3" json:"commit_oid,omitempty"`
-	TheirPath    []byte `protobuf:"bytes,3,opt,name=their_path,json=theirPath,proto3" json:"their_path,omitempty"`
-	OurPath      []byte `protobuf:"bytes,4,opt,name=our_path,json=ourPath,proto3" json:"our_path,omitempty"`
-	OurMode      int32  `protobuf:"varint,5,opt,name=our_mode,json=ourMode,proto3" json:"our_mode,omitempty"`
+	// This comment is left unintentionally blank.
+	CommitOid string `protobuf:"bytes,2,opt,name=commit_oid,json=commitOid,proto3" json:"commit_oid,omitempty"`
+	// This comment is left unintentionally blank.
+	TheirPath []byte `protobuf:"bytes,3,opt,name=their_path,json=theirPath,proto3" json:"their_path,omitempty"`
+	// This comment is left unintentionally blank.
+	OurPath []byte `protobuf:"bytes,4,opt,name=our_path,json=ourPath,proto3" json:"our_path,omitempty"`
+	// This comment is left unintentionally blank.
+	OurMode int32 `protobuf:"varint,5,opt,name=our_mode,json=ourMode,proto3" json:"our_mode,omitempty"`
+	// This comment is left unintentionally blank.
 	AncestorPath []byte `protobuf:"bytes,6,opt,name=ancestor_path,json=ancestorPath,proto3" json:"ancestor_path,omitempty"`
 }
 
@@ -174,6 +184,7 @@ func (x *ConflictFileHeader) GetAncestorPath() []byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type ConflictFile struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -243,10 +254,12 @@ type isConflictFile_ConflictFilePayload interface {
 }
 
 type ConflictFile_Header struct {
+	// This comment is left unintentionally blank.
 	Header *ConflictFileHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"`
 }
 
 type ConflictFile_Content struct {
+	// This comment is left unintentionally blank.
 	Content []byte `protobuf:"bytes,2,opt,name=content,proto3,oneof"`
 }
 
@@ -254,11 +267,13 @@ func (*ConflictFile_Header) isConflictFile_ConflictFilePayload() {}
 
 func (*ConflictFile_Content) isConflictFile_ConflictFilePayload() {}
 
+// This comment is left unintentionally blank.
 type ListConflictFilesResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Files []*ConflictFile `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
 }
 

@@ -7,7 +7,10 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// RepositoryService is a service providing RPCs accessing repositories as a whole.
 service RepositoryService {
+
+  // This comment is left unintentionally blank.
   rpc RepositoryExists(RepositoryExistsRequest) returns (RepositoryExistsResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -54,11 +57,14 @@ service RepositoryService {
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc RepositorySize(RepositorySizeRequest) returns (RepositorySizeResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc ApplyGitattributes(ApplyGitattributesRequest) returns (ApplyGitattributesResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -72,16 +78,22 @@ service RepositoryService {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc CreateRepository(CreateRepositoryRequest) returns (CreateRepositoryResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc GetArchive(GetArchiveRequest) returns (stream GetArchiveResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc HasLocalBranches(HasLocalBranchesRequest) returns (HasLocalBranchesResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -95,27 +107,36 @@ service RepositoryService {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc Fsck(FsckRequest) returns (FsckResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc WriteRef(WriteRefRequest) returns (WriteRefResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc FindMergeBase(FindMergeBaseRequest) returns (FindMergeBaseResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc CreateFork(CreateForkRequest) returns (CreateForkResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc CreateRepositoryFromURL(CreateRepositoryFromURLRequest) returns (CreateRepositoryFromURLResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -146,6 +167,7 @@ service RepositoryService {
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc CreateRepositoryFromBundle(stream CreateRepositoryFromBundleRequest) returns (CreateRepositoryFromBundleResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -160,16 +182,21 @@ service RepositoryService {
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc FindLicense(FindLicenseRequest) returns (FindLicenseResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc GetInfoAttributes(GetInfoAttributesRequest) returns (stream GetInfoAttributesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc CalculateChecksum(CalculateChecksumRequest) returns (CalculateChecksumResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -184,46 +211,62 @@ service RepositoryService {
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc GetSnapshot(GetSnapshotRequest) returns (stream GetSnapshotResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc CreateRepositoryFromSnapshot(CreateRepositoryFromSnapshotRequest) returns (CreateRepositoryFromSnapshotResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc GetRawChanges(GetRawChangesRequest) returns (stream GetRawChangesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc SearchFilesByContent(SearchFilesByContentRequest) returns (stream SearchFilesByContentResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc SearchFilesByName(SearchFilesByNameRequest) returns (stream SearchFilesByNameResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc RestoreCustomHooks(stream RestoreCustomHooksRequest) returns (RestoreCustomHooksResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc BackupCustomHooks(BackupCustomHooksRequest) returns (stream BackupCustomHooksResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc GetObjectDirectorySize(GetObjectDirectorySizeRequest) returns (GetObjectDirectorySizeResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
   // RemoveRepository will move the repository to `+gitaly/tmp/<relative_path>_removed` and
   // eventually remove it. This ensures that even on networked filesystems the
   // data is actually removed even if there's someone still handling the data.
@@ -232,11 +275,15 @@ service RepositoryService {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc RenameRepository(RenameRepositoryRequest) returns (RenameRepositoryResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc ReplicateRepository(ReplicateRepositoryRequest) returns (ReplicateRepositoryResponse) {
     option (op_type)  = {
       op: MUTATOR
@@ -283,38 +330,55 @@ service RepositoryService {
   }
 }
 
+// This comment is left unintentionally blank.
 message RepositoryExistsRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message RepositoryExistsResponse {
+  // This comment is left unintentionally blank.
   bool exists = 1;
 }
 
+// This comment is left unintentionally blank.
 message RepackIncrementalRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message RepackIncrementalResponse {
 }
 
+// This comment is left unintentionally blank.
 message RepackFullRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bool create_bitmap = 2;
 }
 
+// This comment is left unintentionally blank.
 message RepackFullResponse {
 }
 
+// This comment is left unintentionally blank.
 message MidxRepackRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message MidxRepackResponse {
 }
 
+// This comment is left unintentionally blank.
 message GarbageCollectRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bool create_bitmap = 2;
   // If set to 'true' the 'gc' will be triggered with '--prune=30.minutes.ago' flag.
   // This will remove dangling objects from the object storage that were not modified in the last 30 minutes.
@@ -324,48 +388,65 @@ message GarbageCollectRequest {
   bool prune = 3;
 }
 
+// This comment is left unintentionally blank.
 message GarbageCollectResponse {
 }
 
+// This comment is left unintentionally blank.
 message WriteCommitGraphRequest {
+  // This comment is left unintentionally blank.
   enum SplitStrategy {
     // SizeMultiple requires to use '--split --size-multiple=4' strategy to create/update commit graph.
     // https://git-scm.com/docs/git-commit-graph#Documentation/git-commit-graph.txt-emwriteem
     // It is a default, there is no need to explicitly set it in the request.
     SizeMultiple = 0; // protolint:disable:this ENUM_FIELD_NAMES_UPPER_SNAKE_CASE
   }
+
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // SplitStrategy is a strategy used to create/update commit graph.
   SplitStrategy splitStrategy = 2; // protolint:disable:this FIELD_NAMES_LOWER_SNAKE_CASE
 }
 
+// This comment is left unintentionally blank.
 message WriteCommitGraphResponse {
 }
 
+// This comment is left unintentionally blank.
 message CleanupRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message CleanupResponse {
 }
 
+// This comment is left unintentionally blank.
 message RepositorySizeRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message RepositorySizeResponse {
   // Repository size in kilobytes
   int64 size = 1;
 }
 
+// This comment is left unintentionally blank.
 message ApplyGitattributesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
 }
 
+// This comment is left unintentionally blank.
 message ApplyGitattributesResponse {
 }
 
+// This comment is left unintentionally blank.
 message FetchBundleRequest {
   // Repository into which the reference shall be fetched.
   Repository repository = 1 [(target_repository)=true];
@@ -377,10 +458,13 @@ message FetchBundleRequest {
   bool update_head = 3;
 }
 
+// This comment is left unintentionally blank.
 message FetchBundleResponse {
 }
 
+// This comment is left unintentionally blank.
 message FetchRemoteRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // force determines if references should be force-updated in case they have
   // diverged.
@@ -389,7 +473,9 @@ message FetchRemoteRequest {
   bool no_tags = 4;
   // timeout specifies a timeout for the fetch.
   int32 timeout = 5;
+  // This comment is left unintentionally blank.
   string ssh_key = 6;
+  // This comment is left unintentionally blank.
   string known_hosts = 7;
   reserved 8;
   // no_prune will the fetch to not prune remote references which do not exist
@@ -407,6 +493,7 @@ message FetchRemoteRequest {
   reserved "remote";
 }
 
+// This comment is left unintentionally blank.
 message FetchRemoteResponse {
   // If check_tags_changed was set in the FetchRemoteRequest, the FetchRemote
   // RPC will return false when no tags were changed, and true if tags were
@@ -414,7 +501,9 @@ message FetchRemoteResponse {
   bool tags_changed = 1;
 }
 
+// This comment is left unintentionally blank.
 message CreateRepositoryRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // Provide a branch name to set as the default branch of a newly created
   // repository. Note, this will be treated as the branch name and not a
@@ -422,22 +511,35 @@ message CreateRepositoryRequest {
   bytes default_branch = 2;
 }
 
+// This comment is left unintentionally blank.
 message CreateRepositoryResponse {
 }
 
+// This comment is left unintentionally blank.
 message GetArchiveRequest {
+  // This comment is left unintentionally blank.
   enum Format {
+    // This comment is left unintentionally blank.
     ZIP = 0;
+    // This comment is left unintentionally blank.
     TAR = 1;
+    // This comment is left unintentionally blank.
     TAR_GZ = 2;
+    // This comment is left unintentionally blank.
     TAR_BZ2 = 3;
   }
 
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string commit_id = 2;
+  // This comment is left unintentionally blank.
   string prefix = 3;
+  // This comment is left unintentionally blank.
   Format format = 4;
+  // This comment is left unintentionally blank.
   bytes path = 5;
+  // This comment is left unintentionally blank.
   repeated bytes exclude = 6; // protolint:disable:this REPEATED_FIELD_NAMES_PLURALIZED
   // If `elide_path` is true and `path` refers to a subdirectory, that
   // subdirectory will be elided from archive entries. For example, if `dir`
@@ -446,21 +548,29 @@ message GetArchiveRequest {
   // `README.md`. `elide_path` has no effect if `path` refers to the repository
   // root. `elide_path = true` is not supported if `path` refers to a file.
   bool elide_path = 7;
+  // This comment is left unintentionally blank.
   bool include_lfs_blobs = 8;
 }
 
+// This comment is left unintentionally blank.
 message GetArchiveResponse {
+  // This comment is left unintentionally blank.
   bytes data = 1;
 }
 
+// This comment is left unintentionally blank.
 message HasLocalBranchesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message HasLocalBranchesResponse {
+  // This comment is left unintentionally blank.
   bool value = 1;
 }
 
+// This comment is left unintentionally blank.
 message FetchSourceBranchRequest {
   // Repository into which the reference shall be fetched. After a successful
   // call, it should contain the target reference which points to the same
@@ -475,38 +585,52 @@ message FetchSourceBranchRequest {
   bytes target_ref = 4;
 }
 
+// This comment is left unintentionally blank.
 message FetchSourceBranchResponse {
   // True if the source branch was successfully fetched into the target
   // repository, false if resolving the remote reference or fetching it failed.
   bool result = 1;
 }
 
+// This comment is left unintentionally blank.
 message FsckRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message FsckResponse {
+  // This comment is left unintentionally blank.
   bytes error = 1;
 }
 
+// This comment is left unintentionally blank.
 message WriteRefRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes ref = 2;
+  // This comment is left unintentionally blank.
   bytes revision = 3;
+  // This comment is left unintentionally blank.
   bytes old_revision = 4;
+  // This comment is left unintentionally blank.
   bool force = 5;
   // This used to be a boolean indicating whether or not to shell out or use
   // the rugged implementation
   reserved 6;
 }
 
+// This comment is left unintentionally blank.
 message WriteRefResponse {
   // This used to contain an error message. Since we're shelling out
   // all exceptions are wrapped in GRPC errors.
   reserved 1;
 }
 
+// This comment is left unintentionally blank.
 message FindMergeBaseRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // We use a repeated field because rugged supports finding a base
   // for more than 2 revisions, so if we needed that in the future we don't
@@ -514,20 +638,29 @@ message FindMergeBaseRequest {
   repeated bytes revisions = 2;
 }
 
+// This comment is left unintentionally blank.
 message FindMergeBaseResponse {
+  // This comment is left unintentionally blank.
   string base = 1;
 }
 
+// This comment is left unintentionally blank.
 message CreateForkRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   Repository source_repository = 2;
 }
 
+// This comment is left unintentionally blank.
 message CreateForkResponse {
 }
 
+// This comment is left unintentionally blank.
 message CreateRepositoryFromURLRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string url = 2;
   // HttpHost is the hostname of the remote repository. Use this when the
   // URL hostname has already been resolved to an IP address to prevent DNS
@@ -544,17 +677,23 @@ message CreateRepositoryFromURLRequest {
   bool mirror = 5;
 }
 
+// This comment is left unintentionally blank.
 message CreateRepositoryFromURLResponse {
 }
 
+// This comment is left unintentionally blank.
 message CreateBundleRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message CreateBundleResponse {
+  // This comment is left unintentionally blank.
   bytes data = 1;
 }
 
+// This comment is left unintentionally blank.
 message CreateBundleFromRefListRequest {
   // Repository is the repository that the bundle is created from.
   Repository repository = 1 [(target_repository)=true];
@@ -565,7 +704,9 @@ message CreateBundleFromRefListRequest {
   repeated bytes patterns = 2;
 }
 
+// This comment is left unintentionally blank.
 message CreateBundleFromRefListResponse {
+  // This comment is left unintentionally blank.
   bytes data = 1;
 }
 
@@ -582,66 +723,97 @@ message GetConfigResponse {
   bytes data = 1;
 }
 
+// This comment is left unintentionally blank.
 message  RestoreCustomHooksRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes data = 2;
 }
 
+// This comment is left unintentionally blank.
 message RestoreCustomHooksResponse {
 }
 
+// This comment is left unintentionally blank.
 message BackupCustomHooksRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message BackupCustomHooksResponse {
+  // This comment is left unintentionally blank.
   bytes data = 1;
 }
 
+// This comment is left unintentionally blank.
 message CreateRepositoryFromBundleRequest {
   // Only available on the first message
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes data = 2;
 }
 
+// This comment is left unintentionally blank.
 message CreateRepositoryFromBundleResponse {
 }
 
+// This comment is left unintentionally blank.
 message FindLicenseRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message FindLicenseResponse {
+  // This comment is left unintentionally blank.
   string license_short_name = 1;
 }
 
+// This comment is left unintentionally blank.
 message GetInfoAttributesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message GetInfoAttributesResponse {
+  // This comment is left unintentionally blank.
   bytes attributes = 1;
 }
 
+// This comment is left unintentionally blank.
 message CalculateChecksumRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message CalculateChecksumResponse {
+  // This comment is left unintentionally blank.
   string checksum = 1;
 }
 
+// This comment is left unintentionally blank.
 message GetSnapshotRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message GetSnapshotResponse {
+  // This comment is left unintentionally blank.
   bytes data = 1;
 }
 
+// This comment is left unintentionally blank.
 message CreateRepositoryFromSnapshotRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string http_url = 2;
+  // This comment is left unintentionally blank.
   string http_auth = 3;
   // HttpHost is the hostname of the remote snapshot. Use this when the
   // URL hostname has already been resolved to an IP address to prevent DNS
@@ -649,28 +821,45 @@ message CreateRepositoryFromSnapshotRequest {
   string http_host = 4;
 }
 
+// This comment is left unintentionally blank.
 message CreateRepositoryFromSnapshotResponse {
 }
 
+// This comment is left unintentionally blank.
 message GetRawChangesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string from_revision = 2;
+  // This comment is left unintentionally blank.
   string to_revision = 3;
 }
 
+// This comment is left unintentionally blank.
 message GetRawChangesResponse {
+  // This comment is left unintentionally blank.
   message RawChange {
+    // This comment is left unintentionally blank.
     enum Operation {
+      // This comment is left unintentionally blank.
       UNKNOWN = 0;
+      // This comment is left unintentionally blank.
       ADDED = 1;
+      // This comment is left unintentionally blank.
       COPIED = 2;
+      // This comment is left unintentionally blank.
       DELETED = 3;
+      // This comment is left unintentionally blank.
       MODIFIED = 4;
+      // This comment is left unintentionally blank.
       RENAMED = 5;
+      // This comment is left unintentionally blank.
       TYPE_CHANGED = 6;
     }
 
+    // This comment is left unintentionally blank.
     string blob_id = 1;
+    // This comment is left unintentionally blank.
     int64 size= 2;
 
     // This used to be a string that is now represented by the field 9 as byte array.
@@ -680,22 +869,32 @@ message GetRawChangesResponse {
     reserved 4;
     reserved "old_path";
 
+    // This comment is left unintentionally blank.
     Operation operation= 5;
+    // This comment is left unintentionally blank.
     string raw_operation = 6;
+    // This comment is left unintentionally blank.
     int32 old_mode = 7;
+    // This comment is left unintentionally blank.
     int32 new_mode = 8;
 
     // the following fields, 9 and 10, will eventually replace 3 and 4
     bytes new_path_bytes = 9;
+    // This comment is left unintentionally blank.
     bytes old_path_bytes = 10;
   }
 
+  // This comment is left unintentionally blank.
   repeated RawChange raw_changes = 1;
 }
 
+// This comment is left unintentionally blank.
 message SearchFilesByNameRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string query = 2;
+  // This comment is left unintentionally blank.
   bytes ref = 3;
   // If `filter` is specified and non-empty, it will be parsed as a regular
   // expression and used to filter the result set before it is transmitted. It is
@@ -705,20 +904,31 @@ message SearchFilesByNameRequest {
   string filter = 4;
 }
 
+// This comment is left unintentionally blank.
 message SearchFilesByNameResponse {
+  // This comment is left unintentionally blank.
   repeated bytes files = 1;
 }
 
+// This comment is left unintentionally blank.
 message SearchFilesByContentRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string query = 2;
+  // This comment is left unintentionally blank.
   bytes ref = 3;
+  // This comment is left unintentionally blank.
   bool chunked_response = 4;
 }
 
+// This comment is left unintentionally blank.
 message SearchFilesByContentResponse {
+  // This comment is left unintentionally blank.
   repeated bytes matches = 1;
+  // This comment is left unintentionally blank.
   bytes match_data = 2;
+  // This comment is left unintentionally blank.
   bool end_of_match = 3;
 }
 
@@ -756,47 +966,66 @@ message Remote {
   reserved "name";
 }
 
+// This comment is left unintentionally blank.
 message GetObjectDirectorySizeRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message GetObjectDirectorySizeResponse {
   // Object directory size in kilobytes
   int64 size = 1;
 }
 
+// This comment is left unintentionally blank.
 message RemoveRepositoryRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message RemoveRepositoryResponse {
 }
+
+// This comment is left unintentionally blank.
 message RenameRepositoryRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string relative_path = 2;
 }
 
+// This comment is left unintentionally blank.
 message RenameRepositoryResponse{
 }
 
+// This comment is left unintentionally blank.
 message ReplicateRepositoryRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   Repository source = 2;
 }
 
+// This comment is left unintentionally blank.
 message ReplicateRepositoryResponse{
 }
 
+// This comment is left unintentionally blank.
 message OptimizeRepositoryRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message OptimizeRepositoryResponse{
 }
 
 // PruneUnreachableObjectsRequest is a request for the PruneUnreachableObjects
 // RPC call.
 message PruneUnreachableObjectsRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 

@@ -18,7 +18,9 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ServerServiceClient interface {
+	// This comment is left unintentionally blank.
 	ServerInfo(ctx context.Context, in *ServerInfoRequest, opts ...grpc.CallOption) (*ServerInfoResponse, error)
+	// This comment is left unintentionally blank.
 	DiskStatistics(ctx context.Context, in *DiskStatisticsRequest, opts ...grpc.CallOption) (*DiskStatisticsResponse, error)
 	// ClockSynced checks if machine clock is synced
 	// (the offset is less that the one passed in the request).
@@ -64,7 +66,9 @@ func (c *serverServiceClient) ClockSynced(ctx context.Context, in *ClockSyncedRe
 // All implementations must embed UnimplementedServerServiceServer
 // for forward compatibility
 type ServerServiceServer interface {
+	// This comment is left unintentionally blank.
 	ServerInfo(context.Context, *ServerInfoRequest) (*ServerInfoResponse, error)
+	// This comment is left unintentionally blank.
 	DiskStatistics(context.Context, *DiskStatisticsRequest) (*DiskStatisticsResponse, error)
 	// ClockSynced checks if machine clock is synced
 	// (the offset is less that the one passed in the request).

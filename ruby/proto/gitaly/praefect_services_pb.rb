@@ -6,6 +6,8 @@ require 'praefect_pb'
 
 module Gitaly
   module PraefectInfoService
+    # PraefectInfoService is a service which provides RPCs to query and modify
+    # Praefect-specific parameters.
     class Service
 
       include ::GRPC::GenericService
@@ -14,6 +16,7 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.PraefectInfoService'
 
+      # This comment is left unintentionally blank.
       rpc :RepositoryReplicas, ::Gitaly::RepositoryReplicasRequest, ::Gitaly::RepositoryReplicasResponse
       # DatalossCheck checks for unavailable repositories.
       rpc :DatalossCheck, ::Gitaly::DatalossCheckRequest, ::Gitaly::DatalossCheckResponse

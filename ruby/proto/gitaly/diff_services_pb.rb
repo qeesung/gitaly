@@ -6,6 +6,8 @@ require 'diff_pb'
 
 module Gitaly
   module DiffService
+    # DiffService is a service which provides RPCs to inspect differences
+    # introduced between a set of commits.
     class Service
 
       include ::GRPC::GenericService
@@ -18,8 +20,11 @@ module Gitaly
       rpc :CommitDiff, ::Gitaly::CommitDiffRequest, stream(::Gitaly::CommitDiffResponse)
       # Return a stream so we can divide the response in chunks of deltas
       rpc :CommitDelta, ::Gitaly::CommitDeltaRequest, stream(::Gitaly::CommitDeltaResponse)
+      # This comment is left unintentionally blank.
       rpc :RawDiff, ::Gitaly::RawDiffRequest, stream(::Gitaly::RawDiffResponse)
+      # This comment is left unintentionally blank.
       rpc :RawPatch, ::Gitaly::RawPatchRequest, stream(::Gitaly::RawPatchResponse)
+      # This comment is left unintentionally blank.
       rpc :DiffStats, ::Gitaly::DiffStatsRequest, stream(::Gitaly::DiffStatsResponse)
       # Return a list of files changed along with the status of each file
       rpc :FindChangedPaths, ::Gitaly::FindChangedPathsRequest, stream(::Gitaly::FindChangedPathsResponse)

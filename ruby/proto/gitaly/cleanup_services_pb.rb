@@ -6,6 +6,7 @@ require 'cleanup_pb'
 
 module Gitaly
   module CleanupService
+    # CleanupService provides RPCs to clean up a repository's contents.
     class Service
 
       include ::GRPC::GenericService
@@ -14,6 +15,7 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.CleanupService'
 
+      # This comment is left unintentionally blank.
       rpc :ApplyBfgObjectMapStream, stream(::Gitaly::ApplyBfgObjectMapStreamRequest), stream(::Gitaly::ApplyBfgObjectMapStreamResponse)
     end
 

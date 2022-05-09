@@ -18,6 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PraefectInfoServiceClient interface {
+	// This comment is left unintentionally blank.
 	RepositoryReplicas(ctx context.Context, in *RepositoryReplicasRequest, opts ...grpc.CallOption) (*RepositoryReplicasResponse, error)
 	// DatalossCheck checks for unavailable repositories.
 	DatalossCheck(ctx context.Context, in *DatalossCheckRequest, opts ...grpc.CallOption) (*DatalossCheckResponse, error)
@@ -107,6 +108,7 @@ func (c *praefectInfoServiceClient) GetRepositoryMetadata(ctx context.Context, i
 // All implementations must embed UnimplementedPraefectInfoServiceServer
 // for forward compatibility
 type PraefectInfoServiceServer interface {
+	// This comment is left unintentionally blank.
 	RepositoryReplicas(context.Context, *RepositoryReplicasRequest) (*RepositoryReplicasResponse, error)
 	// DatalossCheck checks for unavailable repositories.
 	DatalossCheck(context.Context, *DatalossCheckRequest) (*DatalossCheckResponse, error)

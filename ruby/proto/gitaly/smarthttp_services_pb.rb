@@ -6,6 +6,8 @@ require 'smarthttp_pb'
 
 module Gitaly
   module SmartHTTPService
+    # SmartHTTPService is a service that provides RPCs required for HTTP-based Git
+    # clones via the smart HTTP protocol.
     class Service
 
       include ::GRPC::GenericService

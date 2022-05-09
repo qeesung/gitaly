@@ -25,26 +25,45 @@ type CommitServiceClient interface {
 	// ListAllCommits lists all commits present in the repository, including
 	// those not reachable by any reference.
 	ListAllCommits(ctx context.Context, in *ListAllCommitsRequest, opts ...grpc.CallOption) (CommitService_ListAllCommitsClient, error)
+	// This comment is left unintentionally blank.
 	CommitIsAncestor(ctx context.Context, in *CommitIsAncestorRequest, opts ...grpc.CallOption) (*CommitIsAncestorResponse, error)
+	// This comment is left unintentionally blank.
 	TreeEntry(ctx context.Context, in *TreeEntryRequest, opts ...grpc.CallOption) (CommitService_TreeEntryClient, error)
+	// This comment is left unintentionally blank.
 	CountCommits(ctx context.Context, in *CountCommitsRequest, opts ...grpc.CallOption) (*CountCommitsResponse, error)
+	// This comment is left unintentionally blank.
 	CountDivergingCommits(ctx context.Context, in *CountDivergingCommitsRequest, opts ...grpc.CallOption) (*CountDivergingCommitsResponse, error)
+	// This comment is left unintentionally blank.
 	GetTreeEntries(ctx context.Context, in *GetTreeEntriesRequest, opts ...grpc.CallOption) (CommitService_GetTreeEntriesClient, error)
+	// This comment is left unintentionally blank.
 	ListFiles(ctx context.Context, in *ListFilesRequest, opts ...grpc.CallOption) (CommitService_ListFilesClient, error)
+	// This comment is left unintentionally blank.
 	FindCommit(ctx context.Context, in *FindCommitRequest, opts ...grpc.CallOption) (*FindCommitResponse, error)
+	// This comment is left unintentionally blank.
 	CommitStats(ctx context.Context, in *CommitStatsRequest, opts ...grpc.CallOption) (*CommitStatsResponse, error)
 	// Use a stream to paginate the result set
 	FindAllCommits(ctx context.Context, in *FindAllCommitsRequest, opts ...grpc.CallOption) (CommitService_FindAllCommitsClient, error)
+	// This comment is left unintentionally blank.
 	FindCommits(ctx context.Context, in *FindCommitsRequest, opts ...grpc.CallOption) (CommitService_FindCommitsClient, error)
+	// This comment is left unintentionally blank.
 	CommitLanguages(ctx context.Context, in *CommitLanguagesRequest, opts ...grpc.CallOption) (*CommitLanguagesResponse, error)
+	// This comment is left unintentionally blank.
 	RawBlame(ctx context.Context, in *RawBlameRequest, opts ...grpc.CallOption) (CommitService_RawBlameClient, error)
+	// This comment is left unintentionally blank.
 	LastCommitForPath(ctx context.Context, in *LastCommitForPathRequest, opts ...grpc.CallOption) (*LastCommitForPathResponse, error)
+	// This comment is left unintentionally blank.
 	ListLastCommitsForTree(ctx context.Context, in *ListLastCommitsForTreeRequest, opts ...grpc.CallOption) (CommitService_ListLastCommitsForTreeClient, error)
+	// This comment is left unintentionally blank.
 	CommitsByMessage(ctx context.Context, in *CommitsByMessageRequest, opts ...grpc.CallOption) (CommitService_CommitsByMessageClient, error)
+	// This comment is left unintentionally blank.
 	ListCommitsByOid(ctx context.Context, in *ListCommitsByOidRequest, opts ...grpc.CallOption) (CommitService_ListCommitsByOidClient, error)
+	// This comment is left unintentionally blank.
 	ListCommitsByRefName(ctx context.Context, in *ListCommitsByRefNameRequest, opts ...grpc.CallOption) (CommitService_ListCommitsByRefNameClient, error)
+	// This comment is left unintentionally blank.
 	FilterShasWithSignatures(ctx context.Context, opts ...grpc.CallOption) (CommitService_FilterShasWithSignaturesClient, error)
+	// This comment is left unintentionally blank.
 	GetCommitSignatures(ctx context.Context, in *GetCommitSignaturesRequest, opts ...grpc.CallOption) (CommitService_GetCommitSignaturesClient, error)
+	// This comment is left unintentionally blank.
 	GetCommitMessages(ctx context.Context, in *GetCommitMessagesRequest, opts ...grpc.CallOption) (CommitService_GetCommitMessagesClient, error)
 	// CheckObjectsExist will check for the existence of revisions against a
 	// repository. It returns two sets of data. An array containing the revisions
@@ -645,26 +664,45 @@ type CommitServiceServer interface {
 	// ListAllCommits lists all commits present in the repository, including
 	// those not reachable by any reference.
 	ListAllCommits(*ListAllCommitsRequest, CommitService_ListAllCommitsServer) error
+	// This comment is left unintentionally blank.
 	CommitIsAncestor(context.Context, *CommitIsAncestorRequest) (*CommitIsAncestorResponse, error)
+	// This comment is left unintentionally blank.
 	TreeEntry(*TreeEntryRequest, CommitService_TreeEntryServer) error
+	// This comment is left unintentionally blank.
 	CountCommits(context.Context, *CountCommitsRequest) (*CountCommitsResponse, error)
+	// This comment is left unintentionally blank.
 	CountDivergingCommits(context.Context, *CountDivergingCommitsRequest) (*CountDivergingCommitsResponse, error)
+	// This comment is left unintentionally blank.
 	GetTreeEntries(*GetTreeEntriesRequest, CommitService_GetTreeEntriesServer) error
+	// This comment is left unintentionally blank.
 	ListFiles(*ListFilesRequest, CommitService_ListFilesServer) error
+	// This comment is left unintentionally blank.
 	FindCommit(context.Context, *FindCommitRequest) (*FindCommitResponse, error)
+	// This comment is left unintentionally blank.
 	CommitStats(context.Context, *CommitStatsRequest) (*CommitStatsResponse, error)
 	// Use a stream to paginate the result set
 	FindAllCommits(*FindAllCommitsRequest, CommitService_FindAllCommitsServer) error
+	// This comment is left unintentionally blank.
 	FindCommits(*FindCommitsRequest, CommitService_FindCommitsServer) error
+	// This comment is left unintentionally blank.
 	CommitLanguages(context.Context, *CommitLanguagesRequest) (*CommitLanguagesResponse, error)
+	// This comment is left unintentionally blank.
 	RawBlame(*RawBlameRequest, CommitService_RawBlameServer) error
+	// This comment is left unintentionally blank.
 	LastCommitForPath(context.Context, *LastCommitForPathRequest) (*LastCommitForPathResponse, error)
+	// This comment is left unintentionally blank.
 	ListLastCommitsForTree(*ListLastCommitsForTreeRequest, CommitService_ListLastCommitsForTreeServer) error
+	// This comment is left unintentionally blank.
 	CommitsByMessage(*CommitsByMessageRequest, CommitService_CommitsByMessageServer) error
+	// This comment is left unintentionally blank.
 	ListCommitsByOid(*ListCommitsByOidRequest, CommitService_ListCommitsByOidServer) error
+	// This comment is left unintentionally blank.
 	ListCommitsByRefName(*ListCommitsByRefNameRequest, CommitService_ListCommitsByRefNameServer) error
+	// This comment is left unintentionally blank.
 	FilterShasWithSignatures(CommitService_FilterShasWithSignaturesServer) error
+	// This comment is left unintentionally blank.
 	GetCommitSignatures(*GetCommitSignaturesRequest, CommitService_GetCommitSignaturesServer) error
+	// This comment is left unintentionally blank.
 	GetCommitMessages(*GetCommitMessagesRequest, CommitService_GetCommitMessagesServer) error
 	// CheckObjectsExist will check for the existence of revisions against a
 	// repository. It returns two sets of data. An array containing the revisions

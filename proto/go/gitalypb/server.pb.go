@@ -20,6 +20,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// This comment is left unintentionally blank.
 type ServerInfoRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -58,13 +59,17 @@ func (*ServerInfoRequest) Descriptor() ([]byte, []int) {
 	return file_server_proto_rawDescGZIP(), []int{0}
 }
 
+// This comment is left unintentionally blank.
 type ServerInfoResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ServerVersion   string                              `protobuf:"bytes,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
-	GitVersion      string                              `protobuf:"bytes,2,opt,name=git_version,json=gitVersion,proto3" json:"git_version,omitempty"`
+	// This comment is left unintentionally blank.
+	ServerVersion string `protobuf:"bytes,1,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
+	// This comment is left unintentionally blank.
+	GitVersion string `protobuf:"bytes,2,opt,name=git_version,json=gitVersion,proto3" json:"git_version,omitempty"`
+	// This comment is left unintentionally blank.
 	StorageStatuses []*ServerInfoResponse_StorageStatus `protobuf:"bytes,3,rep,name=storage_statuses,json=storageStatuses,proto3" json:"storage_statuses,omitempty"`
 }
 
@@ -121,6 +126,7 @@ func (x *ServerInfoResponse) GetStorageStatuses() []*ServerInfoResponse_StorageS
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type DiskStatisticsRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -159,11 +165,13 @@ func (*DiskStatisticsRequest) Descriptor() ([]byte, []int) {
 	return file_server_proto_rawDescGZIP(), []int{2}
 }
 
+// This comment is left unintentionally blank.
 type DiskStatisticsResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	StorageStatuses []*DiskStatisticsResponse_StorageStatus `protobuf:"bytes,1,rep,name=storage_statuses,json=storageStatuses,proto3" json:"storage_statuses,omitempty"`
 }
 
@@ -206,6 +214,7 @@ func (x *DiskStatisticsResponse) GetStorageStatuses() []*DiskStatisticsResponse_
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type ClockSyncedRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -264,6 +273,7 @@ func (x *ClockSyncedRequest) GetDriftThresholdMillis() int64 {
 	return 0
 }
 
+// This comment is left unintentionally blank.
 type ClockSyncedResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -312,16 +322,23 @@ func (x *ClockSyncedResponse) GetSynced() bool {
 	return false
 }
 
+// This comment is left unintentionally blank.
 type ServerInfoResponse_StorageStatus struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	StorageName       string `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
-	Readable          bool   `protobuf:"varint,2,opt,name=readable,proto3" json:"readable,omitempty"`
-	Writeable         bool   `protobuf:"varint,3,opt,name=writeable,proto3" json:"writeable,omitempty"`
-	FsType            string `protobuf:"bytes,4,opt,name=fs_type,json=fsType,proto3" json:"fs_type,omitempty"`
-	FilesystemId      string `protobuf:"bytes,5,opt,name=filesystem_id,json=filesystemId,proto3" json:"filesystem_id,omitempty"`
+	// This comment is left unintentionally blank.
+	StorageName string `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
+	// This comment is left unintentionally blank.
+	Readable bool `protobuf:"varint,2,opt,name=readable,proto3" json:"readable,omitempty"`
+	// This comment is left unintentionally blank.
+	Writeable bool `protobuf:"varint,3,opt,name=writeable,proto3" json:"writeable,omitempty"`
+	// This comment is left unintentionally blank.
+	FsType string `protobuf:"bytes,4,opt,name=fs_type,json=fsType,proto3" json:"fs_type,omitempty"`
+	// This comment is left unintentionally blank.
+	FilesystemId string `protobuf:"bytes,5,opt,name=filesystem_id,json=filesystemId,proto3" json:"filesystem_id,omitempty"`
+	// This comment is left unintentionally blank.
 	ReplicationFactor uint32 `protobuf:"varint,6,opt,name=replication_factor,json=replicationFactor,proto3" json:"replication_factor,omitempty"`
 }
 
@@ -399,6 +416,7 @@ func (x *ServerInfoResponse_StorageStatus) GetReplicationFactor() uint32 {
 	return 0
 }
 
+// This comment is left unintentionally blank.
 type DiskStatisticsResponse_StorageStatus struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -407,8 +425,10 @@ type DiskStatisticsResponse_StorageStatus struct {
 	// When both available and used fields are equal 0 that means that
 	// Gitaly was unable to determine storage stats.
 	StorageName string `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
-	Available   int64  `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
-	Used        int64  `protobuf:"varint,3,opt,name=used,proto3" json:"used,omitempty"`
+	// This comment is left unintentionally blank.
+	Available int64 `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	// This comment is left unintentionally blank.
+	Used int64 `protobuf:"varint,3,opt,name=used,proto3" json:"used,omitempty"`
 }
 
 func (x *DiskStatisticsResponse_StorageStatus) Reset() {
@@ -520,7 +540,7 @@ var file_server_proto_rawDesc = []byte{
 	0x73, 0x22, 0x2d, 0x0a, 0x13, 0x43, 0x6c, 0x6f, 0x63, 0x6b, 0x53, 0x79, 0x6e, 0x63, 0x65, 0x64,
 	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x79, 0x6e, 0x63,
 	0x65, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x73, 0x79, 0x6e, 0x63, 0x65, 0x64,
-	0x32, 0xf5, 0x01, 0x0a, 0x0d, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69,
+	0x32, 0xf3, 0x01, 0x0a, 0x0d, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69,
 	0x63, 0x65, 0x12, 0x43, 0x0a, 0x0a, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f,
 	0x12, 0x19, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72,
 	0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x67, 0x69,
@@ -530,16 +550,16 @@ var file_server_proto_rawDesc = []byte{
 	0x6c, 0x79, 0x2e, 0x44, 0x69, 0x73, 0x6b, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63,
 	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c,
 	0x79, 0x2e, 0x44, 0x69, 0x73, 0x6b, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x48, 0x0a, 0x0b, 0x43, 0x6c, 0x6f, 0x63,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x46, 0x0a, 0x0b, 0x43, 0x6c, 0x6f, 0x63,
 	0x6b, 0x53, 0x79, 0x6e, 0x63, 0x65, 0x64, 0x12, 0x1a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79,
 	0x2e, 0x43, 0x6c, 0x6f, 0x63, 0x6b, 0x53, 0x79, 0x6e, 0x63, 0x65, 0x64, 0x52, 0x65, 0x71, 0x75,
 	0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x43, 0x6c, 0x6f,
 	0x63, 0x6b, 0x53, 0x79, 0x6e, 0x63, 0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x22, 0x00, 0x1a, 0x04, 0xf0, 0x97, 0x28, 0x01, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x6c,
-	0x61, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2d, 0x6f, 0x72,
-	0x67, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x34, 0x2f, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x70, 0x62, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x1a, 0x04, 0xf0, 0x97, 0x28, 0x01, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62,
+	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2d, 0x6f, 0x72, 0x67, 0x2f,
+	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x34, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2f, 0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (

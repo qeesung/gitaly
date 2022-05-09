@@ -24,6 +24,7 @@ type RemoteServiceClient interface {
 	// deleted from the mirror. UpdateRemoteMirror updates all tags. Branches are updated if they match
 	// the patterns specified in the requests.
 	UpdateRemoteMirror(ctx context.Context, opts ...grpc.CallOption) (RemoteService_UpdateRemoteMirrorClient, error)
+	// This comment is left unintentionally blank.
 	FindRemoteRepository(ctx context.Context, in *FindRemoteRepositoryRequest, opts ...grpc.CallOption) (*FindRemoteRepositoryResponse, error)
 	// FindRemoteRootRef tries to find the root reference of a remote
 	// repository. The root reference is the default branch as pointed to by
@@ -103,6 +104,7 @@ type RemoteServiceServer interface {
 	// deleted from the mirror. UpdateRemoteMirror updates all tags. Branches are updated if they match
 	// the patterns specified in the requests.
 	UpdateRemoteMirror(RemoteService_UpdateRemoteMirrorServer) error
+	// This comment is left unintentionally blank.
 	FindRemoteRepository(context.Context, *FindRemoteRepositoryRequest) (*FindRemoteRepositoryResponse, error)
 	// FindRemoteRootRef tries to find the root reference of a remote
 	// repository. The root reference is the default branch as pointed to by

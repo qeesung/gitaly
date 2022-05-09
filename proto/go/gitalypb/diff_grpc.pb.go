@@ -22,8 +22,11 @@ type DiffServiceClient interface {
 	CommitDiff(ctx context.Context, in *CommitDiffRequest, opts ...grpc.CallOption) (DiffService_CommitDiffClient, error)
 	// Return a stream so we can divide the response in chunks of deltas
 	CommitDelta(ctx context.Context, in *CommitDeltaRequest, opts ...grpc.CallOption) (DiffService_CommitDeltaClient, error)
+	// This comment is left unintentionally blank.
 	RawDiff(ctx context.Context, in *RawDiffRequest, opts ...grpc.CallOption) (DiffService_RawDiffClient, error)
+	// This comment is left unintentionally blank.
 	RawPatch(ctx context.Context, in *RawPatchRequest, opts ...grpc.CallOption) (DiffService_RawPatchClient, error)
+	// This comment is left unintentionally blank.
 	DiffStats(ctx context.Context, in *DiffStatsRequest, opts ...grpc.CallOption) (DiffService_DiffStatsClient, error)
 	// Return a list of files changed along with the status of each file
 	FindChangedPaths(ctx context.Context, in *FindChangedPathsRequest, opts ...grpc.CallOption) (DiffService_FindChangedPathsClient, error)
@@ -237,8 +240,11 @@ type DiffServiceServer interface {
 	CommitDiff(*CommitDiffRequest, DiffService_CommitDiffServer) error
 	// Return a stream so we can divide the response in chunks of deltas
 	CommitDelta(*CommitDeltaRequest, DiffService_CommitDeltaServer) error
+	// This comment is left unintentionally blank.
 	RawDiff(*RawDiffRequest, DiffService_RawDiffServer) error
+	// This comment is left unintentionally blank.
 	RawPatch(*RawPatchRequest, DiffService_RawPatchServer) error
+	// This comment is left unintentionally blank.
 	DiffStats(*DiffStatsRequest, DiffService_DiffStatsServer) error
 	// Return a list of files changed along with the status of each file
 	FindChangedPaths(*FindChangedPathsRequest, DiffService_FindChangedPathsServer) error

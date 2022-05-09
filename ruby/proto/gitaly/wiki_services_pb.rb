@@ -6,6 +6,9 @@ require 'wiki_pb'
 
 module Gitaly
   module WikiService
+    # WikiService is a service that provides Wiki-related functionality. This
+    # service is deprecated and should not be used anymore. Instead, all
+    # functionality to implement Wikis should use Git-based RPCS.
     class Service
 
       include ::GRPC::GenericService
@@ -14,11 +17,15 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.WikiService'
 
+      # This comment is left unintentionally blank.
       rpc :WikiWritePage, stream(::Gitaly::WikiWritePageRequest), ::Gitaly::WikiWritePageResponse
+      # This comment is left unintentionally blank.
       rpc :WikiUpdatePage, stream(::Gitaly::WikiUpdatePageRequest), ::Gitaly::WikiUpdatePageResponse
       # WikiFindPage returns a stream because the page's raw_data field may be arbitrarily large.
       rpc :WikiFindPage, ::Gitaly::WikiFindPageRequest, stream(::Gitaly::WikiFindPageResponse)
+      # This comment is left unintentionally blank.
       rpc :WikiGetAllPages, ::Gitaly::WikiGetAllPagesRequest, stream(::Gitaly::WikiGetAllPagesResponse)
+      # This comment is left unintentionally blank.
       rpc :WikiListPages, ::Gitaly::WikiListPagesRequest, stream(::Gitaly::WikiListPagesResponse)
     end
 

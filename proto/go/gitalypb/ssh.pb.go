@@ -20,6 +20,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// This comment is left unintentionally blank.
 type SSHUploadPackRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -95,6 +96,7 @@ func (x *SSHUploadPackRequest) GetGitProtocol() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type SSHUploadPackResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -162,6 +164,7 @@ func (x *SSHUploadPackResponse) GetExitStatus() *ExitStatus {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type SSHUploadPackWithSidechannelRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -228,6 +231,7 @@ func (x *SSHUploadPackWithSidechannelRequest) GetGitProtocol() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type SSHUploadPackWithSidechannelResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -266,6 +270,7 @@ func (*SSHUploadPackWithSidechannelResponse) Descriptor() ([]byte, []int) {
 	return file_ssh_proto_rawDescGZIP(), []int{3}
 }
 
+// This comment is left unintentionally blank.
 type SSHReceivePackRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -277,9 +282,11 @@ type SSHReceivePackRequest struct {
 	Stdin []byte `protobuf:"bytes,2,opt,name=stdin,proto3" json:"stdin,omitempty"`
 	// Contents of GL_ID, GL_REPOSITORY, and GL_USERNAME environment variables
 	// for 'git receive-pack'
-	GlId         string `protobuf:"bytes,3,opt,name=gl_id,json=glId,proto3" json:"gl_id,omitempty"`
+	GlId string `protobuf:"bytes,3,opt,name=gl_id,json=glId,proto3" json:"gl_id,omitempty"`
+	// This comment is left unintentionally blank.
 	GlRepository string `protobuf:"bytes,4,opt,name=gl_repository,json=glRepository,proto3" json:"gl_repository,omitempty"`
-	GlUsername   string `protobuf:"bytes,5,opt,name=gl_username,json=glUsername,proto3" json:"gl_username,omitempty"`
+	// This comment is left unintentionally blank.
+	GlUsername string `protobuf:"bytes,5,opt,name=gl_username,json=glUsername,proto3" json:"gl_username,omitempty"`
 	// Git protocol version
 	GitProtocol string `protobuf:"bytes,6,opt,name=git_protocol,json=gitProtocol,proto3" json:"git_protocol,omitempty"`
 	// Parameters to use with git -c (key=value pairs)
@@ -367,6 +374,7 @@ func (x *SSHReceivePackRequest) GetGitConfigOptions() []string {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type SSHReceivePackResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -434,6 +442,7 @@ func (x *SSHReceivePackResponse) GetExitStatus() *ExitStatus {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type SSHUploadArchiveRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -491,6 +500,7 @@ func (x *SSHUploadArchiveRequest) GetStdin() []byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type SSHUploadArchiveResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

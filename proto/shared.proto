@@ -7,28 +7,42 @@ import "lint.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// This comment is left unintentionally blank.
 enum ObjectType {
+  // This comment is left unintentionally blank.
   UNKNOWN = 0;
+  // This comment is left unintentionally blank.
   COMMIT = 1;
+  // This comment is left unintentionally blank.
   BLOB = 2;
+  // This comment is left unintentionally blank.
   TREE = 3;
+  // This comment is left unintentionally blank.
   TAG = 4;
 }
 
+// This comment is left unintentionally blank.
 enum SignatureType {
+  // This comment is left unintentionally blank.
   NONE = 0;
+  // This comment is left unintentionally blank.
   PGP = 1;
+  // This comment is left unintentionally blank.
   X509 = 2;
+  // This comment is left unintentionally blank.
   SSH = 3;
   // maybe add X509+TSA or other combinations at a later step
 }
 
+// This comment is left unintentionally blank.
 message Repository {
   // DEPRECATED: https://gitlab.com/gitlab-org/gitaly/issues/151
   reserved 1;
   reserved "path";
 
+  // This comment is left unintentionally blank.
   string storage_name = 2;
+  // This comment is left unintentionally blank.
   string relative_path = 3;
   // Sets the GIT_OBJECT_DIRECTORY envvar on git commands to the value of this field.
   // It influences the object storage directory the SHA1 directories are created underneath.
@@ -60,18 +74,24 @@ message CommitTrailer {
 
 // Corresponds to Gitlab::Git::Commit
 message GitCommit {
+  // This comment is left unintentionally blank.
   string id = 1;
+  // This comment is left unintentionally blank.
   bytes subject = 2;
+  // This comment is left unintentionally blank.
   bytes body = 3;
+  // This comment is left unintentionally blank.
   CommitAuthor author = 4;
+  // This comment is left unintentionally blank.
   CommitAuthor committer = 5;
+  // This comment is left unintentionally blank.
   repeated string parent_ids = 6;
   // If body exceeds a certain threshold, it will be nullified,
   // but its size will be set in body_size so we can know if
   // a commit had a body in the first place.
   int64 body_size = 7;
+  // This comment is left unintentionally blank.
   SignatureType signature_type = 8;
-
   // The tree ID will always be filled, even if the tree is empty. In that case
   // the value will be `4b825dc642cb6eb9a060e54bf8d69288fbee4904`.
   // That value is equivalent to `git hash-object -t tree /dev/null`
@@ -83,50 +103,74 @@ message GitCommit {
   repeated CommitTrailer trailers = 10;
 }
 
+// This comment is left unintentionally blank.
 message CommitAuthor {
+  // This comment is left unintentionally blank.
   bytes name = 1;
+  // This comment is left unintentionally blank.
   bytes email = 2;
+  // This comment is left unintentionally blank.
   google.protobuf.Timestamp date = 3;
+  // This comment is left unintentionally blank.
   bytes timezone = 4;
 }
 
+// This comment is left unintentionally blank.
 message ExitStatus {
+  // This comment is left unintentionally blank.
   int32 value = 1;
 }
 
 // Corresponds to Gitlab::Git::Branch
 message Branch {
+  // This comment is left unintentionally blank.
   bytes name = 1;
+  // This comment is left unintentionally blank.
   GitCommit target_commit = 2;
 }
 
+// This comment is left unintentionally blank.
 message Tag {
+  // This comment is left unintentionally blank.
   bytes name = 1;
+  // This comment is left unintentionally blank.
   string id = 2;
+  // This comment is left unintentionally blank.
   GitCommit target_commit = 3;
   // If message exceeds a certain threshold, it will be nullified,
   // but its size will be set in message_size so we can know if
   // a tag had a message in the first place.
   bytes message = 4;
+  // This comment is left unintentionally blank.
   int64 message_size = 5;
+  // This comment is left unintentionally blank.
   CommitAuthor tagger = 6;
+  // This comment is left unintentionally blank.
   SignatureType signature_type = 7;
 }
 
+// This comment is left unintentionally blank.
 message User {
+  // This comment is left unintentionally blank.
   string gl_id = 1;
+  // This comment is left unintentionally blank.
   bytes name = 2;
+  // This comment is left unintentionally blank.
   bytes email = 3;
+  // This comment is left unintentionally blank.
   string gl_username = 4;
   // Timezone is the timezone as configured by the user in the web interface. This
   // timezone may be used when new commits are created via RPC calls.
   string timezone = 5;
 }
 
+// This comment is left unintentionally blank.
 message ObjectPool {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(gitaly.repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message PaginationParameter {
   // Instructs pagination to start sending results after the provided page
   // token appears. A page token allows for a generic pattern to uniquely
@@ -143,6 +187,7 @@ message PaginationParameter {
   int32 limit = 2;
 }
 
+// This comment is left unintentionally blank.
 message PaginationCursor {
   // To the caller, this is an opaque token to indicate what the caller
   // should present as a page_token to get subsequent results.

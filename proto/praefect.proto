@@ -8,9 +8,12 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// PraefectInfoService is a service which provides RPCs to query and modify
+// Praefect-specific parameters.
 service PraefectInfoService {
   option (intercepted) = true;
 
+  // This comment is left unintentionally blank.
   rpc RepositoryReplicas(RepositoryReplicasRequest) returns (RepositoryReplicasResponse);
 
   // DatalossCheck checks for unavailable repositories.
@@ -34,8 +37,10 @@ service PraefectInfoService {
   // from a Praefect node that does not yet know about a new node. As assignments of unconfigured storages are ignored, replication
   // factor of repositories assigned to a storage node removed from the cluster is effectively decreased.
   rpc SetReplicationFactor(SetReplicationFactorRequest) returns (SetReplicationFactorResponse);
+
   // GetRepositoryMetadata returns the cluster metadata for a repository. Returns NotFound if the repository does not exist.
   rpc GetRepositoryMetadata(GetRepositoryMetadataRequest) returns (GetRepositoryMetadataResponse);
+
 }
 
 // MarkUnverifiedRequest specifies the replicas which to mark unverified.
@@ -68,6 +73,7 @@ message MarkUnverifiedResponse {
 
 // GetRepositoryMetadataRequest specifies the repository to retrieve metadata for.
 message GetRepositoryMetadataRequest {
+  // This comment is left unintentionally blank.
   message Path {
     // virtual_storage is the virtual storage where the repository is.
     string virtual_storage = 1;
@@ -85,6 +91,7 @@ message GetRepositoryMetadataRequest {
 
 // GeRepositoryMetadataResponse contains the repository's cluster metadata.
 message GetRepositoryMetadataResponse {
+  // This comment is left unintentionally blank.
   message Replica {
     // storage is the name of the replica's storage.
     string storage = 1;
@@ -133,24 +140,34 @@ message SetReplicationFactorResponse {
   repeated string storages = 1;
 }
 
+// This comment is left unintentionally blank.
 message SetAuthoritativeStorageRequest {
+  // This comment is left unintentionally blank.
   string virtual_storage = 1;
+  // This comment is left unintentionally blank.
   string relative_path = 2;
+  // This comment is left unintentionally blank.
   string authoritative_storage = 3;
 }
 
+// This comment is left unintentionally blank.
 message SetAuthoritativeStorageResponse {
 }
 
+// This comment is left unintentionally blank.
 message DatalossCheckRequest {
+  // This comment is left unintentionally blank.
   string virtual_storage = 1;
   // include_partially_unavailable indicates whether to include repositories which are available but
   // are unavailable on some assigned storages.
   bool include_partially_replicated = 2;
 }
 
+// This comment is left unintentionally blank.
 message DatalossCheckResponse {
+  // This comment is left unintentionally blank.
   message Repository {
+    // This comment is left unintentionally blank.
     message Storage {
       // name of the storage
       string name = 1;
@@ -179,16 +196,24 @@ message DatalossCheckResponse {
   repeated Repository repositories = 2;
 }
 
+// This comment is left unintentionally blank.
 message RepositoryReplicasRequest{
+  // This comment is left unintentionally blank.
   Repository repository = 1;
 }
 
+// This comment is left unintentionally blank.
 message RepositoryReplicasResponse{
+  // This comment is left unintentionally blank.
   message RepositoryDetails {
+    // This comment is left unintentionally blank.
     Repository repository = 1;
+    // This comment is left unintentionally blank.
     string checksum = 2;
   };
 
+  // This comment is left unintentionally blank.
   RepositoryDetails primary = 1;
+  // This comment is left unintentionally blank.
   repeated RepositoryDetails replicas = 2;
 }

@@ -8,50 +8,67 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// RefService is a service that provides RPCs to list and modify Git references.
 service RefService {
+
+  // This comment is left unintentionally blank.
   rpc FindDefaultBranchName(FindDefaultBranchNameRequest) returns (FindDefaultBranchNameResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc FindAllBranchNames(FindAllBranchNamesRequest) returns (stream FindAllBranchNamesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
 
   }
+
+  // This comment is left unintentionally blank.
   rpc FindAllTagNames(FindAllTagNamesRequest) returns (stream FindAllTagNamesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
   // Return a stream so we can divide the response in chunks of branches
   rpc FindLocalBranches(FindLocalBranchesRequest) returns (stream FindLocalBranchesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc FindAllBranches(FindAllBranchesRequest) returns (stream FindAllBranchesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
   // Returns a stream of tags repository has.
   rpc FindAllTags(FindAllTagsRequest) returns (stream FindAllTagsResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc FindTag(FindTagRequest) returns (FindTagResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc FindAllRemoteBranches(FindAllRemoteBranchesRequest) returns (stream FindAllRemoteBranchesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc RefExists(RefExistsRequest) returns (RefExistsResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -65,17 +82,22 @@ service RefService {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc DeleteRefs(DeleteRefsRequest) returns (DeleteRefsResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc ListBranchNamesContainingCommit(ListBranchNamesContainingCommitRequest) returns (stream ListBranchNamesContainingCommitResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc ListTagNamesContainingCommit(ListTagNamesContainingCommitRequest) returns (stream ListTagNamesContainingCommitResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -92,6 +114,7 @@ service RefService {
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc GetTagMessages(GetTagMessagesRequest) returns (stream GetTagMessagesResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -123,39 +146,60 @@ service RefService {
       op: ACCESSOR
     };
   }
+
 }
 
+// This comment is left unintentionally blank.
 message FindDefaultBranchNameRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message FindDefaultBranchNameResponse {
+  // This comment is left unintentionally blank.
   bytes name = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindAllBranchNamesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message FindAllBranchNamesResponse {
+  // This comment is left unintentionally blank.
   repeated bytes names = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindAllTagNamesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 }
 
+// This comment is left unintentionally blank.
 message FindAllTagNamesResponse {
+  // This comment is left unintentionally blank.
   repeated bytes names = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindLocalBranchesRequest {
-  Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   enum SortBy {
+    // This comment is left unintentionally blank.
     NAME = 0;
+    // This comment is left unintentionally blank.
     UPDATED_ASC = 1;
+    // This comment is left unintentionally blank.
     UPDATED_DESC = 2;
   }
+
+  // This comment is left unintentionally blank.
+  Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   SortBy sort_by = 2;
   // The page token is the branch name, with the `refs/heads/` prefix, for
   // example "refs/heads/master". After the first branch name is encountered
@@ -164,27 +208,43 @@ message FindLocalBranchesRequest {
   PaginationParameter pagination_params = 3;
 }
 
+// This comment is left unintentionally blank.
 message FindLocalBranchesResponse {
+  // This comment is left unintentionally blank.
   repeated FindLocalBranchResponse branches = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindLocalBranchResponse {
+  // This comment is left unintentionally blank.
   bytes name = 1;
+  // This comment is left unintentionally blank.
   string commit_id = 2;
+  // This comment is left unintentionally blank.
   bytes commit_subject = 3;
+  // This comment is left unintentionally blank.
   FindLocalBranchCommitAuthor commit_author = 4;
+  // This comment is left unintentionally blank.
   FindLocalBranchCommitAuthor commit_committer = 5;
+  // This comment is left unintentionally blank.
   GitCommit commit = 6;
 }
 
+// This comment is left unintentionally blank.
 message FindLocalBranchCommitAuthor {
+  // This comment is left unintentionally blank.
   bytes name = 1;
+  // This comment is left unintentionally blank.
   bytes email = 2;
+  // This comment is left unintentionally blank.
   google.protobuf.Timestamp date = 3;
+  // This comment is left unintentionally blank.
   bytes timezone = 4;
 }
 
+// This comment is left unintentionally blank.
 message FindAllBranchesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // Only return branches that are merged into root ref
   bool merged_only = 2;
@@ -193,79 +253,117 @@ message FindAllBranchesRequest {
   repeated bytes merged_branches = 3;
 }
 
+// This comment is left unintentionally blank.
 message FindAllBranchesResponse {
+  // This comment is left unintentionally blank.
   message Branch {
+    // This comment is left unintentionally blank.
     bytes name = 1;
+    // This comment is left unintentionally blank.
     GitCommit target = 2;
   }
+
+  // This comment is left unintentionally blank.
   repeated Branch branches = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindTagRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes tag_name = 2;
 }
 
+// This comment is left unintentionally blank.
 message FindTagResponse {
+  // This comment is left unintentionally blank.
   Tag tag = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindAllTagsRequest {
-  Repository repository = 1 [(target_repository)=true];
   // SortBy allows to specify desired order of the elements.
   message SortBy {
     // Key is a key used for sorting.
     enum Key {
+      // This comment is left unintentionally blank.
       REFNAME     = 0;
+      // This comment is left unintentionally blank.
       CREATORDATE = 1;
     }
 
+    // This comment is left unintentionally blank.
     Key           key       = 1;
+    // This comment is left unintentionally blank.
     SortDirection direction = 2;
   }
 
+  // This comment is left unintentionally blank.
+  Repository repository = 1 [(target_repository)=true];
   // SortBy allows to request tags in particular order.
   SortBy sort_by = 2;
-
   // The page token is the tags name, with the `refs/tags/` prefix, for
   // example "refs/tags/v1.0.0". When the tag name matches the page token,
   // the tag following it will be the first result send as part of the response.
   PaginationParameter pagination_params = 3;
 }
 
+// This comment is left unintentionally blank.
 message FindAllTagsResponse {
+  // This comment is left unintentionally blank.
   repeated Tag tags = 1;
 }
 
+// This comment is left unintentionally blank.
 message RefExistsRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // Any ref, e.g. 'refs/heads/master' or 'refs/tags/v1.0.1'. Must start with 'refs/'.
   bytes ref = 2;
 }
 
+// This comment is left unintentionally blank.
 message RefExistsResponse {
+  // This comment is left unintentionally blank.
   bool value = 1;
 }
 
+// This comment is left unintentionally blank.
 message CreateBranchRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes name = 2;
+  // This comment is left unintentionally blank.
   bytes start_point = 3;
 }
 
+// This comment is left unintentionally blank.
 message CreateBranchResponse {
+  // This comment is left unintentionally blank.
   enum Status {
+    // This comment is left unintentionally blank.
     OK = 0;
+    // This comment is left unintentionally blank.
     ERR_EXISTS = 1;
+    // This comment is left unintentionally blank.
     ERR_INVALID = 2;
+    // This comment is left unintentionally blank.
     ERR_INVALID_START_POINT = 3;
   }
+
+  // This comment is left unintentionally blank.
   Status status = 1;
+  // This comment is left unintentionally blank.
   Branch branch = 2;
 }
 
+// This comment is left unintentionally blank.
 message DeleteBranchRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes name = 2;
 }
 
@@ -273,6 +371,7 @@ message DeleteBranchRequest {
 message DeleteBranchResponse {
 }
 
+// This comment is left unintentionally blank.
 message FindBranchRequest {
   // repository is the repository in which the branch should be looked up.
   Repository repository = 1 [(target_repository)=true];
@@ -281,46 +380,61 @@ message FindBranchRequest {
   bytes name = 2;
 }
 
+// This comment is left unintentionally blank.
 message FindBranchResponse {
+  // This comment is left unintentionally blank.
   Branch branch = 1;
 }
 
+// This comment is left unintentionally blank.
 message DeleteRefsRequest{
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // The following two fields are mutually exclusive
   repeated bytes except_with_prefix = 2; // protolint:disable:this REPEATED_FIELD_NAMES_PLURALIZED
+  // This comment is left unintentionally blank.
   repeated bytes refs = 3;
 }
 
+// This comment is left unintentionally blank.
 message DeleteRefsResponse {
+  // This comment is left unintentionally blank.
   string git_error = 1;
 }
 
+// This comment is left unintentionally blank.
 message ListBranchNamesContainingCommitRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string commit_id = 2;
-
   // Limit the number of tag names to be returned
   // If the limit is set to zero, all items will be returned
   uint32 limit = 3;
 }
 
+// This comment is left unintentionally blank.
 message ListBranchNamesContainingCommitResponse {
   reserved 1;
+  // This comment is left unintentionally blank.
   repeated bytes branch_names = 2;
 }
 
+// This comment is left unintentionally blank.
 message ListTagNamesContainingCommitRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string commit_id = 2;
-
   // Limit the number of tag names to be returned
   // If the limit is set to zero, all items will be returned
   uint32 limit = 3;
 }
 
+// This comment is left unintentionally blank.
 message ListTagNamesContainingCommitResponse {
   reserved 1;
+  // This comment is left unintentionally blank.
   repeated bytes tag_names = 2;
 }
 
@@ -355,33 +469,45 @@ message GetTagSignaturesResponse {
   repeated TagSignature signatures = 1;
 }
 
+// This comment is left unintentionally blank.
 message GetTagMessagesRequest {
   reserved 2;
   reserved "tag_names";
 
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   repeated string tag_ids = 3;
 }
 
+// This comment is left unintentionally blank.
 message GetTagMessagesResponse {
   reserved 1;
   reserved "tag_name";
 
+  // This comment is left unintentionally blank.
   bytes message = 2;
   // Only present for a new tag message
   string tag_id = 3;
 }
 
+// This comment is left unintentionally blank.
 message FindAllRemoteBranchesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string remote_name = 2;
 }
 
+// This comment is left unintentionally blank.
 message FindAllRemoteBranchesResponse {
+  // This comment is left unintentionally blank.
   repeated Branch branches = 1;
 }
 
+// This comment is left unintentionally blank.
 message PackRefsRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
 
   // DEPRECATED: https://gitlab.com/gitlab-org/gitaly/-/issues/3997
@@ -389,11 +515,32 @@ message PackRefsRequest {
   reserved "all_refs";
 }
 
+// This comment is left unintentionally blank.
 message PackRefsResponse{
 }
 
 // ListRefsRequest is a request for the ListRefs RPC.
 message ListRefsRequest {
+  // This comment is left unintentionally blank.
+  message SortBy {
+    // This comment is left unintentionally blank.
+    enum Key {
+      // This comment is left unintentionally blank.
+      REFNAME       = 0;
+      // This comment is left unintentionally blank.
+      CREATORDATE   = 1;
+      // This comment is left unintentionally blank.
+      AUTHORDATE    = 2;
+      // This comment is left unintentionally blank.
+      COMMITTERDATE = 3;
+    }
+
+    // Key is a key used for sorting.
+    Key           key       = 1;
+    // This comment is left unintentionally blank.
+    SortDirection direction = 2;
+  }
+
   // Repository is the repository in which references should be listed in.
   Repository repository = 1 [(target_repository)=true];
   // Patterns contains all patterns which shall be listed. Patterns should be in the format
@@ -403,20 +550,6 @@ message ListRefsRequest {
   // Head determines whether the RPC should also return the HEAD reference. By default,
   // pseudo-refs are not included in the response.
   bool head = 3;
-
-  message SortBy {
-    enum Key {
-      REFNAME       = 0;
-      CREATORDATE   = 1;
-      AUTHORDATE    = 2;
-      COMMITTERDATE = 3;
-    }
-
-    // Key is a key used for sorting.
-    Key           key       = 1;
-    SortDirection direction = 2;
-  }
-
   // SortBy allows to request SHAs in particular order.
   SortBy sort_by = 4;
 }
@@ -436,6 +569,7 @@ message ListRefsResponse{
   repeated Reference references = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindRefsByOIDRequest {
   // repository is the repository in which references will be looked for.
   Repository repository = 1 [(target_repository)=true];
@@ -452,6 +586,7 @@ message FindRefsByOIDRequest {
   uint32 limit = 5;
 }
 
+// This comment is left unintentionally blank.
 message FindRefsByOIDResponse {
   // refs is the set of fully-qualified references which have been found.
   repeated string refs = 1;

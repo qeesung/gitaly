@@ -6,49 +6,74 @@ import "lint.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// ServerService is a service that provides information about a Gitaly server.
 service ServerService {
   option (intercepted) = true;
 
+  // This comment is left unintentionally blank.
   rpc ServerInfo(ServerInfoRequest) returns (ServerInfoResponse);
+
+  // This comment is left unintentionally blank.
   rpc DiskStatistics(DiskStatisticsRequest) returns (DiskStatisticsResponse);
+
   // ClockSynced checks if machine clock is synced
   // (the offset is less that the one passed in the request).
-  rpc ClockSynced(ClockSyncedRequest) returns (ClockSyncedResponse) {}
+  rpc ClockSynced(ClockSyncedRequest) returns (ClockSyncedResponse);
+
 }
 
+// This comment is left unintentionally blank.
 message ServerInfoRequest {
 }
 
+// This comment is left unintentionally blank.
 message ServerInfoResponse {
+  // This comment is left unintentionally blank.
   message StorageStatus {
+    // This comment is left unintentionally blank.
     string storage_name = 1;
+    // This comment is left unintentionally blank.
     bool readable = 2;
+    // This comment is left unintentionally blank.
     bool writeable = 3;
+    // This comment is left unintentionally blank.
     string fs_type = 4;
+    // This comment is left unintentionally blank.
     string filesystem_id = 5;
+    // This comment is left unintentionally blank.
     uint32 replication_factor = 6;
   }
 
+  // This comment is left unintentionally blank.
   string server_version = 1;
+  // This comment is left unintentionally blank.
   string git_version = 2;
+  // This comment is left unintentionally blank.
   repeated StorageStatus storage_statuses = 3;
 }
 
+// This comment is left unintentionally blank.
 message DiskStatisticsRequest {
 }
 
+// This comment is left unintentionally blank.
 message DiskStatisticsResponse {
+  // This comment is left unintentionally blank.
   message StorageStatus {
     // When both available and used fields are equal 0 that means that
     // Gitaly was unable to determine storage stats.
     string storage_name = 1;
+    // This comment is left unintentionally blank.
     int64 available = 2;
+    // This comment is left unintentionally blank.
     int64 used = 3;
   }
 
+  // This comment is left unintentionally blank.
   repeated StorageStatus storage_statuses = 1;
 }
 
+// This comment is left unintentionally blank.
 message ClockSyncedRequest {
   // ntp_host is a URL to the external NTP service that should be used for clock sync check.
   // Default is ntp.pool.org
@@ -57,6 +82,7 @@ message ClockSyncedRequest {
   int64 drift_threshold_millis = 2;
 }
 
+// This comment is left unintentionally blank.
 message ClockSyncedResponse {
   // synced is set to true if system clock has an affordable drift compared to NTP service.
   bool synced = 1;

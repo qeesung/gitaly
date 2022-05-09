@@ -20,6 +20,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// This comment is left unintentionally blank.
 type CommitDiffRequest_DiffMode int32
 
 const (
@@ -68,14 +69,20 @@ func (CommitDiffRequest_DiffMode) EnumDescriptor() ([]byte, []int) {
 	return file_diff_proto_rawDescGZIP(), []int{0, 0}
 }
 
+// This comment is left unintentionally blank.
 type ChangedPaths_Status int32
 
 const (
-	ChangedPaths_ADDED       ChangedPaths_Status = 0
-	ChangedPaths_MODIFIED    ChangedPaths_Status = 1
-	ChangedPaths_DELETED     ChangedPaths_Status = 2
+	// This comment is left unintentionally blank.
+	ChangedPaths_ADDED ChangedPaths_Status = 0
+	// This comment is left unintentionally blank.
+	ChangedPaths_MODIFIED ChangedPaths_Status = 1
+	// This comment is left unintentionally blank.
+	ChangedPaths_DELETED ChangedPaths_Status = 2
+	// This comment is left unintentionally blank.
 	ChangedPaths_TYPE_CHANGE ChangedPaths_Status = 3
-	ChangedPaths_COPIED      ChangedPaths_Status = 4
+	// This comment is left unintentionally blank.
+	ChangedPaths_COPIED ChangedPaths_Status = 4
 )
 
 // Enum value maps for ChangedPaths_Status.
@@ -123,21 +130,31 @@ func (ChangedPaths_Status) EnumDescriptor() ([]byte, []int) {
 	return file_diff_proto_rawDescGZIP(), []int{14, 0}
 }
 
+// This comment is left unintentionally blank.
 type CommitDiffRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Repository             *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	LeftCommitId           string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
-	RightCommitId          string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
-	IgnoreWhitespaceChange bool        `protobuf:"varint,4,opt,name=ignore_whitespace_change,json=ignoreWhitespaceChange,proto3" json:"ignore_whitespace_change,omitempty"`
-	Paths                  [][]byte    `protobuf:"bytes,5,rep,name=paths,proto3" json:"paths,omitempty"`
-	CollapseDiffs          bool        `protobuf:"varint,6,opt,name=collapse_diffs,json=collapseDiffs,proto3" json:"collapse_diffs,omitempty"`
-	EnforceLimits          bool        `protobuf:"varint,7,opt,name=enforce_limits,json=enforceLimits,proto3" json:"enforce_limits,omitempty"`
+	// This comment is left unintentionally blank.
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	// This comment is left unintentionally blank.
+	LeftCommitId string `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	RightCommitId string `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	IgnoreWhitespaceChange bool `protobuf:"varint,4,opt,name=ignore_whitespace_change,json=ignoreWhitespaceChange,proto3" json:"ignore_whitespace_change,omitempty"`
+	// This comment is left unintentionally blank.
+	Paths [][]byte `protobuf:"bytes,5,rep,name=paths,proto3" json:"paths,omitempty"`
+	// This comment is left unintentionally blank.
+	CollapseDiffs bool `protobuf:"varint,6,opt,name=collapse_diffs,json=collapseDiffs,proto3" json:"collapse_diffs,omitempty"`
+	// This comment is left unintentionally blank.
+	EnforceLimits bool `protobuf:"varint,7,opt,name=enforce_limits,json=enforceLimits,proto3" json:"enforce_limits,omitempty"`
 	// These limits are only enforced when enforce_limits == true.
 	MaxFiles int32 `protobuf:"varint,8,opt,name=max_files,json=maxFiles,proto3" json:"max_files,omitempty"`
+	// This comment is left unintentionally blank.
 	MaxLines int32 `protobuf:"varint,9,opt,name=max_lines,json=maxLines,proto3" json:"max_lines,omitempty"`
+	// This comment is left unintentionally blank.
 	MaxBytes int32 `protobuf:"varint,10,opt,name=max_bytes,json=maxBytes,proto3" json:"max_bytes,omitempty"`
 	// Limitation of a single diff patch,
 	// patches surpassing this limit are pruned by default.
@@ -145,7 +162,9 @@ type CommitDiffRequest struct {
 	MaxPatchBytes int32 `protobuf:"varint,14,opt,name=max_patch_bytes,json=maxPatchBytes,proto3" json:"max_patch_bytes,omitempty"`
 	// These limits are only enforced if collapse_diffs == true.
 	SafeMaxFiles int32 `protobuf:"varint,11,opt,name=safe_max_files,json=safeMaxFiles,proto3" json:"safe_max_files,omitempty"`
+	// This comment is left unintentionally blank.
 	SafeMaxLines int32 `protobuf:"varint,12,opt,name=safe_max_lines,json=safeMaxLines,proto3" json:"safe_max_lines,omitempty"`
+	// This comment is left unintentionally blank.
 	SafeMaxBytes int32 `protobuf:"varint,13,opt,name=safe_max_bytes,json=safeMaxBytes,proto3" json:"safe_max_bytes,omitempty"`
 	// DiffMode is the mode used for generating the diff. Please refer to the enum declaration for supported modes.
 	DiffMode CommitDiffRequest_DiffMode `protobuf:"varint,15,opt,name=diff_mode,json=diffMode,proto3,enum=gitaly.CommitDiffRequest_DiffMode" json:"diff_mode,omitempty"`
@@ -294,16 +313,24 @@ type CommitDiffResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	FromPath []byte `protobuf:"bytes,1,opt,name=from_path,json=fromPath,proto3" json:"from_path,omitempty"`
-	ToPath   []byte `protobuf:"bytes,2,opt,name=to_path,json=toPath,proto3" json:"to_path,omitempty"`
+	// This comment is left unintentionally blank.
+	ToPath []byte `protobuf:"bytes,2,opt,name=to_path,json=toPath,proto3" json:"to_path,omitempty"`
 	// Blob ID as returned via `git diff --full-index`
-	FromId       string `protobuf:"bytes,3,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
-	ToId         string `protobuf:"bytes,4,opt,name=to_id,json=toId,proto3" json:"to_id,omitempty"`
-	OldMode      int32  `protobuf:"varint,5,opt,name=old_mode,json=oldMode,proto3" json:"old_mode,omitempty"`
-	NewMode      int32  `protobuf:"varint,6,opt,name=new_mode,json=newMode,proto3" json:"new_mode,omitempty"`
-	Binary       bool   `protobuf:"varint,7,opt,name=binary,proto3" json:"binary,omitempty"`
+	FromId string `protobuf:"bytes,3,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
+	// This comment is left unintentionally blank.
+	ToId string `protobuf:"bytes,4,opt,name=to_id,json=toId,proto3" json:"to_id,omitempty"`
+	// This comment is left unintentionally blank.
+	OldMode int32 `protobuf:"varint,5,opt,name=old_mode,json=oldMode,proto3" json:"old_mode,omitempty"`
+	// This comment is left unintentionally blank.
+	NewMode int32 `protobuf:"varint,6,opt,name=new_mode,json=newMode,proto3" json:"new_mode,omitempty"`
+	// This comment is left unintentionally blank.
+	Binary bool `protobuf:"varint,7,opt,name=binary,proto3" json:"binary,omitempty"`
+	// This comment is left unintentionally blank.
 	RawPatchData []byte `protobuf:"bytes,9,opt,name=raw_patch_data,json=rawPatchData,proto3" json:"raw_patch_data,omitempty"`
-	EndOfPatch   bool   `protobuf:"varint,10,opt,name=end_of_patch,json=endOfPatch,proto3" json:"end_of_patch,omitempty"`
+	// This comment is left unintentionally blank.
+	EndOfPatch bool `protobuf:"varint,10,opt,name=end_of_patch,json=endOfPatch,proto3" json:"end_of_patch,omitempty"`
 	// Indicates the diff file at which we overflow according to the limitations sent,
 	// in which case only this attribute will be set.
 	OverflowMarker bool `protobuf:"varint,11,opt,name=overflow_marker,json=overflowMarker,proto3" json:"overflow_marker,omitempty"`
@@ -431,15 +458,20 @@ func (x *CommitDiffResponse) GetTooLarge() bool {
 	return false
 }
 
+// This comment is left unintentionally blank.
 type CommitDeltaRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	LeftCommitId  string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
-	RightCommitId string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
-	Paths         [][]byte    `protobuf:"bytes,4,rep,name=paths,proto3" json:"paths,omitempty"`
+	// This comment is left unintentionally blank.
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	// This comment is left unintentionally blank.
+	LeftCommitId string `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	RightCommitId string `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	Paths [][]byte `protobuf:"bytes,4,rep,name=paths,proto3" json:"paths,omitempty"`
 }
 
 func (x *CommitDeltaRequest) Reset() {
@@ -502,18 +534,24 @@ func (x *CommitDeltaRequest) GetPaths() [][]byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type CommitDelta struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	FromPath []byte `protobuf:"bytes,1,opt,name=from_path,json=fromPath,proto3" json:"from_path,omitempty"`
-	ToPath   []byte `protobuf:"bytes,2,opt,name=to_path,json=toPath,proto3" json:"to_path,omitempty"`
+	// This comment is left unintentionally blank.
+	ToPath []byte `protobuf:"bytes,2,opt,name=to_path,json=toPath,proto3" json:"to_path,omitempty"`
 	// Blob ID as returned via `git diff --full-index`
-	FromId  string `protobuf:"bytes,3,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
-	ToId    string `protobuf:"bytes,4,opt,name=to_id,json=toId,proto3" json:"to_id,omitempty"`
-	OldMode int32  `protobuf:"varint,5,opt,name=old_mode,json=oldMode,proto3" json:"old_mode,omitempty"`
-	NewMode int32  `protobuf:"varint,6,opt,name=new_mode,json=newMode,proto3" json:"new_mode,omitempty"`
+	FromId string `protobuf:"bytes,3,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
+	// This comment is left unintentionally blank.
+	ToId string `protobuf:"bytes,4,opt,name=to_id,json=toId,proto3" json:"to_id,omitempty"`
+	// This comment is left unintentionally blank.
+	OldMode int32 `protobuf:"varint,5,opt,name=old_mode,json=oldMode,proto3" json:"old_mode,omitempty"`
+	// This comment is left unintentionally blank.
+	NewMode int32 `protobuf:"varint,6,opt,name=new_mode,json=newMode,proto3" json:"new_mode,omitempty"`
 }
 
 func (x *CommitDelta) Reset() {
@@ -590,11 +628,13 @@ func (x *CommitDelta) GetNewMode() int32 {
 	return 0
 }
 
+// This comment is left unintentionally blank.
 type CommitDeltaResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Deltas []*CommitDelta `protobuf:"bytes,1,rep,name=deltas,proto3" json:"deltas,omitempty"`
 }
 
@@ -637,14 +677,18 @@ func (x *CommitDeltaResponse) GetDeltas() []*CommitDelta {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type RawDiffRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	LeftCommitId  string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
-	RightCommitId string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	// This comment is left unintentionally blank.
+	LeftCommitId string `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	RightCommitId string `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
 }
 
 func (x *RawDiffRequest) Reset() {
@@ -700,11 +744,13 @@ func (x *RawDiffRequest) GetRightCommitId() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type RawDiffResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 }
 
@@ -747,14 +793,18 @@ func (x *RawDiffResponse) GetData() []byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type RawPatchRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	LeftCommitId  string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
-	RightCommitId string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	// This comment is left unintentionally blank.
+	LeftCommitId string `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	RightCommitId string `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
 }
 
 func (x *RawPatchRequest) Reset() {
@@ -810,11 +860,13 @@ func (x *RawPatchRequest) GetRightCommitId() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type RawPatchResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 }
 
@@ -857,14 +909,18 @@ func (x *RawPatchResponse) GetData() []byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type DiffStatsRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Repository    *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	LeftCommitId  string      `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
-	RightCommitId string      `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	// This comment is left unintentionally blank.
+	LeftCommitId string `protobuf:"bytes,2,opt,name=left_commit_id,json=leftCommitId,proto3" json:"left_commit_id,omitempty"`
+	// This comment is left unintentionally blank.
+	RightCommitId string `protobuf:"bytes,3,opt,name=right_commit_id,json=rightCommitId,proto3" json:"right_commit_id,omitempty"`
 }
 
 func (x *DiffStatsRequest) Reset() {
@@ -920,15 +976,20 @@ func (x *DiffStatsRequest) GetRightCommitId() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type DiffStats struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Path      []byte `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	Additions int32  `protobuf:"varint,2,opt,name=additions,proto3" json:"additions,omitempty"`
-	Deletions int32  `protobuf:"varint,3,opt,name=deletions,proto3" json:"deletions,omitempty"`
-	OldPath   []byte `protobuf:"bytes,4,opt,name=old_path,json=oldPath,proto3" json:"old_path,omitempty"`
+	// This comment is left unintentionally blank.
+	Path []byte `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// This comment is left unintentionally blank.
+	Additions int32 `protobuf:"varint,2,opt,name=additions,proto3" json:"additions,omitempty"`
+	// This comment is left unintentionally blank.
+	Deletions int32 `protobuf:"varint,3,opt,name=deletions,proto3" json:"deletions,omitempty"`
+	// This comment is left unintentionally blank.
+	OldPath []byte `protobuf:"bytes,4,opt,name=old_path,json=oldPath,proto3" json:"old_path,omitempty"`
 }
 
 func (x *DiffStats) Reset() {
@@ -991,11 +1052,13 @@ func (x *DiffStats) GetOldPath() []byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type DiffStatsResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Stats []*DiffStats `protobuf:"bytes,1,rep,name=stats,proto3" json:"stats,omitempty"`
 }
 
@@ -1046,8 +1109,10 @@ type FindChangedPathsRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	Commits    []string    `protobuf:"bytes,2,rep,name=commits,proto3" json:"commits,omitempty"`
+	// This comment is left unintentionally blank.
+	Commits []string `protobuf:"bytes,2,rep,name=commits,proto3" json:"commits,omitempty"`
 }
 
 func (x *FindChangedPathsRequest) Reset() {
@@ -1102,6 +1167,7 @@ type FindChangedPathsResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Paths []*ChangedPaths `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
 }
 
@@ -1150,7 +1216,9 @@ type ChangedPaths struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Path   []byte              `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// This comment is left unintentionally blank.
+	Path []byte `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// This comment is left unintentionally blank.
 	Status ChangedPaths_Status `protobuf:"varint,2,opt,name=status,proto3,enum=gitaly.ChangedPaths_Status" json:"status,omitempty"`
 }
 

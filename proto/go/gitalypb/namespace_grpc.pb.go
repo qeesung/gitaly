@@ -18,9 +18,13 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NamespaceServiceClient interface {
+	// This comment is left unintentionally blank.
 	AddNamespace(ctx context.Context, in *AddNamespaceRequest, opts ...grpc.CallOption) (*AddNamespaceResponse, error)
+	// This comment is left unintentionally blank.
 	RemoveNamespace(ctx context.Context, in *RemoveNamespaceRequest, opts ...grpc.CallOption) (*RemoveNamespaceResponse, error)
+	// This comment is left unintentionally blank.
 	RenameNamespace(ctx context.Context, in *RenameNamespaceRequest, opts ...grpc.CallOption) (*RenameNamespaceResponse, error)
+	// This comment is left unintentionally blank.
 	NamespaceExists(ctx context.Context, in *NamespaceExistsRequest, opts ...grpc.CallOption) (*NamespaceExistsResponse, error)
 }
 
@@ -72,9 +76,13 @@ func (c *namespaceServiceClient) NamespaceExists(ctx context.Context, in *Namesp
 // All implementations must embed UnimplementedNamespaceServiceServer
 // for forward compatibility
 type NamespaceServiceServer interface {
+	// This comment is left unintentionally blank.
 	AddNamespace(context.Context, *AddNamespaceRequest) (*AddNamespaceResponse, error)
+	// This comment is left unintentionally blank.
 	RemoveNamespace(context.Context, *RemoveNamespaceRequest) (*RemoveNamespaceResponse, error)
+	// This comment is left unintentionally blank.
 	RenameNamespace(context.Context, *RenameNamespaceRequest) (*RenameNamespaceResponse, error)
+	// This comment is left unintentionally blank.
 	NamespaceExists(context.Context, *NamespaceExistsRequest) (*NamespaceExistsResponse, error)
 	mustEmbedUnimplementedNamespaceServiceServer()
 }

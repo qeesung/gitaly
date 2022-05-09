@@ -20,6 +20,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// This comment is left unintentionally blank.
 type UpdateRemoteMirrorRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -123,6 +124,7 @@ func (x *UpdateRemoteMirrorRequest) GetKeepDivergentRefs() bool {
 	return false
 }
 
+// This comment is left unintentionally blank.
 type UpdateRemoteMirrorResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -172,11 +174,13 @@ func (x *UpdateRemoteMirrorResponse) GetDivergentRefs() [][]byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type FindRemoteRepositoryRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Remote string `protobuf:"bytes,1,opt,name=remote,proto3" json:"remote,omitempty"`
 	// This field is used to redirect request to proper storage where it can be handled.
 	// As of now it doesn't matter what storage will be used, but it still must be a valid.
@@ -237,6 +241,7 @@ type FindRemoteRepositoryResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Exists bool `protobuf:"varint,1,opt,name=exists,proto3" json:"exists,omitempty"`
 }
 
@@ -410,6 +415,7 @@ func (x *FindRemoteRootRefResponse) GetRef() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type UpdateRemoteMirrorRequest_Remote struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -18,13 +18,19 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ObjectPoolServiceClient interface {
+	// This comment is left unintentionally blank.
 	CreateObjectPool(ctx context.Context, in *CreateObjectPoolRequest, opts ...grpc.CallOption) (*CreateObjectPoolResponse, error)
+	// This comment is left unintentionally blank.
 	DeleteObjectPool(ctx context.Context, in *DeleteObjectPoolRequest, opts ...grpc.CallOption) (*DeleteObjectPoolResponse, error)
 	// Repositories are assumed to be stored on the same disk
 	LinkRepositoryToObjectPool(ctx context.Context, in *LinkRepositoryToObjectPoolRequest, opts ...grpc.CallOption) (*LinkRepositoryToObjectPoolResponse, error)
+	// This comment is left unintentionally blank.
 	ReduplicateRepository(ctx context.Context, in *ReduplicateRepositoryRequest, opts ...grpc.CallOption) (*ReduplicateRepositoryResponse, error)
+	// This comment is left unintentionally blank.
 	DisconnectGitAlternates(ctx context.Context, in *DisconnectGitAlternatesRequest, opts ...grpc.CallOption) (*DisconnectGitAlternatesResponse, error)
+	// This comment is left unintentionally blank.
 	FetchIntoObjectPool(ctx context.Context, in *FetchIntoObjectPoolRequest, opts ...grpc.CallOption) (*FetchIntoObjectPoolResponse, error)
+	// This comment is left unintentionally blank.
 	GetObjectPool(ctx context.Context, in *GetObjectPoolRequest, opts ...grpc.CallOption) (*GetObjectPoolResponse, error)
 }
 
@@ -103,13 +109,19 @@ func (c *objectPoolServiceClient) GetObjectPool(ctx context.Context, in *GetObje
 // All implementations must embed UnimplementedObjectPoolServiceServer
 // for forward compatibility
 type ObjectPoolServiceServer interface {
+	// This comment is left unintentionally blank.
 	CreateObjectPool(context.Context, *CreateObjectPoolRequest) (*CreateObjectPoolResponse, error)
+	// This comment is left unintentionally blank.
 	DeleteObjectPool(context.Context, *DeleteObjectPoolRequest) (*DeleteObjectPoolResponse, error)
 	// Repositories are assumed to be stored on the same disk
 	LinkRepositoryToObjectPool(context.Context, *LinkRepositoryToObjectPoolRequest) (*LinkRepositoryToObjectPoolResponse, error)
+	// This comment is left unintentionally blank.
 	ReduplicateRepository(context.Context, *ReduplicateRepositoryRequest) (*ReduplicateRepositoryResponse, error)
+	// This comment is left unintentionally blank.
 	DisconnectGitAlternates(context.Context, *DisconnectGitAlternatesRequest) (*DisconnectGitAlternatesResponse, error)
+	// This comment is left unintentionally blank.
 	FetchIntoObjectPool(context.Context, *FetchIntoObjectPoolRequest) (*FetchIntoObjectPoolResponse, error)
+	// This comment is left unintentionally blank.
 	GetObjectPool(context.Context, *GetObjectPoolRequest) (*GetObjectPoolResponse, error)
 	mustEmbedUnimplementedObjectPoolServiceServer()
 }

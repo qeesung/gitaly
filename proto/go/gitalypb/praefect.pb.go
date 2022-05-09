@@ -473,13 +473,17 @@ func (x *SetReplicationFactorResponse) GetStorages() []string {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type SetAuthoritativeStorageRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	VirtualStorage       string `protobuf:"bytes,1,opt,name=virtual_storage,json=virtualStorage,proto3" json:"virtual_storage,omitempty"`
-	RelativePath         string `protobuf:"bytes,2,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
+	// This comment is left unintentionally blank.
+	VirtualStorage string `protobuf:"bytes,1,opt,name=virtual_storage,json=virtualStorage,proto3" json:"virtual_storage,omitempty"`
+	// This comment is left unintentionally blank.
+	RelativePath string `protobuf:"bytes,2,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
+	// This comment is left unintentionally blank.
 	AuthoritativeStorage string `protobuf:"bytes,3,opt,name=authoritative_storage,json=authoritativeStorage,proto3" json:"authoritative_storage,omitempty"`
 }
 
@@ -536,6 +540,7 @@ func (x *SetAuthoritativeStorageRequest) GetAuthoritativeStorage() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type SetAuthoritativeStorageResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -574,11 +579,13 @@ func (*SetAuthoritativeStorageResponse) Descriptor() ([]byte, []int) {
 	return file_praefect_proto_rawDescGZIP(), []int{7}
 }
 
+// This comment is left unintentionally blank.
 type DatalossCheckRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	VirtualStorage string `protobuf:"bytes,1,opt,name=virtual_storage,json=virtualStorage,proto3" json:"virtual_storage,omitempty"`
 	// include_partially_unavailable indicates whether to include repositories which are available but
 	// are unavailable on some assigned storages.
@@ -631,6 +638,7 @@ func (x *DatalossCheckRequest) GetIncludePartiallyReplicated() bool {
 	return false
 }
 
+// This comment is left unintentionally blank.
 type DatalossCheckResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -679,11 +687,13 @@ func (x *DatalossCheckResponse) GetRepositories() []*DatalossCheckResponse_Repos
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type RepositoryReplicasRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 }
 
@@ -726,12 +736,15 @@ func (x *RepositoryReplicasRequest) GetRepository() *Repository {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type RepositoryReplicasResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Primary  *RepositoryReplicasResponse_RepositoryDetails   `protobuf:"bytes,1,opt,name=primary,proto3" json:"primary,omitempty"`
+	// This comment is left unintentionally blank.
+	Primary *RepositoryReplicasResponse_RepositoryDetails `protobuf:"bytes,1,opt,name=primary,proto3" json:"primary,omitempty"`
+	// This comment is left unintentionally blank.
 	Replicas []*RepositoryReplicasResponse_RepositoryDetails `protobuf:"bytes,2,rep,name=replicas,proto3" json:"replicas,omitempty"`
 }
 
@@ -839,6 +852,7 @@ func (x *MarkUnverifiedRequest_Storage) GetStorage() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type GetRepositoryMetadataRequest_Path struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -896,6 +910,7 @@ func (x *GetRepositoryMetadataRequest_Path) GetRelativePath() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type GetRepositoryMetadataResponse_Replica struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -990,6 +1005,7 @@ func (x *GetRepositoryMetadataResponse_Replica) GetVerifiedAt() *timestamppb.Tim
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type DatalossCheckResponse_Repository struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1065,6 +1081,7 @@ func (x *DatalossCheckResponse_Repository) GetPrimary() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type DatalossCheckResponse_Repository_Storage struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1149,13 +1166,16 @@ func (x *DatalossCheckResponse_Repository_Storage) GetValidPrimary() bool {
 	return false
 }
 
+// This comment is left unintentionally blank.
 type RepositoryReplicasResponse_RepositoryDetails struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	Checksum   string      `protobuf:"bytes,2,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	// This comment is left unintentionally blank.
+	Checksum string `protobuf:"bytes,2,opt,name=checksum,proto3" json:"checksum,omitempty"`
 }
 
 func (x *RepositoryReplicasResponse_RepositoryDetails) Reset() {

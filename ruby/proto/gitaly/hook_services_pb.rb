@@ -6,6 +6,9 @@ require 'hook_pb'
 
 module Gitaly
   module HookService
+    # HookService is a service which provides the implementation of a subset of
+    # Git hooks. These are typically invoked via the `gitaly-hooks` binary to
+    # ensure that the actual hook logic is executed in the context of the server.
     class Service
 
       include ::GRPC::GenericService
@@ -14,9 +17,13 @@ module Gitaly
       self.unmarshal_class_method = :decode
       self.service_name = 'gitaly.HookService'
 
+      # This comment is left unintentionally blank.
       rpc :PreReceiveHook, stream(::Gitaly::PreReceiveHookRequest), stream(::Gitaly::PreReceiveHookResponse)
+      # This comment is left unintentionally blank.
       rpc :PostReceiveHook, stream(::Gitaly::PostReceiveHookRequest), stream(::Gitaly::PostReceiveHookResponse)
+      # This comment is left unintentionally blank.
       rpc :UpdateHook, ::Gitaly::UpdateHookRequest, stream(::Gitaly::UpdateHookResponse)
+      # This comment is left unintentionally blank.
       rpc :ReferenceTransactionHook, stream(::Gitaly::ReferenceTransactionHookRequest), stream(::Gitaly::ReferenceTransactionHookResponse)
       # PackObjectsHookWithSidechannel is an optimized version of PackObjectsHook that uses
       # a unix socket side channel.

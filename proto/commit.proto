@@ -8,6 +8,8 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// CommitService is a service which provides RPCs that interact with Git
+// commits.
 service CommitService {
 
   // ListCommits lists all commits reachable via a set of references by doing a
@@ -27,104 +29,140 @@ service CommitService {
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc CommitIsAncestor(CommitIsAncestorRequest) returns (CommitIsAncestorResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc TreeEntry(TreeEntryRequest) returns (stream TreeEntryResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc CountCommits(CountCommitsRequest) returns (CountCommitsResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc CountDivergingCommits(CountDivergingCommitsRequest) returns (CountDivergingCommitsResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc GetTreeEntries(GetTreeEntriesRequest) returns (stream GetTreeEntriesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc ListFiles(ListFilesRequest) returns (stream ListFilesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc FindCommit(FindCommitRequest) returns (FindCommitResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc CommitStats(CommitStatsRequest) returns (CommitStatsResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
   // Use a stream to paginate the result set
   rpc FindAllCommits(FindAllCommitsRequest) returns (stream FindAllCommitsResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc FindCommits(FindCommitsRequest) returns (stream FindCommitsResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc CommitLanguages(CommitLanguagesRequest) returns (CommitLanguagesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc RawBlame(RawBlameRequest) returns (stream RawBlameResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc LastCommitForPath(LastCommitForPathRequest) returns (LastCommitForPathResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc ListLastCommitsForTree(ListLastCommitsForTreeRequest) returns (stream ListLastCommitsForTreeResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc CommitsByMessage(CommitsByMessageRequest) returns (stream CommitsByMessageResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc ListCommitsByOid(ListCommitsByOidRequest) returns (stream ListCommitsByOidResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc ListCommitsByRefName(ListCommitsByRefNameRequest) returns (stream ListCommitsByRefNameResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc FilterShasWithSignatures(stream FilterShasWithSignaturesRequest) returns (stream FilterShasWithSignaturesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc GetCommitSignatures(GetCommitSignaturesRequest) returns (stream GetCommitSignaturesResponse) {
     option (op_type) = {
       op: ACCESSOR
     };
   }
 
+  // This comment is left unintentionally blank.
   rpc GetCommitMessages(GetCommitMessagesRequest) returns (stream GetCommitMessagesResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -140,6 +178,7 @@ service CommitService {
       op: ACCESSOR
     };
   }
+
 }
 
 // ListCommitsRequest is a request for the ListCommits RPC.
@@ -227,29 +266,43 @@ message ListAllCommitsResponse {
   repeated GitCommit commits = 1;
 }
 
+// This comment is left unintentionally blank.
 message CommitStatsRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
 }
 
+// This comment is left unintentionally blank.
 message CommitStatsResponse {
   // OID is the commit. Empty means not found
   string oid = 1;
+  // This comment is left unintentionally blank.
   int32 additions = 2;
+  // This comment is left unintentionally blank.
   int32 deletions = 3;
 }
 
+// This comment is left unintentionally blank.
 message CommitIsAncestorRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string ancestor_id = 2;
+  // This comment is left unintentionally blank.
   string child_id = 3;
 }
 
+// This comment is left unintentionally blank.
 message CommitIsAncestorResponse {
+  // This comment is left unintentionally blank.
   bool value = 1;
 }
 
+// This comment is left unintentionally blank.
 message TreeEntryRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // commit ID or refname
   bytes revision = 2;
@@ -263,17 +316,25 @@ message TreeEntryRequest {
   int64 max_size = 5;
 }
 
+// This comment is left unintentionally blank.
 message TreeEntryResponse {
   // TODO: Replace this enum with ObjectType in shared.proto
   enum ObjectType {
+    // This comment is left unintentionally blank.
     COMMIT = 0;
+    // This comment is left unintentionally blank.
     BLOB = 1;
+    // This comment is left unintentionally blank.
     TREE = 2;
+    // This comment is left unintentionally blank.
     TAG = 3;
   }
+
+  // This comment is left unintentionally blank.
   ObjectType type = 1;
   // SHA1 object ID
   string oid = 2;
+  // This comment is left unintentionally blank.
   int64 size = 3;
   // file mode
   int32 mode = 4;
@@ -281,51 +342,76 @@ message TreeEntryResponse {
   bytes data = 5;
 }
 
+// This comment is left unintentionally blank.
 message CountCommitsRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
+  // This comment is left unintentionally blank.
   google.protobuf.Timestamp after = 3;
+  // This comment is left unintentionally blank.
   google.protobuf.Timestamp before = 4;
+  // This comment is left unintentionally blank.
   bytes path = 5;
+  // This comment is left unintentionally blank.
   int32 max_count = 6;
   // all and revision are mutually exclusive
   bool all = 7;
+  // This comment is left unintentionally blank.
   bool first_parent = 8;
+  // This comment is left unintentionally blank.
   GlobalOptions global_options = 9;
 }
 
+// This comment is left unintentionally blank.
 message CountCommitsResponse {
+  // This comment is left unintentionally blank.
   int32 count = 1;
 }
 
+// This comment is left unintentionally blank.
 message CountDivergingCommitsRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes from = 2;
+  // This comment is left unintentionally blank.
   bytes to = 3;
   reserved 4;
   reserved 5;
   reserved 6;
+  // This comment is left unintentionally blank.
   int32 max_count = 7;
 }
 
+// This comment is left unintentionally blank.
 message CountDivergingCommitsResponse {
+  // This comment is left unintentionally blank.
   int32 left_count = 1;
+  // This comment is left unintentionally blank.
   int32 right_count = 2;
 }
 
+// This comment is left unintentionally blank.
 message TreeEntry {
   // TODO: Replace this enum with ObjectType in shared.proto
   enum EntryType {
+    // This comment is left unintentionally blank.
     BLOB = 0;
+    // This comment is left unintentionally blank.
     TREE = 1;
+    // This comment is left unintentionally blank.
     COMMIT = 3;
   }
+
   // OID of the object this tree entry points to
   string oid = 1;
   // OID of the tree attached to commit_oid
   string root_oid = 2;
   // Path relative to repository root
   bytes path = 3;
+  // This comment is left unintentionally blank.
   EntryType type = 4;
   // File mode e.g. 0644
   int32 mode = 5;
@@ -335,31 +421,44 @@ message TreeEntry {
   bytes flat_path = 7;
 }
 
+// This comment is left unintentionally blank.
 message GetTreeEntriesRequest {
-  Repository repository = 1 [(target_repository)=true];
-  bytes revision = 2;
-  bytes path = 3;
-  bool recursive = 4;
-
+  // This comment is left unintentionally blank.
   enum SortBy {
+    // This comment is left unintentionally blank.
     DEFAULT = 0; // Preserve order of git ls-tree
+    // This comment is left unintentionally blank.
     TREES_FIRST = 1; // trees, blobs, submodules
   }
 
+  // This comment is left unintentionally blank.
+  Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
+  bytes revision = 2;
+  // This comment is left unintentionally blank.
+  bytes path = 3;
+  // This comment is left unintentionally blank.
+  bool recursive = 4;
+  // This comment is left unintentionally blank.
   SortBy sort = 5;
   // The page token is the last commit OID that was sent. It's expected to be the
   // full object ID to guard against ambigious OIDs.
   PaginationParameter pagination_params = 6;
 }
 
+// This comment is left unintentionally blank.
 message GetTreeEntriesResponse {
+  // This comment is left unintentionally blank.
   repeated TreeEntry entries = 1;
-
+  // This comment is left unintentionally blank.
   PaginationCursor pagination_cursor = 2;
 }
 
+// This comment is left unintentionally blank.
 message ListFilesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
 }
 
@@ -369,210 +468,330 @@ message ListFilesResponse {
   repeated bytes paths = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindCommitRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
+  // This comment is left unintentionally blank.
   bool trailers = 3;
 }
 
+// This comment is left unintentionally blank.
 message FindCommitResponse {
   // commit is nil when the commit was not found
   GitCommit commit = 1;
 }
 
+// This comment is left unintentionally blank.
 message ListCommitsByOidRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   repeated string oid = 2; // protolint:disable:this REPEATED_FIELD_NAMES_PLURALIZED
 }
 
+// This comment is left unintentionally blank.
 message ListCommitsByOidResponse {
+  // This comment is left unintentionally blank.
   repeated GitCommit commits = 1;
 }
 
+// This comment is left unintentionally blank.
 message ListCommitsByRefNameRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   repeated bytes ref_names = 2;
 }
 
+// This comment is left unintentionally blank.
 message ListCommitsByRefNameResponse {
   reserved 1;
 
+  // This comment is left unintentionally blank.
   message CommitForRef {
+    // This comment is left unintentionally blank.
     GitCommit commit = 1;
+    // This comment is left unintentionally blank.
     bytes ref_name = 2;
   }
 
+  // This comment is left unintentionally blank.
   repeated CommitForRef commit_refs = 2;
 }
 
+// This comment is left unintentionally blank.
 message FindAllCommitsRequest {
+  // This comment is left unintentionally blank.
+  enum Order {
+    // This comment is left unintentionally blank.
+    NONE = 0;
+    // This comment is left unintentionally blank.
+    TOPO = 1;
+    // This comment is left unintentionally blank.
+    DATE = 2;
+  }
+
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
   // When nil, return all commits reachable by any branch in the repo
   bytes revision = 2;
+  // This comment is left unintentionally blank.
   int32 max_count = 3;
+  // This comment is left unintentionally blank.
   int32 skip = 4;
-  enum Order {
-    NONE = 0;
-    TOPO = 1;
-    DATE = 2;
-  }
+  // This comment is left unintentionally blank.
   Order order = 5;
 }
 
 // A single 'page' of the result set
 message FindAllCommitsResponse {
+  // This comment is left unintentionally blank.
   repeated GitCommit commits = 1;
 }
 
+// This comment is left unintentionally blank.
 message FindCommitsRequest {
+  // This comment is left unintentionally blank.
+  enum Order {
+    // This comment is left unintentionally blank.
+    NONE = 0;
+    // This comment is left unintentionally blank.
+    TOPO = 1;
+  }
+
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
+  // This comment is left unintentionally blank.
   int32 limit = 3;
+  // This comment is left unintentionally blank.
   int32 offset = 4;
+  // This comment is left unintentionally blank.
   repeated bytes paths = 5;
+  // This comment is left unintentionally blank.
   bool follow = 6;
+  // This comment is left unintentionally blank.
   bool skip_merges = 7;
+  // This comment is left unintentionally blank.
   bool disable_walk = 8;
+  // This comment is left unintentionally blank.
   google.protobuf.Timestamp after = 9;
+  // This comment is left unintentionally blank.
   google.protobuf.Timestamp before = 10;
   // all and revision are mutually exclusive
   bool all = 11;
+  // This comment is left unintentionally blank.
   bool first_parent = 12;
+  // This comment is left unintentionally blank.
   bytes author = 13;
-  enum Order {
-    NONE = 0;
-    TOPO = 1;
-  }
+  // This comment is left unintentionally blank.
   Order order = 14;
+  // This comment is left unintentionally blank.
   GlobalOptions global_options = 15;
+  // This comment is left unintentionally blank.
   bool trailers = 16;
 }
 
 // A single 'page' of the result set
 message FindCommitsResponse {
+  // This comment is left unintentionally blank.
   repeated GitCommit commits = 1;
 }
 
+// This comment is left unintentionally blank.
 message CommitLanguagesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
 }
 
+// This comment is left unintentionally blank.
 message CommitLanguagesResponse {
+  // This comment is left unintentionally blank.
   message Language {
+    // This comment is left unintentionally blank.
     string name = 1;
+    // This comment is left unintentionally blank.
     float share = 2;
+    // This comment is left unintentionally blank.
     string color = 3;
+    // This comment is left unintentionally blank.
     uint32 file_count = 4;
+    // This comment is left unintentionally blank.
     uint64 bytes = 5;
   }
+
+  // This comment is left unintentionally blank.
   repeated Language languages = 1;
 }
 
+// This comment is left unintentionally blank.
 message RawBlameRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
+  // This comment is left unintentionally blank.
   bytes path = 3;
   // Comma-separated range of line numbers to perform the blame on: "1,1000".
   // Optional - if no range is provided, the whole file will be blamed.
   bytes range = 4;
 }
 
+// This comment is left unintentionally blank.
 message RawBlameResponse {
+  // This comment is left unintentionally blank.
   bytes data = 1;
 }
 
+// This comment is left unintentionally blank.
 message LastCommitForPathRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
+  // This comment is left unintentionally blank.
+  // This comment is left unintentionally blank.
+  // This comment is left unintentionally blank.
   bytes path = 3;
+  // This comment is left unintentionally blank.
   bool literal_pathspec = 4; // Deprecate after Rails stops using this
+  // This comment is left unintentionally blank.
   GlobalOptions global_options = 5;
 }
 
+// This comment is left unintentionally blank.
 message LastCommitForPathResponse {
   // commit is nil when the commit was not found
   GitCommit commit = 1;
 }
 
+// This comment is left unintentionally blank.
 message ListLastCommitsForTreeRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string revision = 2;
+  // This comment is left unintentionally blank.
   bytes path = 3;
+  // This comment is left unintentionally blank.
   int32 limit = 4;
+  // This comment is left unintentionally blank.
   int32 offset = 5;
+  // This comment is left unintentionally blank.
   bool literal_pathspec = 6 [deprecated = true];
+  // This comment is left unintentionally blank.
   GlobalOptions global_options = 7;
 }
 
+// This comment is left unintentionally blank.
 message ListLastCommitsForTreeResponse {
+  // This comment is left unintentionally blank.
   message CommitForTree {
     reserved 1;
 
+    // This comment is left unintentionally blank.
     GitCommit commit = 2;
     reserved 3;
+    // This comment is left unintentionally blank.
     bytes path_bytes = 4;
   }
+
+  // This comment is left unintentionally blank.
   repeated CommitForTree commits = 1;
 }
 
+// This comment is left unintentionally blank.
 message CommitsByMessageRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   bytes revision = 2;
+  // This comment is left unintentionally blank.
   int32 offset = 3;
+  // This comment is left unintentionally blank.
   int32 limit = 4;
+  // This comment is left unintentionally blank.
   bytes path = 5;
+  // This comment is left unintentionally blank.
   string query = 6;
+  // This comment is left unintentionally blank.
   GlobalOptions global_options = 7;
 }
 
 // One 'page' of the paginated response of CommitsByMessage
 message CommitsByMessageResponse {
+  // This comment is left unintentionally blank.
   repeated GitCommit commits = 1;
 }
 
+// This comment is left unintentionally blank.
 message FilterShasWithSignaturesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   repeated bytes shas = 2;
 }
 
+// This comment is left unintentionally blank.
 message FilterShasWithSignaturesResponse {
+  // This comment is left unintentionally blank.
   repeated bytes shas = 1;
 }
 
+// This comment is left unintentionally blank.
 message ExtractCommitSignatureRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string commit_id = 2;
 }
 
 // Either of the 'signature' and 'signed_text' fields may be present. It
 // is up to the caller to stitch them together.
 message ExtractCommitSignatureResponse {
+  // This comment is left unintentionally blank.
   bytes signature = 1;
+  // This comment is left unintentionally blank.
   bytes signed_text = 2;
 }
 
+// This comment is left unintentionally blank.
 message GetCommitSignaturesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   repeated string commit_ids = 2;
 }
 
+// This comment is left unintentionally blank.
 message GetCommitSignaturesResponse {
   // Only present for a new commit signature data.
   string commit_id = 1;
   // See ExtractCommitSignatureResponse above for how these fields should be handled.
   bytes signature = 2;
+  // This comment is left unintentionally blank.
   bytes signed_text = 3;
 }
 
+// This comment is left unintentionally blank.
 message GetCommitMessagesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   repeated string commit_ids = 2;
 }
 
+// This comment is left unintentionally blank.
 message GetCommitMessagesResponse {
   // Only present for a new commit message
   string commit_id = 1;
+  // This comment is left unintentionally blank.
   bytes message = 2;
 }
 
@@ -588,11 +807,16 @@ message CheckObjectsExistRequest {
   repeated bytes revisions = 2;
 }
 
+// This comment is left unintentionally blank.
 message CheckObjectsExistResponse {
+  // This comment is left unintentionally blank.
   message RevisionExistence {
+    // This comment is left unintentionally blank.
     bytes name = 1;
+    // This comment is left unintentionally blank.
     bool exists = 2;
   };
 
+  // This comment is left unintentionally blank.
   repeated RevisionExistence revisions = 1;
 }

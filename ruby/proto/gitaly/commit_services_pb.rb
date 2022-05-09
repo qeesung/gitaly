@@ -6,6 +6,8 @@ require 'commit_pb'
 
 module Gitaly
   module CommitService
+    # CommitService is a service which provides RPCs that interact with Git
+    # commits.
     class Service
 
       include ::GRPC::GenericService
@@ -21,26 +23,45 @@ module Gitaly
       # ListAllCommits lists all commits present in the repository, including
       # those not reachable by any reference.
       rpc :ListAllCommits, ::Gitaly::ListAllCommitsRequest, stream(::Gitaly::ListAllCommitsResponse)
+      # This comment is left unintentionally blank.
       rpc :CommitIsAncestor, ::Gitaly::CommitIsAncestorRequest, ::Gitaly::CommitIsAncestorResponse
+      # This comment is left unintentionally blank.
       rpc :TreeEntry, ::Gitaly::TreeEntryRequest, stream(::Gitaly::TreeEntryResponse)
+      # This comment is left unintentionally blank.
       rpc :CountCommits, ::Gitaly::CountCommitsRequest, ::Gitaly::CountCommitsResponse
+      # This comment is left unintentionally blank.
       rpc :CountDivergingCommits, ::Gitaly::CountDivergingCommitsRequest, ::Gitaly::CountDivergingCommitsResponse
+      # This comment is left unintentionally blank.
       rpc :GetTreeEntries, ::Gitaly::GetTreeEntriesRequest, stream(::Gitaly::GetTreeEntriesResponse)
+      # This comment is left unintentionally blank.
       rpc :ListFiles, ::Gitaly::ListFilesRequest, stream(::Gitaly::ListFilesResponse)
+      # This comment is left unintentionally blank.
       rpc :FindCommit, ::Gitaly::FindCommitRequest, ::Gitaly::FindCommitResponse
+      # This comment is left unintentionally blank.
       rpc :CommitStats, ::Gitaly::CommitStatsRequest, ::Gitaly::CommitStatsResponse
       # Use a stream to paginate the result set
       rpc :FindAllCommits, ::Gitaly::FindAllCommitsRequest, stream(::Gitaly::FindAllCommitsResponse)
+      # This comment is left unintentionally blank.
       rpc :FindCommits, ::Gitaly::FindCommitsRequest, stream(::Gitaly::FindCommitsResponse)
+      # This comment is left unintentionally blank.
       rpc :CommitLanguages, ::Gitaly::CommitLanguagesRequest, ::Gitaly::CommitLanguagesResponse
+      # This comment is left unintentionally blank.
       rpc :RawBlame, ::Gitaly::RawBlameRequest, stream(::Gitaly::RawBlameResponse)
+      # This comment is left unintentionally blank.
       rpc :LastCommitForPath, ::Gitaly::LastCommitForPathRequest, ::Gitaly::LastCommitForPathResponse
+      # This comment is left unintentionally blank.
       rpc :ListLastCommitsForTree, ::Gitaly::ListLastCommitsForTreeRequest, stream(::Gitaly::ListLastCommitsForTreeResponse)
+      # This comment is left unintentionally blank.
       rpc :CommitsByMessage, ::Gitaly::CommitsByMessageRequest, stream(::Gitaly::CommitsByMessageResponse)
+      # This comment is left unintentionally blank.
       rpc :ListCommitsByOid, ::Gitaly::ListCommitsByOidRequest, stream(::Gitaly::ListCommitsByOidResponse)
+      # This comment is left unintentionally blank.
       rpc :ListCommitsByRefName, ::Gitaly::ListCommitsByRefNameRequest, stream(::Gitaly::ListCommitsByRefNameResponse)
+      # This comment is left unintentionally blank.
       rpc :FilterShasWithSignatures, stream(::Gitaly::FilterShasWithSignaturesRequest), stream(::Gitaly::FilterShasWithSignaturesResponse)
+      # This comment is left unintentionally blank.
       rpc :GetCommitSignatures, ::Gitaly::GetCommitSignaturesRequest, stream(::Gitaly::GetCommitSignaturesResponse)
+      # This comment is left unintentionally blank.
       rpc :GetCommitMessages, ::Gitaly::GetCommitMessagesRequest, stream(::Gitaly::GetCommitMessagesResponse)
       # CheckObjectsExist will check for the existence of revisions against a
       # repository. It returns two sets of data. An array containing the revisions

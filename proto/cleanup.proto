@@ -7,14 +7,19 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// CleanupService provides RPCs to clean up a repository's contents.
 service CleanupService {
+
+  // This comment is left unintentionally blank.
   rpc ApplyBfgObjectMapStream(stream ApplyBfgObjectMapStreamRequest) returns (stream ApplyBfgObjectMapStreamResponse) {
     option (op_type) = {
       op: MUTATOR
     };
   }
+
 }
 
+// This comment is left unintentionally blank.
 message ApplyBfgObjectMapStreamRequest {
   // Only available on the first message
   Repository repository = 1 [(target_repository)=true];
@@ -25,14 +30,19 @@ message ApplyBfgObjectMapStreamRequest {
   bytes object_map = 2;
 }
 
+// This comment is left unintentionally blank.
 message ApplyBfgObjectMapStreamResponse {
   // We send back each parsed entry in the request's object map so the client
   // can take action
   message Entry {
+    // This comment is left unintentionally blank.
     ObjectType type = 1;
+    // This comment is left unintentionally blank.
     string old_oid = 2;
+    // This comment is left unintentionally blank.
     string new_oid = 3;
   }
 
+  // This comment is left unintentionally blank.
   repeated Entry entries = 1;
 }

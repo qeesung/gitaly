@@ -8,7 +8,12 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// ConflictsService is a service which provides RPCs to interact with conflicts
+// resulting from a merge.
 service ConflictsService {
+
+  // ListConflictFiles returns all conflicting files which result from a merge
+  // of two specified commit objects.
   rpc ListConflictFiles(ListConflictFilesRequest) returns (stream ListConflictFilesResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -23,11 +28,16 @@ service ConflictsService {
       op: MUTATOR
     };
   }
+
 }
 
+// This comment is left unintentionally blank.
 message ListConflictFilesRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
+  // This comment is left unintentionally blank.
   string our_commit_oid = 2;
+  // This comment is left unintentionally blank.
   string their_commit_oid = 3;
   // AllowTreeConflicts will not cause the request to fail in case there are
   // tree conflicts. If set to true, then responses may contain conflict files
@@ -35,23 +45,34 @@ message ListConflictFilesRequest {
   bool allow_tree_conflicts = 4;
 }
 
+// This comment is left unintentionally blank.
 message ConflictFileHeader {
   reserved 1;
+  // This comment is left unintentionally blank.
   string commit_oid = 2;
+  // This comment is left unintentionally blank.
   bytes their_path = 3;
+  // This comment is left unintentionally blank.
   bytes our_path = 4;
+  // This comment is left unintentionally blank.
   int32 our_mode = 5;
+  // This comment is left unintentionally blank.
   bytes ancestor_path = 6;
 }
 
+// This comment is left unintentionally blank.
 message ConflictFile {
   oneof conflict_file_payload {
+    // This comment is left unintentionally blank.
     ConflictFileHeader header = 1;
+    // This comment is left unintentionally blank.
     bytes content = 2;
   }
 }
 
+// This comment is left unintentionally blank.
 message ListConflictFilesResponse {
+  // This comment is left unintentionally blank.
   repeated ConflictFile files = 1;
 }
 

@@ -7,7 +7,10 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// BlobService is a service which provides RPCs to retrieve Git blobs from a
+// specific repository.
 service BlobService {
+
   // GetBlob returns the contents of a blob object referenced by its object
   // ID. We use a stream to return a chunked arbitrarily large binary
   // response
@@ -16,6 +19,8 @@ service BlobService {
       op: ACCESSOR
     };
   }
+
+  // This comment is left unintentionally blank.
   rpc GetBlobs(GetBlobsRequest) returns (stream GetBlobsResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -70,8 +75,9 @@ service BlobService {
 
 }
 
+// This comment is left unintentionally blank.
 message GetBlobRequest {
-
+  // This comment is left unintentionally blank.
   Repository repository = 1[(target_repository)=true];
   // Object ID (SHA1) of the blob we want to get
   string oid = 2;
@@ -79,6 +85,7 @@ message GetBlobRequest {
   int64 limit = 3;
 }
 
+// This comment is left unintentionally blank.
 message GetBlobResponse {
   // Blob size; present only in first response message
   int64 size = 1;
@@ -88,13 +95,17 @@ message GetBlobResponse {
   string oid = 3;
 }
 
+// This comment is left unintentionally blank.
 message GetBlobsRequest {
-
+  // This comment is left unintentionally blank.
   message RevisionPath {
+    // This comment is left unintentionally blank.
     string revision = 1;
+    // This comment is left unintentionally blank.
     bytes path = 2;
   }
 
+  // This comment is left unintentionally blank.
   Repository repository = 1[(target_repository)=true];
   // Revision/Path pairs of the blobs we want to get.
   repeated RevisionPath revision_paths = 2;
@@ -102,6 +113,7 @@ message GetBlobsRequest {
   int64 limit = 3;
 }
 
+// This comment is left unintentionally blank.
 message GetBlobsResponse {
   // Blob size; present only on the first message per blob
   int64 size = 1;
@@ -109,10 +121,15 @@ message GetBlobsResponse {
   bytes data = 2;
   // Object ID of the current blob. Only present on the first message per blob. Empty if no blob was found.
   string oid = 3;
+  // This comment is left unintentionally blank.
   bool is_submodule = 4;
+  // This comment is left unintentionally blank.
   int32 mode = 5;
+  // This comment is left unintentionally blank.
   string revision = 6;
+  // This comment is left unintentionally blank.
   bytes path = 7;
+  // This comment is left unintentionally blank.
   ObjectType type = 8;
 }
 
@@ -212,9 +229,13 @@ message LFSPointer {
   string oid = 3;
 }
 
+// This comment is left unintentionally blank.
 message NewBlobObject {
+  // This comment is left unintentionally blank.
   int64 size = 1;
+  // This comment is left unintentionally blank.
   string oid = 2;
+  // This comment is left unintentionally blank.
   bytes path = 3;
 }
 

@@ -21,12 +21,17 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// This comment is left unintentionally blank.
 type OperationMsg_Operation int32
 
 const (
-	OperationMsg_UNKNOWN     OperationMsg_Operation = 0
-	OperationMsg_MUTATOR     OperationMsg_Operation = 1
-	OperationMsg_ACCESSOR    OperationMsg_Operation = 2
+	// This comment is left unintentionally blank.
+	OperationMsg_UNKNOWN OperationMsg_Operation = 0
+	// This comment is left unintentionally blank.
+	OperationMsg_MUTATOR OperationMsg_Operation = 1
+	// This comment is left unintentionally blank.
+	OperationMsg_ACCESSOR OperationMsg_Operation = 2
+	// This comment is left unintentionally blank.
 	OperationMsg_MAINTENANCE OperationMsg_Operation = 3
 )
 
@@ -73,11 +78,14 @@ func (OperationMsg_Operation) EnumDescriptor() ([]byte, []int) {
 	return file_lint_proto_rawDescGZIP(), []int{0, 0}
 }
 
+// This comment is left unintentionally blank.
 type OperationMsg_Scope int32
 
 const (
+	// This comment is left unintentionally blank.
 	OperationMsg_REPOSITORY OperationMsg_Scope = 0
-	OperationMsg_STORAGE    OperationMsg_Scope = 2
+	// This comment is left unintentionally blank.
+	OperationMsg_STORAGE OperationMsg_Scope = 2
 )
 
 // Enum value maps for OperationMsg_Scope.
@@ -119,11 +127,13 @@ func (OperationMsg_Scope) EnumDescriptor() ([]byte, []int) {
 	return file_lint_proto_rawDescGZIP(), []int{0, 1}
 }
 
+// This comment is left unintentionally blank.
 type OperationMsg struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Op OperationMsg_Operation `protobuf:"varint,1,opt,name=op,proto3,enum=gitaly.OperationMsg_Operation" json:"op,omitempty"`
 	// Scope level indicates what level an RPC interacts with a server:
 	//   - REPOSITORY: scoped to only a single repo

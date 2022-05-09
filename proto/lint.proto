@@ -6,23 +6,33 @@ import "google/protobuf/descriptor.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// This comment is left unintentionally blank.
 message OperationMsg {
+  // This comment is left unintentionally blank.
   enum Operation {
+    // This comment is left unintentionally blank.
     UNKNOWN = 0;
+    // This comment is left unintentionally blank.
     MUTATOR = 1;
+    // This comment is left unintentionally blank.
     ACCESSOR = 2;
+    // This comment is left unintentionally blank.
     MAINTENANCE = 3;
   }
 
-  Operation op = 1;
-
+  // This comment is left unintentionally blank.
   enum Scope {
+    // This comment is left unintentionally blank.
     REPOSITORY = 0;
+    // This comment is left unintentionally blank.
     STORAGE = 2;
 
     reserved 1;
     reserved "SERVER";
   }
+
+  // This comment is left unintentionally blank.
+  Operation op = 1;
 
   // Scope level indicates what level an RPC interacts with a server:
   //   - REPOSITORY: scoped to only a single repo

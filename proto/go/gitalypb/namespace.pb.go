@@ -20,13 +20,16 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// This comment is left unintentionally blank.
 type AddNamespaceRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	StorageName string `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
-	Name        string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// This comment is left unintentionally blank.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 }
 
 func (x *AddNamespaceRequest) Reset() {
@@ -75,13 +78,16 @@ func (x *AddNamespaceRequest) GetName() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type RemoveNamespaceRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	StorageName string `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
-	Name        string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// This comment is left unintentionally blank.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 }
 
 func (x *RemoveNamespaceRequest) Reset() {
@@ -130,14 +136,18 @@ func (x *RemoveNamespaceRequest) GetName() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type RenameNamespaceRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	StorageName string `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
-	From        string `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
-	To          string `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`
+	// This comment is left unintentionally blank.
+	From string `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
+	// This comment is left unintentionally blank.
+	To string `protobuf:"bytes,3,opt,name=to,proto3" json:"to,omitempty"`
 }
 
 func (x *RenameNamespaceRequest) Reset() {
@@ -193,13 +203,16 @@ func (x *RenameNamespaceRequest) GetTo() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type NamespaceExistsRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	StorageName string `protobuf:"bytes,1,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
-	Name        string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// This comment is left unintentionally blank.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 }
 
 func (x *NamespaceExistsRequest) Reset() {
@@ -248,11 +261,13 @@ func (x *NamespaceExistsRequest) GetName() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type NamespaceExistsResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Exists bool `protobuf:"varint,1,opt,name=exists,proto3" json:"exists,omitempty"`
 }
 
@@ -295,6 +310,7 @@ func (x *NamespaceExistsResponse) GetExists() bool {
 	return false
 }
 
+// This comment is left unintentionally blank.
 type AddNamespaceResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -333,6 +349,7 @@ func (*AddNamespaceResponse) Descriptor() ([]byte, []int) {
 	return file_namespace_proto_rawDescGZIP(), []int{5}
 }
 
+// This comment is left unintentionally blank.
 type RemoveNamespaceResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -371,6 +388,7 @@ func (*RemoveNamespaceResponse) Descriptor() ([]byte, []int) {
 	return file_namespace_proto_rawDescGZIP(), []int{6}
 }
 
+// This comment is left unintentionally blank.
 type RenameNamespaceResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

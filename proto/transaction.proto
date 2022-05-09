@@ -7,15 +7,44 @@ import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 
+// RefTransaction is a service which provides RPCs to interact with reference
+// transactions. Reference transactions are used in the context of Gitaly
+// Cluster to ensure that all nodes part of a single transaction perform the
+// same change: given a set of changes, the changes are hashed and the hash is
+// then voted on.
 service RefTransaction {
   option (intercepted) = true;
 
+  // VoteTransaction casts a vote on a transaction to establish whether the
+  // node is doing the same change as all the other nodes part of the
+  // transaction. This RPC blocks until quorum has been reached, which may be
+  // _before_ all nodes have cast a vote.
+  //
+  // This RPC may return one of the following error codes:
+  //
+  // - `NotFound` in case the transaction could not be found.
+  // - `Canceled` in case the transaction has been canceled before quorum was
+  //   reached.
   rpc VoteTransaction (VoteTransactionRequest) returns (VoteTransactionResponse);
 
+  // StopTransaction gracefully stops a transaction. This RPC can be used if
+  // only a subset of nodes executes specific code which may cause the
+  // transaction to fail. One such example is Git hooks, which only execute on
+  // the primary Gitaly noded. Other nodes which vote on this transaction will
+  // get a response with the `STOP` state being set.
+  //
+  // This RPC may return one of the following error codes:
+  //
+  // - `NotFound` in case the transaction could not be found.
+  // - `Canceled` in case the transaction has been canceled before quorum was
+  //   reached.
   rpc StopTransaction (StopTransactionRequest) returns (StopTransactionResponse);
+
 }
 
+// This comment is left unintentionally blank.
 message VoteTransactionRequest {
+  // This comment is left unintentionally blank.
   enum Phase {
     // UNKNOWN_PHASE is the unknown voting phase. This value has been the
     // default because phases have been introduced. Eventually, using this
@@ -30,6 +59,7 @@ message VoteTransactionRequest {
     COMMITTED_PHASE  = 2;
   };
 
+  // This comment is left unintentionally blank.
   Repository repository = 1[(target_repository)=true];
   // ID of the transaction we're processing
   uint64 transaction_id = 2;
@@ -41,23 +71,31 @@ message VoteTransactionRequest {
   Phase phase = 5;
 }
 
+// This comment is left unintentionally blank.
 message VoteTransactionResponse {
   // The outcome of the given transaction telling the client whether the
   // transaction should be committed or rolled back.
   enum TransactionState {
+    // This comment is left unintentionally blank.
     COMMIT = 0;
+    // This comment is left unintentionally blank.
     ABORT = 1;
+    // This comment is left unintentionally blank.
     STOP = 2;
   }
 
+  // This comment is left unintentionally blank.
   TransactionState state = 1;
 }
 
+// This comment is left unintentionally blank.
 message StopTransactionRequest {
+  // This comment is left unintentionally blank.
   Repository repository = 1[(target_repository)=true];
   // ID of the transaction we're processing
   uint64 transaction_id = 2;
 }
 
+// This comment is left unintentionally blank.
 message StopTransactionResponse {
 }

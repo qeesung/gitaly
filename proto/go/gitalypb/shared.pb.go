@@ -21,14 +21,20 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// This comment is left unintentionally blank.
 type ObjectType int32
 
 const (
+	// This comment is left unintentionally blank.
 	ObjectType_UNKNOWN ObjectType = 0
-	ObjectType_COMMIT  ObjectType = 1
-	ObjectType_BLOB    ObjectType = 2
-	ObjectType_TREE    ObjectType = 3
-	ObjectType_TAG     ObjectType = 4
+	// This comment is left unintentionally blank.
+	ObjectType_COMMIT ObjectType = 1
+	// This comment is left unintentionally blank.
+	ObjectType_BLOB ObjectType = 2
+	// This comment is left unintentionally blank.
+	ObjectType_TREE ObjectType = 3
+	// This comment is left unintentionally blank.
+	ObjectType_TAG ObjectType = 4
 )
 
 // Enum value maps for ObjectType.
@@ -76,13 +82,18 @@ func (ObjectType) EnumDescriptor() ([]byte, []int) {
 	return file_shared_proto_rawDescGZIP(), []int{0}
 }
 
+// This comment is left unintentionally blank.
 type SignatureType int32
 
 const (
+	// This comment is left unintentionally blank.
 	SignatureType_NONE SignatureType = 0
-	SignatureType_PGP  SignatureType = 1
+	// This comment is left unintentionally blank.
+	SignatureType_PGP SignatureType = 1
+	// This comment is left unintentionally blank.
 	SignatureType_X509 SignatureType = 2
-	SignatureType_SSH  SignatureType = 3 // maybe add X509+TSA or other combinations at a later step
+	// This comment is left unintentionally blank.
+	SignatureType_SSH SignatureType = 3 // maybe add X509+TSA or other combinations at a later step
 )
 
 // Enum value maps for SignatureType.
@@ -177,12 +188,15 @@ func (SortDirection) EnumDescriptor() ([]byte, []int) {
 	return file_shared_proto_rawDescGZIP(), []int{2}
 }
 
+// This comment is left unintentionally blank.
 type Repository struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	StorageName  string `protobuf:"bytes,2,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
+	// This comment is left unintentionally blank.
+	StorageName string `protobuf:"bytes,2,opt,name=storage_name,json=storageName,proto3" json:"storage_name,omitempty"`
+	// This comment is left unintentionally blank.
 	RelativePath string `protobuf:"bytes,3,opt,name=relative_path,json=relativePath,proto3" json:"relative_path,omitempty"`
 	// Sets the GIT_OBJECT_DIRECTORY envvar on git commands to the value of this field.
 	// It influences the object storage directory the SHA1 directories are created underneath.
@@ -341,16 +355,23 @@ type GitCommit struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id        string        `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Subject   []byte        `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
-	Body      []byte        `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
-	Author    *CommitAuthor `protobuf:"bytes,4,opt,name=author,proto3" json:"author,omitempty"`
+	// This comment is left unintentionally blank.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// This comment is left unintentionally blank.
+	Subject []byte `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
+	// This comment is left unintentionally blank.
+	Body []byte `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	// This comment is left unintentionally blank.
+	Author *CommitAuthor `protobuf:"bytes,4,opt,name=author,proto3" json:"author,omitempty"`
+	// This comment is left unintentionally blank.
 	Committer *CommitAuthor `protobuf:"bytes,5,opt,name=committer,proto3" json:"committer,omitempty"`
-	ParentIds []string      `protobuf:"bytes,6,rep,name=parent_ids,json=parentIds,proto3" json:"parent_ids,omitempty"`
+	// This comment is left unintentionally blank.
+	ParentIds []string `protobuf:"bytes,6,rep,name=parent_ids,json=parentIds,proto3" json:"parent_ids,omitempty"`
 	// If body exceeds a certain threshold, it will be nullified,
 	// but its size will be set in body_size so we can know if
 	// a commit had a body in the first place.
-	BodySize      int64         `protobuf:"varint,7,opt,name=body_size,json=bodySize,proto3" json:"body_size,omitempty"`
+	BodySize int64 `protobuf:"varint,7,opt,name=body_size,json=bodySize,proto3" json:"body_size,omitempty"`
+	// This comment is left unintentionally blank.
 	SignatureType SignatureType `protobuf:"varint,8,opt,name=signature_type,json=signatureType,proto3,enum=gitaly.SignatureType" json:"signature_type,omitempty"`
 	// The tree ID will always be filled, even if the tree is empty. In that case
 	// the value will be `4b825dc642cb6eb9a060e54bf8d69288fbee4904`.
@@ -465,15 +486,20 @@ func (x *GitCommit) GetTrailers() []*CommitTrailer {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type CommitAuthor struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name     []byte                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Email    []byte                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	Date     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
-	Timezone []byte                 `protobuf:"bytes,4,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	// This comment is left unintentionally blank.
+	Name []byte `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// This comment is left unintentionally blank.
+	Email []byte `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	// This comment is left unintentionally blank.
+	Date *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
+	// This comment is left unintentionally blank.
+	Timezone []byte `protobuf:"bytes,4,opt,name=timezone,proto3" json:"timezone,omitempty"`
 }
 
 func (x *CommitAuthor) Reset() {
@@ -536,11 +562,13 @@ func (x *CommitAuthor) GetTimezone() []byte {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type ExitStatus struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Value int32 `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
 }
 
@@ -589,7 +617,9 @@ type Branch struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name         []byte     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// This comment is left unintentionally blank.
+	Name []byte `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// This comment is left unintentionally blank.
 	TargetCommit *GitCommit `protobuf:"bytes,2,opt,name=target_commit,json=targetCommit,proto3" json:"target_commit,omitempty"`
 }
 
@@ -639,20 +669,27 @@ func (x *Branch) GetTargetCommit() *GitCommit {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type Tag struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name         []byte     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Id           string     `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	// This comment is left unintentionally blank.
+	Name []byte `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// This comment is left unintentionally blank.
+	Id string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	// This comment is left unintentionally blank.
 	TargetCommit *GitCommit `protobuf:"bytes,3,opt,name=target_commit,json=targetCommit,proto3" json:"target_commit,omitempty"`
 	// If message exceeds a certain threshold, it will be nullified,
 	// but its size will be set in message_size so we can know if
 	// a tag had a message in the first place.
-	Message       []byte        `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	MessageSize   int64         `protobuf:"varint,5,opt,name=message_size,json=messageSize,proto3" json:"message_size,omitempty"`
-	Tagger        *CommitAuthor `protobuf:"bytes,6,opt,name=tagger,proto3" json:"tagger,omitempty"`
+	Message []byte `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	// This comment is left unintentionally blank.
+	MessageSize int64 `protobuf:"varint,5,opt,name=message_size,json=messageSize,proto3" json:"message_size,omitempty"`
+	// This comment is left unintentionally blank.
+	Tagger *CommitAuthor `protobuf:"bytes,6,opt,name=tagger,proto3" json:"tagger,omitempty"`
+	// This comment is left unintentionally blank.
 	SignatureType SignatureType `protobuf:"varint,7,opt,name=signature_type,json=signatureType,proto3,enum=gitaly.SignatureType" json:"signature_type,omitempty"`
 }
 
@@ -737,14 +774,19 @@ func (x *Tag) GetSignatureType() SignatureType {
 	return SignatureType_NONE
 }
 
+// This comment is left unintentionally blank.
 type User struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	GlId       string `protobuf:"bytes,1,opt,name=gl_id,json=glId,proto3" json:"gl_id,omitempty"`
-	Name       []byte `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Email      []byte `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	// This comment is left unintentionally blank.
+	GlId string `protobuf:"bytes,1,opt,name=gl_id,json=glId,proto3" json:"gl_id,omitempty"`
+	// This comment is left unintentionally blank.
+	Name []byte `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// This comment is left unintentionally blank.
+	Email []byte `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	// This comment is left unintentionally blank.
 	GlUsername string `protobuf:"bytes,4,opt,name=gl_username,json=glUsername,proto3" json:"gl_username,omitempty"`
 	// Timezone is the timezone as configured by the user in the web interface. This
 	// timezone may be used when new commits are created via RPC calls.
@@ -818,11 +860,13 @@ func (x *User) GetTimezone() string {
 	return ""
 }
 
+// This comment is left unintentionally blank.
 type ObjectPool struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 }
 
@@ -865,6 +909,7 @@ func (x *ObjectPool) GetRepository() *Repository {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type PaginationParameter struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -931,6 +976,7 @@ func (x *PaginationParameter) GetLimit() int32 {
 	return 0
 }
 
+// This comment is left unintentionally blank.
 type PaginationCursor struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

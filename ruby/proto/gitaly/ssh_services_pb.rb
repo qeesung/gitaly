@@ -6,6 +6,7 @@ require 'ssh_pb'
 
 module Gitaly
   module SSHService
+    # SSHService is a service that provides RPCs required for SSH-based Git clones.
     class Service
 
       include ::GRPC::GenericService

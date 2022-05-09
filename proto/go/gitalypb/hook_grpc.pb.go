@@ -18,9 +18,13 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type HookServiceClient interface {
+	// This comment is left unintentionally blank.
 	PreReceiveHook(ctx context.Context, opts ...grpc.CallOption) (HookService_PreReceiveHookClient, error)
+	// This comment is left unintentionally blank.
 	PostReceiveHook(ctx context.Context, opts ...grpc.CallOption) (HookService_PostReceiveHookClient, error)
+	// This comment is left unintentionally blank.
 	UpdateHook(ctx context.Context, in *UpdateHookRequest, opts ...grpc.CallOption) (HookService_UpdateHookClient, error)
+	// This comment is left unintentionally blank.
 	ReferenceTransactionHook(ctx context.Context, opts ...grpc.CallOption) (HookService_ReferenceTransactionHookClient, error)
 	// PackObjectsHookWithSidechannel is an optimized version of PackObjectsHook that uses
 	// a unix socket side channel.
@@ -173,9 +177,13 @@ func (c *hookServiceClient) PackObjectsHookWithSidechannel(ctx context.Context, 
 // All implementations must embed UnimplementedHookServiceServer
 // for forward compatibility
 type HookServiceServer interface {
+	// This comment is left unintentionally blank.
 	PreReceiveHook(HookService_PreReceiveHookServer) error
+	// This comment is left unintentionally blank.
 	PostReceiveHook(HookService_PostReceiveHookServer) error
+	// This comment is left unintentionally blank.
 	UpdateHook(*UpdateHookRequest, HookService_UpdateHookServer) error
+	// This comment is left unintentionally blank.
 	ReferenceTransactionHook(HookService_ReferenceTransactionHookServer) error
 	// PackObjectsHookWithSidechannel is an optimized version of PackObjectsHook that uses
 	// a unix socket side channel.

@@ -27,8 +27,10 @@ type CreateObjectPoolRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	ObjectPool *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool,proto3" json:"object_pool,omitempty"`
-	Origin     *Repository `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	// This comment is left unintentionally blank.
+	Origin *Repository `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
 }
 
 func (x *CreateObjectPoolRequest) Reset() {
@@ -77,6 +79,7 @@ func (x *CreateObjectPoolRequest) GetOrigin() *Repository {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type CreateObjectPoolResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -122,6 +125,7 @@ type DeleteObjectPoolRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	ObjectPool *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool,proto3" json:"object_pool,omitempty"`
 }
 
@@ -164,6 +168,7 @@ func (x *DeleteObjectPoolRequest) GetObjectPool() *ObjectPool {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type DeleteObjectPoolResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -202,12 +207,15 @@ func (*DeleteObjectPoolResponse) Descriptor() ([]byte, []int) {
 	return file_objectpool_proto_rawDescGZIP(), []int{3}
 }
 
+// This comment is left unintentionally blank.
 type LinkRepositoryToObjectPoolRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	ObjectPool *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool,proto3" json:"object_pool,omitempty"`
+	// This comment is left unintentionally blank.
 	Repository *Repository `protobuf:"bytes,2,opt,name=repository,proto3" json:"repository,omitempty"`
 }
 
@@ -257,6 +265,7 @@ func (x *LinkRepositoryToObjectPoolRequest) GetRepository() *Repository {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type LinkRepositoryToObjectPoolResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -295,11 +304,13 @@ func (*LinkRepositoryToObjectPoolResponse) Descriptor() ([]byte, []int) {
 	return file_objectpool_proto_rawDescGZIP(), []int{5}
 }
 
+// This comment is left unintentionally blank.
 type ReduplicateRepositoryRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 }
 
@@ -342,6 +353,7 @@ func (x *ReduplicateRepositoryRequest) GetRepository() *Repository {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type ReduplicateRepositoryResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -380,11 +392,13 @@ func (*ReduplicateRepositoryResponse) Descriptor() ([]byte, []int) {
 	return file_objectpool_proto_rawDescGZIP(), []int{7}
 }
 
+// This comment is left unintentionally blank.
 type DisconnectGitAlternatesRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 }
 
@@ -427,6 +441,7 @@ func (x *DisconnectGitAlternatesRequest) GetRepository() *Repository {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type DisconnectGitAlternatesResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -465,14 +480,18 @@ func (*DisconnectGitAlternatesResponse) Descriptor() ([]byte, []int) {
 	return file_objectpool_proto_rawDescGZIP(), []int{9}
 }
 
+// This comment is left unintentionally blank.
 type FetchIntoObjectPoolRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Origin     *Repository `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	// This comment is left unintentionally blank.
+	Origin *Repository `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	// This comment is left unintentionally blank.
 	ObjectPool *ObjectPool `protobuf:"bytes,2,opt,name=object_pool,json=objectPool,proto3" json:"object_pool,omitempty"`
-	Repack     bool        `protobuf:"varint,3,opt,name=repack,proto3" json:"repack,omitempty"`
+	// This comment is left unintentionally blank.
+	Repack bool `protobuf:"varint,3,opt,name=repack,proto3" json:"repack,omitempty"`
 }
 
 func (x *FetchIntoObjectPoolRequest) Reset() {
@@ -528,6 +547,7 @@ func (x *FetchIntoObjectPoolRequest) GetRepack() bool {
 	return false
 }
 
+// This comment is left unintentionally blank.
 type FetchIntoObjectPoolResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -566,11 +586,13 @@ func (*FetchIntoObjectPoolResponse) Descriptor() ([]byte, []int) {
 	return file_objectpool_proto_rawDescGZIP(), []int{11}
 }
 
+// This comment is left unintentionally blank.
 type GetObjectPoolRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 }
 
@@ -613,11 +635,13 @@ func (x *GetObjectPoolRequest) GetRepository() *Repository {
 	return nil
 }
 
+// This comment is left unintentionally blank.
 type GetObjectPoolResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// This comment is left unintentionally blank.
 	ObjectPool *ObjectPool `protobuf:"bytes,1,opt,name=object_pool,json=objectPool,proto3" json:"object_pool,omitempty"`
 }
 
