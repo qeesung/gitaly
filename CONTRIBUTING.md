@@ -232,6 +232,7 @@ Signed-off-by: Alice <alice@example.com>
 - @proglottis
 - @samihiltunen
 - @toon
+- @wchandler
 
 ## Development Process
 
