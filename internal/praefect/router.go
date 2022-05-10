@@ -3,8 +3,31 @@ package praefect
 import (
 	"context"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
+
+const (
+	logFieldRepositoryID          = "repository_id"
+	logFieldReplicaPath           = "replica_path"
+	logFieldAdditionalReplicaPath = "additional_replica_path"
+	logFieldPrimary               = "primary"
+	logFieldSecondaries           = "secondaries"
+	logFieldStorage               = "storage"
+)
+
+func addRouteLogField(ctx context.Context, fields logrus.Fields) {
+	ctxlogrus.AddFields(ctx, logrus.Fields{"route": fields})
+}
+
+func routerNodeStorages(secondaries []RouterNode) []string {
+	storages := make([]string, len(secondaries))
+	for i := range secondaries {
+		storages[i] = secondaries[i].Storage
+	}
+	return storages
+}
 
 // RepositoryAccessorRoute describes how to route a repository scoped accessor call.
 type RepositoryAccessorRoute struct {
@@ -12,6 +35,13 @@ type RepositoryAccessorRoute struct {
 	ReplicaPath string
 	// Node contains the details of the node that should handle the request.
 	Node RouterNode
+}
+
+func (r RepositoryAccessorRoute) addLogFields(ctx context.Context) {
+	addRouteLogField(ctx, logrus.Fields{
+		logFieldReplicaPath: r.ReplicaPath,
+		logFieldStorage:     r.Node.Storage,
+	})
 }
 
 // RouterNode is a subset of a node's configuration needed to perform
@@ -23,12 +53,25 @@ type RouterNode struct {
 	Connection *grpc.ClientConn
 }
 
+func (r RouterNode) addLogFields(ctx context.Context) {
+	addRouteLogField(ctx, logrus.Fields{
+		logFieldStorage: r.Storage,
+	})
+}
+
 // StorageMutatorRoute describes how to route a storage scoped mutator call.
 type StorageMutatorRoute struct {
 	// Primary is the primary node of the routing decision.
 	Primary RouterNode
 	// Secondaries are the secondary nodes of the routing decision.
 	Secondaries []RouterNode
+}
+
+func (r StorageMutatorRoute) addLogFields(ctx context.Context) {
+	addRouteLogField(ctx, logrus.Fields{
+		logFieldPrimary:     r.Primary,
+		logFieldSecondaries: routerNodeStorages(r.Secondaries),
+	})
 }
 
 // RepositoryMutatorRoute describes how to route a repository scoped mutator call.
@@ -49,6 +92,17 @@ type RepositoryMutatorRoute struct {
 	ReplicationTargets []string
 }
 
+func (r RepositoryMutatorRoute) addLogFields(ctx context.Context) {
+	addRouteLogField(ctx, logrus.Fields{
+		logFieldRepositoryID:          r.RepositoryID,
+		logFieldReplicaPath:           r.ReplicaPath,
+		logFieldAdditionalReplicaPath: r.AdditionalReplicaPath,
+		logFieldPrimary:               r.Primary,
+		logFieldSecondaries:           routerNodeStorages(r.Secondaries),
+		"replication_targets":         r.ReplicationTargets,
+	})
+}
+
 // RepositoryMaintenanceRoute describes how to route a repository scoped maintenance call.
 type RepositoryMaintenanceRoute struct {
 	// RepositoryID is the repository's ID as Praefect identifies it.
@@ -57,6 +111,14 @@ type RepositoryMaintenanceRoute struct {
 	ReplicaPath string
 	// Nodes contains all the nodes the call should be routed to.
 	Nodes []RouterNode
+}
+
+func (r RepositoryMaintenanceRoute) addLogFields(ctx context.Context) {
+	addRouteLogField(ctx, logrus.Fields{
+		logFieldRepositoryID: r.RepositoryID,
+		logFieldReplicaPath:  r.ReplicaPath,
+		"storages":           routerNodeStorages(r.Nodes),
+	})
 }
 
 // Router decides which nodes to direct accessor and mutator RPCs to.

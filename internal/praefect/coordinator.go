@@ -312,6 +312,8 @@ func (c *Coordinator) accessorStreamParameters(ctx context.Context, call grpcCal
 		return nil, fmt.Errorf("accessor call: route repository accessor: %w", err)
 	}
 
+	route.addLogFields(ctx)
+
 	b, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, route.Node.Storage, route.ReplicaPath, "")
 	if err != nil {
 		return nil, fmt.Errorf("accessor call: rewrite storage: %w", err)
@@ -399,6 +401,8 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 			return nil, fmt.Errorf("mutator call: route repository mutator: %w", err)
 		}
 	}
+
+	route.addLogFields(ctx)
 
 	primaryMessage, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, route.Primary.Storage, route.ReplicaPath, route.AdditionalReplicaPath)
 	if err != nil {
@@ -525,6 +529,8 @@ func (c *Coordinator) maintenanceStreamParameters(ctx context.Context, call grpc
 	if err != nil {
 		return nil, fmt.Errorf("routing repository maintenance: %w", err)
 	}
+
+	route.addLogFields(ctx)
 
 	peerCtx := streamParametersContext(ctx)
 
@@ -711,6 +717,8 @@ func (c *Coordinator) accessorStorageStreamParameters(ctx context.Context, mi pr
 		return nil, helper.ErrInternalf("accessor storage scoped: route storage accessor %q: %w", virtualStorage, err)
 	}
 
+	node.addLogFields(ctx)
+
 	b, err := rewrittenStorageMessage(mi, msg, node.Storage)
 	if err != nil {
 		return nil, helper.ErrInvalidArgument(fmt.Errorf("accessor storage scoped: %w", err))
@@ -736,6 +744,8 @@ func (c *Coordinator) mutatorStorageStreamParameters(ctx context.Context, mi pro
 		}
 		return nil, helper.ErrInternalf("mutator storage scoped: get shard %q: %w", virtualStorage, err)
 	}
+
+	route.addLogFields(ctx)
 
 	b, err := rewrittenStorageMessage(mi, msg, route.Primary.Storage)
 	if err != nil {
