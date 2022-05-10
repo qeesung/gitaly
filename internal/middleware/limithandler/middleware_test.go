@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler"
 	pb "gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler/testdata"
@@ -81,49 +82,66 @@ func TestStreamLimitHandler(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		desc                 string
-		fullname             string
-		f                    func(*testing.T, context.Context, pb.TestClient)
-		maxConcurrency       int
-		expectedRequestCount int
+		desc                  string
+		fullname              string
+		f                     func(*testing.T, context.Context, pb.TestClient, chan interface{}, chan error)
+		maxConcurrency        int
+		expectedRequestCount  int
+		expectedResponseCount int
 	}{
+		// The max queue size is set at 1, which means 1 request
+		// will be queued while the later ones will return with
+		// an error. That means that maxConcurrency number of
+		// requests will be processing but blocked due to blockCh.
+		// 1 request will be waiting to be picked up, and will be
+		// processed once we close the blockCh.
 		{
 			desc:     "Single request, multiple responses",
 			fullname: "/test.limithandler.Test/StreamOutput",
-			f: func(t *testing.T, ctx context.Context, client pb.TestClient) {
+			f: func(t *testing.T, ctx context.Context, client pb.TestClient, respCh chan interface{}, errCh chan error) {
 				stream, err := client.StreamOutput(ctx, &pb.StreamOutputRequest{})
 				require.NoError(t, err)
 				require.NotNil(t, stream)
 
 				r, err := stream.Recv()
-				require.NoError(t, err)
+				if err != nil {
+					errCh <- err
+					return
+				}
 				require.NotNil(t, r)
 				require.True(t, r.Ok)
+				respCh <- r
 			},
-			maxConcurrency:       3,
-			expectedRequestCount: 3,
+			maxConcurrency:        3,
+			expectedRequestCount:  4,
+			expectedResponseCount: 4,
 		},
 		{
 			desc:     "Multiple requests, single response",
 			fullname: "/test.limithandler.Test/StreamInput",
-			f: func(t *testing.T, ctx context.Context, client pb.TestClient) {
+			f: func(t *testing.T, ctx context.Context, client pb.TestClient, respCh chan interface{}, errCh chan error) {
 				stream, err := client.StreamInput(ctx)
 				require.NoError(t, err)
 				require.NotNil(t, stream)
 
 				require.NoError(t, stream.Send(&pb.StreamInputRequest{}))
 				r, err := stream.CloseAndRecv()
-				require.NoError(t, err)
+				if err != nil {
+					errCh <- err
+					return
+				}
 				require.NotNil(t, r)
 				require.True(t, r.Ok)
+				respCh <- r
 			},
-			maxConcurrency:       3,
-			expectedRequestCount: 3,
+			maxConcurrency:        3,
+			expectedRequestCount:  4,
+			expectedResponseCount: 4,
 		},
 		{
 			desc:     "Multiple requests, multiple responses",
 			fullname: "/test.limithandler.Test/Bidirectional",
-			f: func(t *testing.T, ctx context.Context, client pb.TestClient) {
+			f: func(t *testing.T, ctx context.Context, client pb.TestClient, respCh chan interface{}, errCh chan error) {
 				stream, err := client.Bidirectional(ctx)
 				require.NoError(t, err)
 				require.NotNil(t, stream)
@@ -132,19 +150,24 @@ func TestStreamLimitHandler(t *testing.T) {
 				require.NoError(t, stream.CloseSend())
 
 				r, err := stream.Recv()
-				require.NoError(t, err)
+				if err != nil {
+					errCh <- err
+					return
+				}
 				require.NotNil(t, r)
 				require.True(t, r.Ok)
+				respCh <- r
 			},
-			maxConcurrency:       3,
-			expectedRequestCount: 3,
+			maxConcurrency:        3,
+			expectedRequestCount:  4,
+			expectedResponseCount: 4,
 		},
 		{
 			// Make sure that _streams_ are limited but that _requests_ on each
 			// allowed stream are not limited.
 			desc:     "Multiple requests with same id, multiple responses",
 			fullname: "/test.limithandler.Test/Bidirectional",
-			f: func(t *testing.T, ctx context.Context, client pb.TestClient) {
+			f: func(t *testing.T, ctx context.Context, client pb.TestClient, respCh chan interface{}, errCh chan error) {
 				stream, err := client.Bidirectional(ctx)
 				require.NoError(t, err)
 				require.NotNil(t, stream)
@@ -158,29 +181,40 @@ func TestStreamLimitHandler(t *testing.T) {
 				require.NoError(t, stream.CloseSend())
 
 				r, err := stream.Recv()
-				require.NoError(t, err)
+				if err != nil {
+					errCh <- err
+					return
+				}
 				require.NotNil(t, r)
 				require.True(t, r.Ok)
+				respCh <- r
 			},
 			maxConcurrency: 3,
 			// 3 (concurrent streams allowed) * 10 (requests per stream)
-			expectedRequestCount: 30,
+			// + 1 (queued stream) * (10 requests per stream)
+			expectedRequestCount:  40,
+			expectedResponseCount: 4,
 		},
 		{
 			desc:     "With a max concurrency of 0",
 			fullname: "/test.limithandler.Test/StreamOutput",
-			f: func(t *testing.T, ctx context.Context, client pb.TestClient) {
+			f: func(t *testing.T, ctx context.Context, client pb.TestClient, respCh chan interface{}, errCh chan error) {
 				stream, err := client.StreamOutput(ctx, &pb.StreamOutputRequest{})
 				require.NoError(t, err)
 				require.NotNil(t, stream)
 
 				r, err := stream.Recv()
-				require.NoError(t, err)
+				if err != nil {
+					errCh <- err
+					return
+				}
 				require.NotNil(t, r)
 				require.True(t, r.Ok)
+				respCh <- r
 			},
-			maxConcurrency:       0,
-			expectedRequestCount: 10, // Allow all
+			maxConcurrency:        0,
+			expectedRequestCount:  10,
+			expectedResponseCount: 10,
 		},
 	}
 
@@ -190,9 +224,14 @@ func TestStreamLimitHandler(t *testing.T) {
 
 			s := &server{blockCh: make(chan struct{})}
 
+			maxQueueSize := 1
 			cfg := config.Cfg{
 				Concurrency: []config.Concurrency{
-					{RPC: tc.fullname, MaxPerRepo: tc.maxConcurrency},
+					{
+						RPC:          tc.fullname,
+						MaxPerRepo:   tc.maxConcurrency,
+						MaxQueueSize: maxQueueSize,
+					},
 				},
 			}
 
@@ -203,23 +242,40 @@ func TestStreamLimitHandler(t *testing.T) {
 
 			client, conn := newClient(t, serverSocketPath)
 			defer conn.Close()
-			ctx := testhelper.Context(t)
+			ctx := featureflag.IncomingCtxWithFeatureFlag(
+				testhelper.Context(t),
+				featureflag.ConcurrencyQueueEnforceMax,
+				true,
+			)
 
-			wg := &sync.WaitGroup{}
-			for i := 0; i < 10; i++ {
-				wg.Add(1)
+			totalCalls := 10
+
+			errChan := make(chan error)
+			respChan := make(chan interface{})
+
+			for i := 0; i < totalCalls; i++ {
 				go func() {
-					defer wg.Done()
-					tc.f(t, ctx, client)
+					tc.f(t, ctx, client, respChan, errChan)
 				}()
 			}
 
-			time.Sleep(100 * time.Millisecond)
-
-			require.Equal(t, tc.expectedRequestCount, s.getRequestCount())
+			if tc.maxConcurrency > 0 {
+				for i := 0; i < totalCalls-tc.maxConcurrency-maxQueueSize; i++ {
+					err := <-errChan
+					testhelper.RequireGrpcError(
+						t,
+						helper.ErrInternalf("rate limiting stream request: %w",
+							limithandler.ErrMaxQueueSize), err)
+				}
+			}
 
 			close(s.blockCh)
-			wg.Wait()
+
+			for i := 0; i < tc.expectedResponseCount; i++ {
+				<-respChan
+			}
+
+			require.Equal(t, tc.expectedRequestCount, s.getRequestCount())
 		})
 	}
 }

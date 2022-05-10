@@ -2,6 +2,7 @@ package limithandler_test
 
 import (
 	"context"
+	"io"
 	"sync/atomic"
 
 	pb "gitlab.com/gitlab-org/gitaly/v14/internal/middleware/limithandler/testdata"
@@ -41,6 +42,9 @@ func (s *server) StreamInput(stream pb.Test_StreamInputServer) error {
 	// Read all the input
 	for {
 		if _, err := stream.Recv(); err != nil {
+			if err != io.EOF {
+				return err
+			}
 			break
 		}
 
@@ -56,6 +60,9 @@ func (s *server) Bidirectional(stream pb.Test_BidirectionalServer) error {
 	// Read all the input
 	for {
 		if _, err := stream.Recv(); err != nil {
+			if err != io.EOF {
+				return err
+			}
 			break
 		}
 
