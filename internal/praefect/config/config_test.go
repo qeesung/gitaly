@@ -337,6 +337,7 @@ func TestConfigParsing(t *testing.T) {
 				},
 				BackgroundVerification: BackgroundVerification{
 					VerificationInterval: 24 * time.Hour,
+					DeleteInvalidRecords: true,
 				},
 			},
 		},

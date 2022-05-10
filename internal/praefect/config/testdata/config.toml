@@ -8,6 +8,7 @@ graceful_stop_timeout = "30s"
 
 [background_verification]
 verification_interval = "24h"
+delete_invalid_records = true
 
 [replication]
 batch_size = 1

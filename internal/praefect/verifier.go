@@ -28,6 +28,12 @@ type MetadataVerifier struct {
 	leaseDuration        time.Duration
 	healthChecker        HealthChecker
 	verificationInterval time.Duration
+	// If performDeletions is set, the worker deletes invalid metadata records. If it is not
+	// set, the worker marks the replica as successfully verified in the database but produces
+	// logs and metrics for the invalid replica. Marking the verification successful in the database
+	// allows the worker to proceed. The invalid replicas will be found again after the configured
+	// verificationInterval has passed.
+	performDeletions bool
 
 	dequeuedJobsTotal        *prometheus.CounterVec
 	completedJobsTotal       *prometheus.CounterVec
@@ -47,6 +53,7 @@ func NewMetadataVerifier(
 	conns Connections,
 	healthChecker HealthChecker,
 	verificationInterval time.Duration,
+	performDeletions bool,
 ) *MetadataVerifier {
 	v := &MetadataVerifier{
 		log:                  log,
@@ -56,6 +63,7 @@ func NewMetadataVerifier(
 		leaseDuration:        30 * time.Second,
 		healthChecker:        healthChecker,
 		verificationInterval: verificationInterval,
+		performDeletions:     performDeletions,
 		dequeuedJobsTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "gitaly_praefect_verification_jobs_dequeued_total",
@@ -298,7 +306,10 @@ func (v *MetadataVerifier) updateMetadata(ctx context.Context, results []verific
 	}
 
 	if len(logRecords) > 0 {
-		v.log.WithField("replicas", logRecords).Info("removing metadata records of non-existent replicas")
+		v.log.WithFields(logrus.Fields{
+			"perform_deletions": v.performDeletions,
+			"replicas":          logRecords,
+		}).Info("removing metadata records of non-existent replicas")
 	}
 
 	_, err := v.db.ExecContext(ctx, `
@@ -331,8 +342,10 @@ DELETE FROM storage_repositories
 USING results
 WHERE storage_repositories.repository_id = results.repository_id
 AND   storage_repositories.storage       = results.storage
-AND   successfully_verified AND NOT exists
-	`, repositoryIDs, storages, successfullyVerifieds, exists)
+AND   successfully_verified
+AND   NOT exists
+AND   $5
+	`, repositoryIDs, storages, successfullyVerifieds, exists, v.performDeletions)
 	if err != nil {
 		return fmt.Errorf("query: %w", err)
 	}

@@ -83,11 +83,14 @@ type BackgroundVerification struct {
 	// VerificationInterval determines the duration after a replica due for reverification.
 	// The feature is disabled if verification interval is 0 or below.
 	VerificationInterval time.Duration `toml:"verification_interval,omitempty"`
+	// DeleteInvalidRecords controls whether the background verifier will actually delete the metadata
+	// records that point to non-existent replicas.
+	DeleteInvalidRecords bool `toml:"delete_invalid_records"`
 }
 
 // DefaultBackgroundVerificationConfig returns the default background verification configuration.
 func DefaultBackgroundVerificationConfig() BackgroundVerification {
-	return BackgroundVerification{}
+	return BackgroundVerification{VerificationInterval: 7 * 24 * time.Hour}
 }
 
 // Reconciliation contains reconciliation specific configuration options.

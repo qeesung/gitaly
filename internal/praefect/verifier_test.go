@@ -79,14 +79,15 @@ func TestVerifier(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		desc               string
-		erroringGitalys    map[string]bool
-		replicas           replicas
-		healthyStorages    StaticHealthChecker
-		batchSize          int
-		steps              []step
-		dequeuedJobsTotal  map[string]map[string]int
-		completedJobsTotal map[string]map[string]map[string]int
+		desc                 string
+		dontPerformDeletions bool
+		erroringGitalys      map[string]bool
+		replicas             replicas
+		healthyStorages      StaticHealthChecker
+		batchSize            int
+		steps                []step
+		dequeuedJobsTotal    map[string]map[string]int
+		completedJobsTotal   map[string]map[string]map[string]int
 	}{
 		{
 			desc: "all replicas exist",
@@ -259,6 +260,60 @@ func TestVerifier(t *testing.T) {
 					expectedReplicas: map[string]map[string][]string{
 						"virtual-storage": {
 							"repository-1": {gitaly1},
+						},
+					},
+				},
+			},
+			dequeuedJobsTotal: map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: 1,
+					gitaly2: 1,
+					gitaly3: 1,
+				},
+			},
+			completedJobsTotal: map[string]map[string]map[string]int{
+				"virtual-storage": {
+					gitaly1: {"valid": 1},
+					gitaly2: {"invalid": 1},
+					gitaly3: {"invalid": 1},
+				},
+			},
+		},
+		{
+			desc:                 "metadata is not deleted if deletions are disabled",
+			dontPerformDeletions: true,
+			batchSize:            2,
+			replicas: replicas{
+				"virtual-storage": {
+					"repository-1": {
+						gitaly1: {exists: true, lastVerified: neverVerified},
+						gitaly2: {exists: false, lastVerified: neverVerified},
+						gitaly3: {exists: false, lastVerified: pendingVerification},
+					},
+				},
+			},
+			steps: []step{
+				{
+					expectedRemovals: logRecord{
+						"virtual-storage": {
+							"repository-1": {gitaly2},
+						},
+					},
+					expectedReplicas: map[string]map[string][]string{
+						"virtual-storage": {
+							"repository-1": {gitaly1, gitaly2, gitaly3},
+						},
+					},
+				},
+				{
+					expectedRemovals: logRecord{
+						"virtual-storage": {
+							"repository-1": {gitaly3},
+						},
+					},
+					expectedReplicas: map[string]map[string][]string{
+						"virtual-storage": {
+							"repository-1": {gitaly1, gitaly2, gitaly3},
 						},
 					},
 				},
@@ -581,7 +636,7 @@ func TestVerifier(t *testing.T) {
 				healthyStorages = tc.healthyStorages
 			}
 
-			verifier := NewMetadataVerifier(logger, db, conns, healthyStorages, 24*7*time.Hour)
+			verifier := NewMetadataVerifier(logger, db, conns, healthyStorages, 24*7*time.Hour, !tc.dontPerformDeletions)
 			if tc.batchSize > 0 {
 				verifier.batchSize = tc.batchSize
 			}
@@ -744,7 +799,7 @@ func TestVerifier_runExpiredLeaseReleaser(t *testing.T) {
 	defer tx.Rollback(t)
 
 	logger, hook := test.NewNullLogger()
-	verifier := NewMetadataVerifier(logrus.NewEntry(logger), tx, nil, nil, 0)
+	verifier := NewMetadataVerifier(logrus.NewEntry(logger), tx, nil, nil, 0, true)
 	// set batch size lower than the number of locked leases to ensure the batching works
 	verifier.batchSize = 2
 
