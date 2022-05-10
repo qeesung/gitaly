@@ -736,7 +736,8 @@ message UserSquashResponse {
 message UserRebaseConfirmableError {
   oneof error {
     // RebaseConflict is returned in case rebasing commits on top of the start
-    // commit fails with a merge conflict.
+    // commit fails with a merge conflict and in case merge squashing commits
+    // fails with a merge conflict.
     MergeConflictError rebase_conflict = 1;
     // AccessCheckError is returned in case GitLab's `/internal/allowed` endpoint rejected
     // the change.

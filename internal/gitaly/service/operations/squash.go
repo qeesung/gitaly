@@ -5,12 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
@@ -137,83 +139,137 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		return "", helper.ErrInvalidArgument(err)
 	}
 
-	// We're now rebasing the end commit on top of the start commit. The resulting tree
-	// is then going to be the tree of the squashed commit.
-	rebasedCommitID, err := s.git2goExecutor.Rebase(ctx, quarantineRepo, git2go.RebaseCommand{
-		Repository: quarantineRepoPath,
-		Committer: git2go.NewSignature(
-			string(req.GetUser().Name), string(req.GetUser().Email), commitDate,
-		),
-		CommitID:         endCommit,
-		UpstreamCommitID: startCommit,
-		SkipEmptyCommits: true,
-	})
-	if err != nil {
-		var conflictErr git2go.ConflictingFilesError
-
-		if errors.As(err, &conflictErr) {
-			conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
-			for _, conflictingFile := range conflictErr.ConflictingFiles {
-				conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
-			}
-
-			detailedErr, err := helper.ErrWithDetails(
-				helper.ErrFailedPreconditionf("rebasing commits: %w", err),
-				&gitalypb.UserSquashError{
-					Error: &gitalypb.UserSquashError_RebaseConflict{
-						RebaseConflict: &gitalypb.MergeConflictError{
-							ConflictingFiles: conflictingFiles,
-						},
-					},
-				},
-			)
-			if err != nil {
-				return "", helper.ErrInternalf("error details: %w", err)
-			}
-
-			return "", detailedErr
+	var commitID string
+	if featureflag.SquashUsingMerge.IsEnabled(ctx) {
+		message := string(req.GetCommitMessage())
+		// In previous implementation, we've used git commit-tree to create commit.
+		// When message wasn't empty and didn't end in a new line,
+		// git commit-tree would add a trailing new line to the commit message.
+		// Let's keep that behaviour for compatibility.
+		if len(message) > 0 && !strings.HasSuffix(message, "\n") {
+			message += "\n"
 		}
 
-		return "", helper.ErrInternalf("rebasing commits: %w", err)
-	}
+		merge, err := s.git2goExecutor.Merge(ctx, quarantineRepo, git2go.MergeCommand{
+			Repository:    quarantineRepoPath,
+			AuthorName:    string(req.GetAuthor().GetName()),
+			AuthorMail:    string(req.GetAuthor().GetEmail()),
+			AuthorDate:    commitDate,
+			CommitterName: string(req.GetUser().Name),
+			CommitterMail: string(req.GetUser().Email),
+			CommitterDate: commitDate,
+			Message:       message,
+			Ours:          startCommit.String(),
+			Theirs:        endCommit.String(),
+			Squash:        true,
+		})
+		if err != nil {
+			var conflictErr git2go.ConflictingFilesError
 
-	treeID, err := quarantineRepo.ResolveRevision(ctx, rebasedCommitID.Revision()+"^{tree}")
-	if err != nil {
-		return "", fmt.Errorf("cannot resolve rebased tree: %w", err)
-	}
+			if errors.As(err, &conflictErr) {
+				conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
+				for _, conflictingFile := range conflictErr.ConflictingFiles {
+					conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
+				}
 
-	commitEnv := []string{
-		"GIT_COMMITTER_NAME=" + string(req.GetUser().Name),
-		"GIT_COMMITTER_EMAIL=" + string(req.GetUser().Email),
-		fmt.Sprintf("GIT_COMMITTER_DATE=%d %s", commitDate.Unix(), commitDate.Format("-0700")),
-		"GIT_AUTHOR_NAME=" + string(req.GetAuthor().Name),
-		"GIT_AUTHOR_EMAIL=" + string(req.GetAuthor().Email),
-		fmt.Sprintf("GIT_AUTHOR_DATE=%d %s", commitDate.Unix(), commitDate.Format("-0700")),
-	}
+				detailedErr, err := helper.ErrWithDetails(
+					helper.ErrFailedPreconditionf("squashing commits: %w", err),
+					&gitalypb.UserSquashError{
+						Error: &gitalypb.UserSquashError_RebaseConflict{
+							RebaseConflict: &gitalypb.MergeConflictError{
+								ConflictingFiles: conflictingFiles,
+							},
+						},
+					},
+				)
+				if err != nil {
+					return "", helper.ErrInternalf("error details: %w", err)
+				}
 
-	flags := []git.Option{
-		git.ValueFlag{
-			Name:  "-m",
-			Value: string(req.GetCommitMessage()),
-		},
-		git.ValueFlag{
-			Name:  "-p",
-			Value: startCommit.String(),
-		},
-	}
+				return "", detailedErr
+			}
+		}
 
-	var stdout, stderr bytes.Buffer
-	if err := quarantineRepo.ExecAndWait(ctx, git.SubCmd{
-		Name:  "commit-tree",
-		Flags: flags,
-		Args: []string{
-			treeID.String(),
-		},
-	}, git.WithStdout(&stdout), git.WithStderr(&stderr), git.WithEnv(commitEnv...)); err != nil {
-		return "", helper.ErrInternalf("creating squashed commit: %w", err)
-	}
+		commitID = merge.CommitID
+	} else {
+		// We're now rebasing the end commit on top of the start commit. The resulting tree
+		// is then going to be the tree of the squashed commit.
+		rebasedCommitID, err := s.git2goExecutor.Rebase(ctx, quarantineRepo, git2go.RebaseCommand{
+			Repository: quarantineRepoPath,
+			Committer: git2go.NewSignature(
+				string(req.GetUser().Name), string(req.GetUser().Email), commitDate,
+			),
+			CommitID:         endCommit,
+			UpstreamCommitID: startCommit,
+			SkipEmptyCommits: true,
+		})
+		if err != nil {
+			var conflictErr git2go.ConflictingFilesError
 
-	commitID := text.ChompBytes(stdout.Bytes())
+			if errors.As(err, &conflictErr) {
+				conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
+				for _, conflictingFile := range conflictErr.ConflictingFiles {
+					conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
+				}
+
+				detailedErr, err := helper.ErrWithDetails(
+					helper.ErrFailedPreconditionf("rebasing commits: %w", err),
+					&gitalypb.UserSquashError{
+						Error: &gitalypb.UserSquashError_RebaseConflict{
+							RebaseConflict: &gitalypb.MergeConflictError{
+								ConflictingFiles: conflictingFiles,
+							},
+						},
+					},
+				)
+				if err != nil {
+					return "", helper.ErrInternalf("error details: %w", err)
+				}
+
+				return "", detailedErr
+			}
+
+			return "", helper.ErrInternalf("rebasing commits: %w", err)
+		}
+
+		treeID, err := quarantineRepo.ResolveRevision(ctx, rebasedCommitID.Revision()+"^{tree}")
+		if err != nil {
+			return "", fmt.Errorf("cannot resolve rebased tree: %w", err)
+		}
+
+		commitEnv := []string{
+			"GIT_COMMITTER_NAME=" + string(req.GetUser().Name),
+			"GIT_COMMITTER_EMAIL=" + string(req.GetUser().Email),
+			fmt.Sprintf("GIT_COMMITTER_DATE=%d %s", commitDate.Unix(), commitDate.Format("-0700")),
+			"GIT_AUTHOR_NAME=" + string(req.GetAuthor().Name),
+			"GIT_AUTHOR_EMAIL=" + string(req.GetAuthor().Email),
+			fmt.Sprintf("GIT_AUTHOR_DATE=%d %s", commitDate.Unix(), commitDate.Format("-0700")),
+		}
+
+		flags := []git.Option{
+			git.ValueFlag{
+				Name:  "-m",
+				Value: string(req.GetCommitMessage()),
+			},
+			git.ValueFlag{
+				Name:  "-p",
+				Value: startCommit.String(),
+			},
+		}
+
+		var stdout, stderr bytes.Buffer
+		if err := quarantineRepo.ExecAndWait(ctx, git.SubCmd{
+			Name:  "commit-tree",
+			Flags: flags,
+			Args: []string{
+				treeID.String(),
+			},
+		}, git.WithStdout(&stdout), git.WithStderr(&stderr), git.WithEnv(commitEnv...)); err != nil {
+			return "", helper.ErrInternalf("creating squashed commit: %w", err)
+		}
+
+		commitID = text.ChompBytes(stdout.Bytes())
+	}
 
 	// The RPC is badly designed in that it never updates any references, but only creates the
 	// objects and writes them to disk. We still use a quarantine directory to stage the new

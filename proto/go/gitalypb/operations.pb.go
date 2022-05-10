@@ -3003,7 +3003,8 @@ type isUserRebaseConfirmableError_Error interface {
 
 type UserRebaseConfirmableError_RebaseConflict struct {
 	// RebaseConflict is returned in case rebasing commits on top of the start
-	// commit fails with a merge conflict.
+	// commit fails with a merge conflict and in case merge squashing commits
+	// fails with a merge conflict.
 	RebaseConflict *MergeConflictError `protobuf:"bytes,1,opt,name=rebase_conflict,json=rebaseConflict,proto3,oneof"`
 }
 
