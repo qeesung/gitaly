@@ -190,11 +190,11 @@ message FindLocalBranchesRequest {
   // This comment is left unintentionally blank.
   enum SortBy {
     // This comment is left unintentionally blank.
-    NAME = 0;
+    NAME = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    UPDATED_ASC = 1;
+    UPDATED_ASC = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    UPDATED_DESC = 2;
+    UPDATED_DESC = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.
@@ -288,9 +288,9 @@ message FindAllTagsRequest {
     // Key is a key used for sorting.
     enum Key {
       // This comment is left unintentionally blank.
-      REFNAME     = 0;
+      REFNAME     = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
       // This comment is left unintentionally blank.
-      CREATORDATE = 1;
+      CREATORDATE = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     }
 
     // This comment is left unintentionally blank.
@@ -344,13 +344,13 @@ message CreateBranchResponse {
   // This comment is left unintentionally blank.
   enum Status {
     // This comment is left unintentionally blank.
-    OK = 0;
+    OK = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    ERR_EXISTS = 1;
+    ERR_EXISTS = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    ERR_INVALID = 2;
+    ERR_INVALID = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    ERR_INVALID_START_POINT = 3;
+    ERR_INVALID_START_POINT = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.
@@ -526,13 +526,13 @@ message ListRefsRequest {
     // This comment is left unintentionally blank.
     enum Key {
       // This comment is left unintentionally blank.
-      REFNAME       = 0;
+      REFNAME       = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
       // This comment is left unintentionally blank.
-      CREATORDATE   = 1;
+      CREATORDATE   = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
       // This comment is left unintentionally blank.
-      AUTHORDATE    = 2;
+      AUTHORDATE    = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
       // This comment is left unintentionally blank.
-      COMMITTERDATE = 3;
+      COMMITTERDATE = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     }
 
     // Key is a key used for sorting.

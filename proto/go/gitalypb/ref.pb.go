@@ -26,11 +26,11 @@ type FindLocalBranchesRequest_SortBy int32
 
 const (
 	// This comment is left unintentionally blank.
-	FindLocalBranchesRequest_NAME FindLocalBranchesRequest_SortBy = 0
+	FindLocalBranchesRequest_NAME FindLocalBranchesRequest_SortBy = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	FindLocalBranchesRequest_UPDATED_ASC FindLocalBranchesRequest_SortBy = 1
+	FindLocalBranchesRequest_UPDATED_ASC FindLocalBranchesRequest_SortBy = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	FindLocalBranchesRequest_UPDATED_DESC FindLocalBranchesRequest_SortBy = 2
+	FindLocalBranchesRequest_UPDATED_DESC FindLocalBranchesRequest_SortBy = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for FindLocalBranchesRequest_SortBy.
@@ -79,9 +79,9 @@ type FindAllTagsRequest_SortBy_Key int32
 
 const (
 	// This comment is left unintentionally blank.
-	FindAllTagsRequest_SortBy_REFNAME FindAllTagsRequest_SortBy_Key = 0
+	FindAllTagsRequest_SortBy_REFNAME FindAllTagsRequest_SortBy_Key = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	FindAllTagsRequest_SortBy_CREATORDATE FindAllTagsRequest_SortBy_Key = 1
+	FindAllTagsRequest_SortBy_CREATORDATE FindAllTagsRequest_SortBy_Key = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for FindAllTagsRequest_SortBy_Key.
@@ -128,13 +128,13 @@ type CreateBranchResponse_Status int32
 
 const (
 	// This comment is left unintentionally blank.
-	CreateBranchResponse_OK CreateBranchResponse_Status = 0
+	CreateBranchResponse_OK CreateBranchResponse_Status = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	CreateBranchResponse_ERR_EXISTS CreateBranchResponse_Status = 1
+	CreateBranchResponse_ERR_EXISTS CreateBranchResponse_Status = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	CreateBranchResponse_ERR_INVALID CreateBranchResponse_Status = 2
+	CreateBranchResponse_ERR_INVALID CreateBranchResponse_Status = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	CreateBranchResponse_ERR_INVALID_START_POINT CreateBranchResponse_Status = 3
+	CreateBranchResponse_ERR_INVALID_START_POINT CreateBranchResponse_Status = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for CreateBranchResponse_Status.
@@ -185,13 +185,13 @@ type ListRefsRequest_SortBy_Key int32
 
 const (
 	// This comment is left unintentionally blank.
-	ListRefsRequest_SortBy_REFNAME ListRefsRequest_SortBy_Key = 0
+	ListRefsRequest_SortBy_REFNAME ListRefsRequest_SortBy_Key = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	ListRefsRequest_SortBy_CREATORDATE ListRefsRequest_SortBy_Key = 1
+	ListRefsRequest_SortBy_CREATORDATE ListRefsRequest_SortBy_Key = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	ListRefsRequest_SortBy_AUTHORDATE ListRefsRequest_SortBy_Key = 2
+	ListRefsRequest_SortBy_AUTHORDATE ListRefsRequest_SortBy_Key = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	ListRefsRequest_SortBy_COMMITTERDATE ListRefsRequest_SortBy_Key = 3
+	ListRefsRequest_SortBy_COMMITTERDATE ListRefsRequest_SortBy_Key = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for ListRefsRequest_SortBy_Key.

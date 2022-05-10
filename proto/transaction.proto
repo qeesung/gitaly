@@ -49,14 +49,14 @@ message VoteTransactionRequest {
     // UNKNOWN_PHASE is the unknown voting phase. This value has been the
     // default because phases have been introduced. Eventually, using this
     // phase will become unsupported.
-    UNKNOWN_PHASE = 0;
+    UNKNOWN_PHASE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // PREPARED_PHASE is the prepratory phase. The data that is about to change
     // is locked for concurrent modification, but changes have not yet been
     // written to disk.
-    PREPARED_PHASE = 1;
+    PREPARED_PHASE = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // COMMITTED_PHASE is the committing phase. Data has been committed to disk
     // and will be visible in all subsequent requests.
-    COMMITTED_PHASE  = 2;
+    COMMITTED_PHASE  = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   };
 
   // This comment is left unintentionally blank.
@@ -77,11 +77,11 @@ message VoteTransactionResponse {
   // transaction should be committed or rolled back.
   enum TransactionState {
     // This comment is left unintentionally blank.
-    COMMIT = 0;
+    COMMIT = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    ABORT = 1;
+    ABORT = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    STOP = 2;
+    STOP = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.

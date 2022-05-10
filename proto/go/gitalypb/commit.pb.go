@@ -26,15 +26,15 @@ type ListCommitsRequest_Order int32
 
 const (
 	// NONE defaults to reverse chronological order.
-	ListCommitsRequest_NONE ListCommitsRequest_Order = 0
+	ListCommitsRequest_NONE ListCommitsRequest_Order = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// TOPO order will cause no parents to be shown before all of its children
 	// are shown. Furthermore, multiple lines of history will not be
 	// intermixed.
-	ListCommitsRequest_TOPO ListCommitsRequest_Order = 1
+	ListCommitsRequest_TOPO ListCommitsRequest_Order = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// DATE order will cause no parents to be shown before all of its children
 	// are shown. Otherwise, commits are shown in commit timestamp order. This
 	// can cause history to be shown intermixed.
-	ListCommitsRequest_DATE ListCommitsRequest_Order = 2
+	ListCommitsRequest_DATE ListCommitsRequest_Order = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for ListCommitsRequest_Order.
@@ -83,13 +83,13 @@ type TreeEntryResponse_ObjectType int32
 
 const (
 	// This comment is left unintentionally blank.
-	TreeEntryResponse_COMMIT TreeEntryResponse_ObjectType = 0
+	TreeEntryResponse_COMMIT TreeEntryResponse_ObjectType = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	TreeEntryResponse_BLOB TreeEntryResponse_ObjectType = 1
+	TreeEntryResponse_BLOB TreeEntryResponse_ObjectType = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	TreeEntryResponse_TREE TreeEntryResponse_ObjectType = 2
+	TreeEntryResponse_TREE TreeEntryResponse_ObjectType = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	TreeEntryResponse_TAG TreeEntryResponse_ObjectType = 3
+	TreeEntryResponse_TAG TreeEntryResponse_ObjectType = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for TreeEntryResponse_ObjectType.
@@ -140,11 +140,11 @@ type TreeEntry_EntryType int32
 
 const (
 	// This comment is left unintentionally blank.
-	TreeEntry_BLOB TreeEntry_EntryType = 0
+	TreeEntry_BLOB TreeEntry_EntryType = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	TreeEntry_TREE TreeEntry_EntryType = 1
+	TreeEntry_TREE TreeEntry_EntryType = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	TreeEntry_COMMIT TreeEntry_EntryType = 3
+	TreeEntry_COMMIT TreeEntry_EntryType = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for TreeEntry_EntryType.
@@ -192,10 +192,10 @@ func (TreeEntry_EntryType) EnumDescriptor() ([]byte, []int) {
 type GetTreeEntriesRequest_SortBy int32
 
 const (
-	// This comment is left unintentionally blank.
-	GetTreeEntriesRequest_DEFAULT GetTreeEntriesRequest_SortBy = 0 // Preserve order of git ls-tree
-	// This comment is left unintentionally blank.
-	GetTreeEntriesRequest_TREES_FIRST GetTreeEntriesRequest_SortBy = 1 // trees, blobs, submodules
+	// Preserve order of git ls-tree.
+	GetTreeEntriesRequest_DEFAULT GetTreeEntriesRequest_SortBy = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
+	// Trees, blobs, submodules.
+	GetTreeEntriesRequest_TREES_FIRST GetTreeEntriesRequest_SortBy = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for GetTreeEntriesRequest_SortBy.
@@ -242,11 +242,11 @@ type FindAllCommitsRequest_Order int32
 
 const (
 	// This comment is left unintentionally blank.
-	FindAllCommitsRequest_NONE FindAllCommitsRequest_Order = 0
+	FindAllCommitsRequest_NONE FindAllCommitsRequest_Order = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	FindAllCommitsRequest_TOPO FindAllCommitsRequest_Order = 1
+	FindAllCommitsRequest_TOPO FindAllCommitsRequest_Order = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	FindAllCommitsRequest_DATE FindAllCommitsRequest_Order = 2
+	FindAllCommitsRequest_DATE FindAllCommitsRequest_Order = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for FindAllCommitsRequest_Order.
@@ -295,9 +295,9 @@ type FindCommitsRequest_Order int32
 
 const (
 	// This comment is left unintentionally blank.
-	FindCommitsRequest_NONE FindCommitsRequest_Order = 0
+	FindCommitsRequest_NONE FindCommitsRequest_Order = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	FindCommitsRequest_TOPO FindCommitsRequest_Order = 1
+	FindCommitsRequest_TOPO FindCommitsRequest_Order = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for FindCommitsRequest_Order.

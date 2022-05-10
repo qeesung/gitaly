@@ -25,11 +25,11 @@ type ReferenceTransactionHookRequest_State int32
 
 const (
 	// This comment is left unintentionally blank.
-	ReferenceTransactionHookRequest_PREPARED ReferenceTransactionHookRequest_State = 0
+	ReferenceTransactionHookRequest_PREPARED ReferenceTransactionHookRequest_State = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	ReferenceTransactionHookRequest_COMMITTED ReferenceTransactionHookRequest_State = 1
+	ReferenceTransactionHookRequest_COMMITTED ReferenceTransactionHookRequest_State = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	ReferenceTransactionHookRequest_ABORTED ReferenceTransactionHookRequest_State = 2
+	ReferenceTransactionHookRequest_ABORTED ReferenceTransactionHookRequest_State = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for ReferenceTransactionHookRequest_State.

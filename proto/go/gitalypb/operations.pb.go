@@ -27,12 +27,12 @@ type UserCherryPickResponse_CreateTreeError int32
 
 const (
 	// NONE denotes that no error occurred.
-	UserCherryPickResponse_NONE UserCherryPickResponse_CreateTreeError = 0
+	UserCherryPickResponse_NONE UserCherryPickResponse_CreateTreeError = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// EMPTY denotes that the cherry-pick would've resulted in an empty commit,
 	// typically because it has already been applied to the target branch.
-	UserCherryPickResponse_EMPTY UserCherryPickResponse_CreateTreeError = 1
+	UserCherryPickResponse_EMPTY UserCherryPickResponse_CreateTreeError = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// CONFLICT denotes that the cherry-pick resulted in a conflict.
-	UserCherryPickResponse_CONFLICT UserCherryPickResponse_CreateTreeError = 2
+	UserCherryPickResponse_CONFLICT UserCherryPickResponse_CreateTreeError = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for UserCherryPickResponse_CreateTreeError.
@@ -82,12 +82,12 @@ type UserRevertResponse_CreateTreeError int32
 
 const (
 	// NONE denotes that no error occurred.
-	UserRevertResponse_NONE UserRevertResponse_CreateTreeError = 0
+	UserRevertResponse_NONE UserRevertResponse_CreateTreeError = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// EMPTY denotes that the revert would've resulted in an empty commit,
 	// typically because it has already been applied to the target branch.
-	UserRevertResponse_EMPTY UserRevertResponse_CreateTreeError = 1
+	UserRevertResponse_EMPTY UserRevertResponse_CreateTreeError = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// CONFLICT denotes that the revert resulted in a conflict.
-	UserRevertResponse_CONFLICT UserRevertResponse_CreateTreeError = 2
+	UserRevertResponse_CONFLICT UserRevertResponse_CreateTreeError = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for UserRevertResponse_CreateTreeError.
@@ -136,17 +136,17 @@ type UserCommitFilesActionHeader_ActionType int32
 
 const (
 	// CREATE creates a new file.
-	UserCommitFilesActionHeader_CREATE UserCommitFilesActionHeader_ActionType = 0
+	UserCommitFilesActionHeader_CREATE UserCommitFilesActionHeader_ActionType = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// CREATE_DIR creates a new directory.
-	UserCommitFilesActionHeader_CREATE_DIR UserCommitFilesActionHeader_ActionType = 1
+	UserCommitFilesActionHeader_CREATE_DIR UserCommitFilesActionHeader_ActionType = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// UPDATE updates an existing file.
-	UserCommitFilesActionHeader_UPDATE UserCommitFilesActionHeader_ActionType = 2
+	UserCommitFilesActionHeader_UPDATE UserCommitFilesActionHeader_ActionType = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// MOVE moves an existing file to a new path.
-	UserCommitFilesActionHeader_MOVE UserCommitFilesActionHeader_ActionType = 3
+	UserCommitFilesActionHeader_MOVE UserCommitFilesActionHeader_ActionType = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// DELETE deletes an existing file.
-	UserCommitFilesActionHeader_DELETE UserCommitFilesActionHeader_ActionType = 4
+	UserCommitFilesActionHeader_DELETE UserCommitFilesActionHeader_ActionType = 4 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// CHMOD changes the permissions of an existing file.
-	UserCommitFilesActionHeader_CHMOD UserCommitFilesActionHeader_ActionType = 5
+	UserCommitFilesActionHeader_CHMOD UserCommitFilesActionHeader_ActionType = 5 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for UserCommitFilesActionHeader_ActionType.

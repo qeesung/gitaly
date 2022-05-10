@@ -27,14 +27,14 @@ const (
 	// UNKNOWN_PHASE is the unknown voting phase. This value has been the
 	// default because phases have been introduced. Eventually, using this
 	// phase will become unsupported.
-	VoteTransactionRequest_UNKNOWN_PHASE VoteTransactionRequest_Phase = 0
+	VoteTransactionRequest_UNKNOWN_PHASE VoteTransactionRequest_Phase = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// PREPARED_PHASE is the prepratory phase. The data that is about to change
 	// is locked for concurrent modification, but changes have not yet been
 	// written to disk.
-	VoteTransactionRequest_PREPARED_PHASE VoteTransactionRequest_Phase = 1
+	VoteTransactionRequest_PREPARED_PHASE VoteTransactionRequest_Phase = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// COMMITTED_PHASE is the committing phase. Data has been committed to disk
 	// and will be visible in all subsequent requests.
-	VoteTransactionRequest_COMMITTED_PHASE VoteTransactionRequest_Phase = 2
+	VoteTransactionRequest_COMMITTED_PHASE VoteTransactionRequest_Phase = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for VoteTransactionRequest_Phase.
@@ -84,11 +84,11 @@ type VoteTransactionResponse_TransactionState int32
 
 const (
 	// This comment is left unintentionally blank.
-	VoteTransactionResponse_COMMIT VoteTransactionResponse_TransactionState = 0
+	VoteTransactionResponse_COMMIT VoteTransactionResponse_TransactionState = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	VoteTransactionResponse_ABORT VoteTransactionResponse_TransactionState = 1
+	VoteTransactionResponse_ABORT VoteTransactionResponse_TransactionState = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	VoteTransactionResponse_STOP VoteTransactionResponse_TransactionState = 2
+	VoteTransactionResponse_STOP VoteTransactionResponse_TransactionState = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for VoteTransactionResponse_TransactionState.

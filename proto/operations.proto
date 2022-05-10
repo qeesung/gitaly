@@ -418,12 +418,12 @@ message UserCherryPickResponse {
   // cherry-pick.
   enum CreateTreeError {
     // NONE denotes that no error occurred.
-    NONE = 0;
+    NONE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // EMPTY denotes that the cherry-pick would've resulted in an empty commit,
     // typically because it has already been applied to the target branch.
-    EMPTY = 1;
+    EMPTY = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // CONFLICT denotes that the cherry-pick resulted in a conflict.
-    CONFLICT = 2;
+    CONFLICT = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // branch_update represents details about the updated branch.
@@ -496,12 +496,12 @@ message UserRevertResponse {
   // revert.
   enum CreateTreeError {
     // NONE denotes that no error occurred.
-    NONE = 0;
+    NONE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // EMPTY denotes that the revert would've resulted in an empty commit,
     // typically because it has already been applied to the target branch.
-    EMPTY = 1;
+    EMPTY = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // CONFLICT denotes that the revert resulted in a conflict.
-    CONFLICT = 2;
+    CONFLICT = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // branch_update represents details about the updated branch.
@@ -524,17 +524,17 @@ message UserCommitFilesActionHeader {
   // This comment is left unintentionally blank.
   enum ActionType {
     // CREATE creates a new file.
-    CREATE = 0;
+    CREATE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // CREATE_DIR creates a new directory.
-    CREATE_DIR = 1;
+    CREATE_DIR = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // UPDATE updates an existing file.
-    UPDATE = 2;
+    UPDATE = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // MOVE moves an existing file to a new path.
-    MOVE = 3;
+    MOVE = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // DELETE deletes an existing file.
-    DELETE = 4;
+    DELETE = 4; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // CHMOD changes the permissions of an existing file.
-    CHMOD = 5;
+    CHMOD = 5; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // action is the type of the action taken to build a commit. Not all fields are

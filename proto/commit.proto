@@ -186,15 +186,15 @@ message ListCommitsRequest {
   // Order is the order in which commits shoud be traversed.
   enum Order {
     // NONE defaults to reverse chronological order.
-    NONE = 0;
+    NONE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // TOPO order will cause no parents to be shown before all of its children
     // are shown. Furthermore, multiple lines of history will not be
     // intermixed.
-    TOPO = 1;
+    TOPO = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // DATE order will cause no parents to be shown before all of its children
     // are shown. Otherwise, commits are shown in commit timestamp order. This
     // can cause history to be shown intermixed.
-    DATE = 2;
+    DATE = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   };
 
   // Repository is the repository in which commits should be searched for.
@@ -321,13 +321,13 @@ message TreeEntryResponse {
   // TODO: Replace this enum with ObjectType in shared.proto
   enum ObjectType {
     // This comment is left unintentionally blank.
-    COMMIT = 0;
+    COMMIT = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    BLOB = 1;
+    BLOB = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    TREE = 2;
+    TREE = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    TAG = 3;
+    TAG = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.
@@ -398,11 +398,11 @@ message TreeEntry {
   // TODO: Replace this enum with ObjectType in shared.proto
   enum EntryType {
     // This comment is left unintentionally blank.
-    BLOB = 0;
+    BLOB = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    TREE = 1;
+    TREE = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    COMMIT = 3;
+    COMMIT = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // OID of the object this tree entry points to
@@ -425,10 +425,10 @@ message TreeEntry {
 message GetTreeEntriesRequest {
   // This comment is left unintentionally blank.
   enum SortBy {
-    // This comment is left unintentionally blank.
-    DEFAULT = 0; // Preserve order of git ls-tree
-    // This comment is left unintentionally blank.
-    TREES_FIRST = 1; // trees, blobs, submodules
+    // Preserve order of git ls-tree.
+    DEFAULT = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
+    // Trees, blobs, submodules.
+    TREES_FIRST = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.
@@ -527,11 +527,11 @@ message FindAllCommitsRequest {
   // This comment is left unintentionally blank.
   enum Order {
     // This comment is left unintentionally blank.
-    NONE = 0;
+    NONE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    TOPO = 1;
+    TOPO = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    DATE = 2;
+    DATE = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.
@@ -557,9 +557,9 @@ message FindCommitsRequest {
   // This comment is left unintentionally blank.
   enum Order {
     // This comment is left unintentionally blank.
-    NONE = 0;
+    NONE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    TOPO = 1;
+    TOPO = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.

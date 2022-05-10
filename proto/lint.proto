@@ -11,21 +11,21 @@ message OperationMsg {
   // This comment is left unintentionally blank.
   enum Operation {
     // This comment is left unintentionally blank.
-    UNKNOWN = 0;
+    UNKNOWN = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    MUTATOR = 1;
+    MUTATOR = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    ACCESSOR = 2;
+    ACCESSOR = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    MAINTENANCE = 3;
+    MAINTENANCE = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.
   enum Scope {
     // This comment is left unintentionally blank.
-    REPOSITORY = 0;
+    REPOSITORY = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    STORAGE = 2;
+    STORAGE = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 
     reserved 1;
     reserved "SERVER";

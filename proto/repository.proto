@@ -399,7 +399,7 @@ message WriteCommitGraphRequest {
     // SizeMultiple requires to use '--split --size-multiple=4' strategy to create/update commit graph.
     // https://git-scm.com/docs/git-commit-graph#Documentation/git-commit-graph.txt-emwriteem
     // It is a default, there is no need to explicitly set it in the request.
-    SizeMultiple = 0; // protolint:disable:this ENUM_FIELD_NAMES_UPPER_SNAKE_CASE
+    SizeMultiple = 0; // protolint:disable:this ENUM_FIELD_NAMES_UPPER_SNAKE_CASE ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
   }
 
   // This comment is left unintentionally blank.
@@ -520,13 +520,13 @@ message GetArchiveRequest {
   // This comment is left unintentionally blank.
   enum Format {
     // This comment is left unintentionally blank.
-    ZIP = 0;
+    ZIP = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    TAR = 1;
+    TAR = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    TAR_GZ = 2;
+    TAR_GZ = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    TAR_BZ2 = 3;
+    TAR_BZ2 = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.
@@ -842,19 +842,19 @@ message GetRawChangesResponse {
     // This comment is left unintentionally blank.
     enum Operation {
       // This comment is left unintentionally blank.
-      UNKNOWN = 0;
+      UNKNOWN = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
       // This comment is left unintentionally blank.
-      ADDED = 1;
+      ADDED = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
       // This comment is left unintentionally blank.
-      COPIED = 2;
+      COPIED = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
       // This comment is left unintentionally blank.
-      DELETED = 3;
+      DELETED = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
       // This comment is left unintentionally blank.
-      MODIFIED = 4;
+      MODIFIED = 4; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
       // This comment is left unintentionally blank.
-      RENAMED = 5;
+      RENAMED = 5; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
       // This comment is left unintentionally blank.
-      TYPE_CHANGED = 6;
+      TYPE_CHANGED = 6; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     }
 
     // This comment is left unintentionally blank.

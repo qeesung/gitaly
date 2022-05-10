@@ -60,9 +60,9 @@ message CommitDiffRequest {
   // This comment is left unintentionally blank.
   enum DiffMode {
     // DEFAULT is the standard diff mode and results in a linewise diff for textfiles.
-    DEFAULT = 0;
+    DEFAULT = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // WORDDIFF is a word diff and computes the diff for whitespace separated words instead of for whole lines.
-    WORDDIFF = 1;
+    WORDDIFF = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.
@@ -250,15 +250,15 @@ message ChangedPaths {
   // This comment is left unintentionally blank.
   enum Status {
     // This comment is left unintentionally blank.
-    ADDED = 0;
+    ADDED = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    MODIFIED = 1;
+    MODIFIED = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    DELETED = 2;
+    DELETED = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    TYPE_CHANGE = 3;
+    TYPE_CHANGE = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    COPIED = 4;
+    COPIED = 4; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.

@@ -27,7 +27,7 @@ const (
 	// SizeMultiple requires to use '--split --size-multiple=4' strategy to create/update commit graph.
 	// https://git-scm.com/docs/git-commit-graph#Documentation/git-commit-graph.txt-emwriteem
 	// It is a default, there is no need to explicitly set it in the request.
-	WriteCommitGraphRequest_SizeMultiple WriteCommitGraphRequest_SplitStrategy = 0 // protolint:disable:this ENUM_FIELD_NAMES_UPPER_SNAKE_CASE
+	WriteCommitGraphRequest_SizeMultiple WriteCommitGraphRequest_SplitStrategy = 0 // protolint:disable:this ENUM_FIELD_NAMES_UPPER_SNAKE_CASE ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 )
 
 // Enum value maps for WriteCommitGraphRequest_SplitStrategy.
@@ -72,13 +72,13 @@ type GetArchiveRequest_Format int32
 
 const (
 	// This comment is left unintentionally blank.
-	GetArchiveRequest_ZIP GetArchiveRequest_Format = 0
+	GetArchiveRequest_ZIP GetArchiveRequest_Format = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	GetArchiveRequest_TAR GetArchiveRequest_Format = 1
+	GetArchiveRequest_TAR GetArchiveRequest_Format = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	GetArchiveRequest_TAR_GZ GetArchiveRequest_Format = 2
+	GetArchiveRequest_TAR_GZ GetArchiveRequest_Format = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	GetArchiveRequest_TAR_BZ2 GetArchiveRequest_Format = 3
+	GetArchiveRequest_TAR_BZ2 GetArchiveRequest_Format = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for GetArchiveRequest_Format.
@@ -129,19 +129,19 @@ type GetRawChangesResponse_RawChange_Operation int32
 
 const (
 	// This comment is left unintentionally blank.
-	GetRawChangesResponse_RawChange_UNKNOWN GetRawChangesResponse_RawChange_Operation = 0
+	GetRawChangesResponse_RawChange_UNKNOWN GetRawChangesResponse_RawChange_Operation = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	GetRawChangesResponse_RawChange_ADDED GetRawChangesResponse_RawChange_Operation = 1
+	GetRawChangesResponse_RawChange_ADDED GetRawChangesResponse_RawChange_Operation = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	GetRawChangesResponse_RawChange_COPIED GetRawChangesResponse_RawChange_Operation = 2
+	GetRawChangesResponse_RawChange_COPIED GetRawChangesResponse_RawChange_Operation = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	GetRawChangesResponse_RawChange_DELETED GetRawChangesResponse_RawChange_Operation = 3
+	GetRawChangesResponse_RawChange_DELETED GetRawChangesResponse_RawChange_Operation = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	GetRawChangesResponse_RawChange_MODIFIED GetRawChangesResponse_RawChange_Operation = 4
+	GetRawChangesResponse_RawChange_MODIFIED GetRawChangesResponse_RawChange_Operation = 4 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	GetRawChangesResponse_RawChange_RENAMED GetRawChangesResponse_RawChange_Operation = 5
+	GetRawChangesResponse_RawChange_RENAMED GetRawChangesResponse_RawChange_Operation = 5 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	GetRawChangesResponse_RawChange_TYPE_CHANGED GetRawChangesResponse_RawChange_Operation = 6
+	GetRawChangesResponse_RawChange_TYPE_CHANGED GetRawChangesResponse_RawChange_Operation = 6 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for GetRawChangesResponse_RawChange_Operation.

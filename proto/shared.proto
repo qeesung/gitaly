@@ -10,27 +10,27 @@ option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
 // This comment is left unintentionally blank.
 enum ObjectType {
   // This comment is left unintentionally blank.
-  UNKNOWN = 0;
+  UNKNOWN = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
   // This comment is left unintentionally blank.
-  COMMIT = 1;
+  COMMIT = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   // This comment is left unintentionally blank.
-  BLOB = 2;
+  BLOB = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   // This comment is left unintentionally blank.
-  TREE = 3;
+  TREE = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   // This comment is left unintentionally blank.
-  TAG = 4;
+  TAG = 4; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 }
 
 // This comment is left unintentionally blank.
 enum SignatureType {
   // This comment is left unintentionally blank.
-  NONE = 0;
+  NONE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
   // This comment is left unintentionally blank.
-  PGP = 1;
+  PGP = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   // This comment is left unintentionally blank.
-  X509 = 2;
+  X509 = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   // This comment is left unintentionally blank.
-  SSH = 3;
+  SSH = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   // maybe add X509+TSA or other combinations at a later step
 }
 
@@ -203,7 +203,7 @@ message GlobalOptions {
 // SortDirection defines the sort direction.
 enum SortDirection {
   // ASCENDING sorts by the sort key in ascending order.
-  ASCENDING = 0;
+  ASCENDING = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
   // DESCENDING sorts by the sort key in descending order.
-  DESCENDING = 1;
+  DESCENDING = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 }

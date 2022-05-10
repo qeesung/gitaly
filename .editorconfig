@@ -24,6 +24,7 @@ max_line_length = 80
 [**.proto]
 indent_style = space
 indent_size = 2
+max_line_length = 100
 
 [**.rb]
 indent_size = 2

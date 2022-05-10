@@ -123,11 +123,11 @@ message ReferenceTransactionHookRequest {
   // This comment is left unintentionally blank.
   enum State {
     // This comment is left unintentionally blank.
-    PREPARED = 0;
+    PREPARED = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    COMMITTED = 1;
+    COMMITTED = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // This comment is left unintentionally blank.
-    ABORTED = 2;
+    ABORTED = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.

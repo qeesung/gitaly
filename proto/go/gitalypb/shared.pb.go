@@ -26,15 +26,15 @@ type ObjectType int32
 
 const (
 	// This comment is left unintentionally blank.
-	ObjectType_UNKNOWN ObjectType = 0
+	ObjectType_UNKNOWN ObjectType = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	ObjectType_COMMIT ObjectType = 1
+	ObjectType_COMMIT ObjectType = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	ObjectType_BLOB ObjectType = 2
+	ObjectType_BLOB ObjectType = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	ObjectType_TREE ObjectType = 3
+	ObjectType_TREE ObjectType = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	ObjectType_TAG ObjectType = 4
+	ObjectType_TAG ObjectType = 4 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for ObjectType.
@@ -87,13 +87,13 @@ type SignatureType int32
 
 const (
 	// This comment is left unintentionally blank.
-	SignatureType_NONE SignatureType = 0
+	SignatureType_NONE SignatureType = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	SignatureType_PGP SignatureType = 1
+	SignatureType_PGP SignatureType = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	SignatureType_X509 SignatureType = 2
+	SignatureType_X509 SignatureType = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	SignatureType_SSH SignatureType = 3 // maybe add X509+TSA or other combinations at a later step
+	SignatureType_SSH SignatureType = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for SignatureType.
@@ -144,9 +144,9 @@ type SortDirection int32
 
 const (
 	// ASCENDING sorts by the sort key in ascending order.
-	SortDirection_ASCENDING SortDirection = 0
+	SortDirection_ASCENDING SortDirection = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// DESCENDING sorts by the sort key in descending order.
-	SortDirection_DESCENDING SortDirection = 1
+	SortDirection_DESCENDING SortDirection = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for SortDirection.

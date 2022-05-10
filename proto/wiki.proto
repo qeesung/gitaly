@@ -159,9 +159,9 @@ message WikiGetAllPagesRequest {
   // This comment is left unintentionally blank.
   enum SortBy {
     // This comment is left unintentionally blank.
-    TITLE = 0;
+    TITLE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    CREATED_AT = 1;
+    CREATED_AT = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.
@@ -187,9 +187,9 @@ message WikiListPagesRequest {
   // This comment is left unintentionally blank.
   enum SortBy {
     // This comment is left unintentionally blank.
-    TITLE = 0;
+    TITLE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
     // This comment is left unintentionally blank.
-    CREATED_AT = 1;
+    CREATED_AT = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // This comment is left unintentionally blank.

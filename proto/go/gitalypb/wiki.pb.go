@@ -25,9 +25,9 @@ type WikiGetAllPagesRequest_SortBy int32
 
 const (
 	// This comment is left unintentionally blank.
-	WikiGetAllPagesRequest_TITLE WikiGetAllPagesRequest_SortBy = 0
+	WikiGetAllPagesRequest_TITLE WikiGetAllPagesRequest_SortBy = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	WikiGetAllPagesRequest_CREATED_AT WikiGetAllPagesRequest_SortBy = 1
+	WikiGetAllPagesRequest_CREATED_AT WikiGetAllPagesRequest_SortBy = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for WikiGetAllPagesRequest_SortBy.
@@ -74,9 +74,9 @@ type WikiListPagesRequest_SortBy int32
 
 const (
 	// This comment is left unintentionally blank.
-	WikiListPagesRequest_TITLE WikiListPagesRequest_SortBy = 0
+	WikiListPagesRequest_TITLE WikiListPagesRequest_SortBy = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	WikiListPagesRequest_CREATED_AT WikiListPagesRequest_SortBy = 1
+	WikiListPagesRequest_CREATED_AT WikiListPagesRequest_SortBy = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for WikiListPagesRequest_SortBy.

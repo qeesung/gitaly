@@ -25,9 +25,9 @@ type CommitDiffRequest_DiffMode int32
 
 const (
 	// DEFAULT is the standard diff mode and results in a linewise diff for textfiles.
-	CommitDiffRequest_DEFAULT CommitDiffRequest_DiffMode = 0
+	CommitDiffRequest_DEFAULT CommitDiffRequest_DiffMode = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// WORDDIFF is a word diff and computes the diff for whitespace separated words instead of for whole lines.
-	CommitDiffRequest_WORDDIFF CommitDiffRequest_DiffMode = 1
+	CommitDiffRequest_WORDDIFF CommitDiffRequest_DiffMode = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for CommitDiffRequest_DiffMode.
@@ -74,15 +74,15 @@ type ChangedPaths_Status int32
 
 const (
 	// This comment is left unintentionally blank.
-	ChangedPaths_ADDED ChangedPaths_Status = 0
+	ChangedPaths_ADDED ChangedPaths_Status = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	ChangedPaths_MODIFIED ChangedPaths_Status = 1
+	ChangedPaths_MODIFIED ChangedPaths_Status = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	ChangedPaths_DELETED ChangedPaths_Status = 2
+	ChangedPaths_DELETED ChangedPaths_Status = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	ChangedPaths_TYPE_CHANGE ChangedPaths_Status = 3
+	ChangedPaths_TYPE_CHANGE ChangedPaths_Status = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	ChangedPaths_COPIED ChangedPaths_Status = 4
+	ChangedPaths_COPIED ChangedPaths_Status = 4 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for ChangedPaths_Status.

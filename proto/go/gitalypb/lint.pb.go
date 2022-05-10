@@ -26,13 +26,13 @@ type OperationMsg_Operation int32
 
 const (
 	// This comment is left unintentionally blank.
-	OperationMsg_UNKNOWN OperationMsg_Operation = 0
+	OperationMsg_UNKNOWN OperationMsg_Operation = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	OperationMsg_MUTATOR OperationMsg_Operation = 1
+	OperationMsg_MUTATOR OperationMsg_Operation = 1 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	OperationMsg_ACCESSOR OperationMsg_Operation = 2
+	OperationMsg_ACCESSOR OperationMsg_Operation = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 	// This comment is left unintentionally blank.
-	OperationMsg_MAINTENANCE OperationMsg_Operation = 3
+	OperationMsg_MAINTENANCE OperationMsg_Operation = 3 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for OperationMsg_Operation.
@@ -83,9 +83,9 @@ type OperationMsg_Scope int32
 
 const (
 	// This comment is left unintentionally blank.
-	OperationMsg_REPOSITORY OperationMsg_Scope = 0
+	OperationMsg_REPOSITORY OperationMsg_Scope = 0 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
 	// This comment is left unintentionally blank.
-	OperationMsg_STORAGE OperationMsg_Scope = 2
+	OperationMsg_STORAGE OperationMsg_Scope = 2 // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
 )
 
 // Enum value maps for OperationMsg_Scope.
