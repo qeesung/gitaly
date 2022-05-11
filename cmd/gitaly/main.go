@@ -15,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap/starter"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/boring"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
@@ -44,6 +43,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/streamcache"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/tempdir"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
+	"gitlab.com/gitlab-org/labkit/fips"
 	"gitlab.com/gitlab-org/labkit/monitoring"
 	"gitlab.com/gitlab-org/labkit/tracing"
 	"google.golang.org/grpc"
@@ -92,7 +92,7 @@ func main() {
 	}
 
 	log.Infof("Starting %s", version.GetVersionString())
-	boring.CheckBoring()
+	fips.Check()
 
 	cfg, err := configure(flag.Arg(0))
 	if err != nil {

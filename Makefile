@@ -72,8 +72,8 @@ SERVER_BUILD_TAGS := tracer_static,tracer_static_jaeger,tracer_static_stackdrive
 GIT2GO_BUILD_TAGS := static,system_libgit2
 
 ifeq (${FIPS_MODE}, 1)
-    SERVER_BUILD_TAGS := ${SERVER_BUILD_TAGS},boringcrypto
-    GIT2GO_BUILD_TAGS := ${GIT2GO_BUILD_TAGS},boringcrypto
+    SERVER_BUILD_TAGS := ${SERVER_BUILD_TAGS},fips
+    GIT2GO_BUILD_TAGS := ${GIT2GO_BUILD_TAGS},fips
 endif
 
 # Dependency versions
