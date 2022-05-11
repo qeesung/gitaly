@@ -10,8 +10,8 @@ import (
 	"fmt"
 
 	git "github.com/libgit2/git2go/v33"
-	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14/git2goutil"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/cmd/gitaly-git2go-v14/git2goutil"
+	"gitlab.com/gitlab-org/gitaly/internal/git2go"
 )
 
 // Run runs the commit subcommand.

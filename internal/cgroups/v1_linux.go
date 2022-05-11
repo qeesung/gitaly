@@ -9,9 +9,9 @@ import (
 	"github.com/containerd/cgroups"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/prometheus/client_golang/prometheus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
-	cgroupscfg "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/cgroups"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
+	cgroupscfg "gitlab.com/gitlab-org/gitaly/internal/gitaly/config/cgroups"
+	"gitlab.com/gitlab-org/gitaly/internal/log"
 )
 
 // CGroupV1Manager is the manager for cgroups v1

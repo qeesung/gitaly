@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/commonerr"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/service"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 

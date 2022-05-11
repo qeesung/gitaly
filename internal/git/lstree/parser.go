@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
 )
 
 // ErrParse is returned when the parse of an entry was unsuccessful

@@ -11,12 +11,12 @@ import (
 	git "github.com/libgit2/git2go/v33"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14/git2goutil"
-	cmdtesthelper "gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/cmd/gitaly-git2go-v14/git2goutil"
+	cmdtesthelper "gitlab.com/gitlab-org/gitaly/cmd/gitaly-git2go-v14/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper/testcfg"
 )
 
 func TestMerge_missingArguments(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	_ "gitlab.com/gitlab-org/gitaly/v14/tools/protoc-gen-gitaly-lint/testdata"
+	_ "gitlab.com/gitlab-org/gitaly/tools/protoc-gen-gitaly-lint/testdata"
 	"google.golang.org/protobuf/reflect/protodesc"
 	protoreg "google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"

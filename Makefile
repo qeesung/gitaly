@@ -64,7 +64,7 @@ GOLANGCI_LINT_OPTIONS ?=
 GOLANGCI_LINT_CONFIG  ?= ${SOURCE_DIR}/.golangci.yml
 
 # Build information
-GITALY_PACKAGE    := gitlab.com/gitlab-org/gitaly/v14
+GITALY_PACKAGE    := gitlab.com/gitlab-org/gitaly
 BUILD_TIME        := $(shell date +"%Y%m%d.%H%M%S")
 GITALY_VERSION    := $(shell ${GIT} describe --match v* 2>/dev/null | sed 's/^v//' || cat ${SOURCE_DIR}/VERSION 2>/dev/null || echo unknown)
 GO_LDFLAGS        := -X ${GITALY_PACKAGE}/internal/version.version=${GITALY_VERSION} -X ${GITALY_PACKAGE}/internal/version.buildtime=${BUILD_TIME} -X ${GITALY_PACKAGE}/internal/version.moduleVersion=${MODULE_VERSION}
@@ -387,7 +387,7 @@ verify: check-mod-tidy notice-up-to-date check-proto rubocop lint
 .PHONY: check-mod-tidy
 check-mod-tidy:
 	${Q}${GIT} diff --quiet --exit-code go.mod go.sum || (echo "error: uncommitted changes in go.mod or go.sum" && exit 1)
-	${Q}go mod tidy
+	${Q}go mod tidy && (cd v14 && go mod tidy)
 	${Q}${GIT} diff --quiet --exit-code go.mod go.sum || (echo "error: uncommitted changes in go.mod or go.sum" && exit 1)
 
 .PHONY: lint
@@ -442,9 +442,9 @@ cover: prepare-tests libgit2 ${GOCOVER_COBERTURA}
 ## Regenerate protobuf definitions.
 proto: SHARED_PROTOC_OPTS = --plugin=${PROTOC_GEN_GO} --plugin=${PROTOC_GEN_GO_GRPC} --plugin=${PROTOC_GEN_GITALY_PROTOLIST} --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative
 proto: ${PROTOC} ${PROTOC_GEN_GO} ${PROTOC_GEN_GO_GRPC} ${PROTOC_GEN_GITALY_PROTOLIST} ${SOURCE_DIR}/.ruby-bundle
-	${Q}mkdir -p ${SOURCE_DIR}/proto/go/gitalypb
-	${Q}rm -f ${SOURCE_DIR}/proto/go/gitalypb/*.pb.go
-	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --go_out=${SOURCE_DIR}/proto/go/gitalypb --gitaly-protolist_out=proto_dir=${SOURCE_DIR}/proto,gitalypb_dir=${SOURCE_DIR}/proto/go/gitalypb:${SOURCE_DIR} --go-grpc_out=${SOURCE_DIR}/proto/go/gitalypb ${SOURCE_DIR}/proto/*.proto
+	${Q}mkdir -p ${SOURCE_DIR}/v14/proto/go/gitalypb
+	${Q}rm -rf ${SOURCE_DIR}/v14/proto/go/gitalypb/*.pb.go ${SOURCE_DIR}/proto/go
+	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --go_out=${SOURCE_DIR}/v14/proto/go/gitalypb --gitaly-protolist_out=proto_dir=${SOURCE_DIR}/proto,gitalypb_dir=${SOURCE_DIR}/v14/proto/go/gitalypb:${SOURCE_DIR} --go-grpc_out=${SOURCE_DIR}/v14/proto/go/gitalypb ${SOURCE_DIR}/proto/*.proto
 	${SOURCE_DIR}/_support/generate-proto-ruby
 	@ # this part is related to the generation of sources from testing proto files
 	${PROTOC} ${SHARED_PROTOC_OPTS} -I ${SOURCE_DIR}/internal --go_out=${SOURCE_DIR}/internal --go-grpc_out=${SOURCE_DIR}/internal ${SOURCE_DIR}/internal/praefect/grpc-proxy/testdata/test.proto

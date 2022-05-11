@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/pktline"
+	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 )
 
 // SendPack is used to parse the response body of a git-send-pack(1) request.

@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/internal/testhelper"
 )
 
 var buildOnceByName sync.Map
@@ -100,5 +100,5 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 }
 
 func gitalyCommandPath(command string) string {
-	return fmt.Sprintf("gitlab.com/gitlab-org/gitaly/v14/cmd/%s", command)
+	return fmt.Sprintf("gitlab.com/gitlab-org/gitaly/cmd/%s", command)
 }

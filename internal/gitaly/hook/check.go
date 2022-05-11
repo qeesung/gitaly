@@ -3,7 +3,7 @@ package hook
 import (
 	"context"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitlab"
+	"gitlab.com/gitlab-org/gitaly/internal/gitlab"
 )
 
 //nolint: revive,stylecheck // This is unintentionally missing documentation.

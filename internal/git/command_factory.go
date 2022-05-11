@@ -10,14 +10,14 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/cgroups"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/alternates"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/internal/cgroups"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/git/alternates"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/internal/log"
+	"gitlab.com/gitlab-org/gitaly/internal/metadata/featureflag"
 )
 
 // CommandFactory is designed to create and run git commands in a protected and fully managed manner.

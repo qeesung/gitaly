@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/repocleaner"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/datastore/glsql"
+	"gitlab.com/gitlab-org/gitaly/internal/praefect/repocleaner"
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc/metadata"
 )

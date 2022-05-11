@@ -9,10 +9,10 @@ import (
 
 	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/log"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/sentry"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config/log"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config/prometheus"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/config/sentry"
 )
 
 func TestConfigValidation(t *testing.T) {

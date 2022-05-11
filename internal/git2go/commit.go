@@ -6,8 +6,8 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
 
 // IndexError is an error that was produced by performing an invalid operation on the index.

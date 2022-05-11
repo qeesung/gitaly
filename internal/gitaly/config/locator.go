@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/gitaly/storage"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

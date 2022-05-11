@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
-	gitalyerrors "gitlab.com/gitlab-org/gitaly/v14/internal/errors"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/housekeeping"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	gitalyerrors "gitlab.com/gitlab-org/gitaly/internal/errors"
+	"gitlab.com/gitlab-org/gitaly/internal/git/housekeeping"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
