@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/pktline"
+	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 )
 
 // FetchPack is used to parse the response body of a git-fetch-pack(1) request.

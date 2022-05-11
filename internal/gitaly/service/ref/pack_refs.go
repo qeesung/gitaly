@@ -3,10 +3,10 @@ package ref
 import (
 	"context"
 
-	gitalyerrors "gitlab.com/gitlab-org/gitaly/v14/internal/errors"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	gitalyerrors "gitlab.com/gitlab-org/gitaly/internal/errors"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 

@@ -5,7 +5,7 @@ import (
 
 	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/internal/command"
 	"google.golang.org/grpc"
 )
 

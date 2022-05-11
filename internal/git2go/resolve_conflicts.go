@@ -6,8 +6,8 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/conflict"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/git/conflict"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 )
 
 // ResolveCommand contains arguments to perform a merge commit and resolve any

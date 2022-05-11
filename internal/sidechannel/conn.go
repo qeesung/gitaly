@@ -5,7 +5,7 @@ import (
 	"io"
 	"net"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/pktline"
+	"gitlab.com/gitlab-org/gitaly/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v14/streamio"
 )
 

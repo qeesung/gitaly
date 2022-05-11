@@ -1,9 +1,9 @@
 package hook
 
 import (
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	gitalyhook "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/streamcache"
+	"gitlab.com/gitlab-org/gitaly/internal/git"
+	gitalyhook "gitlab.com/gitlab-org/gitaly/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/internal/streamcache"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 

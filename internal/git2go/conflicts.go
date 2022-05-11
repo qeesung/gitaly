@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/internal/git/repository"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -8,7 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v14/auth"
-	gitalycfgauth "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/auth"
+	gitalycfgauth "gitlab.com/gitlab-org/gitaly/internal/gitaly/config/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
