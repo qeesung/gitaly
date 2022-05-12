@@ -60,9 +60,9 @@ func (s *Server) UserCommitFiles(stream gitalypb.OperationService_UserCommitFile
 		}
 
 		var (
-			response   gitalypb.UserCommitFilesResponse
-			indexError git2go.IndexError
-			hookError  updateref.HookError
+			response      gitalypb.UserCommitFilesResponse
+			indexError    git2go.IndexError
+			customHookErr updateref.CustomHookError
 		)
 
 		switch {
@@ -74,8 +74,8 @@ func (s *Server) UserCommitFiles(stream gitalypb.OperationService_UserCommitFile
 			response = gitalypb.UserCommitFilesResponse{IndexError: "A file with this name already exists"}
 		case errors.As(err, new(git2go.FileNotFoundError)):
 			response = gitalypb.UserCommitFilesResponse{IndexError: "A file with this name doesn't exist"}
-		case errors.As(err, &hookError):
-			response = gitalypb.UserCommitFilesResponse{PreReceiveError: hookError.Error()}
+		case errors.As(err, &customHookErr):
+			response = gitalypb.UserCommitFilesResponse{PreReceiveError: customHookErr.Error()}
 		case errors.As(err, new(git2go.InvalidArgumentError)):
 			return helper.ErrInvalidArgument(err)
 		default:

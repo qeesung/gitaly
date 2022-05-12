@@ -30,7 +30,7 @@ message NotAncestorError {
   bytes child_revision = 2;
 }
 
-// ChangesAlreadyAppliedError is an error returned when the operation would 
+// ChangesAlreadyAppliedError is an error returned when the operation would
 // have resulted in no changes because these changes have already been applied.
 message ChangesAlreadyAppliedError {
 }
@@ -69,4 +69,35 @@ message LimitError {
   // RetryAfter provides the duration after which a retry is safe.
   // 0 indicates non-retryable.
   google.protobuf.Duration retry_after = 2;
+}
+
+// CustomHookError is an error returned when Gitaly executes a custom hook and the hook returns
+// a non-zero return code.
+message CustomHookError {
+  // HookType is the type of the hook that has been running. Please consult githooks(5) for more
+  // information about the specific types.
+  enum HookType {
+    // HOOK_TYPE_UNSPECIFIED is the default hook type and should never be set.
+    HOOK_TYPE_UNSPECIFIED = 0;
+    // HOOK_TYPE_PRERECEIVE is executed after all changes have been written into a temporary staging
+    // directory, but before any references in the repository have been updated. It is executed with
+    // all references that are about to be updated at once. If this hook exits, then no references
+    // will have been updated in the repository and staged objects will have been discarded.
+    HOOK_TYPE_PRERECEIVE = 1;
+    // HOOK_TYPE_UPDATE is executed after the pre-receive hook. It is executed per reference that is
+    // about to be updated and can be used to reject only a subset of reference updates. If this
+    // hook error is raised then a subset of references may have already been updated.
+    HOOK_TYPE_UPDATE = 2;
+    // HOOK_TYPE_POSTRECEIVE is executed after objects have been migrated into the repository and
+    // after references have been updated. An error in this hook will not impact the changes
+    // anymore as everything has already been persisted.
+    HOOK_TYPE_POSTRECEIVE = 3;
+  };
+
+  // Stdout is the standard output of the hook that has failed, if any. Data may be truncated.
+  bytes stdout = 1;
+  // Stderr is the standard error of the hook that has failed, if any. Data may be truncated.
+  bytes stderr = 2;
+  // HookType is the type of the hook.
+  HookType hook_type = 3;
 }

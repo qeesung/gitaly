@@ -76,6 +76,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       oneof :error do
         optional :access_check, :message, 1, "gitaly.AccessCheckError"
         optional :reference_update, :message, 2, "gitaly.ReferenceUpdateError"
+        optional :custom_hook, :message, 3, "gitaly.CustomHookError"
       end
     end
     add_message "gitaly.UserMergeToRefRequest" do

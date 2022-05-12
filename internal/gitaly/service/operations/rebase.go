@@ -128,7 +128,7 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 		oldrev,
 		header.GitPushOptions...); err != nil {
 		switch {
-		case errors.As(err, &updateref.HookError{}):
+		case errors.As(err, &updateref.CustomHookError{}):
 			if featureflag.UserRebaseConfirmableImprovedErrorHandling.IsEnabled(ctx) {
 				detailedErr, err := helper.ErrWithDetails(
 					helper.ErrPermissionDeniedf("access check: %q", err),

@@ -152,10 +152,10 @@ func (s *Server) userUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 		commitID,
 		branchOID,
 	); err != nil {
-		var hookError updateref.HookError
-		if errors.As(err, &hookError) {
+		var customHookErr updateref.CustomHookError
+		if errors.As(err, &customHookErr) {
 			return &gitalypb.UserUpdateSubmoduleResponse{
-				PreReceiveError: hookError.Error(),
+				PreReceiveError: customHookErr.Error(),
 			}, nil
 		}
 

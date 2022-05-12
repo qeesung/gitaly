@@ -306,6 +306,9 @@ message UserMergeBranchError {
     // ReferenceUpdateError is set if the RPC failed because updating the
     // reference to the new object ID has failed.
     ReferenceUpdateError reference_update = 2;
+    // CustomHook is set if any custom hook which has running as part of this RPC call has returned
+    // a non-zero exit code.
+    CustomHookError custom_hook = 3;
   }
 }
 

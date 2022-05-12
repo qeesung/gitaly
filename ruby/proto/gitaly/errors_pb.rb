@@ -33,6 +33,17 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :error_message, :string, 1
       optional :retry_after, :message, 2, "google.protobuf.Duration"
     end
+    add_message "gitaly.CustomHookError" do
+      optional :stdout, :bytes, 1
+      optional :stderr, :bytes, 2
+      optional :hook_type, :enum, 3, "gitaly.CustomHookError.HookType"
+    end
+    add_enum "gitaly.CustomHookError.HookType" do
+      value :HOOK_TYPE_UNSPECIFIED, 0
+      value :HOOK_TYPE_PRERECEIVE, 1
+      value :HOOK_TYPE_UPDATE, 2
+      value :HOOK_TYPE_POSTRECEIVE, 3
+    end
   end
 end
 
@@ -44,4 +55,6 @@ module Gitaly
   ReferenceUpdateError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferenceUpdateError").msgclass
   ResolveRevisionError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ResolveRevisionError").msgclass
   LimitError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.LimitError").msgclass
+  CustomHookError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CustomHookError").msgclass
+  CustomHookError::HookType = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.CustomHookError.HookType").enummodule
 end

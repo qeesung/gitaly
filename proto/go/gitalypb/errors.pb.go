@@ -21,6 +21,71 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// HookType is the type of the hook that has been running. Please consult githooks(5) for more
+// information about the specific types.
+type CustomHookError_HookType int32
+
+const (
+	// HOOK_TYPE_UNSPECIFIED is the default hook type and should never be set.
+	CustomHookError_HOOK_TYPE_UNSPECIFIED CustomHookError_HookType = 0
+	// HOOK_TYPE_PRERECEIVE is executed after all changes have been written into a temporary staging
+	// directory, but before any references in the repository have been updated. It is executed with
+	// all references that are about to be updated at once. If this hook exits, then no references
+	// will have been updated in the repository and staged objects will have been discarded.
+	CustomHookError_HOOK_TYPE_PRERECEIVE CustomHookError_HookType = 1
+	// HOOK_TYPE_UPDATE is executed after the pre-receive hook. It is executed per reference that is
+	// about to be updated and can be used to reject only a subset of reference updates. If this
+	// hook error is raised then a subset of references may have already been updated.
+	CustomHookError_HOOK_TYPE_UPDATE CustomHookError_HookType = 2
+	// HOOK_TYPE_POSTRECEIVE is executed after objects have been migrated into the repository and
+	// after references have been updated. An error in this hook will not impact the changes
+	// anymore as everything has already been persisted.
+	CustomHookError_HOOK_TYPE_POSTRECEIVE CustomHookError_HookType = 3
+)
+
+// Enum value maps for CustomHookError_HookType.
+var (
+	CustomHookError_HookType_name = map[int32]string{
+		0: "HOOK_TYPE_UNSPECIFIED",
+		1: "HOOK_TYPE_PRERECEIVE",
+		2: "HOOK_TYPE_UPDATE",
+		3: "HOOK_TYPE_POSTRECEIVE",
+	}
+	CustomHookError_HookType_value = map[string]int32{
+		"HOOK_TYPE_UNSPECIFIED": 0,
+		"HOOK_TYPE_PRERECEIVE":  1,
+		"HOOK_TYPE_UPDATE":      2,
+		"HOOK_TYPE_POSTRECEIVE": 3,
+	}
+)
+
+func (x CustomHookError_HookType) Enum() *CustomHookError_HookType {
+	p := new(CustomHookError_HookType)
+	*p = x
+	return p
+}
+
+func (x CustomHookError_HookType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CustomHookError_HookType) Descriptor() protoreflect.EnumDescriptor {
+	return file_errors_proto_enumTypes[0].Descriptor()
+}
+
+func (CustomHookError_HookType) Type() protoreflect.EnumType {
+	return &file_errors_proto_enumTypes[0]
+}
+
+func (x CustomHookError_HookType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CustomHookError_HookType.Descriptor instead.
+func (CustomHookError_HookType) EnumDescriptor() ([]byte, []int) {
+	return file_errors_proto_rawDescGZIP(), []int{7, 0}
+}
+
 // AccessCheckError is an error returned by GitLab's `/internal/allowed`
 // endpoint.
 type AccessCheckError struct {
@@ -428,6 +493,74 @@ func (x *LimitError) GetRetryAfter() *durationpb.Duration {
 	return nil
 }
 
+// CustomHookError is an error returned when Gitaly executes a custom hook and the hook returns
+// a non-zero return code.
+type CustomHookError struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Stdout is the standard output of the hook that has failed, if any. Data may be truncated.
+	Stdout []byte `protobuf:"bytes,1,opt,name=stdout,proto3" json:"stdout,omitempty"`
+	// Stderr is the standard error of the hook that has failed, if any. Data may be truncated.
+	Stderr []byte `protobuf:"bytes,2,opt,name=stderr,proto3" json:"stderr,omitempty"`
+	// HookType is the type of the hook.
+	HookType CustomHookError_HookType `protobuf:"varint,3,opt,name=hook_type,json=hookType,proto3,enum=gitaly.CustomHookError_HookType" json:"hook_type,omitempty"`
+}
+
+func (x *CustomHookError) Reset() {
+	*x = CustomHookError{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_errors_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CustomHookError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomHookError) ProtoMessage() {}
+
+func (x *CustomHookError) ProtoReflect() protoreflect.Message {
+	mi := &file_errors_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomHookError.ProtoReflect.Descriptor instead.
+func (*CustomHookError) Descriptor() ([]byte, []int) {
+	return file_errors_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CustomHookError) GetStdout() []byte {
+	if x != nil {
+		return x.Stdout
+	}
+	return nil
+}
+
+func (x *CustomHookError) GetStderr() []byte {
+	if x != nil {
+		return x.Stderr
+	}
+	return nil
+}
+
+func (x *CustomHookError) GetHookType() CustomHookError_HookType {
+	if x != nil {
+		return x.HookType
+	}
+	return CustomHookError_HOOK_TYPE_UNSPECIFIED
+}
+
 var File_errors_proto protoreflect.FileDescriptor
 
 var file_errors_proto_rawDesc = []byte{
@@ -472,11 +605,26 @@ var file_errors_proto_rawDesc = []byte{
 	0x72, 0x65, 0x74, 0x72, 0x79, 0x5f, 0x61, 0x66, 0x74, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x19, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
 	0x62, 0x75, 0x66, 0x2e, 0x44, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0a, 0x72, 0x65,
-	0x74, 0x72, 0x79, 0x41, 0x66, 0x74, 0x65, 0x72, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x6c,
-	0x61, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2d, 0x6f, 0x72,
-	0x67, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x34, 0x2f, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x70, 0x62, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x74, 0x72, 0x79, 0x41, 0x66, 0x74, 0x65, 0x72, 0x22, 0xf2, 0x01, 0x0a, 0x0f, 0x43, 0x75, 0x73,
+	0x74, 0x6f, 0x6d, 0x48, 0x6f, 0x6f, 0x6b, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x12, 0x16, 0x0a, 0x06,
+	0x73, 0x74, 0x64, 0x6f, 0x75, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x73, 0x74,
+	0x64, 0x6f, 0x75, 0x74, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x74, 0x64, 0x65, 0x72, 0x72, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x73, 0x74, 0x64, 0x65, 0x72, 0x72, 0x12, 0x3d, 0x0a, 0x09,
+	0x68, 0x6f, 0x6f, 0x6b, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32,
+	0x20, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x43, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x48,
+	0x6f, 0x6f, 0x6b, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x2e, 0x48, 0x6f, 0x6f, 0x6b, 0x54, 0x79, 0x70,
+	0x65, 0x52, 0x08, 0x68, 0x6f, 0x6f, 0x6b, 0x54, 0x79, 0x70, 0x65, 0x22, 0x70, 0x0a, 0x08, 0x48,
+	0x6f, 0x6f, 0x6b, 0x54, 0x79, 0x70, 0x65, 0x12, 0x19, 0x0a, 0x15, 0x48, 0x4f, 0x4f, 0x4b, 0x5f,
+	0x54, 0x59, 0x50, 0x45, 0x5f, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44,
+	0x10, 0x00, 0x12, 0x18, 0x0a, 0x14, 0x48, 0x4f, 0x4f, 0x4b, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f,
+	0x50, 0x52, 0x45, 0x52, 0x45, 0x43, 0x45, 0x49, 0x56, 0x45, 0x10, 0x01, 0x12, 0x14, 0x0a, 0x10,
+	0x48, 0x4f, 0x4f, 0x4b, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x55, 0x50, 0x44, 0x41, 0x54, 0x45,
+	0x10, 0x02, 0x12, 0x19, 0x0a, 0x15, 0x48, 0x4f, 0x4f, 0x4b, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f,
+	0x50, 0x4f, 0x53, 0x54, 0x52, 0x45, 0x43, 0x45, 0x49, 0x56, 0x45, 0x10, 0x03, 0x42, 0x34, 0x5a,
+	0x32, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c,
+	0x61, 0x62, 0x2d, 0x6f, 0x72, 0x67, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31,
+	0x34, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c,
+	0x79, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -491,24 +639,28 @@ func file_errors_proto_rawDescGZIP() []byte {
 	return file_errors_proto_rawDescData
 }
 
-var file_errors_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_errors_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_errors_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_errors_proto_goTypes = []interface{}{
-	(*AccessCheckError)(nil),           // 0: gitaly.AccessCheckError
-	(*NotAncestorError)(nil),           // 1: gitaly.NotAncestorError
-	(*ChangesAlreadyAppliedError)(nil), // 2: gitaly.ChangesAlreadyAppliedError
-	(*MergeConflictError)(nil),         // 3: gitaly.MergeConflictError
-	(*ReferenceUpdateError)(nil),       // 4: gitaly.ReferenceUpdateError
-	(*ResolveRevisionError)(nil),       // 5: gitaly.ResolveRevisionError
-	(*LimitError)(nil),                 // 6: gitaly.LimitError
-	(*durationpb.Duration)(nil),        // 7: google.protobuf.Duration
+	(CustomHookError_HookType)(0),      // 0: gitaly.CustomHookError.HookType
+	(*AccessCheckError)(nil),           // 1: gitaly.AccessCheckError
+	(*NotAncestorError)(nil),           // 2: gitaly.NotAncestorError
+	(*ChangesAlreadyAppliedError)(nil), // 3: gitaly.ChangesAlreadyAppliedError
+	(*MergeConflictError)(nil),         // 4: gitaly.MergeConflictError
+	(*ReferenceUpdateError)(nil),       // 5: gitaly.ReferenceUpdateError
+	(*ResolveRevisionError)(nil),       // 6: gitaly.ResolveRevisionError
+	(*LimitError)(nil),                 // 7: gitaly.LimitError
+	(*CustomHookError)(nil),            // 8: gitaly.CustomHookError
+	(*durationpb.Duration)(nil),        // 9: google.protobuf.Duration
 }
 var file_errors_proto_depIdxs = []int32{
-	7, // 0: gitaly.LimitError.retry_after:type_name -> google.protobuf.Duration
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	9, // 0: gitaly.LimitError.retry_after:type_name -> google.protobuf.Duration
+	0, // 1: gitaly.CustomHookError.hook_type:type_name -> gitaly.CustomHookError.HookType
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_errors_proto_init() }
@@ -601,19 +753,32 @@ func file_errors_proto_init() {
 				return nil
 			}
 		}
+		file_errors_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*CustomHookError); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_errors_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   7,
+			NumEnums:      1,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_errors_proto_goTypes,
 		DependencyIndexes: file_errors_proto_depIdxs,
+		EnumInfos:         file_errors_proto_enumTypes,
 		MessageInfos:      file_errors_proto_msgTypes,
 	}.Build()
 	File_errors_proto = out.File

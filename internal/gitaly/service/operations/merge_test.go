@@ -131,7 +131,8 @@ func TestUserMergeBranch_quarantine(t *testing.T) {
 	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(
 		`#!/bin/sh
 		read oldval newval ref &&
-		git rev-parse $newval^{commit} &&
+		git rev-parse $newval^{commit} >&2 &&
+		git rev-parse $oldval^{commit} &&
 		exit 1
 	`))
 
@@ -153,7 +154,18 @@ func TestUserMergeBranch_quarantine(t *testing.T) {
 
 	require.NoError(t, stream.Send(&gitalypb.UserMergeBranchRequest{Apply: true}), "apply merge")
 	secondResponse, err := stream.Recv()
-	testhelper.RequireGrpcError(t, helper.ErrInternalf("%s\n", firstResponse.CommitId), err)
+	testhelper.RequireGrpcError(t, errWithDetails(t,
+		helper.ErrPermissionDeniedf("%s\n", firstResponse.CommitId),
+		&gitalypb.UserMergeBranchError{
+			Error: &gitalypb.UserMergeBranchError_CustomHook{
+				CustomHook: &gitalypb.CustomHookError{
+					HookType: gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
+					Stdout:   []byte(fmt.Sprintf("%s\n", mergeBranchHeadBefore)),
+					Stderr:   []byte(fmt.Sprintf("%s\n", firstResponse.CommitId)),
+				},
+			},
+		},
+	), err)
 	require.Nil(t, secondResponse)
 
 	oid, err := git.NewObjectIDFromHex(strings.TrimSpace(firstResponse.CommitId))
@@ -423,11 +435,32 @@ func TestUserMergeBranch_failingHooks(t *testing.T) {
 
 	gittest.Exec(t, cfg, "-C", repoPath, "branch", mergeBranchName, mergeBranchHeadBefore)
 
-	hookContent := []byte("#!/bin/sh\necho 'failure'\nexit 1")
+	hookContent := []byte("#!/bin/sh\necho 'stdout' && echo 'stderr' >&2\nexit 1")
 
-	for _, hookName := range gitlabPreHooks {
-		t.Run(hookName, func(t *testing.T) {
-			gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
+	for _, tc := range []struct {
+		hookName     string
+		hookType     gitalypb.CustomHookError_HookType
+		shouldUpdate bool
+	}{
+		{
+			hookName:     "pre-receive",
+			hookType:     gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
+			shouldUpdate: false,
+		},
+		{
+			hookName:     "update",
+			hookType:     gitalypb.CustomHookError_HOOK_TYPE_UPDATE,
+			shouldUpdate: false,
+		},
+		{
+			hookName: "post-receive",
+			hookType: gitalypb.CustomHookError_HOOK_TYPE_POSTRECEIVE,
+			// The post-receive hook runs after references have been updated.
+			shouldUpdate: true,
+		},
+	} {
+		t.Run(tc.hookName, func(t *testing.T) {
+			gittest.WriteCustomHook(t, repoPath, tc.hookName, hookContent)
 
 			mergeBidi, err := client.UserMergeBranch(ctx)
 			require.NoError(t, err)
@@ -443,18 +476,33 @@ func TestUserMergeBranch_failingHooks(t *testing.T) {
 
 			require.NoError(t, mergeBidi.Send(firstRequest), "send first request")
 
-			_, err = mergeBidi.Recv()
+			firstResponse, err := mergeBidi.Recv()
 			require.NoError(t, err, "receive first response")
 
 			require.NoError(t, mergeBidi.Send(&gitalypb.UserMergeBranchRequest{Apply: true}), "apply merge")
 			require.NoError(t, mergeBidi.CloseSend(), "close send")
 
 			secondResponse, err := mergeBidi.Recv()
-			testhelper.RequireGrpcError(t, helper.ErrInternalf("failure\n"), err)
+			testhelper.RequireGrpcError(t, errWithDetails(t,
+				helper.ErrPermissionDeniedf("stderr\n"),
+				&gitalypb.UserMergeBranchError{
+					Error: &gitalypb.UserMergeBranchError_CustomHook{
+						CustomHook: &gitalypb.CustomHookError{
+							HookType: tc.hookType,
+							Stdout:   []byte("stdout\n"),
+							Stderr:   []byte("stderr\n"),
+						},
+					},
+				},
+			), err)
 			require.Nil(t, secondResponse)
 
 			currentBranchHead := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", mergeBranchName)
-			require.Equal(t, mergeBranchHeadBefore, text.ChompBytes(currentBranchHead), "branch head updated")
+			if tc.shouldUpdate {
+				require.Equal(t, firstResponse.CommitId, text.ChompBytes(currentBranchHead), "branch head updated")
+			} else {
+				require.Equal(t, mergeBranchHeadBefore, text.ChompBytes(currentBranchHead), "branch head updated")
+			}
 		})
 	}
 }
