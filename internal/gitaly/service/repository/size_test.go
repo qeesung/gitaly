@@ -8,11 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
@@ -24,8 +27,77 @@ const testRepoMinSizeKB = 10000
 
 func TestRepositorySize_SuccessfulRequest(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.RevlistForRepoSize).
-		Run(t, testSuccessfulRepositorySizeRequest)
+
+	featureSet := testhelper.NewFeatureSets(featureflag.RevlistForRepoSize)
+
+	featureSet.Run(t, testSuccessfulRepositorySizeRequest)
+	featureSet.Run(t, testSuccessfulRepositorySizeRequestPoolMember)
+}
+
+func testSuccessfulRepositorySizeRequestPoolMember(t *testing.T, ctx context.Context) {
+	cfg := testcfg.Build(t)
+
+	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil)
+	cfg.SocketPath = serverSocketPath
+
+	repoClient := newRepositoryClient(t, cfg, serverSocketPath)
+	objectPoolClient := newObjectPoolClient(t, cfg, serverSocketPath)
+
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
+
+	sizeRequest := &gitalypb.RepositorySizeRequest{Repository: repo}
+	response, err := repoClient.RepositorySize(ctx, sizeRequest)
+	require.NoError(t, err)
+
+	sizeBeforePool := response.GetSize()
+
+	storage := cfg.Storages[0]
+	relativePath := gittest.NewObjectPoolName(t)
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
+
+	// create an object pool
+	gittest.InitRepoDir(t, storage.Path, relativePath)
+	pool, err := objectpool.NewObjectPool(
+		config.NewLocator(cfg),
+		gittest.NewCommandFactory(t, cfg),
+		catfileCache,
+		nil,
+		nil,
+		storage.Name,
+		relativePath,
+	)
+	require.NoError(t, err)
+
+	_, err = objectPoolClient.CreateObjectPool(
+		ctx,
+		&gitalypb.CreateObjectPoolRequest{
+			ObjectPool: pool.ToProto(),
+			Origin:     repo,
+		})
+	require.NoError(t, err)
+
+	_, err = objectPoolClient.LinkRepositoryToObjectPool(
+		ctx,
+		&gitalypb.LinkRepositoryToObjectPoolRequest{
+			Repository: repo,
+			ObjectPool: pool.ToProto(),
+		},
+	)
+	require.NoError(t, err)
+
+	gittest.Exec(t, cfg, "-C", repoPath, "gc")
+
+	response, err = repoClient.RepositorySize(ctx, sizeRequest)
+	require.NoError(t, err)
+
+	if featureflag.RevlistForRepoSize.IsEnabled(ctx) {
+		assert.Equal(t, int64(0), response.GetSize())
+	} else {
+		assert.Less(t, response.GetSize(), sizeBeforePool)
+	}
 }
 
 func testSuccessfulRepositorySizeRequest(t *testing.T, ctx context.Context) {

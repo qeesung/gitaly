@@ -97,20 +97,30 @@ func errorWithStderr(err error, stderr []byte) error {
 // repoSizeConfig can be used to pass in different options to
 // git rev-list in determining the size of a repository.
 type repoSizeConfig struct {
-	// Excludes is a list of ref glob patterns to exclude from the size
+	// ExcludeRefs is a list of ref glob patterns to exclude from the size
 	// calculation.
-	Excludes []string
+	ExcludeRefs []string
+	// ExcludeAlternates will exclude objects in the alternates directory
+	// from being counted towards the total size of the repository.
+	ExcludeAlternates bool
 }
 
 // RepoSizeOption is an option which can be passed to Size
 type RepoSizeOption func(*repoSizeConfig)
 
-// WithExcludes is an option for Size that excludes certain refs from the size
+// WithExcludeRefs is an option for Size that excludes certain refs from the size
 // calculation. The format must be a glob pattern.
 // see https://git-scm.com/docs/git-rev-list#Documentation/git-rev-list.txt---excludeltglob-patterngt
-func WithExcludes(excludes ...string) RepoSizeOption {
+func WithExcludeRefs(excludeRefs ...string) RepoSizeOption {
 	return func(cfg *repoSizeConfig) {
-		cfg.Excludes = excludes
+		cfg.ExcludeRefs = excludeRefs
+	}
+}
+
+// WithoutAlternates will exclude any objects in the alternate objects directory
+func WithoutAlternates() RepoSizeOption {
+	return func(cfg *repoSizeConfig) {
+		cfg.ExcludeAlternates = true
 	}
 }
 
@@ -125,10 +135,18 @@ func (repo *Repo) Size(ctx context.Context, opts ...RepoSizeOption) (int64, erro
 	}
 
 	var options []git.Option
-	for _, exclude := range cfg.Excludes {
+	for _, refToExclude := range cfg.ExcludeRefs {
 		options = append(
 			options,
-			git.Flag{Name: fmt.Sprintf("--exclude=%s", exclude)},
+			git.Flag{Name: fmt.Sprintf("--exclude=%s", refToExclude)},
+		)
+	}
+
+	if cfg.ExcludeAlternates {
+		options = append(options,
+			git.Flag{Name: "--not"},
+			git.Flag{Name: "--alternate-refs"},
+			git.Flag{Name: "--not"},
 		)
 	}
 

@@ -20,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/commit"
 	hookservice "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/hook"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/objectpool"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ref"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/remote"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/ssh"
@@ -74,6 +75,14 @@ func newRepositoryClient(t testing.TB, cfg config.Cfg, serverSocketPath string) 
 	t.Cleanup(func() { require.NoError(t, conn.Close()) })
 
 	return gitalypb.NewRepositoryServiceClient(conn)
+}
+
+func newObjectPoolClient(t testing.TB, cfg config.Cfg, serverSocketPath string) gitalypb.ObjectPoolServiceClient {
+	conn, err := gclient.Dial(serverSocketPath, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, conn.Close()) })
+
+	return gitalypb.NewObjectPoolServiceClient(conn)
 }
 
 func newMuxedRepositoryClient(t *testing.T, ctx context.Context, cfg config.Cfg, serverSocketPath string, handshaker internalclient.Handshaker) gitalypb.RepositoryServiceClient {
@@ -138,6 +147,13 @@ func runRepositoryServerWithConfig(t testing.TB, cfg config.Cfg, rubySrv *rubyse
 			deps.GetGitCmdFactory(),
 			nil,
 			deps.GetCatfileCache(),
+		))
+		gitalypb.RegisterObjectPoolServiceServer(srv, objectpool.NewServer(
+			deps.GetLocator(),
+			deps.GetGitCmdFactory(),
+			deps.GetCatfileCache(),
+			deps.GetTxManager(),
+			deps.GetHousekeepingManager(),
 		))
 	}, opts...)
 }
