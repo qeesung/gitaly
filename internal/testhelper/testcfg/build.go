@@ -1,13 +1,17 @@
 package testcfg
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 )
@@ -75,13 +79,65 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 	buildOnce.Do(func() {
 		require.NoFileExists(t, sharedBinaryPath, "binary has already been built")
 
-		testhelper.MustRunCommand(t, nil,
+		cfg := Build(t)
+		gitCommandFactory := gittest.NewCommandFactory(t, cfg)
+		gitExecEnv := gitCommandFactory.GetExecutionEnvironment(context.TODO())
+
+		// Unfortunately, Go has started to execute Git as parts of its build process in
+		// order to embed VCS information into the resulting binary. In Gitaly we're doing a
+		// bunch of things to verify that we don't ever use Git information from outside of
+		// our defined parameters: we intercept Git executed via PATH, and we also override
+		// Git configuration locations. So executing Git without special logic simply does
+		// not work.
+		//
+		// While we could in theory just ask it not to do that via `-buildvcs=false`, this
+		// option is only understood with Go 1.18+. So we have the option between either
+		// using logic that is conditional on the Go version here, or alternatively we fix
+		// the environment to allow for the execution of Git. We opt for the latter here and
+		// set up a Git command factory.
+		gitEnvironment := make([]string, 0, len(os.Environ()))
+
+		// We need to filter out some environments we set globally in our tests which would
+		// cause Git to not operate correctly.
+		for _, env := range os.Environ() {
+			shouldExclude := false
+			for _, prefix := range []string{
+				"GIT_DIR=",
+				"GIT_CONFIG_GLOBAL=",
+				"GIT_CONFIG_SYSTEM=",
+			} {
+				if strings.HasPrefix(env, prefix) {
+					shouldExclude = true
+					break
+				}
+			}
+			if !shouldExclude {
+				gitEnvironment = append(gitEnvironment, env)
+			}
+		}
+
+		// Furthermore, as we're using the Git command factory which may or may not use
+		// bundled Git we need to append some environment variables that make Git find its
+		// auxiliary helper binaries.
+		gitEnvironment = append(gitEnvironment, gitExecEnv.EnvironmentVariables...)
+
+		// And last but not least we need to override PATH so that our Git binary from the
+		// command factory is up front.
+		gitEnvironment = append(gitEnvironment, fmt.Sprintf(
+			"PATH=%s:%s", filepath.Dir(gitExecEnv.BinaryPath), os.Getenv("PATH"),
+		))
+
+		cmd := exec.Command(
 			"go",
 			"build",
 			"-tags", "static,system_libgit2",
 			"-o", sharedBinaryPath,
 			sourcePath,
 		)
+		cmd.Env = gitEnvironment
+
+		output, err := cmd.CombinedOutput()
+		require.NoError(t, err, "building Go executable: %v, output: %q", err, output)
 	})
 
 	require.FileExists(t, sharedBinaryPath, "%s does not exist", executableName)
