@@ -3,6 +3,7 @@ package cgroups
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/cgroups"
 )
 
@@ -13,7 +14,7 @@ type Manager interface {
 	// instance of the Manager.
 	Setup() error
 	// AddCommand adds a Command to a cgroup
-	AddCommand(*command.Command) error
+	AddCommand(*command.Command, repository.GitRepo) error
 	// Cleanup cleans up cgroups created in Setup.
 	// It is expected to be called once at Gitaly shutdown from any
 	// instance of the Manager.
@@ -24,8 +25,7 @@ type Manager interface {
 
 // NewManager returns the appropriate Cgroups manager
 func NewManager(cfg cgroups.Config) Manager {
-	// nolint:staticcheck // we will deprecate the old cgroups config in 15.0
-	if cfg.Count > 0 {
+	if cfg.Repositories.Count > 0 {
 		return newV1Manager(cfg)
 	}
 

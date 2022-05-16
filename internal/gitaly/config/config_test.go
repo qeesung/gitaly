@@ -851,6 +851,11 @@ func TestValidateCgroups(t *testing.T) {
 						Enabled: true,
 						Shares:  512,
 					},
+					Repositories: cgroups.Repositories{
+						Count:       10,
+						MemoryBytes: 1024,
+						CPUShares:   512,
+					},
 				},
 			},
 			{
@@ -864,6 +869,9 @@ func TestValidateCgroups(t *testing.T) {
 					Count:         10,
 					Mountpoint:    "/sys/fs/cgroup",
 					HierarchyRoot: "baz",
+					Repositories: cgroups.Repositories{
+						Count: 10,
+					},
 				},
 			},
 			{
@@ -876,6 +884,9 @@ func TestValidateCgroups(t *testing.T) {
 					Count:         10,
 					Mountpoint:    "/sys/fs/cgroup",
 					HierarchyRoot: "gitaly",
+					Repositories: cgroups.Repositories{
+						Count: 10,
+					},
 				},
 			},
 			{
@@ -901,6 +912,10 @@ func TestValidateCgroups(t *testing.T) {
 					CPU: cgroups.CPU{
 						Enabled: true,
 						Shares:  0,
+					},
+					Repositories: cgroups.Repositories{
+						Count:       10,
+						MemoryBytes: 1024,
 					},
 				},
 			},
@@ -929,32 +944,9 @@ func TestValidateCgroups(t *testing.T) {
 						Enabled: true,
 						Shares:  512,
 					},
-				},
-			},
-			{
-				name: "memory limit - negative",
-				rawCfg: `[cgroups]
-				count = 10
-				mountpoint = "/sys/fs/cgroup"
-				hierarchy_root = "gitaly"
-				[cgroups.memory]
-				enabled = true
-				limit = -5
-				[cgroups.cpu]
-				enabled = true
-				shares = 512
-				`,
-				expect: cgroups.Config{
-					Count:         10,
-					Mountpoint:    "/sys/fs/cgroup",
-					HierarchyRoot: "gitaly",
-					Memory: cgroups.Memory{
-						Enabled: true,
-						Limit:   -5,
-					},
-					CPU: cgroups.CPU{
-						Enabled: true,
-						Shares:  512,
+					Repositories: cgroups.Repositories{
+						Count:     10,
+						CPUShares: 512,
 					},
 				},
 			},

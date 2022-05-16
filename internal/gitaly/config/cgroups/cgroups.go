@@ -22,6 +22,22 @@ type Config struct {
 	Memory Memory `toml:"memory"`
 }
 
+// FallbackToOldVersion translates the old format of cgroups into the new
+// format.
+func (c *Config) FallbackToOldVersion() {
+	if c.Repositories.Count == 0 {
+		c.Repositories.Count = c.Count
+
+		if c.Repositories.MemoryBytes == 0 && c.Memory.Enabled {
+			c.Repositories.MemoryBytes = c.Memory.Limit
+		}
+
+		if c.Repositories.CPUShares == 0 && c.CPU.Enabled {
+			c.Repositories.CPUShares = c.CPU.Shares
+		}
+	}
+}
+
 // Repositories configures cgroups to be created that are isolated by repository.
 type Repositories struct {
 	// Count is the number of cgroups that will be created for repository-level isolation

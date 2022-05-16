@@ -20,19 +20,16 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 )
 
 func defaultCgroupsConfig() cgroups.Config {
 	return cgroups.Config{
-		Count:         3,
 		HierarchyRoot: "gitaly",
-		CPU: cgroups.CPU{
-			Enabled: true,
-			Shares:  256,
-		},
-		Memory: cgroups.Memory{
-			Enabled: true,
-			Limit:   1024000,
+		Repositories: cgroups.Repositories{
+			Count:       3,
+			MemoryBytes: 1024000,
+			CPUShares:   256,
 		},
 	}
 }
@@ -48,14 +45,14 @@ func TestSetup(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		memoryPath := filepath.Join(
-			mock.root, "memory", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("shard-%d", i), "memory.limit_in_bytes",
+			mock.root, "memory", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", i), "memory.limit_in_bytes",
 		)
 		memoryContent := readCgroupFile(t, memoryPath)
 
 		require.Equal(t, string(memoryContent), "1024000")
 
 		cpuPath := filepath.Join(
-			mock.root, "cpu", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("shard-%d", i), "cpu.shares",
+			mock.root, "cpu", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", i), "cpu.shares",
 		)
 		cpuContent := readCgroupFile(t, cpuPath)
 
@@ -66,7 +63,16 @@ func TestSetup(t *testing.T) {
 func TestAddCommand(t *testing.T) {
 	mock := newMock(t)
 
+	repo := &gitalypb.Repository{
+		StorageName:  "default",
+		RelativePath: "path/to/repo.git",
+	}
+
 	config := defaultCgroupsConfig()
+	config.Repositories.Count = 1
+	config.Repositories.MemoryBytes = 1024
+	config.Repositories.CPUShares = 16
+
 	v1Manager1 := &CGroupV1Manager{
 		cfg:       config,
 		hierarchy: mock.hierarchy,
@@ -83,14 +89,15 @@ func TestAddCommand(t *testing.T) {
 		cfg:       config,
 		hierarchy: mock.hierarchy,
 	}
-	require.NoError(t, v1Manager2.AddCommand(cmd2))
 
-	checksum := crc32.ChecksumIEEE([]byte(strings.Join(cmd2.Args(), "")))
-	// nolint:staticcheck // we will deprecate the old cgroups config in 15.0
-	groupID := uint(checksum) % config.Count
+	require.NoError(t, v1Manager2.AddCommand(cmd2, repo))
+
+	checksum := crc32.ChecksumIEEE([]byte(strings.Join([]string{"default", "path/to/repo.git"}, "")))
+	groupID := uint(checksum) % config.Repositories.Count
 
 	for _, s := range mock.subsystems {
-		path := filepath.Join(mock.root, string(s.Name()), "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("shard-%d", groupID), "cgroup.procs")
+		path := filepath.Join(mock.root, string(s.Name()), "gitaly",
+			fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", groupID), "cgroup.procs")
 		content := readCgroupFile(t, path)
 
 		pid, err := strconv.Atoi(string(content))
@@ -111,8 +118,8 @@ func TestCleanup(t *testing.T) {
 	require.NoError(t, v1Manager.Cleanup())
 
 	for i := 0; i < 3; i++ {
-		memoryPath := filepath.Join(mock.root, "memory", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("shard-%d", i))
-		cpuPath := filepath.Join(mock.root, "cpu", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("shard-%d", i))
+		memoryPath := filepath.Join(mock.root, "memory", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", i))
+		cpuPath := filepath.Join(mock.root, "cpu", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", i))
 
 		require.NoDirExists(t, memoryPath)
 		require.NoDirExists(t, cpuPath)
@@ -121,8 +128,16 @@ func TestCleanup(t *testing.T) {
 
 func TestMetrics(t *testing.T) {
 	mock := newMock(t)
+	repo := &gitalypb.Repository{
+		StorageName:  "default",
+		RelativePath: "path/to/repo.git",
+	}
 
 	config := defaultCgroupsConfig()
+	config.Repositories.Count = 1
+	config.Repositories.MemoryBytes = 1048576
+	config.Repositories.CPUShares = 16
+
 	v1Manager1 := newV1Manager(config)
 	v1Manager1.hierarchy = mock.hierarchy
 
@@ -135,14 +150,20 @@ func TestMetrics(t *testing.T) {
 	logger.SetLevel(logrus.DebugLevel)
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
-	cmd1 := exec.Command("ls", "-hal", ".")
-	cmd2, err := command.New(ctx, cmd1, nil, nil, nil)
+	cmd, err := command.New(ctx, exec.Command("ls", "-hal", "."), nil, nil, nil)
+	require.NoError(t, err)
+	gitCmd1, err := command.New(ctx, exec.Command("ls", "-hal", "."), nil, nil, nil)
+	require.NoError(t, err)
+	gitCmd2, err := command.New(ctx, exec.Command("ls", "-hal", "."), nil, nil, nil)
 	require.NoError(t, err)
 
-	require.NoError(t, v1Manager1.AddCommand(cmd2))
-	require.NoError(t, cmd2.Wait())
+	require.NoError(t, v1Manager1.AddCommand(cmd, repo))
+	require.NoError(t, v1Manager1.AddCommand(gitCmd1, repo))
+	require.NoError(t, v1Manager1.AddCommand(gitCmd2, repo))
+	require.NoError(t, cmd.Wait())
+	require.NoError(t, gitCmd1.Wait())
 
-	processCgroupPath := v1Manager1.currentProcessCgroup()
+	repoCgroupPath := filepath.Join(v1Manager1.currentProcessCgroup(), "repos-0")
 
 	expected := bytes.NewBufferString(fmt.Sprintf(`# HELP gitaly_cgroup_cpu_usage CPU Usage of Cgroup
 # TYPE gitaly_cgroup_cpu_usage gauge
@@ -153,21 +174,18 @@ gitaly_cgroup_cpu_usage{path="%s",type="user"} 0
 gitaly_cgroup_memory_failed_total{path="%s"} 2
 # HELP gitaly_cgroup_procs_total Total number of procs
 # TYPE gitaly_cgroup_procs_total gauge
-gitaly_cgroup_procs_total{path="%s",subsystem="memory"} 1
 gitaly_cgroup_procs_total{path="%s",subsystem="cpu"} 1
-`, processCgroupPath, processCgroupPath, processCgroupPath, processCgroupPath, processCgroupPath))
+gitaly_cgroup_procs_total{path="%s",subsystem="memory"} 1
+`, repoCgroupPath, repoCgroupPath, repoCgroupPath, repoCgroupPath, repoCgroupPath))
 	assert.NoError(t, testutil.CollectAndCompare(
 		v1Manager1,
-		expected,
-		"gitaly_cgroup_memory_failed_total",
-		"gitaly_cgroup_cpu_usage",
-		"gitaly_cgroup_procs_total"))
+		expected))
 
 	logEntry := hook.LastEntry()
 	assert.Contains(
 		t,
 		logEntry.Data["command.cgroup_path"],
-		processCgroupPath,
+		repoCgroupPath,
 		"log field includes a cgroup path that is a subdirectory of the current process' cgroup path",
 	)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
@@ -23,7 +24,7 @@ func (m *mockCgroupsManager) Setup() error {
 	return nil
 }
 
-func (m *mockCgroupsManager) AddCommand(c *command.Command) error {
+func (m *mockCgroupsManager) AddCommand(c *command.Command, repo repository.GitRepo) error {
 	m.commands = append(m.commands, c)
 	return nil
 }
@@ -41,7 +42,9 @@ func TestNewCommandAddsToCgroup(t *testing.T) {
 	cfg := config.Cfg{
 		SocketPath: "/path/to/socket",
 		Cgroups: cgroups.Config{
-			Count: 1,
+			Repositories: cgroups.Repositories{
+				Count: 1,
+			},
 		},
 		Storages: []config.Storage{{
 			Name: "storage-1",

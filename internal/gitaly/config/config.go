@@ -291,6 +291,8 @@ func (cfg *Cfg) setDefaults() error {
 		cfg.Cgroups.HierarchyRoot = "gitaly"
 	}
 
+	cfg.Cgroups.FallbackToOldVersion()
+
 	return nil
 }
 
