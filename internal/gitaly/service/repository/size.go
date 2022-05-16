@@ -26,6 +26,11 @@ func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySize
 		excludes = append(excludes, prefix+"*")
 	}
 
+	path, err := repo.Path()
+	if err != nil {
+		return nil, err
+	}
+
 	if featureflag.RevlistForRepoSize.IsEnabled(ctx) {
 		size, err = repo.Size(
 			ctx,
@@ -36,11 +41,13 @@ func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySize
 		}
 		// return the size in kb to remain consistent
 		size = size / 1024
+
+		duSize := getPathSize(ctx, path)
+
+		ctxlogrus.Extract(ctx).
+			WithField("repo_size_revlist", size).
+			WithField("repo_size_du", duSize).Info("repository size calculated")
 	} else {
-		path, err := repo.Path()
-		if err != nil {
-			return nil, err
-		}
 		size = getPathSize(ctx, path)
 	}
 
