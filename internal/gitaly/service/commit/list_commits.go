@@ -84,6 +84,14 @@ func (s *server) ListCommits(
 		revlistOptions = append(revlistOptions, gitpipe.WithAuthor(request.GetAuthor()))
 	}
 
+	if request.GetIgnoreCase() {
+		revlistOptions = append(revlistOptions, gitpipe.WithIgnoreCase(request.GetIgnoreCase()))
+	}
+
+	if len(request.GetCommitMessagePatterns()) > 0 {
+		revlistOptions = append(revlistOptions, gitpipe.WithCommitMessagePatterns(request.GetCommitMessagePatterns()))
+	}
+
 	// If we've got a pagination token, then we will only start to print commits as soon as
 	// we've seen the token.
 	if token := request.GetPaginationParams().GetPageToken(); token != "" {

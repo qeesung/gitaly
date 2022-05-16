@@ -241,6 +241,13 @@ message ListCommitsRequest {
   // Author will only list commits whose author matches the given pattern,
   // which is a regular expression.
   bytes author = 10;
+
+  // IgnoreCase will apply case-sensitive behaviour while regex matching.
+  bool ignore_case = 12;
+
+  // CommitMessagePatterns will only list commits whose commit message matches
+  // any of the given patterns.
+  repeated bytes commit_message_patterns = 13;
 }
 
 // ListCommitsResponse is a response for the ListCommits RPC.

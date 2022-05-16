@@ -43,17 +43,19 @@ const (
 
 // revlistConfig is configuration for the revlist pipeline step.
 type revlistConfig struct {
-	blobLimit     int
-	objects       bool
-	objectType    ObjectType
-	order         Order
-	reverse       bool
-	maxParents    uint
-	disabledWalk  bool
-	firstParent   bool
-	before, after time.Time
-	author        []byte
-	skipResult    func(*RevisionResult) bool
+	blobLimit             int
+	objects               bool
+	objectType            ObjectType
+	order                 Order
+	reverse               bool
+	maxParents            uint
+	disabledWalk          bool
+	firstParent           bool
+	before, after         time.Time
+	author                []byte
+	regexIgnoreCase       bool
+	commitMessagePatterns [][]byte
+	skipResult            func(*RevisionResult) bool
 }
 
 // RevlistOption is an option for the revlist pipeline step.
@@ -161,6 +163,22 @@ func WithAuthor(author []byte) RevlistOption {
 	}
 }
 
+// WithIgnoreCase causes git-rev-list(1) to apply regex patterns
+// in case-insensitive manner.
+func WithIgnoreCase(ignoreCase bool) RevlistOption {
+	return func(cfg *revlistConfig) {
+		cfg.regexIgnoreCase = ignoreCase
+	}
+}
+
+// WithCommitMessagePatterns causes git-rev-list(1) to only show commits whose message
+// matches any of the regex patterns in commitMessagePatterns.
+func WithCommitMessagePatterns(commitMessagePatterns [][]byte) RevlistOption {
+	return func(cfg *revlistConfig) {
+		cfg.commitMessagePatterns = commitMessagePatterns
+	}
+}
+
 // WithSkipRevlistResult will execute the given function for each RevisionResult processed by the
 // pipeline. If the callback returns `true`, then the object will be skipped and not passed down
 // the pipeline.
@@ -255,6 +273,16 @@ func Revlist(
 			flags = append(flags, git.Flag{
 				Name: fmt.Sprintf("--author=%s", string(cfg.author)),
 			})
+		}
+
+		if cfg.regexIgnoreCase {
+			flags = append(flags, git.Flag{Name: "--regexp-ignore-case"})
+		}
+
+		if len(cfg.commitMessagePatterns) > 0 {
+			for _, pattern := range cfg.commitMessagePatterns {
+				flags = append(flags, git.Flag{Name: fmt.Sprintf("--grep=%s", pattern)})
+			}
 		}
 
 		var stderr strings.Builder

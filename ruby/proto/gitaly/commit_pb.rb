@@ -20,6 +20,8 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :after, :message, 8, "google.protobuf.Timestamp"
       optional :before, :message, 9, "google.protobuf.Timestamp"
       optional :author, :bytes, 10
+      optional :ignore_case, :bool, 12
+      repeated :commit_message_patterns, :bytes, 13
     end
     add_enum "gitaly.ListCommitsRequest.Order" do
       value :NONE, 0

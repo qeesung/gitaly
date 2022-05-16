@@ -256,6 +256,40 @@ func TestListCommits(t *testing.T) {
 				gittest.CommitsByID["1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"],
 			},
 		},
+		{
+			desc: "revisions by multiple message patterns",
+			request: &gitalypb.ListCommitsRequest{
+				Repository: repo,
+				Revisions: []string{
+					"few-commits",
+				},
+				CommitMessagePatterns: [][]byte{
+					[]byte("Commit #10"),
+					[]byte("Commit #9 alternate"),
+				},
+			},
+			expectedCommits: []*gitalypb.GitCommit{
+				gittest.CommitsByID["bf6e164cac2dc32b1f391ca4290badcbe4ffc5fb"],
+				gittest.CommitsByID["48ca272b947f49eee601639d743784a176574a09"],
+			},
+		},
+		{
+			desc: "revisions by case insensitive commit message",
+			request: &gitalypb.ListCommitsRequest{
+				Repository: repo,
+				Revisions: []string{
+					"few-commits",
+				},
+				IgnoreCase: true,
+				CommitMessagePatterns: [][]byte{
+					[]byte("commit #1"),
+				},
+			},
+			expectedCommits: []*gitalypb.GitCommit{
+				gittest.CommitsByID["bf6e164cac2dc32b1f391ca4290badcbe4ffc5fb"],
+				gittest.CommitsByID["79b06233d3dc769921576771a4e8bee4b439595d"],
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			stream, err := client.ListCommits(ctx, tc.request)
