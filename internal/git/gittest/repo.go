@@ -178,13 +178,30 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 	return clonedRepo, filepath.Join(storage.Path, getReplicaPath(ctx, t, conn, repository))
 }
 
+// GetReplicaPathConfig allows for configuring the GetReplicaPath call.
+type GetReplicaPathConfig struct {
+	// ClientConn is the connection used to create the repository. If unset, the config is used to
+	// dial the service.
+	ClientConn *grpc.ClientConn
+}
+
 // GetReplicaPath retrieves the repository's replica path if the test has been
 // run with Praefect in front of it. This is necessary if the test creates a repository
 // through Praefect and peeks into the filesystem afterwards. Conn should be pointing to
 // Praefect.
-func GetReplicaPath(ctx context.Context, t testing.TB, cfg config.Cfg, repo repository.GitRepo) string {
-	conn := dialService(ctx, t, cfg)
-	defer conn.Close()
+func GetReplicaPath(ctx context.Context, t testing.TB, cfg config.Cfg, repo repository.GitRepo, opts ...GetReplicaPathConfig) string {
+	require.Less(t, len(opts), 2, "you must either pass no or exactly one option")
+
+	var opt GetReplicaPathConfig
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+
+	conn := opt.ClientConn
+	if conn == nil {
+		conn = dialService(ctx, t, cfg)
+		defer conn.Close()
+	}
 
 	return getReplicaPath(ctx, t, conn, repo)
 }

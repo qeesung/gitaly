@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
@@ -19,8 +21,11 @@ import (
 )
 
 func TestRenameRepository_success(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.PraefectGeneratedReplicaPaths).Run(t, testRenameRepositorySuccess)
+}
+
+func testRenameRepositorySuccess(t *testing.T, ctx context.Context) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
 	// Praefect does not move repositories on the disk so this test case is not run with Praefect.
 	cfg, repo, _, client := setupRepositoryService(ctx, t, testserver.WithDisablePraefect())
@@ -43,8 +48,11 @@ func TestRenameRepository_success(t *testing.T) {
 }
 
 func TestRenameRepository_DestinationExists(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.PraefectGeneratedReplicaPaths).Run(t, testRenameRepositoryDestinationExists)
+}
+
+func testRenameRepositoryDestinationExists(t *testing.T, ctx context.Context) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
@@ -70,11 +78,11 @@ func TestRenameRepository_DestinationExists(t *testing.T) {
 }
 
 func TestRenameRepository_invalidRequest(t *testing.T) {
-	// Prafect applies renames to metadata even on failed requests, which fails this test.
-	testhelper.SkipWithPraefect(t, "https://gitlab.com/gitlab-org/gitaly/-/issues/4003")
+	testhelper.NewFeatureSets(featureflag.PraefectGeneratedReplicaPaths).Run(t, testRenameRepositoryInvalidRequest)
+}
 
+func testRenameRepositoryInvalidRequest(t *testing.T, ctx context.Context) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
 	_, repo, repoPath, client := setupRepositoryService(ctx, t)
 	storagePath := strings.TrimSuffix(repoPath, "/"+repo.RelativePath)
@@ -87,7 +95,7 @@ func TestRenameRepository_invalidRequest(t *testing.T) {
 		{
 			desc: "empty repository",
 			req:  &gitalypb.RenameRepositoryRequest{Repository: nil, RelativePath: "/tmp/abc"},
-			exp:  status.Error(codes.InvalidArgument, gitalyOrPraefect("empty Repository", "repo scoped: empty Repository")),
+			exp:  status.Error(codes.InvalidArgument, "empty Repository"),
 		},
 		{
 			desc: "empty destination relative path",
@@ -101,20 +109,20 @@ func TestRenameRepository_invalidRequest(t *testing.T) {
 		},
 		{
 			desc: "repository storage doesn't exist",
-			req:  &gitalypb.RenameRepositoryRequest{Repository: &gitalypb.Repository{StorageName: "stub", RelativePath: repo.RelativePath}, RelativePath: "../usr/bin"},
-			exp:  status.Error(codes.InvalidArgument, gitalyOrPraefect(`GetStorageByName: no such storage: "stub"`, "repo scoped: invalid Repository")),
+			req:  &gitalypb.RenameRepositoryRequest{Repository: &gitalypb.Repository{StorageName: "stub", RelativePath: repo.RelativePath}, RelativePath: "usr/bin"},
+			exp:  status.Error(codes.InvalidArgument, `GetStorageByName: no such storage: "stub"`),
 		},
 		{
 			desc: "repository relative path doesn't exist",
-			req:  &gitalypb.RenameRepositoryRequest{Repository: &gitalypb.Repository{StorageName: repo.StorageName, RelativePath: "stub"}, RelativePath: "../usr/bin"},
-			exp:  status.Error(codes.NotFound, fmt.Sprintf(`GetRepoPath: not a git repository: "%s/stub"`, storagePath)),
+			req:  &gitalypb.RenameRepositoryRequest{Repository: &gitalypb.Repository{StorageName: repo.StorageName, RelativePath: "stub"}, RelativePath: "non-existent/directory"},
+			exp:  status.Error(codes.NotFound, fmt.Sprintf(`GetRepoPath: not a git repository: "%s/stub"`, gitalyOrPraefect(storagePath, repo.GetStorageName()))),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			_, err := client.RenameRepository(ctx, tc.req)
-			testhelper.RequireGrpcError(t, err, tc.exp)
+			testhelper.RequireGrpcError(t, tc.exp, err)
 		})
 	}
 }

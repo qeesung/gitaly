@@ -111,6 +111,13 @@ func NewGRPCServer(
 		panichandler.StreamPanicHandler,
 	}
 
+	if conf.Failover.ElectionStrategy == config.ElectionStrategyPerRepository {
+		streamInterceptors = append(
+			streamInterceptors,
+			RenameRepositoryFeatureFlagger(conf.VirtualStorageNames(), rs, RenameRepositoryHandler(conf.VirtualStorageNames(), rs)),
+		)
+	}
+
 	grpcOpts = append(grpcOpts, proxyRequiredOpts(director)...)
 	grpcOpts = append(grpcOpts, []grpc.ServerOption{
 		grpc.StreamInterceptor(grpcmw.ChainStreamServer(streamInterceptors...)),

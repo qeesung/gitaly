@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/housekeeping"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/praefectutil"
 	"google.golang.org/grpc"
 )
 
@@ -307,11 +310,19 @@ func (r *PerRepositoryRouter) RouteRepositoryCreation(ctx context.Context, virtu
 		return RepositoryMutatorRoute{}, fmt.Errorf("reserve repository id: %w", err)
 	}
 
+	replicaPath := relativePath
+	if featureflag.PraefectGeneratedReplicaPaths.IsEnabled(ctx) {
+		replicaPath = praefectutil.DeriveReplicaPath(id)
+		if housekeeping.IsRailsPoolPath(relativePath) {
+			replicaPath = praefectutil.DerivePoolPath(id)
+		}
+	}
+
 	replicationFactor := r.defaultReplicationFactors[virtualStorage]
 	if replicationFactor == 1 {
 		return RepositoryMutatorRoute{
 			RepositoryID: id,
-			ReplicaPath:  relativePath,
+			ReplicaPath:  replicaPath,
 			Primary:      primary,
 		}, nil
 	}
@@ -360,7 +371,7 @@ func (r *PerRepositoryRouter) RouteRepositoryCreation(ctx context.Context, virtu
 
 	return RepositoryMutatorRoute{
 		RepositoryID:          id,
-		ReplicaPath:           relativePath,
+		ReplicaPath:           replicaPath,
 		AdditionalReplicaPath: additionalReplicaPath,
 		Primary:               primary,
 		Secondaries:           secondaries,

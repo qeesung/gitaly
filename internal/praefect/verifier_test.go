@@ -546,10 +546,12 @@ func TestVerifier(t *testing.T) {
 			for virtualStorage, relativePaths := range tc.replicas {
 				for relativePath, storages := range relativePaths {
 					// Create the expected repository. This creates all of the replicas transactionally.
-					gittest.CreateRepository(ctx, t,
+					repo, _ := gittest.CreateRepository(ctx, t,
 						gitalyconfig.Cfg{Storages: []gitalyconfig.Storage{{Name: virtualStorage}}},
 						gittest.CreateRepositoryConfig{ClientConn: conn, RelativePath: relativePath},
 					)
+
+					replicaPath := gittest.GetReplicaPath(ctx, t, gitalyconfig.Cfg{}, repo, gittest.GetReplicaPathConfig{ClientConn: conn})
 
 					// Now remove the replicas that were created in the transaction but the test case
 					// expects not to exist. We remove them directly from the Gitalys so the metadata
@@ -591,7 +593,7 @@ func TestVerifier(t *testing.T) {
 							&gitalypb.RemoveRepositoryRequest{
 								Repository: &gitalypb.Repository{
 									StorageName:  storage,
-									RelativePath: relativePath,
+									RelativePath: replicaPath,
 								},
 							},
 						)

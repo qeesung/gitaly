@@ -7,8 +7,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -26,8 +24,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/listenmux"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
@@ -568,43 +566,20 @@ func TestRemoveRepository(t *testing.T) {
 	verifyReposExistence(t, codes.NotFound)
 }
 
-func pollUntilRemoved(t testing.TB, path string, deadline <-chan time.Time) {
-	for {
-		select {
-		case <-deadline:
-			require.Failf(t, "unable to detect path removal for %s", path)
-		default:
-			_, err := os.Stat(path)
-			if os.IsNotExist(err) {
-				return
-			}
-			require.NoError(t, err, "unexpected error while checking path %s", path)
-		}
-		time.Sleep(time.Millisecond)
-	}
+func TestRenameRepository(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.PraefectGeneratedReplicaPaths).Run(t, testRenameRepository)
 }
 
-func TestRenameRepository(t *testing.T) {
-	t.Parallel()
-	ctx := testhelper.Context(t)
-
+func testRenameRepository(t *testing.T, ctx context.Context) {
 	gitalyStorages := []string{"gitaly-1", "gitaly-2", "gitaly-3"}
-	repoPaths := make([]string, len(gitalyStorages))
 	praefectCfg := config.Config{
 		VirtualStorages: []*config.VirtualStorage{{Name: "praefect"}},
 		Failover:        config.Failover{Enabled: true, ElectionStrategy: config.ElectionStrategyPerRepository},
 	}
 
-	var repo *gitalypb.Repository
-	for i, storageName := range gitalyStorages {
-		const relativePath = "test-repository"
-
+	for _, storageName := range gitalyStorages {
 		cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages(storageName))
-		gitalyCfg, repos := cfgBuilder.BuildWithRepoAt(t, relativePath)
-		if repo == nil {
-			repo = repos[0]
-		}
-
+		gitalyCfg := cfgBuilder.Build(t)
 		gitalyAddr := testserver.RunGitalyServer(t, gitalyCfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
 
 		praefectCfg.VirtualStorages[0].Nodes = append(praefectCfg.VirtualStorages[0].Nodes, &config.Node{
@@ -612,76 +587,95 @@ func TestRenameRepository(t *testing.T) {
 			Address: gitalyAddr,
 			Token:   gitalyCfg.Auth.Token,
 		})
-
-		repoPaths[i] = filepath.Join(gitalyCfg.Storages[0].Path, relativePath)
 	}
 
 	evq := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(testdb.New(t)))
 
-	tx := testdb.New(t).Begin(t)
-	defer tx.Rollback(t)
+	db := testdb.New(t)
 
-	rs := datastore.NewPostgresRepositoryStore(tx, nil)
-	require.NoError(t, rs.CreateRepository(ctx, 1, "praefect", repo.RelativePath, repo.RelativePath, "gitaly-1", []string{"gitaly-2", "gitaly-3"}, nil, true, false))
+	rs := datastore.NewPostgresRepositoryStore(db, nil)
 
-	nodeSet, err := DialNodes(ctx, praefectCfg.VirtualStorages, nil, nil, nil, nil)
+	txManager := transactions.NewManager(praefectCfg)
+	logger := testhelper.NewDiscardingLogEntry(t)
+	clientHandshaker := backchannel.NewClientHandshaker(
+		logger,
+		NewBackchannelServerFactory(
+			logger,
+			transaction.NewServer(txManager),
+			nil,
+		),
+	)
+
+	nodeSet, err := DialNodes(ctx, praefectCfg.VirtualStorages, nil, nil, clientHandshaker, nil)
 	require.NoError(t, err)
 	defer nodeSet.Close()
-
-	testdb.SetHealthyNodes(t, ctx, tx, map[string]map[string][]string{"praefect": praefectCfg.StorageNames()})
 
 	cc, _, cleanup := runPraefectServer(t, ctx, praefectCfg, buildOptions{
 		withQueue:     evq,
 		withRepoStore: rs,
 		withRouter: NewPerRepositoryRouter(
 			nodeSet.Connections(),
-			nodes.NewPerRepositoryElector(tx),
+			nodes.NewPerRepositoryElector(db),
 			StaticHealthChecker(praefectCfg.StorageNames()),
 			NewLockedRandom(rand.New(rand.NewSource(0))),
 			rs,
-			datastore.NewAssignmentStore(tx, praefectCfg.StorageNames()),
+			datastore.NewAssignmentStore(db, praefectCfg.StorageNames()),
 			rs,
 			nil,
 		),
+		withTxMgr: txManager,
 	})
-	defer cleanup()
+	t.Cleanup(cleanup)
 
-	// virtualRepo is a virtual repository all requests to it would be applied to the underline Gitaly nodes behind it
-	virtualRepo := proto.Clone(repo).(*gitalypb.Repository)
-	virtualRepo.StorageName = praefectCfg.VirtualStorages[0].Name
+	virtualRepo1, _ := gittest.CreateRepository(ctx, t, gconfig.Cfg{
+		Storages: []gconfig.Storage{{Name: "praefect"}},
+	}, gittest.CreateRepositoryConfig{ClientConn: cc})
+
+	virtualRepo2, _ := gittest.CreateRepository(ctx, t, gconfig.Cfg{
+		Storages: []gconfig.Storage{{Name: "praefect"}},
+	}, gittest.CreateRepositoryConfig{ClientConn: cc})
+
+	const newRelativePath = "unused-relative-path"
 
 	repoServiceClient := gitalypb.NewRepositoryServiceClient(cc)
 
-	newName, err := text.RandomHex(20)
-	require.NoError(t, err)
+	_, err = repoServiceClient.RenameRepository(ctx, &gitalypb.RenameRepositoryRequest{
+		Repository: &gitalypb.Repository{
+			StorageName:  virtualRepo1.StorageName,
+			RelativePath: "not-found",
+		},
+		RelativePath: virtualRepo2.RelativePath,
+	})
+	testhelper.RequireGrpcError(t, helper.ErrNotFoundf(`GetRepoPath: not a git repository: "praefect/not-found"`), err)
 
 	_, err = repoServiceClient.RenameRepository(ctx, &gitalypb.RenameRepositoryRequest{
-		Repository:   virtualRepo,
-		RelativePath: newName,
+		Repository:   virtualRepo1,
+		RelativePath: virtualRepo2.RelativePath,
+	})
+
+	expectedErr := helper.ErrAlreadyExistsf("target repo exists already")
+	testhelper.RequireGrpcError(t, expectedErr, err)
+
+	_, err = repoServiceClient.RenameRepository(ctx, &gitalypb.RenameRepositoryRequest{
+		Repository:   virtualRepo1,
+		RelativePath: newRelativePath,
 	})
 	require.NoError(t, err)
 
 	resp, err := repoServiceClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
-		Repository: virtualRepo,
+		Repository: virtualRepo1,
 	})
 	require.NoError(t, err)
 	require.False(t, resp.GetExists(), "repo with old name must gone")
 
-	// as we renamed the repo we need to update RelativePath before we could check if it exists
-	renamedVirtualRepo := virtualRepo
-	renamedVirtualRepo.RelativePath = newName
-
-	// wait until replication jobs propagate changes to other storages
-	// as we don't know which one will be used to check because of reads distribution
-	require.NoError(t, evq.Wait(time.Minute, func(i *datastore.ReplicationEventQueueInterceptor) bool {
-		return len(i.GetAcknowledge()) == 2
-	}))
-
-	for _, oldLocation := range repoPaths {
-		pollUntilRemoved(t, oldLocation, time.After(10*time.Second))
-		newLocation := filepath.Join(filepath.Dir(oldLocation), newName)
-		require.DirExists(t, newLocation, "must be renamed on secondary from %q to %q", oldLocation, newLocation)
-	}
+	resp, err = repoServiceClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
+		Repository: &gitalypb.Repository{
+			StorageName:  virtualRepo1.StorageName,
+			RelativePath: newRelativePath,
+		},
+	})
+	require.NoError(t, err)
+	require.True(t, resp.GetExists(), "repo with new name must exist")
 }
 
 type mockSmartHTTP struct {

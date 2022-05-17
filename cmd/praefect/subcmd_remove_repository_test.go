@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/client"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
+	gitalycfg "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
@@ -104,9 +104,19 @@ func TestRemoveRepository_Exec(t *testing.T) {
 
 	praefectStorage := conf.VirtualStorages[0].Name
 
+	repositoryExists := func(t testing.TB, repo *gitalypb.Repository) bool {
+		response, err := gitalypb.NewRepositoryServiceClient(cc).RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
+			Repository: repo,
+		})
+		require.NoError(t, err)
+		return response.GetExists()
+	}
+
 	t.Run("dry run", func(t *testing.T) {
 		var out bytes.Buffer
 		repo := createRepo(t, ctx, repoClient, praefectStorage, t.Name())
+		replicaPath := gittest.GetReplicaPath(ctx, t, gitalycfg.Cfg{SocketPath: praefectServer.Address()}, repo)
+
 		cmd := &removeRepository{
 			logger:         testhelper.NewDiscardingLogger(t),
 			virtualStorage: repo.StorageName,
@@ -117,15 +127,11 @@ func TestRemoveRepository_Exec(t *testing.T) {
 		}
 		require.NoError(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf))
 
-		require.DirExists(t, filepath.Join(g1Cfg.Storages[0].Path, repo.RelativePath))
-		require.DirExists(t, filepath.Join(g2Cfg.Storages[0].Path, repo.RelativePath))
+		require.DirExists(t, filepath.Join(g1Cfg.Storages[0].Path, replicaPath))
+		require.DirExists(t, filepath.Join(g2Cfg.Storages[0].Path, replicaPath))
 		assert.Contains(t, out.String(), "Repository found in the database.\n")
-		assert.Contains(t, out.String(), "Repository found on the following gitaly nodes:")
 		assert.Contains(t, out.String(), "Re-run the command with -apply to remove repositories from the database and disk.\n")
-
-		repositoryRowExists, err := datastore.NewPostgresRepositoryStore(db, nil).RepositoryExists(ctx, cmd.virtualStorage, cmd.relativePath)
-		require.NoError(t, err)
-		require.True(t, repositoryRowExists)
+		require.True(t, repositoryExists(t, repo))
 	})
 
 	t.Run("ok", func(t *testing.T) {
@@ -144,17 +150,9 @@ func TestRemoveRepository_Exec(t *testing.T) {
 		require.NoDirExists(t, filepath.Join(g1Cfg.Storages[0].Path, repo.RelativePath))
 		require.NoDirExists(t, filepath.Join(g2Cfg.Storages[0].Path, repo.RelativePath))
 		assert.Contains(t, out.String(), "Repository found in the database.\n")
-		assert.Contains(t, out.String(), "Repository found on the following gitaly nodes:")
 		assert.Contains(t, out.String(), fmt.Sprintf("Attempting to remove %s from the database, and delete it from all gitaly nodes...\n", repo.RelativePath))
-		assert.Contains(t, out.String(), fmt.Sprintf("Successfully removed %s from", repo.RelativePath))
-		assert.NotContains(t, out.String(), fmt.Sprintf("Did not remove %s from", repo.RelativePath))
-
-		var repositoryRowExists bool
-		require.NoError(t, db.QueryRow(
-			`SELECT EXISTS(SELECT FROM repositories WHERE virtual_storage = $1 AND relative_path = $2)`,
-			cmd.virtualStorage, cmd.relativePath,
-		).Scan(&repositoryRowExists))
-		require.False(t, repositoryRowExists)
+		assert.Contains(t, out.String(), "Repository removal completed.")
+		require.False(t, repositoryExists(t, repo))
 	})
 
 	t.Run("repository doesnt exist on one gitaly", func(t *testing.T) {
@@ -176,23 +174,18 @@ func TestRemoveRepository_Exec(t *testing.T) {
 		require.NoDirExists(t, filepath.Join(g1Cfg.Storages[0].Path, repo.RelativePath))
 		require.NoDirExists(t, filepath.Join(g2Cfg.Storages[0].Path, repo.RelativePath))
 		assert.Contains(t, out.String(), "Repository found in the database.\n")
-		assert.Contains(t, out.String(), "Repository found on the following gitaly nodes: gitaly-1")
 		assert.Contains(t, out.String(), fmt.Sprintf("Attempting to remove %s from the database, and delete it from all gitaly nodes...\n", repo.RelativePath))
-		assert.Contains(t, out.String(), fmt.Sprintf("Successfully removed %s from gitaly-1", repo.RelativePath))
-
-		var repositoryRowExists bool
-		require.NoError(t, db.QueryRow(
-			`SELECT EXISTS(SELECT FROM repositories WHERE virtual_storage = $1 AND relative_path = $2)`,
-			cmd.virtualStorage, cmd.relativePath,
-		).Scan(&repositoryRowExists))
-		require.False(t, repositoryRowExists)
+		assert.Contains(t, out.String(), "Repository removal completed.")
+		require.False(t, repositoryExists(t, repo))
 	})
 
 	t.Run("no info about repository on praefect", func(t *testing.T) {
 		var out bytes.Buffer
 		repo := createRepo(t, ctx, repoClient, praefectStorage, t.Name())
+		replicaPath := gittest.GetReplicaPath(ctx, t, gitalycfg.Cfg{SocketPath: praefectServer.Address()}, repo)
+
 		repoStore := datastore.NewPostgresRepositoryStore(db.DB, nil)
-		_, _, err := repoStore.DeleteRepository(ctx, repo.StorageName, repo.RelativePath)
+		_, _, err = repoStore.DeleteRepository(ctx, repo.StorageName, repo.RelativePath)
 		require.NoError(t, err)
 
 		cmd := &removeRepository{
@@ -203,14 +196,10 @@ func TestRemoveRepository_Exec(t *testing.T) {
 			apply:          true,
 			w:              &writer{w: &out},
 		}
-		require.NoError(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf))
-		assert.Contains(t, out.String(), "Repository is not being tracked in Praefect.\n")
-		assert.Contains(t, out.String(), "Repository found on the following gitaly nodes:")
-		assert.Contains(t, out.String(), "The database has no information about this repository.\n")
-		require.NoDirExists(t, filepath.Join(g1Cfg.Storages[0].Path, repo.RelativePath))
-		require.NoDirExists(t, filepath.Join(g2Cfg.Storages[0].Path, repo.RelativePath))
-
-		requireNoDatabaseInfo(t, db, cmd)
+		require.Error(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf), "repository is not being tracked in Praefect")
+		require.DirExists(t, filepath.Join(g1Cfg.Storages[0].Path, replicaPath))
+		require.DirExists(t, filepath.Join(g2Cfg.Storages[0].Path, replicaPath))
+		require.False(t, repositoryExists(t, repo))
 	})
 
 	t.Run("one of gitalies is out of service", func(t *testing.T) {
@@ -218,11 +207,12 @@ func TestRemoveRepository_Exec(t *testing.T) {
 		repo := createRepo(t, ctx, repoClient, praefectStorage, t.Name())
 		g2Srv.Shutdown()
 
-		logger := testhelper.NewDiscardingLogger(t)
-		loggerHook := test.NewLocal(logger)
+		replicaPath := gittest.GetReplicaPath(ctx, t, gitalycfg.Cfg{SocketPath: praefectServer.Address()}, repo)
+		require.DirExists(t, filepath.Join(g1Cfg.Storages[0].Path, replicaPath))
+		require.DirExists(t, filepath.Join(g2Cfg.Storages[0].Path, replicaPath))
 
 		cmd := &removeRepository{
-			logger:         logrus.NewEntry(logger),
+			logger:         logrus.NewEntry(testhelper.NewDiscardingLogger(t)),
 			virtualStorage: praefectStorage,
 			relativePath:   repo.RelativePath,
 			dialTimeout:    100 * time.Millisecond,
@@ -231,41 +221,12 @@ func TestRemoveRepository_Exec(t *testing.T) {
 		}
 
 		require.NoError(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf))
+		assert.Contains(t, out.String(), "Repository removal completed.")
 
-		var checkExistsOnNodeErrFound, removeRepoFromDiskErrFound bool
-		for _, entry := range loggerHook.AllEntries() {
-			if strings.Contains(entry.Message, `checking if repository exists on "gitaly-2"`) {
-				checkExistsOnNodeErrFound = true
-			}
-
-			if strings.Contains(entry.Message, `repository removal failed for "gitaly-2"`) {
-				removeRepoFromDiskErrFound = true
-			}
-		}
-		require.True(t, checkExistsOnNodeErrFound)
-		require.True(t, removeRepoFromDiskErrFound)
-
-		require.NoDirExists(t, filepath.Join(g1Cfg.Storages[0].Path, repo.RelativePath))
-		require.DirExists(t, filepath.Join(g2Cfg.Storages[0].Path, repo.RelativePath))
-
-		requireNoDatabaseInfo(t, db, cmd)
+		require.NoDirExists(t, filepath.Join(g1Cfg.Storages[0].Path, replicaPath))
+		require.DirExists(t, filepath.Join(g2Cfg.Storages[0].Path, replicaPath))
+		require.False(t, repositoryExists(t, repo))
 	})
-}
-
-func requireNoDatabaseInfo(t *testing.T, db testdb.DB, cmd *removeRepository) {
-	t.Helper()
-	var repositoryRowExists bool
-	require.NoError(t, db.QueryRow(
-		`SELECT EXISTS(SELECT FROM repositories WHERE virtual_storage = $1 AND relative_path = $2)`,
-		cmd.virtualStorage, cmd.relativePath,
-	).Scan(&repositoryRowExists))
-	require.False(t, repositoryRowExists)
-	var storageRowExists bool
-	require.NoError(t, db.QueryRow(
-		`SELECT EXISTS(SELECT FROM storage_repositories WHERE virtual_storage = $1 AND relative_path = $2)`,
-		cmd.virtualStorage, cmd.relativePath,
-	).Scan(&storageRowExists))
-	require.False(t, storageRowExists)
 }
 
 func TestRemoveRepository_removeReplicationEvents(t *testing.T) {
