@@ -96,6 +96,12 @@ func (mockGitCommandFactory) HooksPath(context.Context) string {
 	return "custom_hooks_path"
 }
 
+func (mockGitCommandFactory) SidecarGitConfiguration(context.Context) ([]git.ConfigPair, error) {
+	return []git.ConfigPair{
+		{Key: "core.gc", Value: "false"},
+	}, nil
+}
+
 func TestSetupEnv(t *testing.T) {
 	cfg := config.Cfg{
 		BinDir:     "/bin/dit",
@@ -113,19 +119,25 @@ func TestSetupEnv(t *testing.T) {
 		Ruby: config.Ruby{RuggedGitConfigSearchPath: "/bin/rugged"},
 	}
 
-	env := setupEnv(cfg, mockGitCommandFactory{})
+	env, err := setupEnv(cfg, mockGitCommandFactory{})
+	require.NoError(t, err)
 
-	require.Contains(t, env, "FOO=bar")
-	require.Contains(t, env, "GITALY_LOG_DIR=/log/dir")
-	require.Contains(t, env, "GITALY_RUBY_GIT_BIN_PATH=/something")
-	require.Contains(t, env, fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize))
-	require.Contains(t, env, fmt.Sprintf("GITALY_RUBY_MAX_COMMIT_OR_TAG_MESSAGE_SIZE=%d", helper.MaxCommitOrTagMessageSize))
-	require.Contains(t, env, "GITALY_RUBY_GITALY_BIN_DIR=/bin/dit")
-	require.Contains(t, env, "GITALY_VERSION="+version.GetVersion())
-	require.Contains(t, env, fmt.Sprintf("GITALY_SOCKET=%s", cfg.InternalSocketPath()))
-	require.Contains(t, env, "GITALY_TOKEN=paswd")
-	require.Contains(t, env, "GITALY_RUGGED_GIT_CONFIG_SEARCH_PATH=/bin/rugged")
-	require.Contains(t, env, "SENTRY_DSN=testDSN")
-	require.Contains(t, env, "SENTRY_ENVIRONMENT=testEnvironment")
-	require.Contains(t, env, "GITALY_GIT_HOOKS_DIR=custom_hooks_path")
+	require.Subset(t, env, []string{
+		"FOO=bar",
+		"GITALY_LOG_DIR=/log/dir",
+		"GITALY_RUBY_GIT_BIN_PATH=/something",
+		fmt.Sprintf("GITALY_RUBY_WRITE_BUFFER_SIZE=%d", streamio.WriteBufferSize),
+		fmt.Sprintf("GITALY_RUBY_MAX_COMMIT_OR_TAG_MESSAGE_SIZE=%d", helper.MaxCommitOrTagMessageSize),
+		"GITALY_RUBY_GITALY_BIN_DIR=/bin/dit",
+		"GITALY_VERSION=" + version.GetVersion(),
+		fmt.Sprintf("GITALY_SOCKET=%s", cfg.InternalSocketPath()),
+		"GITALY_TOKEN=paswd",
+		"GITALY_RUGGED_GIT_CONFIG_SEARCH_PATH=/bin/rugged",
+		"SENTRY_DSN=testDSN",
+		"SENTRY_ENVIRONMENT=testEnvironment",
+		"GITALY_GIT_HOOKS_DIR=custom_hooks_path",
+		"GIT_CONFIG_KEY_0=core.gc",
+		"GIT_CONFIG_VALUE_0=false",
+		"GIT_CONFIG_COUNT=1",
+	})
 }

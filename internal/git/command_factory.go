@@ -34,6 +34,11 @@ type CommandFactory interface {
 	HooksPath(context.Context) string
 	// GitVersion returns the Git version used by the command factory.
 	GitVersion(context.Context) (Version, error)
+
+	// SidecarGitConfiguration returns the Git configuration is it should be used by the Ruby
+	// sidecar. This is a design wart and shouldn't ever be used outside of the context of the
+	// sidecar.
+	SidecarGitConfiguration(context.Context) ([]ConfigPair, error)
 }
 
 type execCommandFactoryConfig struct {
@@ -421,62 +426,9 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, gitConfig []confi
 		return nil, fmt.Errorf("invalid sub command name %q: %w", sc.Subcommand(), ErrInvalidArg)
 	}
 
-	// It's fine to ask for the Git version whenever we spawn a command: the value is cached
-	// nowadays, so this would typically only boil down to a single stat(3P) call to determine
-	// whether the cache is stale or not.
-	gitVersion, err := cf.GitVersion(ctx)
+	combinedGlobals, err := cf.globalConfiguration(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("determining Git version: %w", err)
-	}
-
-	// As global options may cancel out each other, we have a clearly defined order in which
-	// globals get applied. The order is similar to how git handles configuration options from
-	// most general to most specific. This allows callsites to override options which would
-	// otherwise be set up automatically. The exception to this is configuration specified by
-	// the admin, which always overrides all other items. The following order of precedence
-	// applies:
-	//
-	// 1. Globals which get set up by default for all git commands.
-	// 2. Globals which get set up by default for a given git command.
-	// 3. Globals passed via command options, e.g. as set up by
-	//    `WithReftxHook()`.
-	// 4. Configuration as provided by the admin in Gitaly's config.toml.
-	combinedGlobals := []GlobalOption{
-		// Disable automatic garbage collection as we handle scheduling
-		// of it ourselves.
-		ConfigPair{Key: "gc.auto", Value: "0"},
-
-		// CRLF line endings will get replaced with LF line endings
-		// when writing blobs to the object database. No conversion is
-		// done when reading blobs from the object database. This is
-		// required for the web editor.
-		ConfigPair{Key: "core.autocrlf", Value: "input"},
-
-		// Git allows the use of replace refs, where a given object ID can be replaced with a
-		// different one. The result is that Git commands would use the new object instead of the
-		// old one in almost all contexts. This is a security threat: an adversary may use this
-		// mechanism to replace malicious commits with seemingly benign ones. We thus globally
-		// disable this mechanism.
-		ConfigPair{Key: "core.useReplaceRefs", Value: "false"},
-	}
-
-	// Git v2.36.0 introduced new fine-grained configuration for what data should be fsynced and
-	// how that should happen.
-	if gitVersion.HasGranularFsyncConfig() {
-		combinedGlobals = append(
-			combinedGlobals,
-			// This is the same as below, but in addition we're also syncing packed-refs
-			// and loose refs to disk. This fixes a long-standing issue we've had where
-			// hard reboots of a server could end up corrupting loose references.
-			ConfigPair{Key: "core.fsync", Value: "objects,derived-metadata,reference"},
-			ConfigPair{Key: "core.fsyncMethod", Value: "fsync"},
-		)
-	} else {
-		// Synchronize object files to lessen the likelihood of
-		// repository corruption in case the server crashes.
-		combinedGlobals = append(
-			combinedGlobals, ConfigPair{Key: "core.fsyncObjectFiles", Value: "true"},
-		)
+		return nil, fmt.Errorf("getting global Git configuration: %w", err)
 	}
 
 	combinedGlobals = append(combinedGlobals, commandDescription.opts...)
@@ -502,4 +454,112 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, gitConfig []confi
 	}
 
 	return append(args, scArgs...), nil
+}
+
+// globalConfiguration returns the global Git configuration that should be applied to every Git
+// command.
+func (cf *ExecCommandFactory) globalConfiguration(ctx context.Context) ([]GlobalOption, error) {
+	// It's fine to ask for the Git version whenever we spawn a command: the value is cached
+	// nowadays, so this would typically only boil down to a single stat(3P) call to determine
+	// whether the cache is stale or not.
+	gitVersion, err := cf.GitVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("determining Git version: %w", err)
+	}
+
+	// As global options may cancel out each other, we have a clearly defined order in which
+	// globals get applied. The order is similar to how git handles configuration options from
+	// most general to most specific. This allows callsites to override options which would
+	// otherwise be set up automatically. The exception to this is configuration specified by
+	// the admin, which always overrides all other items. The following order of precedence
+	// applies:
+	//
+	// 1. Globals which get set up by default for all git commands.
+	// 2. Globals which get set up by default for a given git command.
+	// 3. Globals passed via command options, e.g. as set up by
+	//    `WithReftxHook()`.
+	// 4. Configuration as provided by the admin in Gitaly's config.toml.
+	config := []GlobalOption{
+		// Disable automatic garbage collection as we handle scheduling
+		// of it ourselves.
+		ConfigPair{Key: "gc.auto", Value: "0"},
+
+		// CRLF line endings will get replaced with LF line endings
+		// when writing blobs to the object database. No conversion is
+		// done when reading blobs from the object database. This is
+		// required for the web editor.
+		ConfigPair{Key: "core.autocrlf", Value: "input"},
+
+		// Git allows the use of replace refs, where a given object ID can be replaced with a
+		// different one. The result is that Git commands would use the new object instead of the
+		// old one in almost all contexts. This is a security threat: an adversary may use this
+		// mechanism to replace malicious commits with seemingly benign ones. We thus globally
+		// disable this mechanism.
+		ConfigPair{Key: "core.useReplaceRefs", Value: "false"},
+	}
+
+	// Git v2.36.0 introduced new fine-grained configuration for what data should be fsynced and
+	// how that should happen.
+	if gitVersion.HasGranularFsyncConfig() {
+		config = append(
+			config,
+			// This is the same as below, but in addition we're also syncing packed-refs
+			// and loose refs to disk. This fixes a long-standing issue we've had where
+			// hard reboots of a server could end up corrupting loose references.
+			ConfigPair{Key: "core.fsync", Value: "objects,derived-metadata,reference"},
+			ConfigPair{Key: "core.fsyncMethod", Value: "fsync"},
+		)
+	} else {
+		// Synchronize object files to lessen the likelihood of
+		// repository corruption in case the server crashes.
+		config = append(
+			config, ConfigPair{Key: "core.fsyncObjectFiles", Value: "true"},
+		)
+	}
+
+	return config, nil
+}
+
+// SidecarGitConfiguration assembles the Git configuration as required by the Ruby sidecar. This
+// includes global configuration, command-specific configuration for all commands executed in the
+// sidecar, as well as configuration that was configured by the administrator in Gitaly's config.
+//
+// This function should not be used for anything else but the Ruby sidecar.
+func (cf *ExecCommandFactory) SidecarGitConfiguration(ctx context.Context) ([]ConfigPair, error) {
+	// Collect the global configuration that is specific to the current Git version...
+	options, err := cf.globalConfiguration(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting global config: %w", err)
+	}
+
+	// ... as well as all configuration that exists for specific Git subcommands. The sidecar
+	// only executes git-fetch(1), git-symbolic-ref(1) and git-update-ref(1) nowadays, and this
+	// set of commands is not expected to grow anymore. So while really intimate with how the
+	// sidecar does this, it is good enough until we finally remove it.
+	options = append(options, commandDescriptions["fetch"].opts...)
+	options = append(options, commandDescriptions["symbolic-ref"].opts...)
+	options = append(options, commandDescriptions["update-ref"].opts...)
+
+	// Convert the `GlobalOption`s into `ConfigPair`s.
+	configPairs := make([]ConfigPair, 0, len(options)+len(cf.cfg.Git.Config))
+	for _, option := range options {
+		configPair, ok := option.(ConfigPair)
+		if !ok {
+			continue
+		}
+
+		configPairs = append(configPairs, configPair)
+	}
+
+	// Lastly, we also apply the Git configuration as set by the administrator in Gitaly's
+	// config. Note that we do not check for conflicts here: administrators should be able to
+	// override whatever is configured by Gitaly.
+	for _, configEntry := range cf.cfg.Git.Config {
+		configPairs = append(configPairs, ConfigPair{
+			Key:   configEntry.Key,
+			Value: configEntry.Value,
+		})
+	}
+
+	return configPairs, nil
 }

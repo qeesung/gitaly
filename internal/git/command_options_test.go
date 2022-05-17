@@ -465,3 +465,50 @@ func TestWithInternalFetch(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigPairsToEnvironment(t *testing.T) {
+	for _, tc := range []struct {
+		desc        string
+		configPairs []ConfigPair
+		expectedEnv []string
+	}{
+		{
+			desc: "no pairs",
+			expectedEnv: []string{
+				"GIT_CONFIG_COUNT=0",
+			},
+		},
+		{
+			desc: "single pair",
+			configPairs: []ConfigPair{
+				{Key: "foo.bar", Value: "baz"},
+			},
+			expectedEnv: []string{
+				"GIT_CONFIG_KEY_0=foo.bar",
+				"GIT_CONFIG_VALUE_0=baz",
+				"GIT_CONFIG_COUNT=1",
+			},
+		},
+		{
+			desc: "multiple pairs",
+			configPairs: []ConfigPair{
+				{Key: "duplicate.key", Value: "first"},
+				{Key: "foo.bar", Value: "baz"},
+				{Key: "duplicate.key", Value: "second"},
+			},
+			expectedEnv: []string{
+				"GIT_CONFIG_KEY_0=duplicate.key",
+				"GIT_CONFIG_VALUE_0=first",
+				"GIT_CONFIG_KEY_1=foo.bar",
+				"GIT_CONFIG_VALUE_1=baz",
+				"GIT_CONFIG_KEY_2=duplicate.key",
+				"GIT_CONFIG_VALUE_2=second",
+				"GIT_CONFIG_COUNT=3",
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			require.Equal(t, tc.expectedEnv, ConfigPairsToGitEnvironment(tc.configPairs))
+		})
+	}
+}

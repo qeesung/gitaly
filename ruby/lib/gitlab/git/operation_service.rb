@@ -60,8 +60,6 @@ module Gitlab
 
       # Returns [newrev, should_run_after_create, should_run_after_create_branch]
       def update_branch_with_hooks(branch_name, force)
-        update_autocrlf_option
-
         was_empty = repository.empty?
 
         # Make commit
@@ -138,10 +136,6 @@ module Gitlab
             " Please refresh and try again."
           )
         end
-      end
-
-      def update_autocrlf_option
-        repository.autocrlf = :input if repository.autocrlf != :input
       end
     end
   end

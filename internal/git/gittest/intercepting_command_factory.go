@@ -148,3 +148,9 @@ func (f *InterceptingCommandFactory) GitVersion(ctx context.Context) (git.Versio
 	}
 	return f.realCommandFactory.GitVersion(ctx)
 }
+
+// SidecarGitConfiguration returns the Ruby sidecar Git configuration as computed by the actual Git
+// command factory.
+func (f *InterceptingCommandFactory) SidecarGitConfiguration(ctx context.Context) ([]git.ConfigPair, error) {
+	return f.interceptingCommandFactory.SidecarGitConfiguration(ctx)
+}

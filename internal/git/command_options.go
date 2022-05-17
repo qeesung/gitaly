@@ -82,6 +82,21 @@ func (cp ConfigPair) GlobalArgs() ([]string, error) {
 	return []string{"-c", fmt.Sprintf("%s=%s", cp.Key, cp.Value)}, nil
 }
 
+// ConfigPairsToGitEnvironment converts the given config pairs into a set of environment variables
+// that can be injected into a Git executable.
+func ConfigPairsToGitEnvironment(configPairs []ConfigPair) []string {
+	env := make([]string, 0, len(configPairs)*2+1)
+
+	for i, configPair := range configPairs {
+		env = append(env,
+			fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", i, configPair.Key),
+			fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", i, configPair.Value),
+		)
+	}
+
+	return append(env, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(configPairs)))
+}
+
 // Flag is a single token optional command line argument that enables or
 // disables functionality (e.g. "-L")
 type Flag struct {
@@ -210,17 +225,7 @@ func WithConfig(configPairs ...ConfigPair) CmdOpt {
 // via the process's command line.
 func WithConfigEnv(configPairs ...ConfigPair) CmdOpt {
 	return func(_ context.Context, _ config.Cfg, _ CommandFactory, c *cmdCfg) error {
-		env := make([]string, 0, len(configPairs)*2+1)
-
-		for i, configPair := range configPairs {
-			env = append(env,
-				fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", i, configPair.Key),
-				fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", i, configPair.Value),
-			)
-		}
-		env = append(env, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(configPairs)))
-
-		c.env = append(c.env, env...)
+		c.env = append(c.env, ConfigPairsToGitEnvironment(configPairs)...)
 		return nil
 	}
 }

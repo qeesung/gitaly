@@ -37,14 +37,16 @@ func init() {
 	}
 }
 
-func setupEnv(cfg config.Cfg, gitCmdFactory git.CommandFactory) []string {
+func setupEnv(cfg config.Cfg, gitCmdFactory git.CommandFactory) ([]string, error) {
 	// Ideally, we'd pass in the RPC context to the Git command factory such that we can
 	// properly use feature flags to switch between different execution environments. But the
 	// Ruby server is precreated and thus cannot use feature flags here. So for now, we have to
 	// live with the fact that we cannot use feature flags for it.
-	gitExecEnv := gitCmdFactory.GetExecutionEnvironment(context.TODO())
-	// The same remark exists with our hooks path.
-	hooksPath := gitCmdFactory.HooksPath(context.TODO())
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	gitExecEnv := gitCmdFactory.GetExecutionEnvironment(ctx)
+	hooksPath := gitCmdFactory.HooksPath(ctx)
 
 	env := append(
 		command.AllowedEnvironment(os.Environ()),
@@ -65,6 +67,12 @@ func setupEnv(cfg config.Cfg, gitCmdFactory git.CommandFactory) []string {
 	env = appendEnvIfSet(env, "BUNDLE_USER_CONFIG")
 	env = appendEnvIfSet(env, "GEM_HOME")
 
+	gitConfig, err := gitCmdFactory.SidecarGitConfiguration(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting Git configuration: %w", err)
+	}
+	env = append(env, git.ConfigPairsToGitEnvironment(gitConfig)...)
+
 	if dsn := cfg.Logging.RubySentryDSN; dsn != "" {
 		env = append(env, "SENTRY_DSN="+dsn)
 	}
@@ -73,7 +81,7 @@ func setupEnv(cfg config.Cfg, gitCmdFactory git.CommandFactory) []string {
 		env = append(env, "SENTRY_ENVIRONMENT="+sentryEnvironment)
 	}
 
-	return env
+	return env, nil
 }
 
 func appendEnvIfSet(envvars []string, key string) []string {
@@ -128,7 +136,10 @@ func (s *Server) start() error {
 	}
 
 	cfg := s.cfg
-	env := setupEnv(cfg, s.gitCmdFactory)
+	env, err := setupEnv(cfg, s.gitCmdFactory)
+	if err != nil {
+		return fmt.Errorf("setting up sidecar environment: %w", err)
+	}
 
 	gitalyRuby := filepath.Join(cfg.Ruby.Dir, "bin", "gitaly-ruby")
 

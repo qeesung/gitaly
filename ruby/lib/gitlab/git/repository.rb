@@ -9,7 +9,6 @@ module Gitlab
       include Gitlab::Utils::StrongMemoize
 
       GITALY_INTERNAL_URL = 'ssh://gitaly/internal.git'.freeze
-      AUTOCRLF_VALUES = { 'true' => true, 'false' => false, 'input' => :input }.freeze
       RUGGED_KEY = :rugged_list
       GIT_ALLOW_SHA_UPLOAD = 'uploadpack.allowAnySHA1InWant=true'.freeze
 
@@ -269,14 +268,6 @@ module Gitlab
 
       def empty?
         !has_visible_content?
-      end
-
-      def autocrlf
-        AUTOCRLF_VALUES[rugged.config['core.autocrlf']]
-      end
-
-      def autocrlf=(value)
-        rugged.config['core.autocrlf'] = AUTOCRLF_VALUES.invert[value]
       end
 
       def cleanup

@@ -408,34 +408,37 @@ func hiddenReceivePackRefPrefixes() []GlobalOption {
 // git-fetch-pack(1).
 func fsckConfiguration(prefix string) []GlobalOption {
 	var configPairs []GlobalOption
-	for key, value := range map[string]string{
+	for _, config := range []struct {
+		key   string
+		value string
+	}{
 		// When receiving objects from an untrusted source, we want to always assert that
 		// all objects are valid.
-		"fsckObjects": "true",
+		{key: "fsckObjects", value: "true"},
 
 		// In the past, there was a bug in git that caused users to create commits with
 		// invalid timezones. As a result, some histories contain commits that do not match
 		// the spec. As we fsck received packfiles by default, any push containing such
 		// a commit will be rejected. As this is a mostly harmless issue, we add the
 		// following flag to ignore this check.
-		"fsck.badTimezone": "ignore",
+		{key: "fsck.badTimezone", value: "ignore"},
 
 		// git-fsck(1) complains in case a signature does not have a space
 		// between mail and date. The most common case where this can be hit
 		// is in case the date is missing completely. This error is harmless
 		// enough and we cope just fine parsing such signatures, so we can
 		// ignore this error.
-		"fsck.missingSpaceBeforeDate": "ignore",
+		{key: "fsck.missingSpaceBeforeDate", value: "ignore"},
 
 		// Oldish Git versions used to zero-pad some filemodes, e.g. instead of a
 		// file mode of 40000 the tree object would have endcoded the filemode as
 		// 04000. This doesn't cause any and Git can cope with it alright, so let's
 		// ignore it.
-		"fsck.zeroPaddedFilemode": "ignore",
+		{key: "fsck.zeroPaddedFilemode", value: "ignore"},
 	} {
 		configPairs = append(configPairs, ConfigPair{
-			Key:   fmt.Sprintf("%s.%s", prefix, key),
-			Value: value,
+			Key:   fmt.Sprintf("%s.%s", prefix, config.key),
+			Value: config.value,
 		})
 	}
 
