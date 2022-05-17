@@ -15,6 +15,8 @@ var InternalRefPrefixes = [...]string{
 	"refs/keep-around/",
 	"refs/merge-requests/",
 	"refs/pipelines/",
+	"refs/remotes/",
+	"refs/tmp/",
 }
 
 // Revision represents anything that resolves to either a commit, multiple
