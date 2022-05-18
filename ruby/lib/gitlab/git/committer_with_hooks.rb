@@ -10,8 +10,7 @@ module Gitlab
 
       def commit
         result = Gitlab::Git::OperationService.new(git_user, gl_wiki.repository).with_branch(
-          @wiki.ref,
-          start_branch_name: @wiki.ref
+          @wiki.ref
         ) do |_start_commit|
           super(false)
         end

@@ -2,6 +2,7 @@
 require 'rugged'
 require 'linguist/blob_helper'
 require 'securerandom'
+require 'gitlab-labkit'
 
 # Ruby on Rails mix-ins that GitLab::Git code relies on
 require 'active_support/core_ext/object/blank'
@@ -21,7 +22,6 @@ dir = __dir__
 # Some later requires are order-sensitive. Manually require whatever we need.
 require_relative "#{dir}/encoding_helper.rb"
 require_relative "#{dir}/utils/strong_memoize.rb"
-require_relative "#{dir}/git/remote_repository.rb"
 require_relative "#{dir}/git/popen.rb"
 
 # Require all .rb files we can find in the gitlab lib directory

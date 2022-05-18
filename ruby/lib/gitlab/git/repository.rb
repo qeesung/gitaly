@@ -176,26 +176,12 @@ module Gitlab
         end
       end
 
-      def with_repo_branch_commit(start_repository, start_ref)
-        start_repository = RemoteRepository.new(start_repository) unless start_repository.is_a?(RemoteRepository)
-
-        if start_repository.empty?
-          return yield nil
-        elsif start_repository.same_repository?(self)
-          # Directly return the commit from this repository
-          return yield commit(start_ref)
-        end
-
-        # Find the commit from the remote repository (this triggers an RPC)
-        commit_id = start_repository.commit_id(start_ref)
-        return yield nil unless commit_id
-
-        if existing_commit = commit(commit_id)
-          # Commit is already present (e.g. in a fork, or through a previous fetch)
-          yield existing_commit
+      def with_repo_branch_commit(start_ref)
+        if empty?
+          yield nil
         else
-          fetch_sha(start_repository, commit_id)
-          yield commit(commit_id)
+          # Directly return the commit from this repository
+          yield commit(start_ref)
         end
       end
 
@@ -236,19 +222,6 @@ module Gitlab
         nil
       end
 
-      # Fetch a commit from the given source repository
-      def fetch_sha(source_repository, sha)
-        source_repository = RemoteRepository.new(source_repository) unless source_repository.is_a?(RemoteRepository)
-
-        env = source_repository.fetch_env(git_config_options: [GIT_ALLOW_SHA_UPLOAD])
-
-        args = %W[fetch --no-tags #{GITALY_INTERNAL_URL} #{sha}]
-        message, status = run_git(args, env: env, include_stderr: true)
-        raise Gitlab::Git::CommandError, message unless status.zero?
-
-        sha
-      end
-
       # Lookup for rugged object by oid or ref name
       def lookup(oid_or_ref_name)
         rugged.rev_parse(oid_or_ref_name)
@@ -277,24 +250,14 @@ module Gitlab
       end
 
       def head_symbolic_ref
-        message, status = run_git(%w[symbolic-ref HEAD])
+        head = rugged.ref('HEAD')
 
-        return 'main' if status.nonzero?
+        return 'main' if head.type != :symbolic
 
-        Ref.extract_branch_name(message.squish)
+        Ref.extract_branch_name(head.target_id)
       end
 
       private
-
-      def run_git(args, chdir: path, env: {}, nice: false, include_stderr: false, lazy_block: nil, &block)
-        cmd = [Gitlab.config.git.bin_path, *args]
-        cmd.unshift("nice") if nice
-
-        object_directories = alternate_object_directories
-        env['GIT_ALTERNATE_OBJECT_DIRECTORIES'] = object_directories.join(File::PATH_SEPARATOR) if object_directories.any?
-
-        popen(cmd, chdir, env, include_stderr: include_stderr, lazy_block: lazy_block, &block)
-      end
 
       def branches_filter(filter: nil, sort_by: nil)
         branches = rugged.branches.each(filter).map do |rugged_ref|

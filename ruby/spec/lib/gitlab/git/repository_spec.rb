@@ -149,117 +149,30 @@ describe Gitlab::Git::Repository do # rubocop:disable Metrics/BlockLength
   end
 
   describe '#with_repo_branch_commit' do
-    let(:start_repository) { Gitlab::Git::RemoteRepository.new(source_repository) }
-    let(:start_commit) { source_repository.commit }
-
-    context 'when start_repository is empty' do
-      let(:source_repository) { gitlab_git_from_gitaly(new_empty_test_repo) }
-
-      before do
-        expect(start_repository).not_to receive(:commit_id)
-        expect(repository).not_to receive(:fetch_sha)
-      end
+    context 'when repository is empty' do
+      let(:repository) { gitlab_git_from_gitaly(new_empty_test_repo) }
 
       it 'yields nil' do
         expect do |block|
-          repository.with_repo_branch_commit(start_repository, 'master', &block)
+          repository.with_repo_branch_commit('master', &block)
         end.to yield_with_args(nil)
       end
     end
 
-    context 'when start_repository is the same repository' do
-      let(:source_repository) { repository }
-
-      before do
-        expect(start_repository).not_to receive(:commit_id)
-        expect(repository).not_to receive(:fetch_sha)
-      end
+    context 'when repository is not empty' do
+      let(:start_commit) { repository.commit }
 
       it 'yields the commit for the SHA' do
         expect do |block|
-          repository.with_repo_branch_commit(start_repository, start_commit.sha, &block)
+          repository.with_repo_branch_commit(start_commit.sha, &block)
         end.to yield_with_args(start_commit)
       end
 
       it 'yields the commit for the branch' do
         expect do |block|
-          repository.with_repo_branch_commit(start_repository, 'master', &block)
+          repository.with_repo_branch_commit('master', &block)
         end.to yield_with_args(start_commit)
       end
-    end
-
-    context 'when start_repository is different' do
-      let(:source_repository) { gitlab_git_from_gitaly(test_repo_read_only) }
-
-      context 'when start commit already exists' do
-        let(:start_commit) { repository.commit }
-
-        before do
-          expect(start_repository).to receive(:commit_id).and_return(start_commit.sha)
-          expect(repository).not_to receive(:fetch_sha)
-        end
-
-        it 'yields the commit for the SHA' do
-          expect do |block|
-            repository.with_repo_branch_commit(start_repository, start_commit.sha, &block)
-          end.to yield_with_args(start_commit)
-        end
-
-        it 'yields the commit for the branch' do
-          expect do |block|
-            repository.with_repo_branch_commit(start_repository, 'master', &block)
-          end.to yield_with_args(start_commit)
-        end
-      end
-
-      context 'when start commit does not exist' do
-        before do
-          expect(start_repository).to receive(:commit_id).and_return(start_commit.sha)
-          expect(repository).to receive(:fetch_sha).with(start_repository, start_commit.sha)
-        end
-
-        it 'yields the fetched commit for the SHA' do
-          expect do |block|
-            repository.with_repo_branch_commit(start_repository, start_commit.sha, &block)
-          end.to yield_with_args(nil) # since fetch_sha is mocked
-        end
-
-        it 'yields the fetched commit for the branch' do
-          expect do |block|
-            repository.with_repo_branch_commit(start_repository, 'master', &block)
-          end.to yield_with_args(nil) # since fetch_sha is mocked
-        end
-      end
-    end
-  end
-
-  describe '#fetch_sha' do
-    let(:source_repository) { Gitlab::Git::RemoteRepository.new(repository) }
-    let(:sha) { 'b971194ee2d047f24cb897b6fb0d7ae99c8dd0ca' }
-    let(:git_args) { %W[fetch --no-tags ssh://gitaly/internal.git #{sha}] }
-
-    before do
-      expect(source_repository).to receive(:fetch_env)
-        .with(git_config_options: ['uploadpack.allowAnySHA1InWant=true'])
-        .and_return({})
-    end
-
-    it 'fetches the commit from the source repository' do
-      expect(repository).to receive(:run_git)
-        .with(git_args, env: {}, include_stderr: true)
-        .and_return(['success', 0])
-
-      expect(repository.fetch_sha(source_repository, sha)).to eq(sha)
-    end
-
-    it 'raises an error if the commit does not exist in the source repository' do
-      expect(repository).to receive(:run_git)
-        .with(git_args, env: {}, include_stderr: true)
-        .and_return(['error', 1])
-
-      expect do
-        repository.fetch_sha(source_repository, sha)
-      end.to raise_error(Gitlab::Git::CommandError, 'error')
     end
   end
 

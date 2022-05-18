@@ -48,18 +48,6 @@ module IntegrationClient
   def gitaly_repo(storage, relative_path)
     Gitaly::Repository.new(storage_name: storage, relative_path: relative_path)
   end
-
-  def get_client(addr)
-    servers = Base64.strict_encode64({
-      default: {
-        address: addr,
-        token: 'the-secret-token'
-      }
-    }.to_json)
-
-    call = double(metadata: { 'gitaly-servers' => servers })
-    Gitlab::Git::GitalyRemoteRepository.new(repository.gitaly_repository, call)
-  end
 end
 
 def start_gitaly

@@ -533,11 +533,9 @@ func (cf *ExecCommandFactory) SidecarGitConfiguration(ctx context.Context) ([]Co
 	}
 
 	// ... as well as all configuration that exists for specific Git subcommands. The sidecar
-	// only executes git-fetch(1), git-symbolic-ref(1) and git-update-ref(1) nowadays, and this
-	// set of commands is not expected to grow anymore. So while really intimate with how the
-	// sidecar does this, it is good enough until we finally remove it.
-	options = append(options, commandDescriptions["fetch"].opts...)
-	options = append(options, commandDescriptions["symbolic-ref"].opts...)
+	// only executes git-update-ref(1) nowadays, and this set of commands is not expected to
+	// grow anymore. So while really intimate with how the sidecar does this, it is good enough
+	// until we finally remove it.
 	options = append(options, commandDescriptions["update-ref"].opts...)
 
 	// Convert the `GlobalOption`s into `ConfigPair`s.

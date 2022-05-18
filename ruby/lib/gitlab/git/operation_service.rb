@@ -25,41 +25,22 @@ module Gitlab
         @repository = new_repository
       end
 
-      # Whenever `start_branch_name` or `start_sha` is passed, if `branch_name`
-      # doesn't exist, it will be created from the commit pointed to by
-      # `start_branch_name` or `start_sha`.
-      #
-      # If `start_repository` is passed, and the branch doesn't exist,
-      # it would try to find the commits from it instead of current repository.
-      def with_branch(branch_name,
-                      start_branch_name: nil,
-                      start_sha: nil,
-                      start_repository: repository,
-                      force: false,
-                      &block)
-        start_repository = RemoteRepository.new(start_repository) unless start_repository.is_a?(RemoteRepository)
-
-        start_branch_name = nil if start_repository.empty?
-
-        if start_branch_name.present? && !start_repository.branch_exists?(start_branch_name)
-          raise ArgumentError, "Cannot find branch '#{start_branch_name}'"
-        elsif start_sha.present? && !start_repository.commit_id(start_sha)
-          raise ArgumentError, "Cannot find commit '#{start_sha}'"
+      # Execute the block with the tip commit referenced by the given branch.
+      # The branch must exist before calling this function.
+      def with_branch(branch_name, &block)
+        if !repository.empty? && !repository.branch_exists?(branch_name)
+          raise ArgumentError, "Cannot find branch '#{branch_name}'"
         end
 
-        update_branch_with_hooks(branch_name, force) do
-          repository.with_repo_branch_commit(
-            start_repository,
-            start_sha.presence || start_branch_name.presence || branch_name,
-            &block
-          )
+        update_branch_with_hooks(branch_name) do
+          repository.with_repo_branch_commit(branch_name, &block)
         end
       end
 
       private
 
       # Returns [newrev, should_run_after_create, should_run_after_create_branch]
-      def update_branch_with_hooks(branch_name, force)
+      def update_branch_with_hooks(branch_name)
         was_empty = repository.empty?
 
         # Make commit
@@ -68,7 +49,7 @@ module Gitlab
         raise Gitlab::Git::CommitError.new('Failed to create commit') unless newrev
 
         branch = repository.find_branch(branch_name)
-        oldrev = find_oldrev_from_branch(newrev, branch, force)
+        oldrev = find_oldrev_from_branch(newrev, branch)
 
         ref = Gitlab::Git::BRANCH_REF_PREFIX + branch_name
         update_ref_in_hooks(ref, newrev, oldrev)
@@ -76,12 +57,10 @@ module Gitlab
         BranchUpdate.new(newrev, was_empty, was_empty || Gitlab::Git.blank_ref?(oldrev))
       end
 
-      def find_oldrev_from_branch(newrev, branch, force)
+      def find_oldrev_from_branch(newrev, branch)
         return Gitlab::Git::BLANK_SHA unless branch
 
         oldrev = branch.target
-
-        return oldrev if force
 
         merge_base = repository.merge_base(newrev, branch.target)
         raise Gitlab::Git::Repository::InvalidRef unless merge_base

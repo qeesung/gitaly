@@ -499,13 +499,6 @@ func TestExecCommandFactory_SidecarGitConfiguration(t *testing.T) {
 	}
 
 	commonTail := []git.ConfigPair{
-		{Key: "fetch.writeCommitGraph", Value: "false"},
-		{Key: "http.followRedirects", Value: "false"},
-		{Key: "fetch.recurseSubmodules", Value: "no"},
-		{Key: "fetch.fsckObjects", Value: "true"},
-		{Key: "fetch.fsck.badTimezone", Value: "ignore"},
-		{Key: "fetch.fsck.missingSpaceBeforeDate", Value: "ignore"},
-		{Key: "fetch.fsck.zeroPaddedFilemode", Value: "ignore"},
 		{Key: "custom.key", Value: "injected"},
 	}
 
