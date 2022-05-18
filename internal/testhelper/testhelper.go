@@ -160,7 +160,9 @@ func Context(t testing.TB, opts ...ContextOpt) context.Context {
 func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx := context.Background()
 
-	rnd := mrand.New(mrand.NewSource(time.Now().Unix()))
+	t := time.Now()
+
+	rnd := mrand.New(mrand.NewSource(t.Unix() + int64(t.Nanosecond())))
 
 	// Enable use of explicit feature flags. Each feature flag which is checked must have been
 	// explicitly injected into the context, or otherwise we panic. This is a sanity check to

@@ -85,6 +85,8 @@ func TestInterceptor(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
+	ctx := testhelper.Context(t)
+
 	tests := []struct {
 		name            string
 		performRPC      func(ctx context.Context, client gitalypb.RefServiceClient)
@@ -135,7 +137,6 @@ func TestInterceptor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			hook.Reset()
-			ctx := testhelper.Context(t)
 
 			conn, err := grpc.DialContext(ctx, "", grpc.WithContextDialer(getBufDialer(listener)), grpc.WithInsecure())
 			require.NoError(t, err)
