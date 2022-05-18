@@ -51,8 +51,7 @@ type semaphoreReference struct {
 func (sem *semaphoreReference) acquire(ctx context.Context) error {
 	var ticker helper.Ticker
 
-	if featureflag.ConcurrencyQueueMaxWait.IsEnabled(ctx) &&
-		sem.newTicker != nil {
+	if sem.newTicker != nil {
 		ticker = sem.newTicker()
 	} else {
 		ticker = helper.Ticker(helper.NewManualTicker())

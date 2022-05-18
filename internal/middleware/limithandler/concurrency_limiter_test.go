@@ -356,117 +356,59 @@ func (b *blockingDequeueCounter) Dequeued(context.Context) {
 func TestLimitConcurrency_queueWaitTime(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	t.Run("with feature flag", func(t *testing.T) {
-		ctx = featureflag.IncomingCtxWithFeatureFlag(
-			ctx,
-			featureflag.ConcurrencyQueueMaxWait,
-			true,
-		)
+	ticker := helper.NewManualTicker()
 
-		ticker := helper.NewManualTicker()
+	dequeuedCh := make(chan struct{})
+	monitor := &blockingDequeueCounter{dequeuedCh: dequeuedCh}
 
-		dequeuedCh := make(chan struct{})
-		monitor := &blockingDequeueCounter{dequeuedCh: dequeuedCh}
+	limiter := NewConcurrencyLimiter(
+		1,
+		0,
+		func() helper.Ticker {
+			return ticker
+		},
+		monitor,
+	)
 
-		limiter := NewConcurrencyLimiter(
-			1,
-			0,
-			func() helper.Ticker {
-				return ticker
-			},
-			monitor,
-		)
+	ch := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+			<-ch
+			return nil, nil
+		})
+		require.NoError(t, err)
+		wg.Done()
+	}()
 
-		ch := make(chan struct{})
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-				<-ch
-				return nil, nil
-			})
-			require.NoError(t, err)
-			wg.Done()
-		}()
+	<-dequeuedCh
 
-		<-dequeuedCh
+	ticker.Tick()
 
-		ticker.Tick()
+	errChan := make(chan error)
+	go func() {
+		_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+			return nil, nil
+		})
+		errChan <- err
+	}()
 
-		errChan := make(chan error)
-		go func() {
-			_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-				return nil, nil
-			})
-			errChan <- err
-		}()
+	<-dequeuedCh
+	err := <-errChan
 
-		<-dequeuedCh
-		err := <-errChan
+	s, ok := status.FromError(err)
+	require.True(t, ok)
+	details := s.Details()
+	require.Len(t, details, 1)
 
-		s, ok := status.FromError(err)
-		require.True(t, ok)
-		details := s.Details()
-		require.Len(t, details, 1)
+	limitErr, ok := details[0].(*gitalypb.LimitError)
+	require.True(t, ok)
 
-		limitErr, ok := details[0].(*gitalypb.LimitError)
-		require.True(t, ok)
+	assert.Equal(t, ErrMaxQueueTime.Error(), limitErr.ErrorMessage)
+	assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
 
-		assert.Equal(t, ErrMaxQueueTime.Error(), limitErr.ErrorMessage)
-		assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
-
-		assert.Equal(t, monitor.droppedTime, 1)
-		close(ch)
-		wg.Wait()
-	})
-
-	t.Run("without feature flag", func(t *testing.T) {
-		ctx = featureflag.IncomingCtxWithFeatureFlag(
-			ctx,
-			featureflag.ConcurrencyQueueMaxWait,
-			false,
-		)
-
-		ticker := helper.NewManualTicker()
-
-		dequeuedCh := make(chan struct{})
-		monitor := &blockingDequeueCounter{dequeuedCh: dequeuedCh}
-
-		limiter := NewConcurrencyLimiter(
-			1,
-			0,
-			func() helper.Ticker {
-				return ticker
-			},
-			monitor,
-		)
-
-		ch := make(chan struct{})
-		go func() {
-			_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-				<-ch
-				return nil, nil
-			})
-			require.NoError(t, err)
-		}()
-
-		<-dequeuedCh
-
-		ticker.Tick()
-
-		errChan := make(chan error)
-		go func() {
-			_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-				return nil, nil
-			})
-			errChan <- err
-		}()
-
-		close(ch)
-		<-dequeuedCh
-		err := <-errChan
-
-		assert.NoError(t, err)
-		assert.Equal(t, monitor.droppedTime, 0)
-	})
+	assert.Equal(t, monitor.droppedTime, 1)
+	close(ch)
+	wg.Wait()
 }
