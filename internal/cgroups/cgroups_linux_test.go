@@ -13,7 +13,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewManager(t *testing.T) {
-	cfg := cgroups.Config{Repositories: cgroups.Repositories{Count: 10}}
+	cfg := cgroups.Config{Count: 10}
 
 	require.IsType(t, &CGroupV1Manager{}, &CGroupV1Manager{cfg: cfg})
 	require.IsType(t, &NoopManager{}, NewManager(cgroups.Config{}))
