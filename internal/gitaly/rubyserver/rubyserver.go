@@ -100,6 +100,7 @@ type Server struct {
 	workers       []*worker
 	clientConnMu  sync.Mutex
 	clientConn    *grpc.ClientConn
+	gitconfigDir  string
 }
 
 // New returns a new instance of the server.
@@ -117,8 +118,12 @@ func (s *Server) Stop() {
 		}
 
 		for _, w := range s.workers {
-			w.stopMonitor()
 			w.Process.Stop()
+			w.stopMonitor()
+		}
+
+		if s.gitconfigDir != "" {
+			_ = os.RemoveAll(s.gitconfigDir)
 		}
 	}
 }
@@ -136,6 +141,43 @@ func (s *Server) start() error {
 	}
 
 	cfg := s.cfg
+
+	// Both Omnibus and CNG set up the gitconfig in a non-default location. This means that they
+	// need to tell us where to find it, which is done via the Rugged config search path. In
+	// fact though, this configuration really only contains a single entry that is of importance
+	// to us in the context of Rugged, which is `core.fsyncObjectFiles`: if not set, then we may
+	// fail to persist objects correctly and thus corrupt the repository. We don't care about
+	// anything else nowadays anymore because most of the functionality was stripped out of the
+	// sidecar.
+	//
+	// Because we only care about a single option, and because that option is in fact mandatory
+	// or we may end up with corrupted data, we want to get rid of this configuration. Rugged
+	// doesn't give us any way to force-enable fsyncing though except if we write it to a file.
+	// Consequentially, we'll have to inject our own gitconfig into Rugged that enables this
+	// config. And that's exactly what the following block does: if we detect that the distro
+	// isn't telling us where to find the Rugged configuration, we write our own config. This is
+	// required so that we can phase out support of the gitconfig in these distributions.
+	//
+	// This is transitory until either the sidecar goes away or the upstream pull request is
+	// released (https://github.com/libgit2/rugged/pull/918).
+	if cfg.Ruby.RuggedGitConfigSearchPath == "" {
+		gitconfigDir := filepath.Join(cfg.RuntimeDir, "ruby-gitconfig")
+		if err := os.Mkdir(gitconfigDir, 0o777); err != nil {
+			return fmt.Errorf("creating gitconfig dir: %w", err)
+		}
+
+		// This file must be called `gitconfig` given that we pretend it's the system-level
+		// Git configuration. Otherwise, Rugged wouldn't find it.
+		if err := os.WriteFile(filepath.Join(gitconfigDir, "gitconfig"), []byte(
+			"[core]\n\tfsyncObjectFiles = true\n",
+		), 0o666); err != nil {
+			return fmt.Errorf("writing gitconfig: %w", err)
+		}
+
+		cfg.Ruby.RuggedGitConfigSearchPath = gitconfigDir
+		s.gitconfigDir = gitconfigDir
+	}
+
 	env, err := setupEnv(cfg, s.gitCmdFactory)
 	if err != nil {
 		return fmt.Errorf("setting up sidecar environment: %w", err)
