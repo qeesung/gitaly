@@ -17,7 +17,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
@@ -42,11 +41,7 @@ var (
 func TestUserSquash_successful(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashSuccessful)
-}
-
-func testUserSquashSuccessful(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	for _, tc := range []struct {
 		desc             string
@@ -103,11 +98,7 @@ func testUserSquashSuccessful(t *testing.T, ctx context.Context) {
 func TestUserSquash_transactional(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashTransactional)
-}
-
-func testUserSquashTransactional(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	txManager := transaction.MockManager{}
 
@@ -221,12 +212,7 @@ func testUserSquashTransactional(t *testing.T, ctx context.Context) {
 func TestUserSquash_stableID(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashStableID)
-}
-
-func testUserSquashStableID(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repoProto, _, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -285,12 +271,7 @@ func ensureSplitIndexExists(t *testing.T, cfg config.Cfg, repoDir string) bool {
 func TestUserSquash_threeWayMerge(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashThreeWayMerge)
-}
-
-func testUserSquashThreeWayMerge(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repoProto, _, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -324,12 +305,8 @@ func testUserSquashThreeWayMerge(t *testing.T, ctx context.Context) {
 
 func TestUserSquash_splitIndex(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashSplitIndex)
-}
 
-func testUserSquashSplitIndex(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	require.False(t, ensureSplitIndexExists(t, cfg, repoPath))
@@ -353,10 +330,7 @@ func testUserSquashSplitIndex(t *testing.T, ctx context.Context) {
 func TestUserSquash_renames(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashRenames)
-}
-
-func testUserSquashRenames(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	gittest.AddWorktree(t, cfg, repoPath, "worktree")
@@ -416,12 +390,7 @@ func testUserSquashRenames(t *testing.T, ctx context.Context) {
 func TestUserSquash_missingFileOnTargetBranch(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashMissingFileOnTargetBranch)
-}
-
-func testUserSquashMissingFileOnTargetBranch(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	conflictingStartSha := "bbd36ad238d14e1c03ece0f3358f545092dc9ca3"
@@ -444,17 +413,12 @@ func testUserSquashMissingFileOnTargetBranch(t *testing.T, ctx context.Context) 
 func TestUserSquash_emptyCommit(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashEmptyCommit)
-}
-
-func testUserSquashEmptyCommit(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	// Set up history with two diverging lines of branches, where both sides have implemented
-	// the same changes. During rebase, the diff will thus become empty.
+	// the same changes. During merge, the diff will thus become empty.
 	base := gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithParents(), gittest.WithTreeEntries(
 			gittest.TreeEntry{Path: "a", Content: "base", Mode: "100644"},
@@ -648,11 +612,7 @@ func TestUserSquash_validation(t *testing.T) {
 func TestUserSquash_conflicts(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashConflicts)
-}
-
-func testUserSquashConflicts(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
@@ -679,13 +639,10 @@ func testUserSquashConflicts(t *testing.T, ctx context.Context) {
 		EndSha:        ours.String(),
 	})
 
-	expectedErr := helper.ErrFailedPreconditionf("rebasing commits: rebase: commit %q: there are conflicting files", ours)
-	if featureflag.SquashUsingMerge.IsEnabled(ctx) {
-		expectedErr = helper.ErrFailedPreconditionf("squashing commits: merge: there are conflicting files")
-	}
-
 	testhelper.RequireGrpcError(t, errWithDetails(t,
-		expectedErr,
+		helper.ErrFailedPreconditionf(
+			"squashing commits: merge: there are conflicting files",
+		),
 		&gitalypb.UserSquashError{
 			Error: &gitalypb.UserSquashError_RebaseConflict{
 				RebaseConflict: &gitalypb.MergeConflictError{
@@ -702,12 +659,7 @@ func testUserSquashConflicts(t *testing.T, ctx context.Context) {
 func TestUserSquash_ancestry(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashAncestry)
-}
-
-func testUserSquashAncestry(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	// We create an empty parent commit and two commits which both branch off from it. As a
@@ -741,11 +693,7 @@ func testUserSquashAncestry(t *testing.T, ctx context.Context) {
 func TestUserSquash_gitError(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashGitError)
-}
-
-func testUserSquashGitError(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
@@ -834,12 +782,7 @@ func testUserSquashGitError(t *testing.T, ctx context.Context) {
 func TestUserSquash_squashingMerge(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.SquashUsingMerge).Run(t, testUserSquashingMerge)
-}
-
-func testUserSquashingMerge(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("base"),
@@ -887,47 +830,30 @@ func testUserSquashingMerge(t *testing.T, ctx context.Context) {
 		Timestamp:     &timestamppb.Timestamp{Seconds: 1234512345},
 	})
 
-	if featureflag.SquashUsingMerge.IsEnabled(ctx) {
-		// With squashing using merge, we should successfully merge without any issues.
-		// The new detached commit history will look like this:
-		//
-		// HEAD o---o---o---o
-		//
-		// We have one commit from "base", two from "ours"
-		// and one squash commit that contains squashed changes from branch "theirs".
-		require.Nil(t, err)
-		testhelper.ProtoEqual(t, &gitalypb.UserSquashResponse{
-			SquashSha: "69d8db2439502c18b9c17c2d1bddb122a82bd448",
-		}, response)
-		gittest.RequireTree(t, cfg, repoPath, "69d8db2439502c18b9c17c2d1bddb122a82bd448", []gittest.TreeEntry{
-			{
-				// It should use the version from commit "oursMergedIntoTheirs",
-				// as it resolves the pre-existing conflict.
-				Content: "ours-content\ntheirs-content",
-				Mode:    "100644",
-				Path:    "a",
-			},
-			{
-				// This is the file that only existed on branch "ours".
-				Content: "new-content",
-				Mode:    "100644",
-				Path:    "ours-file",
-			},
-		})
-	} else {
-		// With the old method, in which we have to rebase first, we will re-encounter
-		// the already-resolved conflict and won't be able to perform the squash.
-		testhelper.RequireGrpcError(t, errWithDetails(t,
-			helper.ErrFailedPreconditionf("rebasing commits: rebase: commit %q: there are conflicting files", theirs),
-			&gitalypb.UserSquashError{
-				Error: &gitalypb.UserSquashError_RebaseConflict{
-					RebaseConflict: &gitalypb.MergeConflictError{
-						ConflictingFiles: [][]byte{
-							[]byte("a"),
-						},
-					},
-				},
-			},
-		), err)
-	}
+	// With squashing using merge, we should successfully merge without any issues.
+	// The new detached commit history will look like this:
+	//
+	// HEAD o---o---o---o
+	//
+	// We have one commit from "base", two from "ours"
+	// and one squash commit that contains squashed changes from branch "theirs".
+	require.Nil(t, err)
+	testhelper.ProtoEqual(t, &gitalypb.UserSquashResponse{
+		SquashSha: "69d8db2439502c18b9c17c2d1bddb122a82bd448",
+	}, response)
+	gittest.RequireTree(t, cfg, repoPath, "69d8db2439502c18b9c17c2d1bddb122a82bd448", []gittest.TreeEntry{
+		{
+			// It should use the version from commit "oursMergedIntoTheirs",
+			// as it resolves the pre-existing conflict.
+			Content: "ours-content\ntheirs-content",
+			Mode:    "100644",
+			Path:    "a",
+		},
+		{
+			// This is the file that only existed on branch "ours".
+			Content: "new-content",
+			Mode:    "100644",
+			Path:    "ours-file",
+		},
+	})
 }
