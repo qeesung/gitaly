@@ -103,9 +103,17 @@ func (cg *CGroupV1Manager) AddCommand(
 	cmd *command.Command,
 	repo repository.GitRepo,
 ) error {
+	var key string
+	if repo == nil {
+		key = strings.Join(cmd.Args(), "/")
+	} else {
+		key = repo.GetStorageName() + "/" + repo.GetRelativePath()
+	}
+
 	checksum := crc32.ChecksumIEEE(
-		[]byte(repo.GetStorageName() + "/" + repo.GetRelativePath()),
+		[]byte(key),
 	)
+
 	groupID := uint(checksum) % cg.cfg.Repositories.Count
 	cgroupPath := cg.repoPath(int(groupID))
 

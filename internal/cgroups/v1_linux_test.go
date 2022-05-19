@@ -69,7 +69,7 @@ func TestAddCommand(t *testing.T) {
 	}
 
 	config := defaultCgroupsConfig()
-	config.Repositories.Count = 1
+	config.Repositories.Count = 10
 	config.Repositories.MemoryBytes = 1024
 	config.Repositories.CPUShares = 16
 
@@ -90,21 +90,44 @@ func TestAddCommand(t *testing.T) {
 		hierarchy: mock.hierarchy,
 	}
 
-	require.NoError(t, v1Manager2.AddCommand(cmd2, repo))
+	t.Run("without a repository", func(t *testing.T) {
+		require.NoError(t, v1Manager2.AddCommand(cmd2, nil))
 
-	checksum := crc32.ChecksumIEEE([]byte(strings.Join([]string{"default", "path/to/repo.git"}, "")))
-	groupID := uint(checksum) % config.Repositories.Count
+		checksum := crc32.ChecksumIEEE([]byte(strings.Join(cmd2.Args(), "/")))
+		groupID := uint(checksum) % config.Repositories.Count
 
-	for _, s := range mock.subsystems {
-		path := filepath.Join(mock.root, string(s.Name()), "gitaly",
-			fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", groupID), "cgroup.procs")
-		content := readCgroupFile(t, path)
+		for _, s := range mock.subsystems {
+			path := filepath.Join(mock.root, string(s.Name()), "gitaly",
+				fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", groupID), "cgroup.procs")
+			content := readCgroupFile(t, path)
 
-		pid, err := strconv.Atoi(string(content))
-		require.NoError(t, err)
+			pid, err := strconv.Atoi(string(content))
+			require.NoError(t, err)
 
-		require.Equal(t, cmd2.Pid(), pid)
-	}
+			require.Equal(t, cmd2.Pid(), pid)
+		}
+	})
+
+	t.Run("with a repository", func(t *testing.T) {
+		require.NoError(t, v1Manager2.AddCommand(cmd2, repo))
+
+		checksum := crc32.ChecksumIEEE([]byte(strings.Join([]string{
+			"default",
+			"path/to/repo.git",
+		}, "/")))
+		groupID := uint(checksum) % config.Repositories.Count
+
+		for _, s := range mock.subsystems {
+			path := filepath.Join(mock.root, string(s.Name()), "gitaly",
+				fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", groupID), "cgroup.procs")
+			content := readCgroupFile(t, path)
+
+			pid, err := strconv.Atoi(string(content))
+			require.NoError(t, err)
+
+			require.Equal(t, cmd2.Pid(), pid)
+		}
+	})
 }
 
 func TestCleanup(t *testing.T) {
