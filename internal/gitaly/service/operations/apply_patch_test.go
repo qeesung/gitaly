@@ -373,14 +373,30 @@ To restore the original branch and stop patching, run "git am --abort".
 				},
 			}))
 
+		outerLoop:
 			for _, patch := range patches {
 				// we stream the patches one rune at a time to exercise the streaming code
 				for _, r := range patch {
-					require.NoError(t, stream.Send(&gitalypb.UserApplyPatchRequest{
+					err := stream.Send(&gitalypb.UserApplyPatchRequest{
 						UserApplyPatchRequestPayload: &gitalypb.UserApplyPatchRequest_Patches{
 							Patches: []byte{r},
 						},
-					}))
+					})
+
+					// In case the request we're sending to the server results
+					// in an error it can happen that the server already noticed
+					// the request and thus returned an error while we're still
+					// streaming the actual patch data. If so, the server closes
+					// the stream and we are left unable to continue sending,
+					// which means we get an EOF here.
+					//
+					// Abort the loop here so that we can observe the actual
+					// error in `CloseAndRecv()`.
+					if err == io.EOF {
+						break outerLoop
+					}
+
+					require.NoError(t, err)
 				}
 			}
 
