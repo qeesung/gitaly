@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/git2goutil"
-	cmdtesthelper "gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
@@ -81,9 +81,9 @@ func TestCherryPick_validation(t *testing.T) {
 func TestCherryPick(t *testing.T) {
 	testcases := []struct {
 		desc             string
-		base             map[string]string
-		ours             map[string]string
-		commit           map[string]string
+		base             []gittest.TreeEntry
+		ours             []gittest.TreeEntry
+		commit           []gittest.TreeEntry
 		expected         map[string]string
 		expectedCommitID string
 		expectedErr      error
@@ -91,44 +91,44 @@ func TestCherryPick(t *testing.T) {
 	}{
 		{
 			desc: "trivial cherry-pick succeeds",
-			base: map[string]string{
-				"file": "foo",
+			base: []gittest.TreeEntry{
+				{Path: "file", Content: "foo", Mode: "100644"},
 			},
-			ours: map[string]string{
-				"file": "foo",
+			ours: []gittest.TreeEntry{
+				{Path: "file", Content: "foo", Mode: "100644"},
 			},
-			commit: map[string]string{
-				"file": "foobar",
+			commit: []gittest.TreeEntry{
+				{Path: "file", Content: "foobar", Mode: "100644"},
 			},
 			expected: map[string]string{
 				"file": "foobar",
 			},
-			expectedCommitID: "aa3c9f5ad67ad86e313129a851f6d64614be7f6e",
+			expectedCommitID: "a54ea83118c363c34cc605a6e61fd7abc4795cc4",
 		},
 		{
 			desc: "conflicting cherry-pick fails",
-			base: map[string]string{
-				"file": "foo",
+			base: []gittest.TreeEntry{
+				{Path: "file", Content: "foo", Mode: "100644"},
 			},
-			ours: map[string]string{
-				"file": "fooqux",
+			ours: []gittest.TreeEntry{
+				{Path: "file", Content: "fooqux", Mode: "100644"},
 			},
-			commit: map[string]string{
-				"file": "foobar",
+			commit: []gittest.TreeEntry{
+				{Path: "file", Content: "foobar", Mode: "100644"},
 			},
 			expectedErr:    git2go.HasConflictsError{},
 			expectedErrMsg: "cherry-pick: could not apply due to conflicts",
 		},
 		{
 			desc: "empty cherry-pick fails",
-			base: map[string]string{
-				"file": "foo",
+			base: []gittest.TreeEntry{
+				{Path: "file", Content: "foo", Mode: "100644"},
 			},
-			ours: map[string]string{
-				"file": "fooqux",
+			ours: []gittest.TreeEntry{
+				{Path: "file", Content: "fooqux", Mode: "100644"},
 			},
-			commit: map[string]string{
-				"file": "fooqux",
+			commit: []gittest.TreeEntry{
+				{Path: "file", Content: "fooqux", Mode: "100644"},
 			},
 			expectedErr:    git2go.EmptyError{},
 			expectedErrMsg: "cherry-pick: could not apply because the result was empty",
@@ -139,8 +139,8 @@ func TestCherryPick(t *testing.T) {
 		},
 		{
 			desc: "fails on nonexistent cherry-pick commit",
-			ours: map[string]string{
-				"file": "fooqux",
+			ours: []gittest.TreeEntry{
+				{Path: "file", Content: "fooqux", Mode: "100644"},
 			},
 			expectedErrMsg: "cherry-pick: commit lookup: lookup commit \"nonexistent\": revspec 'nonexistent' not found",
 		},
@@ -150,14 +150,14 @@ func TestCherryPick(t *testing.T) {
 		testcfg.BuildGitalyGit2Go(t, cfg)
 		executor := buildExecutor(t, cfg)
 
-		base := cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{nil}, tc.base)
+		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(tc.base...))
 
 		ours, commit := "nonexistent", "nonexistent"
 		if len(tc.ours) > 0 {
-			ours = cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{base}, tc.ours).String()
+			ours = gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(tc.ours...)).String()
 		}
 		if len(tc.commit) > 0 {
-			commit = cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{base}, tc.commit).String()
+			commit = gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(tc.commit...)).String()
 		}
 
 		t.Run(tc.desc, func(t *testing.T) {
@@ -200,7 +200,7 @@ func TestCherryPick(t *testing.T) {
 
 			commit, err := repo.LookupCommit(commitOid)
 			require.NoError(t, err)
-			require.Equal(t, &cmdtesthelper.DefaultAuthor, commit.Author())
+			require.Equal(t, &DefaultAuthor, commit.Author())
 			require.Equal(t, &committer, commit.Committer())
 
 			tree, err := commit.Tree()
