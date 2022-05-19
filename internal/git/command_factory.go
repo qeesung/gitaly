@@ -168,6 +168,7 @@ func setupGitExecutionEnvironments(cfg config.Cfg, factoryCfg execCommandFactory
 		sharedEnvironment = append(sharedEnvironment,
 			"GIT_CONFIG_GLOBAL=/dev/null",
 			"GIT_CONFIG_SYSTEM=/dev/null",
+			"XDG_CONFIG_HOME=/dev/null",
 		)
 	}
 

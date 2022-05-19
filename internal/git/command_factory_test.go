@@ -175,6 +175,7 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 				"GIT_TERMINAL_PROMPT=0",
 				"GIT_CONFIG_GLOBAL=/dev/null",
 				"GIT_CONFIG_SYSTEM=/dev/null",
+				"XDG_CONFIG_HOME=/dev/null",
 			},
 		})
 	})
@@ -189,6 +190,7 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 				"GIT_TERMINAL_PROMPT=0",
 				"GIT_CONFIG_GLOBAL=/dev/null",
 				"GIT_CONFIG_SYSTEM=/dev/null",
+				"XDG_CONFIG_HOME=/dev/null",
 			},
 		})
 	})
@@ -288,6 +290,7 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 				"GIT_TERMINAL_PROMPT=0",
 				"GIT_CONFIG_GLOBAL=/dev/null",
 				"GIT_CONFIG_SYSTEM=/dev/null",
+				"XDG_CONFIG_HOME=/dev/null",
 			},
 		})
 	})
