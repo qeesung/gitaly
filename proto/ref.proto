@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package gitaly;
 
+import "errors.proto";
 import "google/protobuf/timestamp.proto";
 import "lint.proto";
 import "shared.proto";
@@ -400,6 +401,18 @@ message DeleteRefsRequest{
 message DeleteRefsResponse {
   // This comment is left unintentionally blank.
   string git_error = 1;
+}
+
+// DeleteRefsError is returned when DeleteRefs fails to delete refs
+message DeleteRefsError {
+  oneof error {
+    // InvalidFormat is returned when one or more of the refs to be deleted
+    // have an invalid format.
+    InvalidRefFormatError invalid_format = 1;
+    // ReferencesLocked is returned when the references to be deleted are already
+    // locked by another process.
+    ReferencesLockedError references_locked = 2;
+  }
 }
 
 // This comment is left unintentionally blank.

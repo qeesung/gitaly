@@ -19,6 +19,12 @@ message AccessCheckError {
   bytes changes = 4;
 }
 
+// InvalidRefFormatError is an error returned when refs have an invalid format.
+message InvalidRefFormatError {
+  // Refs are the offending refs with invalid formats.
+  repeated bytes refs = 2;
+}
+
 // NotAncestorError is an error returned when parent_revision is not an ancestor
 // of the child_revision.
 message NotAncestorError {
@@ -42,6 +48,11 @@ message MergeConflictError {
   // field is empty, then there has still been a merge conflict, but it wasn't
   // able to determine which files have been conflicting.
   repeated bytes conflicting_files = 1;
+}
+
+// ReferencesLockedError is an error returned when an ref update fails because
+// the references have already been locked by another process.
+message ReferencesLockedError {
 }
 
 // ReferenceUpdateError is an error returned when updating a reference has

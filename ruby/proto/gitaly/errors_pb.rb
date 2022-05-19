@@ -12,6 +12,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :user_id, :string, 3
       optional :changes, :bytes, 4
     end
+    add_message "gitaly.InvalidRefFormatError" do
+      repeated :refs, :bytes, 2
+    end
     add_message "gitaly.NotAncestorError" do
       optional :parent_revision, :bytes, 1
       optional :child_revision, :bytes, 2
@@ -20,6 +23,8 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.MergeConflictError" do
       repeated :conflicting_files, :bytes, 1
+    end
+    add_message "gitaly.ReferencesLockedError" do
     end
     add_message "gitaly.ReferenceUpdateError" do
       optional :reference_name, :bytes, 1
@@ -49,9 +54,11 @@ end
 
 module Gitaly
   AccessCheckError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.AccessCheckError").msgclass
+  InvalidRefFormatError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.InvalidRefFormatError").msgclass
   NotAncestorError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.NotAncestorError").msgclass
   ChangesAlreadyAppliedError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ChangesAlreadyAppliedError").msgclass
   MergeConflictError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.MergeConflictError").msgclass
+  ReferencesLockedError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferencesLockedError").msgclass
   ReferenceUpdateError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferenceUpdateError").msgclass
   ResolveRevisionError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ResolveRevisionError").msgclass
   LimitError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.LimitError").msgclass
