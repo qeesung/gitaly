@@ -1,6 +1,8 @@
 stages:
+  - pre
   - build
   - test
+  - analyze
   - qa
 
 default:
@@ -12,14 +14,8 @@ variables:
   SAST_DISABLE_DIND: "true"
   SAST_DEFAULT_ANALYZERS: "gosec"
   DEBIAN_VERSION: "bullseye"
-  # We use Gitaly's Git version by default.
-  GIT_VERSION: "default"
-  GO_VERSION: "1.17"
-  RUBY_VERSION: "2.7"
   POSTGRES_VERSION: "12.6-alpine"
   PGBOUNCER_VERSION: "1.16.1"
-  BUNDLE_PATH: "${CI_PROJECT_DIR}/.ruby"
-  GOPATH: "${CI_PROJECT_DIR}/.go"
 
 include:
   - template: Workflows/MergeRequest-Pipelines.gitlab-ci.yml
@@ -31,47 +27,67 @@ include:
     file:
       - '/ci/danger-review.yml'
 
-.cache_deps:
-  cache: &cache_deps_configuration
-    key:
-      files:
-        - .gitlab-ci.yml
-        - Makefile
-      prefix: git-${GIT_VERSION}
-    paths:
-      - _build/deps
-      - _build/tools
-    policy: pull
-
-.cache_gems:
-  cache: &cache_gems_configuration
-    key:
-      files:
-        - .gitlab-ci.yml
-        - ruby/Gemfile.lock
-      prefix: debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}
-    paths:
-      - .ruby
-    policy: pull
-
-.cache_go:
-  cache: &cache_go_configuration
-    key:
-      files:
-        - .gitlab-ci.yml
-        - go.sum
-      prefix: go-${GO_VERSION}
+.build:
+  stage: build
+  needs: []
+  cache:
+    - key:
+        files:
+          - .gitlab-ci.yml
+          - ruby/Gemfile.lock
+        prefix: ruby-${RUBY_VERSION}
+      paths:
+        - .ruby
+    - key:
+        files:
+          - .gitlab-ci.yml
+          - go.sum
+        prefix: go-${GO_VERSION}
+      paths:
+        - .go/pkg/mod
+        - _build/cache
+  variables:
+    BUNDLE_PATH: "${CI_PROJECT_DIR}/.ruby"
+    GOPATH: "${CI_PROJECT_DIR}/.go"
+    # We use symlinks instead of hardlinks to install Git and also strip
+    # binaries of their symbol tables. These options significantly reduce the
+    # size of the installed Git distribution, which is required so that we
+    # don't bust the artifact size limits.
+    GIT_APPEND_BUILD_OPTIONS: "INSTALL_SYMLINKS=YesPlease INSTALL_STRIP=-s"
+  artifacts:
+    expire_in: 1 hour
     paths:
       - .go/pkg/mod
-      - _build/cache
-    policy: pull
+      - .ruby
+      # Ideally, we'd just cache the complete `_build` repository. Due to size
+      # limitations that's not possible though, so we need to pick what's
+      # important.
+      - _build/bin
+      - _build/deps
+      - _build/testrepos
+      - _build/tools
+    exclude:
+      # Exclude Git's tests, which are almost 40MB in size.
+      - _build/deps/git-*/t/**
+    reports:
+      dotenv: build.env
+  script:
+    - go version
+    # Build all dependencies required for our testing infrastructure such that
+    # downstream jobs don't have to rebuild anything.
+    - make -j$(nproc) build prepare-tests $(pwd)/_build/tools/gocover-cobertura $(pwd)/_build/tools/protoc WITH_BUNDLED_GIT=$(test "${GIT_VERSION}" = "default" && echo "YesPlease")
+    - _support/test-boot . $(test "${GIT_VERSION}" = "default" && echo "--bundled-git")
+  after_script: |
+    # Write all relevant variables into the `build.env` file. These files are
+    # then propagated to dependents so that they don't have to manually set
+    # those variables again.
+    for variable in GO_VERSION GIT_VERSION GIT_APPEND_BUILD_OPTIONS RUBY_VERSION BUNDLE_PATH GOPATH
+    do
+        echo "${variable}=${!variable}"
+    done >build.env
 
-.test_template: &test_definition
+.test:
   stage: test
-  cache:
-    - *cache_deps_configuration
-    - *cache_gems_configuration
-    - *cache_go_configuration
   services:
     - postgres:${POSTGRES_VERSION}
   variables: &postgres_variables
@@ -81,19 +97,24 @@ include:
     POSTGRES_DB: praefect_test
     POSTGRES_HOST_AUTH_METHOD: trust
     TEST_REPORT: /tmp/go-tests-report.xml
-  before_script: &test_before_script
-    - go version
+  before_script: &postgres_before_script
     - while ! psql -h $PGHOST -U $PGUSER -c 'SELECT 1' > /dev/null; do echo "awaiting Postgres service to be ready..." && sleep 1 ; done && echo "Postgres service is ready!"
+  script:
+    # We run tests as unprivileged user so that file permissions are correctly honored.
+    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make "${TEST_TARGET}" SKIP_RSPEC_BUILD=YesPlease WITH_BUNDLED_GIT=$(test "${GIT_VERSION}" = "default" && echo "YesPlease")
   artifacts:
     paths:
       - ruby/tmp/gitaly-rspec-test.log
     reports:
       junit: ${TEST_REPORT}
+      coverage_report:
+        coverage_format: cobertura
+        path: _build/cover/cobertura.xml
     when: on_failure
     expire_in: 1 week
 
 danger-review:
-  stage: build
+  stage: pre
   allow_failure: true
   variables:
     BUNDLE_GEMFILE: danger/Gemfile
@@ -106,88 +127,26 @@ danger-review:
       - .ruby
     policy: pull-push
 
-build:
-  stage: build
-  cache:
-    - <<: *cache_deps_configuration
-      policy: pull-push
-    - <<: *cache_gems_configuration
-      policy: pull-push
-    - <<: *cache_go_configuration
-      policy: pull-push
-  script:
-    - go version
-    - make -j$(nproc) build $(pwd)/_build/tools/protoc $(test "${GIT_VERSION}" = "default" && echo "build-bundled-git" || echo "git")
-    - _support/test-boot . ${TEST_BOOT_ARGS}
-  parallel:
-    matrix:
-      - GO_VERSION: [ "1.16", "1.17" ]
-        TEST_BOOT_ARGS: "--bundled-git"
-      - GIT_VERSION: "v2.33.0"
+# Default Go version with bundled Git.
+build:go-1.17-git-bundled:
+  extends: .build
+  variables:
+    GO_VERSION: "1.17"
+    GIT_VERSION: "default"
+    RUBY_VERSION: "2.7"
 
-build:binaries:
-  stage: build
-  cache:
-    - *cache_deps_configuration
-    - *cache_go_configuration
-  only:
-    - tags
-  script:
-    # Just in case we start running CI builds on other architectures in future
-    - go version
-    - make -j$(nproc) build
-    - cd _build && sha256sum bin/* | tee checksums.sha256.txt
-  artifacts:
-    paths:
-    - _build/checksums.sha256.txt
-    - _build/bin/
-    name: "${CI_JOB_NAME}:go-${GO_VERSION}-git-${GIT_VERSION}"
-    expire_in: 6 months
+test:go-1.17-git-bundled:
+  extends: .test
+  needs: [ "build:go-1.17-git-bundled" ]
   parallel:
     matrix:
-      - GO_VERSION: [ "1.16", "1.17" ]
-
-test:
-  <<: *test_definition
-  script:
-    # We need to prepare test dependencies as privileged user.
-    - make -j$(nproc) build prepare-tests $(test "${GIT_VERSION}" = default && echo WITH_BUNDLED_GIT=YesPlease)
-    # But the actual tests should run unprivileged. This assures that we pay
-    # proper attention to permission bits and that we don't modify the source
-    # directory.
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make ${TARGET} SKIP_RSPEC_BUILD=YesPlease $(test "${GIT_VERSION}" = default && echo WITH_BUNDLED_GIT=YesPlease)
-  parallel:
-    matrix:
-      # The following jobs all test with our default Git version, which is
-      # using bundled Git binaries.
-      - GO_VERSION: [ "1.16", "1.17" ]
-        TARGET: test
-      - TARGET: [ test-with-proxies, test-with-praefect, race-go ]
-      # We also verify that things work as expected with a non-bundled Git
-      # version matching our minimum required Git version.
-      - TARGET: test
-        GIT_VERSION: "v2.33.0"
-      # Execute tests with our minimum required Postgres version, as well. If
-      # the minimum version changes, please change this to the new minimum
-      # version. Furthermore, please make sure to update the minimum required
-      # version in `datastore.CheckPostgresVersion()`.
+      - TEST_TARGET: [ test, test-with-proxies, test-with-praefect, cover, race-go ]
       - POSTGRES_VERSION: "11.14-alpine"
-        TARGET: [ test, test-with-praefect ]
+        TEST_TARGET: [ test, test-with-praefect ]
 
-test:coverage:
-  <<: *test_definition
-  script:
-    # We need to explicitly build all prerequisites so that we can run tests unprivileged.
-    - make -j$(nproc) build prepare-tests $(pwd)/_build/tools/gocover-cobertura
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make cover SKIP_RSPEC_BUILD=YesPlease
-  artifacts:
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: _build/cover/cobertura.xml
-
-test:pgbouncer:
-  <<: *test_definition
+test:go-1.17-git-bundled-pgbouncer:
+  extends: .test
+  needs: [ "build:go-1.17-git-bundled" ]
   services:
     - postgres:${POSTGRES_VERSION}
     - name: bitnami/pgbouncer:${PGBOUNCER_VERSION}
@@ -215,41 +174,103 @@ test:pgbouncer:
     # We need to enable per-build networking such that the PgBouncer service
     # can reach Postgres.
     FF_NETWORK_PER_BUILD: "true"
+    TEST_TARGET: test-with-praefect
   before_script:
-    - *test_before_script
+    - *postgres_before_script
     - while ! psql -h "${PGHOST_PGBOUNCER}" -p "${PGPORT_PGBOUNCER}" -U "${PGUSER}" -c 'SELECT 1' > /dev/null; do echo "awaiting PgBouncer service to be ready..." && sleep 1 ; done && echo "PgBouncer service is ready!"
-  script:
-    # We need to explicitly build all prerequisites so that we can run tests unprivileged.
-    - make -j$(nproc) build prepare-tests
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make test-with-praefect SKIP_RSPEC_BUILD=YesPlease
 
-test:nightly:
-  <<: *test_definition
+test:go-1.17-git-bundled-smoke:
+  extends: .test
+  needs: [ "build:go-1.17-git-bundled" ]
   script:
-    - go version
-    - make -j$(nproc) build prepare-tests
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make ${TARGET} SKIP_RSPEC_BUILD=YesPlease
-  parallel:
-    matrix:
-      - GIT_VERSION: [ "master", "next" ]
-        TARGET: [ test, test-with-proxies, test-with-praefect ]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-
-test:praefect_smoke:
-  <<: *test_definition
-  script:
-    - make -j$(nproc)
     - ruby -rerb -e 'ERB.new(ARGF.read).run' _support/config.praefect.toml.ci-sql-test.erb > config.praefect.toml
     - ./_build/bin/praefect -config config.praefect.toml sql-ping
     - ./_build/bin/praefect -config config.praefect.toml sql-migrate
 
+# This is our backwards-compatibility test with both the oldest supported
+# version of Go and Git.
+build:go-1.16-git-v2.33.0:
+  extends: .build
+  variables:
+    GO_VERSION: "1.16"
+    GIT_VERSION: "v2.33.0"
+    RUBY_VERSION: "2.7"
+
+test:go-1.16-git-v2.33.0:
+  extends: .test
+  needs: [ "build:go-1.16-git-v2.33.0" ]
+  variables:
+    TEST_TARGET: test
+
+# These are our forwards-compatibility tests with the current `main` and `next`
+# branch of the Git project. These job asserts that there are no upcoming
+# regressions in the next Git release.
+build:go-1.17-git-main:
+  extends: .build
+  needs: [ "build:go-1.17-git-main" ]
+  variables:
+    GO_VERSION: "1.17"
+    GIT_VERSION: "main"
+    RUBY_VERSION: "2.7"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+test:go-1.17-git-main:
+  extends: .test
+  needs: [ "build:go-1.17-git-main" ]
+  parallel:
+    matrix:
+      - TEST_TARGET: [ test, test-with-proxies, test-with-praefect ]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+build:go-1.17-git-next:
+  extends: .build
+  needs: [ "build:go-1.17-git-next" ]
+  variables:
+    GO_VERSION: "1.17"
+    GIT_VERSION: "next"
+    RUBY_VERSION: "2.7"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+test:go-1.17-git-next:
+  extends: .test
+  needs: [ "build:go-1.17-git-next" ]
+  parallel:
+    matrix:
+      - TEST_TARGET: [ test, test-with-proxies, test-with-praefect ]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+# This job only runs when we create new tags and stores all the Go binaries as
+# artifacts for an extended amount of time.
+build:binaries:
+  stage: build
+  only:
+    - tags
+  script:
+    # Just in case we start running CI builds on other architectures in future
+    - go version
+    - make -j$(proc) build
+    - cd _build && sha256sum bin/* | tee checksums.sha256.txt
+  artifacts:
+    paths:
+    - _build/checksums.sha256.txt
+    - _build/bin/
+    name: "${CI_JOB_NAME}:go-${GO_VERSION}-git-${GIT_VERSION}"
+    expire_in: 6 months
+  parallel:
+    matrix:
+      - GO_VERSION: [ "1.16", "1.17" ]
+        GIT_VERSION: [ "default" ]
+        RUBY_VERSION: [ "2.7" ]
+
+# Analysis-related jobs
+
 verify:
-  stage: test
-  cache:
-    - *cache_deps_configuration
-    - *cache_gems_configuration
-    - *cache_go_configuration
+  stage: analyze
+  needs: [ "build:go-1.17-git-bundled" ]
   script:
     - make -j$(nproc) verify
   artifacts:
@@ -260,11 +281,8 @@ verify:
     when: on_failure
 
 dbschema:
-  stage: test
-  cache:
-    - *cache_deps_configuration
-    - *cache_gems_configuration
-    - *cache_go_configuration
+  stage: analyze
+  needs: [ "build:go-1.17-git-bundled" ]
   services:
     # The database version we use must match the version of `pg_dump` we have
     # available in the build image.
@@ -272,7 +290,7 @@ dbschema:
   variables:
     <<: *postgres_variables
   before_script:
-    - while ! psql -h $PGHOST -U $PGUSER -c 'SELECT 1' > /dev/null; do echo "awaiting Postgres service to be ready..." && sleep 1 ; done && echo "Postgres service is ready!"
+    - *postgres_before_script
   script:
     - make dump-database-schema no-changes
   artifacts:
@@ -281,9 +299,8 @@ dbschema:
     when: on_failure
 
 gosec-sast:
-  dependencies: []
-  cache:
-    - *cache_go_configuration
+  stage: analyze
+  needs: [ "build:go-1.17-git-bundled" ]
   variables:
     GOPATH: "/go"
   before_script:
@@ -297,8 +314,8 @@ gosec-sast:
     - if: $CI_COMMIT_TAG
 
 license_scanning:
-  dependencies: []
-  cache: []
+  stage: analyze
+  needs: []
   before_script:
     - sudo apt-get update
     - sudo apt-get install -y libicu-dev libgit2-dev cmake
@@ -312,8 +329,8 @@ license_scanning:
     LICENSE_FINDER_CLI_OPTS: '--aggregate-paths=. ruby'
 
 gemnasium-dependency_scanning:
-  dependencies: []
-  cache: []
+  stage: analyze
+  needs: []
   rules:
     - if: $DEPENDENCY_SCANNING_DISABLED
       when: never
@@ -322,8 +339,8 @@ gemnasium-dependency_scanning:
     - if: $CI_COMMIT_TAG
 
 secret_detection:
-  dependencies: []
-  cache: []
+  stage: analyze
+  needs: []
   inherit:
     default: false
   rules:
