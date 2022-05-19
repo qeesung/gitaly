@@ -56,6 +56,7 @@ func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Re
 	}
 
 	env := alternates.Env(repoPath, repo.GetGitObjectDirectory(), repo.GetGitAlternateObjectDirectories())
+	env = append(env, b.gitCmdFactory.GetExecutionEnvironment(ctx).EnvironmentVariables...)
 
 	// Pass the log output directly to gitaly-git2go. No need to reinterpret
 	// these logs as long as the destination is an append-only file. See
