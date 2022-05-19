@@ -93,12 +93,22 @@ func New(config Config, name string, env []string, args []string, dir string, me
 func (p *Process) start(logger *log.Entry) (*exec.Cmd, error) {
 	startCounter.WithLabelValues(p.Name).Inc()
 
+	logWriter := logger.WriterLevel(log.InfoLevel)
+
 	cmd := exec.Command(p.args[0], p.args[1:]...)
 	cmd.Env = p.env
 	cmd.Dir = p.dir
-	cmd.Stdout = logger.WriterLevel(log.InfoLevel)
-	cmd.Stderr = logger.WriterLevel(log.InfoLevel)
-	return cmd, cmd.Start()
+	cmd.Stdout = logWriter
+	cmd.Stderr = logWriter
+
+	// When starting the command fails we need to make sure to close the log pipes, or
+	// otherwise the Goroutines spawned by logrus may leak.
+	if err := cmd.Start(); err != nil {
+		logWriter.Close()
+		return nil, err
+	}
+
+	return cmd, nil
 }
 
 func (p *Process) notifyEvent(eventType EventType, pid int) {
