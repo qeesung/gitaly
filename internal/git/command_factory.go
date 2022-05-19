@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -147,9 +148,32 @@ func NewExecCommandFactory(cfg config.Cfg, opts ...ExecCommandFactoryOption) (_ 
 // setupGitExecutionEnvironments assembles a Git execution environment that can be used to run Git
 // commands. It warns if no path was specified in the configuration.
 func setupGitExecutionEnvironments(cfg config.Cfg, factoryCfg execCommandFactoryConfig) ([]ExecutionEnvironment, func(), error) {
+	sharedEnvironment := []string{
+		// Force English locale for consistency on output messages and to help us debug in
+		// case we get bug reports from customers whose system-locale would be different.
+		"LANG=en_US.UTF-8",
+		// Ask Git to never prompt us for any information like e.g. credentials.
+		"GIT_TERMINAL_PROMPT=0",
+	}
+
+	// Prevent the environment from affecting git calls by ignoring the configuration files.
+	//
+	// This should be done always but we have to wait until 15.0 due to backwards compatibility
+	// concerns. To fix tests ahead to 15.0, we ignore the global configuration when the package
+	// has been built under tests. `go test` uses a `.test` suffix on the test binaries. We use
+	// that to check whether to ignore the globals or not.
+	//
+	// See https://gitlab.com/gitlab-org/gitaly/-/issues/3617.
+	if strings.HasSuffix(os.Args[0], ".test") {
+		sharedEnvironment = append(sharedEnvironment,
+			"GIT_CONFIG_GLOBAL=/dev/null",
+			"GIT_CONFIG_SYSTEM=/dev/null",
+		)
+	}
+
 	if factoryCfg.gitBinaryPath != "" {
 		return []ExecutionEnvironment{
-			{BinaryPath: factoryCfg.gitBinaryPath},
+			{BinaryPath: factoryCfg.gitBinaryPath, EnvironmentVariables: sharedEnvironment},
 		}, func() {}, nil
 	}
 
@@ -167,6 +191,8 @@ func setupGitExecutionEnvironments(cfg config.Cfg, factoryCfg execCommandFactory
 			// a real error.
 			return nil, nil, fmt.Errorf("constructing Git environment: %w", err)
 		}
+
+		execEnv.EnvironmentVariables = append(execEnv.EnvironmentVariables, sharedEnvironment...)
 
 		execEnvs = append(execEnvs, execEnv)
 	}
@@ -369,7 +395,6 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo repository.Gi
 
 	execEnv := cf.GetExecutionEnvironment(ctx)
 
-	env = append(env, command.GitEnv...)
 	env = append(env, execEnv.EnvironmentVariables...)
 
 	execCommand := exec.Command(execEnv.BinaryPath, args...)

@@ -170,6 +170,12 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 			Git: config.Git{BinPath: "/path/to/myGit"},
 		}, git.ExecutionEnvironment{
 			BinaryPath: "/path/to/myGit",
+			EnvironmentVariables: []string{
+				"LANG=en_US.UTF-8",
+				"GIT_TERMINAL_PROMPT=0",
+				"GIT_CONFIG_GLOBAL=/dev/null",
+				"GIT_CONFIG_SYSTEM=/dev/null",
+			},
 		})
 	})
 
@@ -178,6 +184,12 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 
 		assertExecEnv(t, config.Cfg{Git: config.Git{}}, git.ExecutionEnvironment{
 			BinaryPath: "/path/to/env_git",
+			EnvironmentVariables: []string{
+				"LANG=en_US.UTF-8",
+				"GIT_TERMINAL_PROMPT=0",
+				"GIT_CONFIG_GLOBAL=/dev/null",
+				"GIT_CONFIG_SYSTEM=/dev/null",
+			},
 		})
 	})
 
@@ -271,6 +283,12 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 
 		assertExecEnv(t, config.Cfg{}, git.ExecutionEnvironment{
 			BinaryPath: resolvedPath,
+			EnvironmentVariables: []string{
+				"LANG=en_US.UTF-8",
+				"GIT_TERMINAL_PROMPT=0",
+				"GIT_CONFIG_GLOBAL=/dev/null",
+				"GIT_CONFIG_SYSTEM=/dev/null",
+			},
 		})
 	})
 
