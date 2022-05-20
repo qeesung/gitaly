@@ -639,15 +639,6 @@ func (r ReplMgr) processReplicationEvent(ctx context.Context, event datastore.Re
 		err = r.replicator.Destroy(ctx, event, targetCC)
 	case datastore.RenameRepo:
 		err = r.replicator.Rename(ctx, event, targetCC)
-	case datastore.GarbageCollect, datastore.RepackFull, datastore.RepackIncremental, datastore.Cleanup, datastore.PackRefs, datastore.WriteCommitGraph, datastore.MidxRepack, datastore.OptimizeRepository, datastore.PruneUnreachableObjects:
-		// Even though we don't generate any replication events for maintenance-style RPCs
-		// anymore, we still need to handle them here in order to drain the queue. It's safe
-		// to just do nothing though: the new strategy is best-effort anyway and just
-		// ignores out-of-date nodes, so by ignoring the events here we roughly do the same.
-		//
-		// This fallback code can be removed with v15.1 along with an SQL migration which
-		// prunes any remaining maintenance-style replication jobs.
-		r.log.Infof("ignoring maintenance event of type %v", event.Job.Change)
 	default:
 		err = fmt.Errorf("unknown replication change type encountered: %q", event.Job.Change)
 	}
