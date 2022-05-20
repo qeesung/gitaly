@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/command/commandcounter"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/command/commandcounter"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"go.uber.org/goleak"
 )
 
@@ -25,13 +25,13 @@ func mustHaveNoGoroutines() {
 		// eventually, but the pragmatic approach is to just wait until we remove
 		// the Ruby sidecar altogether.
 		goleak.IgnoreTopFunction("google.golang.org/grpc.(*ccBalancerWrapper).watcher"),
-		goleak.IgnoreTopFunction("gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/rubyserver/balancer.(*builder).monitor"),
+		goleak.IgnoreTopFunction("gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/rubyserver/balancer.(*builder).monitor"),
 		// labkit's logger spawns a Goroutine which cannot be closed when calling
 		// `Initialize()`.
 		goleak.IgnoreTopFunction("gitlab.com/gitlab-org/labkit/log.listenForSignalHangup"),
 		// The backchannel code is somehow stock on closing its connections. I have no clue
 		// why that is, but we should investigate.
-		goleak.IgnoreTopFunction("gitlab.com/gitlab-org/gitaly/v14/internal/backchannel.clientHandshake.serve.func4"),
+		goleak.IgnoreTopFunction("gitlab.com/gitlab-org/gitaly/v15/internal/backchannel.clientHandshake.serve.func4"),
 	); err != nil {
 		panic(fmt.Errorf("goroutines running: %w", err))
 	}

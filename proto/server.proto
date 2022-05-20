@@ -4,7 +4,7 @@ package gitaly;
 
 import "lint.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb";
 
 // ServerService is a service that provides information about a Gitaly server.
 service ServerService {

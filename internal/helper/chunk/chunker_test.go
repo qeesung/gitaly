@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	test "gitlab.com/gitlab-org/gitaly/v14/internal/helper/chunk/testdata"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	test "gitlab.com/gitlab-org/gitaly/v15/internal/helper/chunk/testdata"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"

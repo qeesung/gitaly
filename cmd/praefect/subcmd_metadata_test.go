@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/service/info"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testdb"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/service/info"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testdb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

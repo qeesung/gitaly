@@ -64,7 +64,7 @@ GOLANGCI_LINT_OPTIONS ?=
 GOLANGCI_LINT_CONFIG  ?= ${SOURCE_DIR}/.golangci.yml
 
 # Build information
-GITALY_PACKAGE    := gitlab.com/gitlab-org/gitaly/v14
+GITALY_PACKAGE    := gitlab.com/gitlab-org/gitaly/v15
 BUILD_TIME        := $(shell date +"%Y%m%d.%H%M%S")
 GITALY_VERSION    := $(shell ${GIT} describe --match v* 2>/dev/null | sed 's/^v//' || cat ${SOURCE_DIR}/VERSION 2>/dev/null || echo unknown)
 GO_LDFLAGS        := -X ${GITALY_PACKAGE}/internal/version.version=${GITALY_VERSION} -X ${GITALY_PACKAGE}/internal/version.buildtime=${BUILD_TIME} -X ${GITALY_PACKAGE}/internal/version.moduleVersion=${MODULE_VERSION}
@@ -274,12 +274,32 @@ help:
 
 .PHONY: build
 ## Build Go binaries and install required Ruby Gems.
-build: ${SOURCE_DIR}/.ruby-bundle ${GITALY_EXECUTABLES}
+build: ${SOURCE_DIR}/.ruby-bundle ${GITALY_EXECUTABLES} gitaly-git2go-v14
 
 gitaly:            GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
 praefect:          GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
-gitaly-git2go-v14: GO_BUILD_TAGS = ${GIT2GO_BUILD_TAGS}
+gitaly-git2go-v15: GO_BUILD_TAGS = ${GIT2GO_BUILD_TAGS}
+gitaly-git2go-v15: libgit2
+
+# This target is required for backwards compatibility during zero-downtime
+# upgrades and can be removed when v15.0 has been released.
 gitaly-git2go-v14: libgit2
+gitaly-git2go-v14: GO_BUILD_TAGS = ${GIT2GO_BUILD_TAGS}
+gitaly-git2go-v14: GITALY_GIT2GO_V14_URL = "gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14@c7c7c936c302ab435a0a56fbc19cfbd9bea0c835"
+gitaly-git2go-v14:
+	@ # gitaly-git2go-v14  pulls directly from a commit sha so that the gitaly-git2go-v14
+	@ # binary can continue to be installed for the sake of zero downtime
+	@ # upgrades.
+	${Q}go install -ldflags '${GO_LDFLAGS}' -tags "${GO_BUILD_TAGS}" "${GITALY_GIT2GO_V14_URL}"
+	@ # To compute a unique and deterministic value for GNU build-id, we build the Go binary a second time.
+	@ # From the first build, we extract its unique and deterministic Go build-id, and use that to derive
+	@ # comparably unique and deterministic GNU build-id to inject into the final binary.
+	@ # If we cannot extract a Go build-id, we punt and fallback to using a random 32-byte hex string.
+	@ # This fallback is unique but non-deterministic, making it sufficient to avoid generating the
+	@ # GNU build-id from the empty string and causing guaranteed collisions.
+	${Q}GO_BUILD_ID=$$( go tool buildid $(addprefix ${BUILD_DIR}/bin/, $@) || openssl rand -hex 32 ) && \
+	GNU_BUILD_ID=$$( echo $$GO_BUILD_ID | sha1sum | cut -d' ' -f1 ) && \
+	go install -ldflags '${GO_LDFLAGS}'" -B 0x$$GNU_BUILD_ID" -tags "${GO_BUILD_TAGS}" "${GITALY_GIT2GO_V14_URL}"
 
 .PHONY: ${GITALY_EXECUTABLES}
 ${GITALY_EXECUTABLES}:
@@ -298,7 +318,7 @@ ${GITALY_EXECUTABLES}:
 ## Install Gitaly binaries. The target directory can be modified by setting PREFIX and DESTDIR.
 install: build
 	${Q}mkdir -p ${INSTALL_DEST_DIR}
-	install $(addprefix ${BUILD_DIR}/bin/,${GITALY_EXECUTABLES}) "${INSTALL_DEST_DIR}"
+	install $(addprefix ${BUILD_DIR}/bin/,${GITALY_EXECUTABLES} gitaly-git2go-v14) "${INSTALL_DEST_DIR}"
 
 .PHONY: build-bundled-git
 ## Build bundled Git binaries.

@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
 )
 
 type subcmd interface {

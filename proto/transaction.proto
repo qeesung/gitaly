@@ -5,7 +5,7 @@ package gitaly;
 import "lint.proto";
 import "shared.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb";
 
 // RefTransaction is a service which provides RPCs to interact with reference
 // transactions. Reference transactions are used in the context of Gitaly

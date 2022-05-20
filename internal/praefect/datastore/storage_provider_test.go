@@ -13,10 +13,10 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testdb"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/commonerr"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testdb"
 )
 
 func TestCachingStorageProvider_GetSyncedNodes(t *testing.T) {

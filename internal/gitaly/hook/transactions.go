@@ -3,9 +3,9 @@ package hook
 import (
 	"context"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/voting"
 )
 
 func isPrimary(payload git.HooksPayload) bool {

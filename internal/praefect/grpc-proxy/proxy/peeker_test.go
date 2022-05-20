@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/proxy"
-	testservice "gitlab.com/gitlab-org/gitaly/v14/internal/praefect/grpc-proxy/testdata"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/grpc-proxy/proxy"
+	testservice "gitlab.com/gitlab-org/gitaly/v15/internal/praefect/grpc-proxy/testdata"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"google.golang.org/protobuf/proto"
 )
 

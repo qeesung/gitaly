@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
 // NewTreeEntry is a helper to construct a gitalypb.TreeEntry from the provided parameters.

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	migrate "github.com/rubenv/sql-migrate"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/migrations"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/migrations"
 )
 
 const (

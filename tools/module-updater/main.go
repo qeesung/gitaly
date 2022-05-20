@@ -259,8 +259,8 @@ func verifyModulePath(moduleRootPath string) error {
 
 // rewriteProto re-write proto files by changing the go_package option declaration:
 // 1. option go_package = "gitlab.com/gitlab-org/gitaly/proto/go/gitalypb";
-// 2. option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
-// 4. option go_package = "gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb";
+// 2. option go_package = "gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb";
+// 4. option go_package = "gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb";
 func rewriteProto(moduleAbsRootPath, prev, next string) error {
 	protoDirPath := filepath.Join(moduleAbsRootPath, "proto")
 	if err := filepath.Walk(protoDirPath, func(path string, info fs.FileInfo, err error) error {

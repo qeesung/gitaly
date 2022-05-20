@@ -1,4 +1,4 @@
-module gitlab.com/gitlab-org/gitaly/v14
+module gitlab.com/gitlab-org/gitaly/v15
 
 require (
 	github.com/beevik/ntp v0.3.0

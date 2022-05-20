@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"google.golang.org/grpc"
 	grpcMetadata "google.golang.org/grpc/metadata"
 )

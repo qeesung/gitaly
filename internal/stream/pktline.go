@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/pktline"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/pktline"
 )
 
 // Conn represents a bi-directional client side connection.

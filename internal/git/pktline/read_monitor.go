@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 )
 
 // ReadMonitor monitors an io.Reader, waiting for a specified packet. If the

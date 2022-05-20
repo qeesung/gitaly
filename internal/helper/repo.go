@@ -1,7 +1,7 @@
 package helper
 
 import (
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 )
 
 // RepoPathEqual compares if two repositories are in the same location

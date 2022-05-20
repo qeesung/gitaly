@@ -3,8 +3,8 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/prometheus/metrics"
+	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/prometheus/metrics"
 )
 
 // RegisterReplicationDelay creates and registers a prometheus histogram

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 )
 
 // CherryPickCommand contains parameters to perform a cherry pick.

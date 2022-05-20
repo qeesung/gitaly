@@ -5,7 +5,7 @@ package gitaly;
 import "lint.proto";
 import "shared.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb";
 
 // WikiService is a service that provides Wiki-related functionality. This
 // service is deprecated and should not be used anymore. Instead, all

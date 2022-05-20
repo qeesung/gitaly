@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 )
 
 func TestDiffParserWithLargeDiffWithTrueCollapseDiffsFlag(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 )
 
 // HTTPServer starts an HTTP server with git-http-backend(1) as CGI handler. The repository is

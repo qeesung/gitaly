@@ -5,9 +5,9 @@ import (
 	"io"
 
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/listenmux"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/sidechannel"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/listenmux"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/sidechannel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )

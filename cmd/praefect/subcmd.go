@@ -10,12 +10,12 @@ import (
 	"os/signal"
 	"time"
 
-	gitalyauth "gitlab.com/gitlab-org/gitaly/v14/auth"
-	"gitlab.com/gitlab-org/gitaly/v14/client"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
+	"gitlab.com/gitlab-org/gitaly/v15/client"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
 	"google.golang.org/grpc"
 )
 

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/commonerr"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/glsql"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/commonerr"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
 )
 
 type storages map[string][]string

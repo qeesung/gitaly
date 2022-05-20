@@ -8,7 +8,7 @@ import (
 	"encoding/gob"
 	"flag"
 
-	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14/commit"
+	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/commit"
 )
 
 type commitSubcommand struct{}

@@ -5,9 +5,9 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
-	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config/prometheus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
+	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
 )
 
 // Manager is a housekeeping manager. It is supposed to handle housekeeping tasks for repositories

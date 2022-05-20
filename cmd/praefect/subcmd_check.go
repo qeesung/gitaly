@@ -8,8 +8,8 @@ import (
 	"io"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 )
 
 const (

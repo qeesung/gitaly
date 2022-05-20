@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/nodes"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/nodes"
 )
 
 const dialNodesCmdName = "dial-nodes"

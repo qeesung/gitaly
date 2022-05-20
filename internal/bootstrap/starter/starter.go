@@ -9,7 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/bootstrap"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/bootstrap"
 )
 
 const (

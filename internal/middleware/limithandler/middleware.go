@@ -5,7 +5,7 @@ import (
 
 	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/prometheus/client_golang/prometheus"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"google.golang.org/grpc"
 )
 

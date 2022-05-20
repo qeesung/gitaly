@@ -5,7 +5,7 @@ package gitaly;
 import "google/protobuf/timestamp.proto";
 import "lint.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb";
 
 // This comment is left unintentionally blank.
 enum ObjectType {

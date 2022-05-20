@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 )
 
 // ErrorTracker allows tracking how many read/write errors have occurred, and whether or not it has

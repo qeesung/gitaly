@@ -11,11 +11,11 @@ import (
 	git "github.com/libgit2/git2go/v33"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14/git2goutil"
-	cmdtesthelper "gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/git2goutil"
+	cmdtesthelper "gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
 
 func TestRevert_validation(t *testing.T) {

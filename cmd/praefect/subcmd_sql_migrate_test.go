@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/datastore/migrations"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper/testdb"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/migrations"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testdb"
 )
 
 func TestSubCmdSqlMigrate(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
-	gitalylog "gitlab.com/gitlab-org/gitaly/v14/internal/log"
+	gitalylog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
 )
 
 var testDirectory string

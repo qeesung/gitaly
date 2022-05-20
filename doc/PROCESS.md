@@ -471,7 +471,7 @@ If a new [major module version update](https://golang.org/doc/modules/major-vers
 it can be changed by running `upgrade-module` `make` task with desired parameters:
 
 ```bash
-make upgrade-module FROM_MODULE=v14 TO_MODULE=v15
+make upgrade-module FROM_MODULE=v15 TO_MODULE=v16
 ```
 
 It replaces old imports with the new version in the go source files,

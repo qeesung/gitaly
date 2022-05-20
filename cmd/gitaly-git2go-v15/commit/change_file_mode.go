@@ -5,16 +5,16 @@ package commit
 
 import (
 	git "github.com/libgit2/git2go/v33"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 
-func applyCreateFile(action git2go.CreateFile, index *git.Index) error {
-	if err := validateFileDoesNotExist(index, action.Path); err != nil {
-		return err
-	}
-
-	oid, err := git.NewOid(action.OID)
+func applyChangeFileMode(action git2go.ChangeFileMode, index *git.Index) error {
+	entry, err := index.EntryByPath(action.Path, 0)
 	if err != nil {
+		if git.IsErrorCode(err, git.ErrorCodeNotFound) {
+			return git2go.FileNotFoundError(action.Path)
+		}
+
 		return err
 	}
 
@@ -26,6 +26,6 @@ func applyCreateFile(action git2go.CreateFile, index *git.Index) error {
 	return index.Add(&git.IndexEntry{
 		Path: action.Path,
 		Mode: mode,
-		Id:   oid,
+		Id:   entry.Id,
 	})
 }

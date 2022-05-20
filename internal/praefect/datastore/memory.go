@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 )
 
 var errDeadAckedAsFailed = errors.New("job acknowledged as failed with no attempts left, should be 'dead'")

@@ -10,8 +10,8 @@ import (
 	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/packfile"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/packfile"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 )
 
 var badBitmapRequestCount = promauto.NewCounterVec(

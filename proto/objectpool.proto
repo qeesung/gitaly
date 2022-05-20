@@ -5,7 +5,7 @@ package gitaly;
 import "lint.proto";
 import "shared.proto";
 
-option go_package = "gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb";
+option go_package = "gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb";
 
 // ObjectPoolService is a service containing RPCs to manipulate object pools.
 // An object pool is a separate repository that can be linked to from multiple

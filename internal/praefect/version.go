@@ -3,7 +3,7 @@ package praefect
 import (
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/version"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/version"
 )
 
 // GetVersionString returns a standard version header

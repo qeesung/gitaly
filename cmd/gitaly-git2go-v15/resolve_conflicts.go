@@ -14,9 +14,9 @@ import (
 	"time"
 
 	git "github.com/libgit2/git2go/v33"
-	"gitlab.com/gitlab-org/gitaly/v14/cmd/gitaly-git2go-v14/git2goutil"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git/conflict"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/git2goutil"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/conflict"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 
 type resolveSubcommand struct{}

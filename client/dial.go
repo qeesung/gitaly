@@ -3,8 +3,8 @@ package client
 import (
 	"context"
 
-	"gitlab.com/gitlab-org/gitaly/v14/internal/gitaly/client"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/sidechannel"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/sidechannel"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )

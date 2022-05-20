@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
-	diskcache "gitlab.com/gitlab-org/gitaly/v14/internal/cache"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/praefect/protoregistry"
+	diskcache "gitlab.com/gitlab-org/gitaly/v15/internal/cache"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/protoregistry"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )

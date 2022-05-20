@@ -5,7 +5,7 @@ package commit
 
 import (
 	git "github.com/libgit2/git2go/v33"
-	"gitlab.com/gitlab-org/gitaly/v14/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 
 func applyMoveFile(action git2go.MoveFile, index *git.Index) error {
