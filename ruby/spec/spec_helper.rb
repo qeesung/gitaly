@@ -13,6 +13,12 @@ GITLAB_SHELL_DIR = File.join(TMP_DIR, 'gitlab-shell').freeze
 # overwrite HOME env variable so user global .gitconfig doesn't influence tests
 ENV["HOME"] = File.join(File.dirname(__FILE__), "/support/helpers/testdata/home")
 
+# Furthermore, overwrite the Rugged search path so that it doesn't pick up any
+# gitconfig, either.
+Rugged::Settings['search_path_system'] = '/dev/null'
+Rugged::Settings['search_path_global'] = '/dev/null'
+Rugged::Settings['search_path_xdg'] = '/dev/null'
+
 require 'test_repo_helper'
 
 Dir[File.join(__dir__, 'support/helpers/*.rb')].each { |f| require f }
