@@ -1,0 +1,86 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'json'
+require 'linguist'
+require 'optparse'
+require 'rugged'
+require 'tempfile'
+require 'zlib'
+
+LANGUAGE_STATS_CACHE = 'language-stats.cache'
+LANGUAGE_STATS_CACHE_VERSION = "v3:#{Linguist::VERSION}"
+
+def gitaly_linguist(args)
+  repository_path = nil
+  commit = nil
+
+  parser = OptionParser.new do |opts|
+    opts.on("-rREPOSITORY", "--repository=REPOSITORY", "Repository to scan") { |r| repository_path = r }
+    opts.on("-cCOMMIT", "--commit=COMMIT", "Commit to scan") { |c| commit = c }
+    opts.on("-h", "--help", "Prints this help") do
+      puts opts
+      exit
+    end
+  end
+
+  parser.parse!(args)
+
+  raise OptionParser::MissingArgument, 'repository' if repository_path.nil?
+  raise OptionParser::MissingArgument, 'commit' if commit.nil?
+
+  Rugged::Settings['search_path_system'] = '/dev/null'
+  Rugged::Settings['search_path_global'] = '/dev/null'
+  Rugged::Settings['search_path_xdg'] = '/dev/null'
+
+  repository = Rugged::Repository.bare(repository_path)
+  project = Linguist::Repository.new(repository, commit)
+
+  if (cache = load_cache(repository_path))
+    old_commit_oid, old_stats = cache
+
+    project.load_existing_stats(old_commit_oid, old_stats)
+  end
+
+  puts JSON.dump(project.languages)
+
+  write_cache(repository_path, commit, project.cache)
+end
+
+def cache_file(repo_path)
+  File.join(repo_path, LANGUAGE_STATS_CACHE)
+end
+
+def load_cache(repo_path)
+  cached_data = File.open(cache_file(repo_path), "rb") do |f|
+    Zlib::Inflate.inflate(f.read)
+  end
+
+  # rubocop:disable Security/MarshalLoad
+  #
+  # While this is ugly, it's the same as we previously did in git-linguist. So
+  # for backwards-compatibility reasons we can't change this.
+  version, commit, stats = Marshal.load(cached_data)
+  # rubocop:enable Security/MarshalLoad
+
+  if version == LANGUAGE_STATS_CACHE_VERSION && commit && stats
+    [commit, stats]
+  end
+rescue SystemCallError, ::Zlib::DataError, ::Zlib::BufError, TypeError
+  nil
+end
+
+def write_cache(repo_path, commit, stats)
+  cache = [LANGUAGE_STATS_CACHE_VERSION, commit, stats]
+
+  Tempfile.open('cache_file', repo_path) do |f|
+    marshal = Marshal.dump(cache)
+    f.write(Zlib::Deflate.deflate(marshal))
+    f.close
+    File.rename(f.path, cache_file(repo_path))
+  end
+
+  FileUtils.chmod 0o644, cache_file(repo_path)
+end
+
+gitaly_linguist(ARGV)

@@ -48,7 +48,7 @@ func setupEnv(cfg config.Cfg, gitCmdFactory git.CommandFactory) ([]string, error
 	gitExecEnv := gitCmdFactory.GetExecutionEnvironment(ctx)
 	hooksPath := gitCmdFactory.HooksPath(ctx)
 
-	env := append(
+	environment := append(
 		command.AllowedEnvironment(os.Environ()),
 		"GITALY_LOG_DIR="+cfg.Logging.Dir,
 		"GITALY_RUBY_GIT_BIN_PATH="+gitExecEnv.BinaryPath,
@@ -61,34 +61,25 @@ func setupEnv(cfg config.Cfg, gitCmdFactory git.CommandFactory) ([]string, error
 		"GITALY_TOKEN="+cfg.Auth.Token,
 		"GITALY_RUGGED_GIT_CONFIG_SEARCH_PATH="+cfg.Ruby.RuggedGitConfigSearchPath,
 	)
-	env = append(env, command.GitEnv...)
-	env = append(env, gitExecEnv.EnvironmentVariables...)
-	env = appendEnvIfSet(env, "BUNDLE_PATH")
-	env = appendEnvIfSet(env, "BUNDLE_USER_CONFIG")
-	env = appendEnvIfSet(env, "GEM_HOME")
+	environment = append(environment, command.GitEnv...)
+	environment = append(environment, gitExecEnv.EnvironmentVariables...)
+	environment = append(environment, env.AllowedRubyEnvironment(os.Environ())...)
 
 	gitConfig, err := gitCmdFactory.SidecarGitConfiguration(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting Git configuration: %w", err)
 	}
-	env = append(env, git.ConfigPairsToGitEnvironment(gitConfig)...)
+	environment = append(environment, git.ConfigPairsToGitEnvironment(gitConfig)...)
 
 	if dsn := cfg.Logging.RubySentryDSN; dsn != "" {
-		env = append(env, "SENTRY_DSN="+dsn)
+		environment = append(environment, "SENTRY_DSN="+dsn)
 	}
 
 	if sentryEnvironment := cfg.Logging.Sentry.Environment; sentryEnvironment != "" {
-		env = append(env, "SENTRY_ENVIRONMENT="+sentryEnvironment)
+		environment = append(environment, "SENTRY_ENVIRONMENT="+sentryEnvironment)
 	}
 
-	return env, nil
-}
-
-func appendEnvIfSet(envvars []string, key string) []string {
-	if value, ok := os.LookupEnv(key); ok {
-		envvars = append(envvars, fmt.Sprintf("%s=%s", key, value))
-	}
-	return envvars
+	return environment, nil
 }
 
 // Server represents a gitaly-ruby helper process.
