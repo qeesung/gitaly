@@ -61,7 +61,6 @@ func setupEnv(cfg config.Cfg, gitCmdFactory git.CommandFactory) ([]string, error
 		"GITALY_TOKEN="+cfg.Auth.Token,
 		"GITALY_RUGGED_GIT_CONFIG_SEARCH_PATH="+cfg.Ruby.RuggedGitConfigSearchPath,
 	)
-	environment = append(environment, command.GitEnv...)
 	environment = append(environment, gitExecEnv.EnvironmentVariables...)
 	environment = append(environment, env.AllowedRubyEnvironment(os.Environ())...)
 
