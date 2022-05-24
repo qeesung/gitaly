@@ -3,6 +3,7 @@ package gitpipe
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
+	"google.golang.org/grpc/metadata"
 )
 
 func TestCatfileObject(t *testing.T) {
@@ -148,5 +150,89 @@ func TestCatfileObject(t *testing.T) {
 		require.Equal(t, CatfileObjectResult{
 			err: context.Canceled,
 		}, it.Result())
+	})
+
+	t.Run("context cancellation with cached process", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(testhelper.Context(t))
+		ctx = testhelper.MergeIncomingMetadata(ctx, metadata.Pairs(
+			catfile.SessionIDField, "1",
+		))
+
+		catfileCache := catfile.NewCache(cfg)
+		defer catfileCache.Stop()
+
+		objectReader, objectReaderCancel, err := catfileCache.ObjectReader(ctx, repo)
+		require.NoError(t, err)
+		defer objectReaderCancel()
+
+		inputIter, inputCh, nextCh := newChanObjectIterator()
+
+		it, err := CatfileObject(ctx, objectReader, inputIter)
+		require.NoError(t, err)
+
+		// We request a single object from the catfile process. Because the request queue is
+		// not flushed after every object this means that the request is currently
+		// outstanding.
+		<-nextCh
+		inputCh <- git.ObjectID(lfsPointer1)
+
+		// Wait for the pipeline to request the next object.
+		<-nextCh
+
+		// We now cancel the context with the outstanding request. In the past, this used to
+		// block the downstream consumer of the object data. This is because of two reasons:
+		//
+		// - When the process is being cached then cancellation of the context doesn't cause
+		//   the process to get killed. So consequentially, the process would sit around
+		//   waiting for input.
+		// - We didn't flush the queue when the context was cancelled, so the buffered input
+		//   never arrived at the process.
+		cancel()
+
+		// Now we queue another request that should cause the pipeline to fail.
+		inputCh <- git.ObjectID(lfsPointer1)
+
+		// Verify whether we can receive any more objects via the iterator. This should
+		// fail because the context got cancelled, but in any case it shouldn't block. Note
+		// that we're forced to reach into the channel directly: `Next()` would return
+		// `false` immediately because the context is cancelled.
+		_, ok := <-it.(*catfileObjectIterator).ch
+		require.False(t, ok)
+
+		// Sanity-check whether the iterator is in the expected state.
+		require.False(t, it.Next())
+		require.Equal(t, context.Canceled, it.Err())
+	})
+
+	t.Run("spawning two pipes fails", func(t *testing.T) {
+		ctx := testhelper.Context(t)
+
+		catfileCache := catfile.NewCache(cfg)
+		defer catfileCache.Stop()
+
+		objectReader, cancel, err := catfileCache.ObjectReader(ctx, repo)
+		require.NoError(t, err)
+		defer cancel()
+
+		input := []RevisionResult{
+			{OID: lfsPointer1},
+		}
+
+		it, err := CatfileObject(ctx, objectReader, NewRevisionIterator(ctx, input))
+		require.NoError(t, err)
+
+		// Reusing the queue is not allowed, so we should get an error here.
+		_, err = CatfileObject(ctx, objectReader, NewRevisionIterator(ctx, input))
+		require.Equal(t, fmt.Errorf("object queue already in use"), err)
+
+		// We now consume all the input of the iterator.
+		require.True(t, it.Next())
+		_, err = io.Copy(io.Discard, it.Result())
+		require.NoError(t, err)
+		require.False(t, it.Next())
+
+		// Which means that the queue should now be unused, so we can again use it.
+		_, err = CatfileObject(ctx, objectReader, NewRevisionIterator(ctx, input))
+		require.NoError(t, err)
 	})
 }

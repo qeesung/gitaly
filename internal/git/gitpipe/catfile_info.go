@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
@@ -61,15 +62,20 @@ func CatfileInfo(
 		opt(&cfg)
 	}
 
-	queue, cleanup, err := objectInfoReader.InfoQueue(ctx)
+	queue, queueCleanup, err := objectInfoReader.InfoQueue(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	var queueRefcount int32 = 2
 
 	requestChan := make(chan catfileInfoRequest, 32)
 	go func() {
-		defer close(requestChan)
+		defer func() {
+			close(requestChan)
+			if atomic.AddInt32(&queueRefcount, -1) == 0 {
+				queueCleanup()
+			}
+		}()
 
 		var i int64
 		for it.Next() {
@@ -82,6 +88,15 @@ func CatfileInfo(
 				objectID:   it.ObjectID(),
 				objectName: it.ObjectName(),
 			}); isDone {
+				// If the context got cancelled, then we need to flush out all
+				// outstanding requests so that the downstream consumer is
+				// unblocked.
+				if err := queue.Flush(); err != nil {
+					sendCatfileInfoRequest(ctx, requestChan, catfileInfoRequest{err: err})
+					return
+				}
+
+				sendCatfileInfoRequest(ctx, requestChan, catfileInfoRequest{err: ctx.Err()})
 				return
 			}
 
@@ -107,7 +122,12 @@ func CatfileInfo(
 
 	resultChan := make(chan CatfileInfoResult)
 	go func() {
-		defer close(resultChan)
+		defer func() {
+			close(resultChan)
+			if atomic.AddInt32(&queueRefcount, -1) == 0 {
+				queueCleanup()
+			}
+		}()
 
 		// It's fine to iterate over the request channel without paying attention to
 		// context cancellation because the request channel itself would be closed if the
