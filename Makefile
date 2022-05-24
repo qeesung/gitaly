@@ -502,6 +502,29 @@ ${TOOLS_DIR}: | ${BUILD_DIR}
 ${DEPENDENCY_DIR}: | ${BUILD_DIR}
 	${Q}mkdir -p ${DEPENDENCY_DIR}
 
+# This target builds a full Git distribution and installs it into GIT_PREFIX.
+${GIT_PREFIX}/bin/git: ${DEPENDENCY_DIR}/git-distribution/Makefile
+	@ # Remove the Git installation first in case GIT_PREFIX is the default
+	@ # prefix which always points into our build directory. This is done so
+	@ # we never end up with mixed Git installations on developer machines.
+	@ # We cannot ever remove GIT_PREFIX though in case they're different
+	@ # because it may point to a user-controlled directory.
+	${Q}if [ "x${GIT_DEFAULT_PREFIX}" = "x${GIT_PREFIX}" ]; then rm -rf "${GIT_DEFAULT_PREFIX}"; fi
+	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "$(<D)" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS} install
+	${Q}touch $@
+
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES := $(sort $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.35.1.gl1/*))
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_VERSION = v2.35.1
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_EXTRA_VERSION = gl1
+${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: ${DEPENDENCY_DIR}/git-v2.35.1.gl1/% | ${BUILD_DIR}/bin
+	${Q}install $< $@
+
+${BUILD_DIR}/bin/gitaly-%-v2.36.1.gl1: override GIT_PATCHES := $(sort $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.36.1.gl1/*))
+${BUILD_DIR}/bin/gitaly-%-v2.36.1.gl1: override GIT_VERSION = v2.36.1
+${BUILD_DIR}/bin/gitaly-%-v2.36.1.gl1: override GIT_EXTRA_VERSION = gl1
+${BUILD_DIR}/bin/gitaly-%-v2.36.1.gl1: ${DEPENDENCY_DIR}/git-v2.36.1.gl1/% | ${BUILD_DIR}/bin
+	${Q}install $< $@
+
 ${BUILD_DIR}/bin/%: ${BUILD_DIR}/intermediate/% | ${BUILD_DIR}/bin
 	@ # To compute a unique and deterministic value for GNU build-id, we use an
 	@ # intermediate binary which has a fixed build ID of "TEMP_GITALY_BUILD_ID",
@@ -589,29 +612,6 @@ ${DEPENDENCY_DIR}/git-%/Makefile: ${DEPENDENCY_DIR}/git-%.version
 $(patsubst %,${DEPENDENCY_DIR}/git-\%/%,${GIT_EXECUTABLES}): ${DEPENDENCY_DIR}/git-%/Makefile
 	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "${@D}" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS} ${GIT_EXECUTABLES}
 	${Q}touch $@
-
-# This target builds a full Git distribution and installs it into GIT_PREFIX.
-${GIT_PREFIX}/bin/git: ${DEPENDENCY_DIR}/git-distribution/Makefile
-	@ # Remove the Git installation first in case GIT_PREFIX is the default
-	@ # prefix which always points into our build directory. This is done so
-	@ # we never end up with mixed Git installations on developer machines.
-	@ # We cannot ever remove GIT_PREFIX though in case they're different
-	@ # because it may point to a user-controlled directory.
-	${Q}if [ "x${GIT_DEFAULT_PREFIX}" = "x${GIT_PREFIX}" ]; then rm -rf "${GIT_DEFAULT_PREFIX}"; fi
-	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "$(<D)" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS} install
-	${Q}touch $@
-
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES := $(sort $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.35.1.gl1/*))
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_VERSION = v2.35.1
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_EXTRA_VERSION = gl1
-${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: ${DEPENDENCY_DIR}/git-v2.35.1.gl1/% | ${BUILD_DIR}/bin
-	${Q}install $< $@
-
-${BUILD_DIR}/bin/gitaly-%-v2.36.1.gl1: override GIT_PATCHES := $(sort $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.36.1.gl1/*))
-${BUILD_DIR}/bin/gitaly-%-v2.36.1.gl1: override GIT_VERSION = v2.36.1
-${BUILD_DIR}/bin/gitaly-%-v2.36.1.gl1: override GIT_EXTRA_VERSION = gl1
-${BUILD_DIR}/bin/gitaly-%-v2.36.1.gl1: ${DEPENDENCY_DIR}/git-v2.36.1.gl1/% | ${BUILD_DIR}/bin
-	${Q}install $< $@
 
 ${INSTALL_DEST_DIR}/gitaly-%: ${BUILD_DIR}/bin/gitaly-%
 	${Q}mkdir -p ${@D}
