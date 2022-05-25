@@ -23,20 +23,6 @@ import (
 	"gitlab.com/gitlab-org/labkit/tracing"
 )
 
-func init() {
-	// Prevent the environment from affecting git calls by ignoring the configuration files.
-	//
-	// This should be done always but we have to wait until 15.0 due to backwards compatibility
-	// concerns. To fix tests ahead to 15.0, we ignore the global configuration when the package
-	// has been built under tests. `go test` uses a `.test` suffix on the test binaries. We use
-	// that to check whether to ignore the globals or not.
-	//
-	// See https://gitlab.com/gitlab-org/gitaly/-/issues/3617.
-	if strings.HasSuffix(os.Args[0], ".test") {
-		GitEnv = append(GitEnv, "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
-	}
-}
-
 var (
 	cpuSecondsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
@@ -88,18 +74,6 @@ var (
 		[]string{"grpc_service", "grpc_method", "cmd"},
 	)
 )
-
-// GitEnv contains the ENV variables for git commands
-var GitEnv = []string{
-	// Force english locale for consistency on the output messages
-	"LANG=en_US.UTF-8",
-
-	//
-	// PLEASE NOTE: the init of this package adds rules to ignore global git configuration in
-	// tests. This should really be done always but we can't do this before 15.0 due to backwards
-	// compatibility concerns. See https://gitlab.com/gitlab-org/gitaly/-/issues/3617.
-	//
-}
 
 // exportedEnvVars contains a list of environment variables
 // that are always exported to child processes on spawn
@@ -275,11 +249,11 @@ func New(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout, stderr io.
 		span:      span,
 	}
 
-	// Explicitly set the environment for the command
-	env = append(env, "GIT_TERMINAL_PROMPT=0")
-
-	// Export env vars
-	cmd.Env = append(AllowedEnvironment(os.Environ()), env...)
+	// Export allowed environment variables as set in the Gitaly process.
+	cmd.Env = AllowedEnvironment(os.Environ())
+	// Append environment variables explicitly requested by thecaller.
+	cmd.Env = append(cmd.Env, env...)
+	// And finally inject environment variables required for tracing into the command.
 	cmd.Env = envInjector(ctx, cmd.Env)
 
 	// Start the command in its own process group (nice for signalling)

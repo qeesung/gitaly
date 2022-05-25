@@ -100,18 +100,7 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 		// We need to filter out some environments we set globally in our tests which would
 		// cause Git to not operate correctly.
 		for _, env := range os.Environ() {
-			shouldExclude := false
-			for _, prefix := range []string{
-				"GIT_DIR=",
-				"GIT_CONFIG_GLOBAL=",
-				"GIT_CONFIG_SYSTEM=",
-			} {
-				if strings.HasPrefix(env, prefix) {
-					shouldExclude = true
-					break
-				}
-			}
-			if !shouldExclude {
+			if !strings.HasPrefix(env, "GIT_DIR=") {
 				gitEnvironment = append(gitEnvironment, env)
 			}
 		}

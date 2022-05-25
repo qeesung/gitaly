@@ -1,0 +1,5 @@
+# We're trying to catch any instances of libgit2 or Git that pick up the
+# gitconfig even though they're told not to. If they do pick up this file
+# though, then they would fail to parse it and thus return an error, which we
+# can detect quite easily.
+this is broken on purpose: [

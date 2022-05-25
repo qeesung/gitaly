@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	git "github.com/libgit2/git2go/v33"
 	"github.com/stretchr/testify/require"
-	cmdtesthelper "gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/testhelper"
 	glgit "gitlab.com/gitlab-org/gitaly/v15/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
@@ -21,34 +20,34 @@ import (
 func TestConflicts(t *testing.T) {
 	testcases := []struct {
 		desc      string
-		base      map[string]string
-		ours      map[string]string
-		theirs    map[string]string
+		base      []gittest.TreeEntry
+		ours      []gittest.TreeEntry
+		theirs    []gittest.TreeEntry
 		conflicts []git2go.Conflict
 	}{
 		{
 			desc: "no conflicts",
-			base: map[string]string{
-				"file": "a",
+			base: []gittest.TreeEntry{
+				{Path: "file", Content: "a", Mode: "100644"},
 			},
-			ours: map[string]string{
-				"file": "a",
+			ours: []gittest.TreeEntry{
+				{Path: "file", Content: "a", Mode: "100644"},
 			},
-			theirs: map[string]string{
-				"file": "b",
+			theirs: []gittest.TreeEntry{
+				{Path: "file", Content: "b", Mode: "100644"},
 			},
 			conflicts: nil,
 		},
 		{
 			desc: "single file",
-			base: map[string]string{
-				"file": "a",
+			base: []gittest.TreeEntry{
+				{Path: "file", Content: "a", Mode: "100644"},
 			},
-			ours: map[string]string{
-				"file": "b",
+			ours: []gittest.TreeEntry{
+				{Path: "file", Content: "b", Mode: "100644"},
 			},
-			theirs: map[string]string{
-				"file": "c",
+			theirs: []gittest.TreeEntry{
+				{Path: "file", Content: "c", Mode: "100644"},
 			},
 			conflicts: []git2go.Conflict{
 				{
@@ -61,17 +60,17 @@ func TestConflicts(t *testing.T) {
 		},
 		{
 			desc: "multiple files with single conflict",
-			base: map[string]string{
-				"file-1": "a",
-				"file-2": "a",
+			base: []gittest.TreeEntry{
+				{Path: "file-1", Content: "a", Mode: "100644"},
+				{Path: "file-2", Content: "a", Mode: "100644"},
 			},
-			ours: map[string]string{
-				"file-1": "b",
-				"file-2": "b",
+			ours: []gittest.TreeEntry{
+				{Path: "file-1", Content: "b", Mode: "100644"},
+				{Path: "file-2", Content: "b", Mode: "100644"},
 			},
-			theirs: map[string]string{
-				"file-1": "a",
-				"file-2": "c",
+			theirs: []gittest.TreeEntry{
+				{Path: "file-1", Content: "a", Mode: "100644"},
+				{Path: "file-2", Content: "c", Mode: "100644"},
 			},
 			conflicts: []git2go.Conflict{
 				{
@@ -84,17 +83,17 @@ func TestConflicts(t *testing.T) {
 		},
 		{
 			desc: "multiple conflicts",
-			base: map[string]string{
-				"file-1": "a",
-				"file-2": "a",
+			base: []gittest.TreeEntry{
+				{Path: "file-1", Content: "a", Mode: "100644"},
+				{Path: "file-2", Content: "a", Mode: "100644"},
 			},
-			ours: map[string]string{
-				"file-1": "b",
-				"file-2": "b",
+			ours: []gittest.TreeEntry{
+				{Path: "file-1", Content: "b", Mode: "100644"},
+				{Path: "file-2", Content: "b", Mode: "100644"},
 			},
-			theirs: map[string]string{
-				"file-1": "c",
-				"file-2": "c",
+			theirs: []gittest.TreeEntry{
+				{Path: "file-1", Content: "c", Mode: "100644"},
+				{Path: "file-2", Content: "c", Mode: "100644"},
 			},
 			conflicts: []git2go.Conflict{
 				{
@@ -113,14 +112,14 @@ func TestConflicts(t *testing.T) {
 		},
 		{
 			desc: "modified-delete-conflict",
-			base: map[string]string{
-				"file": "content",
+			base: []gittest.TreeEntry{
+				{Path: "file", Content: "content", Mode: "100644"},
 			},
-			ours: map[string]string{
-				"file": "changed",
+			ours: []gittest.TreeEntry{
+				{Path: "file", Content: "changed", Mode: "100644"},
 			},
-			theirs: map[string]string{
-				"different-file": "unrelated",
+			theirs: []gittest.TreeEntry{
+				{Path: "different-file", Content: "unrelated", Mode: "100644"},
 			},
 			conflicts: []git2go.Conflict{
 				{
@@ -136,14 +135,14 @@ func TestConflicts(t *testing.T) {
 			// detection and so don't we. The rename conflict is
 			// thus split up into three conflicts.
 			desc: "rename-rename-conflict",
-			base: map[string]string{
-				"file": "a\nb\nc\nd\ne\nf\ng\n",
+			base: []gittest.TreeEntry{
+				{Path: "file", Content: "a\nb\nc\nd\ne\nf\ng\n", Mode: "100644"},
 			},
-			ours: map[string]string{
-				"renamed-1": "a\nb\nc\nd\ne\nf\ng\n",
+			ours: []gittest.TreeEntry{
+				{Path: "renamed-1", Content: "a\nb\nc\nd\ne\nf\ng\n", Mode: "100644"},
 			},
-			theirs: map[string]string{
-				"renamed-2": "a\nb\nc\nd\ne\nf\ng\n",
+			theirs: []gittest.TreeEntry{
+				{Path: "renamed-2", Content: "a\nb\nc\nd\ne\nf\ng\n", Mode: "100644"},
 			},
 			conflicts: []git2go.Conflict{
 				{
@@ -174,9 +173,9 @@ func TestConflicts(t *testing.T) {
 
 		testcfg.BuildGitalyGit2Go(t, cfg)
 
-		base := cmdtesthelper.BuildCommit(t, repoPath, nil, tc.base)
-		ours := cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{base}, tc.ours)
-		theirs := cmdtesthelper.BuildCommit(t, repoPath, []*git.Oid{base}, tc.theirs)
+		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(tc.base...))
+		ours := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(tc.ours...))
+		theirs := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(tc.theirs...))
 
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := testhelper.Context(t)
@@ -195,7 +194,7 @@ func TestConflicts(t *testing.T) {
 
 func TestConflicts_checkError(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
-	base := cmdtesthelper.BuildCommit(t, repoPath, nil, nil)
+	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries())
 	validOID := glgit.ObjectID(base.String())
 	executor := buildExecutor(t, cfg)
 
