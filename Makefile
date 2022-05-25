@@ -26,7 +26,6 @@ ARCH := $(shell uname -m)
 # Directories
 SOURCE_DIR       := $(abspath $(dir $(lastword ${MAKEFILE_LIST})))
 BUILD_DIR        := ${SOURCE_DIR}/_build
-COVERAGE_DIR     := ${BUILD_DIR}/cover
 DEPENDENCY_DIR   := ${BUILD_DIR}/deps
 TOOLS_DIR        := ${BUILD_DIR}/tools
 GITALY_RUBY_DIR  := ${SOURCE_DIR}/ruby
@@ -217,19 +216,21 @@ endif
 # These variables control test options and artifacts
 ## List of Go packages which shall be tested.
 ## Go packages to test when using the test-go target.
-TEST_PACKAGES    ?= ${SOURCE_DIR}/...
+TEST_PACKAGES     ?= ${SOURCE_DIR}/...
 ## Test options passed to `go test`.
-TEST_OPTIONS     ?= -count=1
+TEST_OPTIONS      ?= -count=1
 ## Specify the output format used to print tests ["standard-verbose", "standard-quiet", "short"]
-TEST_FORMAT      ?= short
-TEST_REPORT      ?= ${BUILD_DIR}/reports/go-tests-report.xml
+TEST_FORMAT       ?= short
+TEST_REPORT       ?= ${BUILD_DIR}/reports/go-tests-report.xml
+## Specify the output directory for test coverage reports.
+TEST_COVERAGE_DIR ?= ${BUILD_DIR}/cover
 ## Directory where all runtime test data is being created.
-TEST_TMP_DIR     ?=
-TEST_REPO_DIR    := ${BUILD_DIR}/testrepos
-TEST_REPO        := ${TEST_REPO_DIR}/gitlab-test.git
-TEST_REPO_MIRROR := ${TEST_REPO_DIR}/gitlab-test-mirror.git
-TEST_REPO_GIT    := ${TEST_REPO_DIR}/gitlab-git-test.git
-BENCHMARK_REPO   := ${TEST_REPO_DIR}/benchmark.git
+TEST_TMP_DIR      ?=
+TEST_REPO_DIR     := ${BUILD_DIR}/testrepos
+TEST_REPO         := ${TEST_REPO_DIR}/gitlab-test.git
+TEST_REPO_MIRROR  := ${TEST_REPO_DIR}/gitlab-test-mirror.git
+TEST_REPO_GIT     := ${TEST_REPO_DIR}/gitlab-git-test.git
+BENCHMARK_REPO    := ${TEST_REPO_DIR}/benchmark.git
 
 # All executables provided by Gitaly
 GITALY_EXECUTABLES    = $(addprefix ${BUILD_DIR}/bin/,$(notdir $(shell find ${SOURCE_DIR}/cmd -mindepth 1 -maxdepth 1 -type d -print)) gitaly-git2go-v14)
@@ -423,18 +424,18 @@ rubocop: ${SOURCE_DIR}/.ruby-bundle
 
 .PHONY: cover
 ## Generate coverage report via Go tests.
-cover: TEST_OPTIONS  := ${TEST_OPTIONS} -coverprofile "${COVERAGE_DIR}/all.merged"
+cover: TEST_OPTIONS  := ${TEST_OPTIONS} -coverprofile "${TEST_COVERAGE_DIR}/all.merged"
 cover: prepare-tests libgit2 ${GOCOVER_COBERTURA}
-	${Q}rm -rf "${COVERAGE_DIR}"
-	${Q}mkdir -p "${COVERAGE_DIR}"
+	${Q}rm -rf "${TEST_COVERAGE_DIR}"
+	${Q}mkdir -p "${TEST_COVERAGE_DIR}"
 	${Q}$(call run_go_tests)
-	${Q}go tool cover -html  "${COVERAGE_DIR}/all.merged" -o "${COVERAGE_DIR}/all.html"
+	${Q}go tool cover -html  "${TEST_COVERAGE_DIR}/all.merged" -o "${TEST_COVERAGE_DIR}/all.html"
 	@ # sed is used below to convert file paths to repository root relative paths. See https://gitlab.com/gitlab-org/gitlab/-/issues/217664
-	${Q}${GOCOVER_COBERTURA} <"${COVERAGE_DIR}/all.merged" | sed 's;filename=\"$(shell go list -m)/;filename=\";g' >"${COVERAGE_DIR}/cobertura.xml"
+	${Q}${GOCOVER_COBERTURA} <"${TEST_COVERAGE_DIR}/all.merged" | sed 's;filename=\"$(shell go list -m)/;filename=\";g' >"${TEST_COVERAGE_DIR}/cobertura.xml"
 	${Q}echo ""
 	${Q}echo "=====> Total test coverage: <====="
 	${Q}echo ""
-	${Q}go tool cover -func "${COVERAGE_DIR}/all.merged"
+	${Q}go tool cover -func "${TEST_COVERAGE_DIR}/all.merged"
 
 .PHONY: proto
 ## Regenerate protobuf definitions.
