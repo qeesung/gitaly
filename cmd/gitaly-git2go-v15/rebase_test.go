@@ -11,7 +11,6 @@ import (
 	git "github.com/libgit2/git2go/v33"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/git2goutil"
-	cmdtesthelper "gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/testhelper"
 	gitalygit "gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
@@ -125,12 +124,12 @@ func TestRebase_rebase(t *testing.T) {
 				require.NoError(t, err)
 				tree, err := other.Tree()
 				require.NoError(t, err)
-				newOid, err := repo.CreateCommitFromIds("refs/heads/branch-merged-plus-one", &cmdtesthelper.DefaultAuthor, &cmdtesthelper.DefaultAuthor, "Message", tree.Object.Id(), head.Object.Id())
+				newOid, err := repo.CreateCommitFromIds("refs/heads/branch-merged-plus-one", &DefaultAuthor, &DefaultAuthor, "Message", tree.Object.Id(), head.Object.Id())
 				require.NoError(t, err)
-				require.Equal(t, "5da601ef10e314884bbade9d5b063be37579ccf9", newOid.String())
+				require.Equal(t, "8665d9b4b56f6b8ab8c4128a5549d1820bf68bf5", newOid.String())
 			},
 			commitsAhead: 1,
-			expected:     "591b29084164bcc58fa4fb851a3c409290b17bfe",
+			expected:     "56bafb70922008232d171b78930be6cdb722bb39",
 		},
 		{
 			desc:   "With upstream merged into",
@@ -146,9 +145,9 @@ func TestRebase_rebase(t *testing.T) {
 				tree, err := index.WriteTreeTo(repo)
 				require.NoError(t, err)
 
-				newOid, err := repo.CreateCommitFromIds("refs/heads/csv-plus-merge", &cmdtesthelper.DefaultAuthor, &cmdtesthelper.DefaultAuthor, "Message", tree, ours.Object.Id(), theirs.Object.Id())
+				newOid, err := repo.CreateCommitFromIds("refs/heads/csv-plus-merge", &DefaultAuthor, &DefaultAuthor, "Message", tree, ours.Object.Id(), theirs.Object.Id())
 				require.NoError(t, err)
-				require.Equal(t, "5cfe4a597b54c8f2b7ae85212f67599a1492009c", newOid.String())
+				require.Equal(t, "5b2d6bd7be0b1b9f7e46b64d02fe9882c133a128", newOid.String())
 			},
 			commitsAhead: 5, // Same as "Multiple commits"
 			expected:     "2f8365edc69d3683e22c4209ae9641642d84dd4a",

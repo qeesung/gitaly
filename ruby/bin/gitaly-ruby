@@ -73,6 +73,8 @@ def set_rugged_search_path
   return unless search_path
 
   Rugged::Settings['search_path_system'] = search_path
+  Rugged::Settings['search_path_global'] = '/dev/null'
+  Rugged::Settings['search_path_xdg'] = '/dev/null'
 end
 
 def load_distributed_tracing

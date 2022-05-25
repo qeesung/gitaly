@@ -102,6 +102,16 @@ func main() {
 		fatalf(logger, encoder, "enable fsync: %s", err)
 	}
 
+	for _, configLevel := range []git.ConfigLevel{
+		git.ConfigLevelSystem,
+		git.ConfigLevelXDG,
+		git.ConfigLevelGlobal,
+	} {
+		if err := git.SetSearchPath(configLevel, "/dev/null"); err != nil {
+			fatalf(logger, encoder, "setting search path: %s", err)
+		}
+	}
+
 	subcmdLogger := logger.WithField("command.subcommand", subcmdFlags.Name())
 	subcmdLogger.Infof("starting %s command", subcmdFlags.Name())
 
