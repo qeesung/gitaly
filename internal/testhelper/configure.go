@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -98,6 +99,32 @@ func configure() (_ func(), returnedErr error) {
 	} {
 		if err := os.Setenv(key, value); err != nil {
 			return nil, err
+		}
+	}
+
+	// We need to make sure that we're gitconfig-clean: neither Git nor libgit2 should pick up
+	// gitconfig files from anywhere but the repository itself in case they're configured to
+	// ignore them. We set that configuration by default in our tests to have a known-good
+	// environment.
+	//
+	// In order to verify that this really works as expected we optionally intercept the user's
+	// HOME with a custom home directory that contains gitconfig files that cannot be parsed. So
+	// if these were picked up, we'd see errors and thus know that something's going on. We
+	// need to make this opt-in though given that some users require HOME to be set, e.g. for
+	// Bundler. Our CI does run with this setting enabled though.
+	if len(os.Getenv("GITALY_TESTING_INTERCEPT_HOME")) > 0 {
+		_, currentFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return nil, fmt.Errorf("cannot compute intercepted home location")
+		}
+
+		homeDir := filepath.Join(filepath.Dir(currentFile), "testdata", "home")
+		if _, err := os.Stat(homeDir); err != nil {
+			return nil, fmt.Errorf("statting intercepted home location: %w", err)
+		}
+
+		if err := os.Setenv("HOME", homeDir); err != nil {
+			return nil, fmt.Errorf("setting home: %w", err)
 		}
 	}
 

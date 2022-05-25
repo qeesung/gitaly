@@ -1,35 +1,18 @@
-package gittest_test
+package gittest
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 )
 
 func TestWriteCommit(t *testing.T) {
-	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+	cfg, _, repoPath := setup(t)
 
-	repo := localrepo.NewTestRepo(t, cfg, repoProto)
-	ctx := testhelper.Context(t)
-
-	catfileCache := catfile.NewCache(cfg)
-	defer catfileCache.Stop()
-
-	objectReader, cancel, err := catfileCache.ObjectReader(ctx, repo)
-	require.NoError(t, err)
-	defer cancel()
-
-	defaultCommitter := &gitalypb.CommitAuthor{
-		Name:  []byte("Scrooge McDuck"),
-		Email: []byte("scrooge@mcduck.com"),
-	}
+	defaultCommitter := "Scrooge McDuck <scrooge@mcduck.com> 1572776879 +0100"
 	defaultParentID := "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"
 
 	revisions := map[git.Revision]git.ObjectID{
@@ -37,115 +20,105 @@ func TestWriteCommit(t *testing.T) {
 		"refs/heads/master~": "",
 	}
 	for revision := range revisions {
-		oid, err := repo.ResolveRevision(ctx, revision)
-		require.NoError(t, err)
-		revisions[revision] = oid
+		oid := Exec(t, cfg, "-C", repoPath, "rev-parse", revision.String())
+		revisions[revision] = git.ObjectID(text.ChompBytes(oid))
 	}
 
 	for _, tc := range []struct {
 		desc                string
-		opts                []gittest.WriteCommitOption
-		expectedCommit      *gitalypb.GitCommit
-		expectedTreeEntries []gittest.TreeEntry
+		opts                []WriteCommitOption
+		expectedCommit      string
+		expectedTreeEntries []TreeEntry
 		expectedRevUpdate   git.Revision
 	}{
 		{
 			desc: "no options",
-			expectedCommit: &gitalypb.GitCommit{
-				Author:    defaultCommitter,
-				Committer: defaultCommitter,
-				Subject:   []byte("message"),
-				Body:      []byte("message"),
-				Id:        "cab056fb7bfc5a4d024c2c5b9b445b80f212fdcd",
-				ParentIds: []string{
-					defaultParentID,
-				},
-			},
+			expectedCommit: strings.Join([]string{
+				"tree 91639b9835ff541f312fd2735f639a50bf35d472",
+				"parent " + defaultParentID,
+				"author " + defaultCommitter,
+				"committer " + defaultCommitter,
+				"",
+				"message",
+			}, "\n"),
 		},
 		{
 			desc: "with commit message",
-			opts: []gittest.WriteCommitOption{
-				gittest.WithMessage("my custom message\n\nfoobar\n"),
+			opts: []WriteCommitOption{
+				WithMessage("my custom message\n\nfoobar\n"),
 			},
-			expectedCommit: &gitalypb.GitCommit{
-				Author:    defaultCommitter,
-				Committer: defaultCommitter,
-				Subject:   []byte("my custom message"),
-				Body:      []byte("my custom message\n\nfoobar\n"),
-				Id:        "7b7e8876f7df27ab99e46678acbf9ae3d29264ba",
-				ParentIds: []string{
-					defaultParentID,
-				},
-			},
+			expectedCommit: strings.Join([]string{
+				"tree 91639b9835ff541f312fd2735f639a50bf35d472",
+				"parent " + defaultParentID,
+				"author " + defaultCommitter,
+				"committer " + defaultCommitter,
+				"",
+				"my custom message",
+				"",
+				"foobar",
+			}, "\n"),
 		},
 		{
 			desc: "with no parents",
-			opts: []gittest.WriteCommitOption{
-				gittest.WithParents(),
+			opts: []WriteCommitOption{
+				WithParents(),
 			},
-			expectedCommit: &gitalypb.GitCommit{
-				Author:    defaultCommitter,
-				Committer: defaultCommitter,
-				Subject:   []byte("message"),
-				Body:      []byte("message"),
-				Id:        "549090fbeacc6607bc70648d3ba554c355e670c5",
-				ParentIds: nil,
-			},
+			expectedCommit: strings.Join([]string{
+				"tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+				"author " + defaultCommitter,
+				"committer " + defaultCommitter,
+				"",
+				"message",
+			}, "\n"),
 		},
 		{
 			desc: "with multiple parents",
-			opts: []gittest.WriteCommitOption{
-				gittest.WithParents(revisions["refs/heads/master"], revisions["refs/heads/master~"]),
+			opts: []WriteCommitOption{
+				WithParents(revisions["refs/heads/master"], revisions["refs/heads/master~"]),
 			},
-			expectedCommit: &gitalypb.GitCommit{
-				Author:    defaultCommitter,
-				Committer: defaultCommitter,
-				Subject:   []byte("message"),
-				Body:      []byte("message"),
-				Id:        "650084693e5ca9c0b05a21fc5ac21ad1805c758b",
-				ParentIds: []string{
-					revisions["refs/heads/master"].String(),
-					revisions["refs/heads/master~"].String(),
-				},
-			},
+			expectedCommit: strings.Join([]string{
+				"tree 07f8147e8e73aab6c935c296e8cdc5194dee729b",
+				"parent 1e292f8fedd741b75372e19097c76d327140c312",
+				"parent 7975be0116940bf2ad4321f79d02a55c5f7779aa",
+				"author " + defaultCommitter,
+				"committer " + defaultCommitter,
+				"",
+				"message",
+			}, "\n"),
 		},
 		{
 			desc: "with branch",
-			opts: []gittest.WriteCommitOption{
-				gittest.WithBranch("foo"),
+			opts: []WriteCommitOption{
+				WithBranch("foo"),
 			},
-			expectedCommit: &gitalypb.GitCommit{
-				Author:    defaultCommitter,
-				Committer: defaultCommitter,
-				Subject:   []byte("message"),
-				Body:      []byte("message"),
-				Id:        "cab056fb7bfc5a4d024c2c5b9b445b80f212fdcd",
-				ParentIds: []string{
-					defaultParentID,
-				},
-			},
+			expectedCommit: strings.Join([]string{
+				"tree 91639b9835ff541f312fd2735f639a50bf35d472",
+				"parent " + defaultParentID,
+				"author " + defaultCommitter,
+				"committer " + defaultCommitter,
+				"",
+				"message",
+			}, "\n"),
 			expectedRevUpdate: "refs/heads/foo",
 		},
 		{
 			desc: "with tree entry",
-			opts: []gittest.WriteCommitOption{
-				gittest.WithTreeEntries(gittest.TreeEntry{
+			opts: []WriteCommitOption{
+				WithTreeEntries(TreeEntry{
 					Content: "foobar",
 					Mode:    "100644",
 					Path:    "file",
 				}),
 			},
-			expectedCommit: &gitalypb.GitCommit{
-				Author:    defaultCommitter,
-				Committer: defaultCommitter,
-				Subject:   []byte("message"),
-				Body:      []byte("message"),
-				Id:        "12da4907ed3331f4991ba6817317a3a90801288e",
-				ParentIds: []string{
-					defaultParentID,
-				},
-			},
-			expectedTreeEntries: []gittest.TreeEntry{
+			expectedCommit: strings.Join([]string{
+				"tree 0a2fde9f84d2642adbfdf7c37560005e2532fd31",
+				"parent " + defaultParentID,
+				"author " + defaultCommitter,
+				"committer " + defaultCommitter,
+				"",
+				"message",
+			}, "\n"),
+			expectedTreeEntries: []TreeEntry{
 				{
 					Content: "foobar",
 					Mode:    "100644",
@@ -155,8 +128,8 @@ func TestWriteCommit(t *testing.T) {
 		},
 		{
 			desc: "with tree",
-			opts: []gittest.WriteCommitOption{
-				gittest.WithTree(gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+			opts: []WriteCommitOption{
+				WithTree(WriteTree(t, cfg, repoPath, []TreeEntry{
 					{
 						Content: "something",
 						Mode:    "100644",
@@ -164,17 +137,15 @@ func TestWriteCommit(t *testing.T) {
 					},
 				})),
 			},
-			expectedCommit: &gitalypb.GitCommit{
-				Author:    defaultCommitter,
-				Committer: defaultCommitter,
-				Subject:   []byte("message"),
-				Body:      []byte("message"),
-				Id:        "fc157fcabd57d95752ade820a791899f9891b984",
-				ParentIds: []string{
-					defaultParentID,
-				},
-			},
-			expectedTreeEntries: []gittest.TreeEntry{
+			expectedCommit: strings.Join([]string{
+				"tree 52193934b12dbe23bf1d663802d77a04792a79ac",
+				"parent " + defaultParentID,
+				"author " + defaultCommitter,
+				"committer " + defaultCommitter,
+				"",
+				"message",
+			}, "\n"),
+			expectedTreeEntries: []TreeEntry{
 				{
 					Content: "something",
 					Mode:    "100644",
@@ -184,21 +155,19 @@ func TestWriteCommit(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			oid := gittest.WriteCommit(t, cfg, repoPath, tc.opts...)
+			oid := WriteCommit(t, cfg, repoPath, tc.opts...)
 
-			commit, err := catfile.GetCommit(ctx, objectReader, oid.Revision())
-			require.NoError(t, err)
+			commit := Exec(t, cfg, "-C", repoPath, "cat-file", "-p", oid.String())
 
-			gittest.CommitEqual(t, tc.expectedCommit, commit)
+			require.Equal(t, tc.expectedCommit, text.ChompBytes(commit))
 
 			if tc.expectedTreeEntries != nil {
-				gittest.RequireTree(t, cfg, repoPath, oid.String(), tc.expectedTreeEntries)
+				RequireTree(t, cfg, repoPath, oid.String(), tc.expectedTreeEntries)
 			}
 
 			if tc.expectedRevUpdate != "" {
-				updatedOID, err := repo.ResolveRevision(ctx, tc.expectedRevUpdate)
-				require.NoError(t, err)
-				require.Equal(t, oid, updatedOID)
+				updatedOID := Exec(t, cfg, "-C", repoPath, "rev-parse", tc.expectedRevUpdate.String())
+				require.Equal(t, oid, git.ObjectID(text.ChompBytes(updatedOID)))
 			}
 		})
 	}

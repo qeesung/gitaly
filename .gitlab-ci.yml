@@ -20,6 +20,9 @@ variables:
   PGBOUNCER_VERSION: "1.16.1"
   BUNDLE_PATH: "${CI_PROJECT_DIR}/.ruby"
   GOPATH: "${CI_PROJECT_DIR}/.go"
+  # Run tests with an intercepted home directory so that we detect cases where
+  # Gitaly picks up the gitconfig even though it ought not to.
+  GITALY_TESTING_INTERCEPT_HOME: "YesPlease"
 
 include:
   - template: Workflows/MergeRequest-Pipelines.gitlab-ci.yml
@@ -160,7 +163,7 @@ test:
     # But the actual tests should run unprivileged. This assures that we pay
     # proper attention to permission bits and that we don't modify the source
     # directory.
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make ${TARGET} SKIP_RSPEC_BUILD=YesPlease $(test "${GIT_VERSION}" = default && echo WITH_BUNDLED_GIT=YesPlease)
+    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs make ${TARGET} SKIP_RSPEC_BUILD=YesPlease $(test "${GIT_VERSION}" = default && echo WITH_BUNDLED_GIT=YesPlease)
   parallel:
     matrix:
       # The following jobs all test with our default Git version, which is
@@ -185,7 +188,7 @@ test:coverage:
   script:
     # We need to explicitly build all prerequisites so that we can run tests unprivileged.
     - make -j$(nproc) build prepare-tests $(pwd)/_build/tools/gocover-cobertura
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make cover SKIP_RSPEC_BUILD=YesPlease
+    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs make cover SKIP_RSPEC_BUILD=YesPlease
   artifacts:
     reports:
       coverage_report:
@@ -227,14 +230,14 @@ test:pgbouncer:
   script:
     # We need to explicitly build all prerequisites so that we can run tests unprivileged.
     - make -j$(nproc) build prepare-tests
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make test-with-praefect SKIP_RSPEC_BUILD=YesPlease
+    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs make test-with-praefect SKIP_RSPEC_BUILD=YesPlease
 
 test:nightly:
   <<: *test_definition
   script:
     - go version
     - make -j$(nproc) build prepare-tests
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs env HOME=/dev/null make ${TARGET} SKIP_RSPEC_BUILD=YesPlease
+    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs make ${TARGET} SKIP_RSPEC_BUILD=YesPlease
   parallel:
     matrix:
       - GIT_VERSION: [ "master", "next" ]

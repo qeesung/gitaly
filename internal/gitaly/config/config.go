@@ -107,6 +107,7 @@ type Git struct {
 	BinPath            string      `toml:"bin_path"`
 	CatfileCacheSize   int         `toml:"catfile_cache_size"`
 	Config             []GitConfig `toml:"config"`
+	IgnoreGitconfig    bool        `toml:"ignore_gitconfig"`
 }
 
 // GitConfig contains a key-value pair which is to be passed to git as configuration.

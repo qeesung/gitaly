@@ -26,6 +26,7 @@ func setup(t testing.TB) (config.Cfg, *gitalypb.Repository, string) {
 	var cfg config.Cfg
 
 	cfg.SocketPath = "it is a stub to bypass Validate method"
+	cfg.Git.IgnoreGitconfig = true
 
 	cfg.Storages = []config.Storage{
 		{

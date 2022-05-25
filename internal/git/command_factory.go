@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -157,14 +156,11 @@ func setupGitExecutionEnvironments(cfg config.Cfg, factoryCfg execCommandFactory
 	}
 
 	// Prevent the environment from affecting git calls by ignoring the configuration files.
-	//
 	// This should be done always but we have to wait until 15.0 due to backwards compatibility
-	// concerns. To fix tests ahead to 15.0, we ignore the global configuration when the package
-	// has been built under tests. `go test` uses a `.test` suffix on the test binaries. We use
-	// that to check whether to ignore the globals or not.
+	// concerns.
 	//
 	// See https://gitlab.com/gitlab-org/gitaly/-/issues/3617.
-	if strings.HasSuffix(os.Args[0], ".test") {
+	if cfg.Git.IgnoreGitconfig {
 		sharedEnvironment = append(sharedEnvironment,
 			"GIT_CONFIG_GLOBAL=/dev/null",
 			"GIT_CONFIG_SYSTEM=/dev/null",

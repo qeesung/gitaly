@@ -40,7 +40,11 @@ func TestNewCommandAddsToCgroup(t *testing.T) {
 	root := testhelper.TempDir(t)
 
 	cfg := config.Cfg{
+		BinDir:     filepath.Join(root, "bin.d"),
 		SocketPath: "/path/to/socket",
+		Git: config.Git{
+			IgnoreGitconfig: true,
+		},
 		Cgroups: cgroups.Config{
 			Repositories: cgroups.Repositories{
 				Count: 1,
@@ -50,7 +54,6 @@ func TestNewCommandAddsToCgroup(t *testing.T) {
 			Name: "storage-1",
 			Path: root,
 		}},
-		BinDir: filepath.Join(root, "bin.d"),
 	}
 
 	require.NoError(t, os.MkdirAll(cfg.BinDir, 0o755))

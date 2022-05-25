@@ -165,9 +165,27 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 		require.Equal(t, expectedExecEnv.EnvironmentVariables, actualExecEnv.EnvironmentVariables)
 	}
 
+	t.Run("set in config without ignored gitconfig", func(t *testing.T) {
+		assertExecEnv(t, config.Cfg{
+			Git: config.Git{
+				BinPath:         "/path/to/myGit",
+				IgnoreGitconfig: false,
+			},
+		}, git.ExecutionEnvironment{
+			BinaryPath: "/path/to/myGit",
+			EnvironmentVariables: []string{
+				"LANG=en_US.UTF-8",
+				"GIT_TERMINAL_PROMPT=0",
+			},
+		})
+	})
+
 	t.Run("set in config", func(t *testing.T) {
 		assertExecEnv(t, config.Cfg{
-			Git: config.Git{BinPath: "/path/to/myGit"},
+			Git: config.Git{
+				BinPath:         "/path/to/myGit",
+				IgnoreGitconfig: true,
+			},
 		}, git.ExecutionEnvironment{
 			BinaryPath: "/path/to/myGit",
 			EnvironmentVariables: []string{
@@ -183,7 +201,11 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 	t.Run("set using GITALY_TESTING_GIT_BINARY", func(t *testing.T) {
 		testhelper.ModifyEnvironment(t, "GITALY_TESTING_GIT_BINARY", "/path/to/env_git")
 
-		assertExecEnv(t, config.Cfg{Git: config.Git{}}, git.ExecutionEnvironment{
+		assertExecEnv(t, config.Cfg{
+			Git: config.Git{
+				IgnoreGitconfig: true,
+			},
+		}, git.ExecutionEnvironment{
 			BinaryPath: "/path/to/env_git",
 			EnvironmentVariables: []string{
 				"LANG=en_US.UTF-8",
@@ -283,7 +305,11 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 		resolvedPath, err := exec.LookPath("git")
 		require.NoError(t, err)
 
-		assertExecEnv(t, config.Cfg{}, git.ExecutionEnvironment{
+		assertExecEnv(t, config.Cfg{
+			Git: config.Git{
+				IgnoreGitconfig: true,
+			},
+		}, git.ExecutionEnvironment{
 			BinaryPath: resolvedPath,
 			EnvironmentVariables: []string{
 				"LANG=en_US.UTF-8",

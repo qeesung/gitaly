@@ -143,6 +143,9 @@ func (gc *GitalyCfgBuilder) Build(t testing.TB) config.Cfg {
 	}
 
 	cfg.PackObjectsCache.Enabled = gc.packObjectsCacheEnabled
+	// Ignore the gitconfig so that tests aren't impacted by any configuration the user happens
+	// to have lying around.
+	cfg.Git.IgnoreGitconfig = true
 
 	require.NoError(t, cfg.Validate())
 
