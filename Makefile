@@ -79,6 +79,11 @@ TEMPORARY_BUILD_ID := 54454D505F474954414C595F4255494C445F4944
 ifeq (${FIPS_MODE}, 1)
     SERVER_BUILD_TAGS := ${SERVER_BUILD_TAGS},fips
     GIT2GO_BUILD_TAGS := ${GIT2GO_BUILD_TAGS},fips
+
+    # Build Git with the OpenSSL backend for SHA256 in case FIPS-mode is
+    # requested. Note that we explicitly don't do the same for SHA1: we
+    # instead use SHA1DC to protect users against the SHAttered attack.
+    GIT_FIPS_BUILD_OPTIONS := OPENSSL_SHA256=YesPlease
 endif
 
 # Dependency versions
@@ -173,6 +178,10 @@ endif
 
 ifdef GIT_APPEND_BUILD_OPTIONS
 	GIT_BUILD_OPTIONS += ${GIT_APPEND_BUILD_OPTIONS}
+endif
+
+ifdef GIT_FIPS_BUILD_OPTIONS
+	GIT_BUILD_OPTIONS += ${GIT_FIPS_BUILD_OPTIONS}
 endif
 
 # libgit2 target
