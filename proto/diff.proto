@@ -53,6 +53,13 @@ service DiffService {
     };
   }
 
+  // Return a list of files changed between commits along with the status of each file
+  rpc FindChangedPathsBetweenCommits(FindChangedPathsBetweenCommitsRequest) returns (stream FindChangedPathsBetweenCommitsResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
+
 }
 
 // This comment is left unintentionally blank.
@@ -265,4 +272,20 @@ message ChangedPaths {
   bytes path = 1;
   // This comment is left unintentionally blank.
   Status status = 2;
+}
+
+// Given two commits, return the files changed.
+message FindChangedPathsBetweenCommitsRequest {
+  // Repository containing the commits
+  Repository repository = 1 [(target_repository)=true];
+  // "Before" commit to compare
+  string left_commit_id = 2;
+  // "After" commit to compare
+  string right_commit_id = 3;
+}
+
+// Returns a list of files that have been changed between the commits given
+message FindChangedPathsBetweenCommitsResponse {
+  // List of paths that have been changed
+  repeated ChangedPaths paths = 1;
 }

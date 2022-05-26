@@ -107,6 +107,14 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       value :TYPE_CHANGE, 3
       value :COPIED, 4
     end
+    add_message "gitaly.FindChangedPathsBetweenCommitsRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+      optional :left_commit_id, :string, 2
+      optional :right_commit_id, :string, 3
+    end
+    add_message "gitaly.FindChangedPathsBetweenCommitsResponse" do
+      repeated :paths, :message, 1, "gitaly.ChangedPaths"
+    end
   end
 end
 
@@ -128,4 +136,6 @@ module Gitaly
   FindChangedPathsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindChangedPathsResponse").msgclass
   ChangedPaths = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ChangedPaths").msgclass
   ChangedPaths::Status = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ChangedPaths.Status").enummodule
+  FindChangedPathsBetweenCommitsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindChangedPathsBetweenCommitsRequest").msgclass
+  FindChangedPathsBetweenCommitsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindChangedPathsBetweenCommitsResponse").msgclass
 end

@@ -28,6 +28,8 @@ module Gitaly
       rpc :DiffStats, ::Gitaly::DiffStatsRequest, stream(::Gitaly::DiffStatsResponse)
       # Return a list of files changed along with the status of each file
       rpc :FindChangedPaths, ::Gitaly::FindChangedPathsRequest, stream(::Gitaly::FindChangedPathsResponse)
+      # Return a list of files changed between commits along with the status of each file
+      rpc :FindChangedPathsBetweenCommits, ::Gitaly::FindChangedPathsBetweenCommitsRequest, stream(::Gitaly::FindChangedPathsBetweenCommitsResponse)
     end
 
     Stub = Service.rpc_stub_class
