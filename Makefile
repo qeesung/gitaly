@@ -232,6 +232,9 @@ TEST_REPO_MIRROR  := ${TEST_REPO_DIR}/gitlab-test-mirror.git
 TEST_REPO_GIT     := ${TEST_REPO_DIR}/gitlab-git-test.git
 BENCHMARK_REPO    := ${TEST_REPO_DIR}/benchmark.git
 
+# Allows setting permissions on test report directories
+TEST_REPORT_MKDIR_OPTIONS ?=
+
 # All executables provided by Gitaly
 GITALY_EXECUTABLES    = $(addprefix ${BUILD_DIR}/bin/,$(notdir $(shell find ${SOURCE_DIR}/cmd -mindepth 1 -maxdepth 1 -type d -print)) gitaly-git2go-v14)
 # Find all Go source files.
@@ -328,7 +331,8 @@ endif
 
 .PHONY: prepare-tests
 prepare-tests: libgit2 prepare-test-repos ${SOURCE_DIR}/.ruby-bundle ${GOTESTSUM}
-	${Q}mkdir -p "$(dir ${TEST_REPORT})"
+	${Q}[ -d "${TEST_COVERAGE_DIR}" ] || mkdir ${TEST_REPORT_MKDIR_OPTIONS} "${TEST_COVERAGE_DIR}"
+	${Q}[ -d "$(dir ${TEST_REPORT})" ] || mkdir ${TEST_REPORT_MKDIR_OPTIONS} "$(dir ${TEST_REPORT})"
 
 .PHONY: prepare-test-repos
 prepare-test-repos: ${TEST_REPO_MIRROR} ${TEST_REPO} ${TEST_REPO_GIT}
@@ -426,8 +430,6 @@ rubocop: ${SOURCE_DIR}/.ruby-bundle
 ## Generate coverage report via Go tests.
 cover: TEST_OPTIONS  := ${TEST_OPTIONS} -coverprofile "${TEST_COVERAGE_DIR}/all.merged"
 cover: prepare-tests libgit2 ${GOCOVER_COBERTURA}
-	${Q}rm -rf "${TEST_COVERAGE_DIR}"
-	${Q}mkdir -p "${TEST_COVERAGE_DIR}"
 	${Q}$(call run_go_tests)
 	${Q}go tool cover -html  "${TEST_COVERAGE_DIR}/all.merged" -o "${TEST_COVERAGE_DIR}/all.html"
 	@ # sed is used below to convert file paths to repository root relative paths. See https://gitlab.com/gitlab-org/gitlab/-/issues/217664
