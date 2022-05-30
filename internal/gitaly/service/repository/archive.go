@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/smudge"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
@@ -33,8 +33,6 @@ type archiveParams struct {
 	format      string
 	archivePath string
 	exclude     []string
-	internalCfg []byte
-	tlsCfg      []byte
 	binDir      string
 	loggingDir  string
 }
@@ -86,16 +84,6 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 		return stream.Send(&gitalypb.GetArchiveResponse{Data: p})
 	})
 
-	gitlabConfig, err := json.Marshal(s.cfg.Gitlab)
-	if err != nil {
-		return err
-	}
-
-	tlsCfg, err := json.Marshal(s.cfg.TLS)
-	if err != nil {
-		return err
-	}
-
 	ctxlogrus.Extract(ctx).WithField("request_hash", requestHash(in)).Info("request details")
 
 	return s.handleArchive(archiveParams{
@@ -106,8 +94,6 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 		format:      format,
 		archivePath: path,
 		exclude:     exclude,
-		internalCfg: gitlabConfig,
-		tlsCfg:      tlsCfg,
 		binDir:      s.binDir,
 		loggingDir:  s.loggingCfg.Dir,
 	})
@@ -210,11 +196,19 @@ func (s *server) handleArchive(p archiveParams) error {
 		pathspecs = append(pathspecs, ":(exclude)"+exclude)
 	}
 
+	smudgeCfg := smudge.Config{
+		GlRepository: p.in.GetRepository().GetGlRepository(),
+		Gitlab:       s.cfg.Gitlab,
+		TLS:          s.cfg.TLS,
+	}
+
+	smudgeEnv, err := smudgeCfg.Environment()
+	if err != nil {
+		return fmt.Errorf("setting up smudge environment: %w", err)
+	}
+
 	env := []string{
-		fmt.Sprintf("GL_REPOSITORY=%s", p.in.GetRepository().GetGlRepository()),
-		fmt.Sprintf("GL_PROJECT_PATH=%s", p.in.GetRepository().GetGlProjectPath()),
-		fmt.Sprintf("GL_INTERNAL_CONFIG=%s", p.internalCfg),
-		fmt.Sprintf("GITALY_TLS=%s", p.tlsCfg),
+		smudgeEnv,
 		fmt.Sprintf("CORRELATION_ID=%s", correlation.ExtractFromContext(p.ctx)),
 		fmt.Sprintf("%s=%s", log.GitalyLogDirEnvKey, p.loggingDir),
 	}

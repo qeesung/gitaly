@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
@@ -202,6 +203,62 @@ func TestGetString(t *testing.T) {
 			result := env.GetString("TEST_STRING", tc.fallback)
 
 			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestExtractKey(t *testing.T) {
+	for _, tc := range []struct {
+		desc          string
+		environment   []string
+		key           string
+		expectedValue string
+	}{
+		{
+			desc:          "nil",
+			environment:   nil,
+			key:           "something",
+			expectedValue: "",
+		},
+		{
+			desc: "found",
+			environment: []string{
+				"FOO=bar",
+				"BAR=qux",
+			},
+			key:           "BAR",
+			expectedValue: "qux",
+		},
+		{
+			desc: "found with multiple matches",
+			environment: []string{
+				"FOO=1",
+				"FOO=2",
+			},
+			key:           "FOO",
+			expectedValue: "2",
+		},
+		{
+			desc: "not found",
+			environment: []string{
+				"FOO=bar",
+				"BAR=qux",
+			},
+			key:           "doesnotexist",
+			expectedValue: "",
+		},
+		{
+			desc: "prefix-match",
+			environment: []string{
+				"FOObar=value",
+			},
+			key:           "FOO",
+			expectedValue: "",
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			value := env.ExtractValue(tc.environment, tc.key)
+			require.Equal(t, tc.expectedValue, value)
 		})
 	}
 }

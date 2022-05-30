@@ -65,3 +65,18 @@ func GetString(name string, fallback string) string {
 
 	return strings.TrimSpace(value)
 }
+
+// ExtractValue returns the value of the environment variable with the given key. The given key
+// should not have a trailing "=". If the same key occurrs multiple times in the environment, then
+// any later occurrences will override previous ones.
+func ExtractValue(environment []string, key string) string {
+	var value string
+
+	for _, envvar := range environment {
+		if strings.HasPrefix(envvar, key+"=") {
+			value = strings.TrimPrefix(envvar, key+"=")
+		}
+	}
+
+	return value
+}

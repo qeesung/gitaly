@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/smudge"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
+	gitalylog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
+	"gitlab.com/gitlab-org/labkit/log"
 )
-
-type envConfig struct{}
-
-func (e *envConfig) Get(key string) string {
-	return os.Getenv(key)
-}
 
 func requireStdin(msg string) {
 	var out string
@@ -30,14 +31,42 @@ func requireStdin(msg string) {
 func main() {
 	requireStdin("This command should be run by the Git 'smudge' filter")
 
-	closer, err := initLogging(&envConfig{})
+	closer, err := initLogging(os.Environ())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error initializing log file for gitaly-lfs-smudge: %v", err)
 	}
 	defer closer.Close()
 
-	err = smudge(os.Stdout, os.Stdin, &envConfig{})
-	if err != nil {
+	if err := run(os.Environ(), os.Stdout, os.Stdin); err != nil {
+		log.WithError(err).Error(err)
 		os.Exit(1)
 	}
+}
+
+func initLogging(environment []string) (io.Closer, error) {
+	path := env.ExtractValue(environment, gitalylog.GitalyLogDirEnvKey)
+	if path == "" {
+		return log.Initialize(log.WithWriter(io.Discard))
+	}
+
+	filepath := filepath.Join(path, "gitaly_lfs_smudge.log")
+
+	return log.Initialize(
+		log.WithFormatter("json"),
+		log.WithLogLevel("info"),
+		log.WithOutputName(filepath),
+	)
+}
+
+func run(environment []string, out io.Writer, in io.Reader) error {
+	cfg, err := smudge.ConfigFromEnvironment(environment)
+	if err != nil {
+		return fmt.Errorf("loading configuration: %w", err)
+	}
+
+	if err := smudgeContents(cfg, out, in); err != nil {
+		return fmt.Errorf("running smudge filter: %w", err)
+	}
+
+	return nil
 }

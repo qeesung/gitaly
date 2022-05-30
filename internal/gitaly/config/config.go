@@ -69,8 +69,8 @@ type Cfg struct {
 
 // TLS configuration
 type TLS struct {
-	CertPath string `toml:"certificate_path,omitempty"`
-	KeyPath  string `toml:"key_path,omitempty"`
+	CertPath string `toml:"certificate_path,omitempty" json:"cert_path"`
+	KeyPath  string `toml:"key_path,omitempty" json:"key_path"`
 }
 
 // GitlabShell contains the settings required for executing `gitlab-shell`

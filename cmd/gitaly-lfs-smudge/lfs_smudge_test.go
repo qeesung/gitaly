@@ -2,16 +2,14 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/smudge"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
 const (
@@ -46,33 +44,6 @@ var defaultOptions = gitlab.TestServerOptions{
 	ServerKeyPath:    keyPath,
 }
 
-type mapConfig struct {
-	env map[string]string
-}
-
-func TestMain(m *testing.M) {
-	testhelper.Run(m)
-}
-
-func (m *mapConfig) Get(key string) string {
-	return m.env[key]
-}
-
-func runTestServer(t *testing.T, options gitlab.TestServerOptions) (config.Gitlab, func()) {
-	tempDir := testhelper.TempDir(t)
-
-	gitlab.WriteShellSecretFile(t, tempDir, secretToken)
-	secretFilePath := filepath.Join(tempDir, ".gitlab_shell_secret")
-
-	serverURL, serverCleanup := gitlab.NewTestServer(t, options)
-
-	c := config.Gitlab{URL: serverURL, SecretFile: secretFilePath, HTTPSettings: config.HTTPSettings{CAFile: certPath}}
-
-	return c, func() {
-		serverCleanup()
-	}
-}
-
 func TestSuccessfulLfsSmudge(t *testing.T) {
 	testCases := []struct {
 		desc string
@@ -93,96 +64,87 @@ func TestSuccessfulLfsSmudge(t *testing.T) {
 			var b bytes.Buffer
 			reader := strings.NewReader(tc.data)
 
-			c, cleanup := runTestServer(t, defaultOptions)
+			gitlabCfg, cleanup := runTestServer(t, defaultOptions)
 			defer cleanup()
 
-			cfg, err := json.Marshal(c)
-			require.NoError(t, err)
-
-			tlsCfg, err := json.Marshal(config.TLS{
-				CertPath: certPath,
-				KeyPath:  keyPath,
-			})
-			require.NoError(t, err)
-
-			tmpDir := testhelper.TempDir(t)
-
-			env := map[string]string{
-				"GL_REPOSITORY":      "project-1",
-				"GL_INTERNAL_CONFIG": string(cfg),
-				"GITALY_LOG_DIR":     tmpDir,
-				"GITALY_TLS":         string(tlsCfg),
+			cfg := smudge.Config{
+				GlRepository: "project-1",
+				Gitlab:       gitlabCfg,
+				TLS: config.TLS{
+					CertPath: certPath,
+					KeyPath:  keyPath,
+				},
 			}
-			cfgProvider := &mapConfig{env: env}
-			_, err = initLogging(cfgProvider)
-			require.NoError(t, err)
 
-			err = smudge(&b, reader, cfgProvider)
-			require.NoError(t, err)
+			require.NoError(t, smudgeContents(cfg, &b, reader))
 			require.Equal(t, testData, b.String())
-
-			logFilename := filepath.Join(tmpDir, "gitaly_lfs_smudge.log")
-			require.FileExists(t, logFilename)
-
-			data := testhelper.MustReadFile(t, logFilename)
-			require.NoError(t, err)
-			d := string(data)
-
-			require.Contains(t, d, `"msg":"Finished HTTP request"`)
-			require.Contains(t, d, `"status":200`)
-			require.Contains(t, d, `"content_length_bytes":`)
 		})
 	}
 }
 
 func TestUnsuccessfulLfsSmudge(t *testing.T) {
+	defaultConfig := func(t *testing.T, gitlabCfg config.Gitlab) smudge.Config {
+		return smudge.Config{
+			GlRepository: "project-1",
+			Gitlab:       gitlabCfg,
+		}
+	}
+
 	testCases := []struct {
-		desc               string
-		data               string
-		missingEnv         string
-		tlsCfg             config.TLS
-		expectedError      bool
-		options            gitlab.TestServerOptions
-		expectedLogMessage string
-		expectedGitalyTLS  string
+		desc              string
+		setupCfg          func(*testing.T, config.Gitlab) smudge.Config
+		data              string
+		expectedError     bool
+		options           gitlab.TestServerOptions
+		expectedGitalyTLS string
 	}{
 		{
 			desc:          "bad LFS pointer",
 			data:          "test data",
+			setupCfg:      defaultConfig,
 			options:       defaultOptions,
 			expectedError: false,
 		},
 		{
 			desc:          "invalid LFS pointer",
 			data:          invalidLfsPointer,
+			setupCfg:      defaultConfig,
 			options:       defaultOptions,
 			expectedError: false,
 		},
 		{
 			desc:          "invalid LFS pointer with non-hex characters",
 			data:          invalidLfsPointerWithNonHex,
+			setupCfg:      defaultConfig,
 			options:       defaultOptions,
 			expectedError: false,
 		},
 		{
-			desc:               "missing GL_REPOSITORY",
-			data:               lfsPointer,
-			missingEnv:         "GL_REPOSITORY",
-			options:            defaultOptions,
-			expectedError:      true,
-			expectedLogMessage: "GL_REPOSITORY is not defined",
-		},
-		{
-			desc:               "missing GL_INTERNAL_CONFIG",
-			data:               lfsPointer,
-			missingEnv:         "GL_INTERNAL_CONFIG",
-			options:            defaultOptions,
-			expectedError:      true,
-			expectedLogMessage: "unable to retrieve GL_INTERNAL_CONFIG",
-		},
-		{
-			desc: "failed HTTP response",
+			desc: "missing GL_REPOSITORY",
 			data: lfsPointer,
+			setupCfg: func(t *testing.T, gitlabCfg config.Gitlab) smudge.Config {
+				cfg := defaultConfig(t, gitlabCfg)
+				cfg.GlRepository = ""
+				return cfg
+			},
+			options:       defaultOptions,
+			expectedError: true,
+		},
+		{
+			desc: "missing GL_INTERNAL_CONFIG",
+			data: lfsPointer,
+			setupCfg: func(t *testing.T, gitlabCfg config.Gitlab) smudge.Config {
+				cfg := defaultConfig(t, gitlabCfg)
+				cfg.Gitlab = config.Gitlab{}
+				return cfg
+			},
+			options:       defaultOptions,
+			expectedError: true,
+		},
+		{
+			desc:     "failed HTTP response",
+			data:     lfsPointer,
+			setupCfg: defaultConfig,
 			options: gitlab.TestServerOptions{
 				SecretToken:   secretToken,
 				LfsBody:       testData,
@@ -190,66 +152,36 @@ func TestUnsuccessfulLfsSmudge(t *testing.T) {
 				GlRepository:  glRepository,
 				LfsStatusCode: http.StatusInternalServerError,
 			},
-			expectedError:      true,
-			expectedLogMessage: "error loading LFS object",
+			expectedError: true,
 		},
 		{
-			desc:          "invalid TLS paths",
-			data:          lfsPointer,
+			desc: "invalid TLS paths",
+			data: lfsPointer,
+			setupCfg: func(t *testing.T, gitlabCfg config.Gitlab) smudge.Config {
+				cfg := defaultConfig(t, gitlabCfg)
+				cfg.TLS = config.TLS{CertPath: "fake-path", KeyPath: "not-real"}
+				return cfg
+			},
 			options:       defaultOptions,
-			tlsCfg:        config.TLS{CertPath: "fake-path", KeyPath: "not-real"},
 			expectedError: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			c, cleanup := runTestServer(t, tc.options)
+			gitlabCfg, cleanup := runTestServer(t, tc.options)
 			defer cleanup()
 
-			cfg, err := json.Marshal(c)
-			require.NoError(t, err)
-
-			tlsCfg, err := json.Marshal(tc.tlsCfg)
-			require.NoError(t, err)
-
-			tmpDir := testhelper.TempDir(t)
-
-			env := map[string]string{
-				"GL_REPOSITORY":      "project-1",
-				"GL_INTERNAL_CONFIG": string(cfg),
-				"GITALY_LOG_DIR":     tmpDir,
-				"GITALY_TLS":         string(tlsCfg),
-			}
-
-			if tc.missingEnv != "" {
-				delete(env, tc.missingEnv)
-			}
-
-			cfgProvider := &mapConfig{env: env}
+			cfg := tc.setupCfg(t, gitlabCfg)
 
 			var b bytes.Buffer
-			reader := strings.NewReader(tc.data)
-
-			_, err = initLogging(cfgProvider)
-			require.NoError(t, err)
-
-			err = smudge(&b, reader, cfgProvider)
+			err := smudgeContents(cfg, &b, strings.NewReader(tc.data))
 
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tc.data, b.String())
-			}
-
-			logFilename := filepath.Join(tmpDir, "gitaly_lfs_smudge.log")
-			require.FileExists(t, logFilename)
-
-			data := testhelper.MustReadFile(t, logFilename)
-
-			if tc.expectedLogMessage != "" {
-				require.Contains(t, string(data), tc.expectedLogMessage)
 			}
 		})
 	}

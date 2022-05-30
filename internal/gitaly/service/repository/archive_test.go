@@ -3,7 +3,6 @@ package repository
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/smudge"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
@@ -502,10 +502,13 @@ func TestGetArchiveEnv(t *testing.T) {
 		CommitId:   commitID,
 	}
 
-	cfgData, err := json.Marshal(cfg.Gitlab)
-	require.NoError(t, err)
+	smudgeCfg := smudge.Config{
+		GlRepository: gittest.GlRepository,
+		Gitlab:       cfg.Gitlab,
+		TLS:          cfg.TLS,
+	}
 
-	tlsCfgData, err := json.Marshal(cfg.TLS)
+	smudgeEnv, err := smudgeCfg.Environment()
 	require.NoError(t, err)
 
 	stream, err := client.GetArchive(ctx, req)
@@ -513,12 +516,9 @@ func TestGetArchiveEnv(t *testing.T) {
 
 	data, err := consumeArchive(stream)
 	require.NoError(t, err)
-	require.Contains(t, string(data), "GL_REPOSITORY="+gittest.GlRepository)
-	require.Contains(t, string(data), "GL_PROJECT_PATH="+gittest.GlProjectPath)
-	require.Contains(t, string(data), "GL_INTERNAL_CONFIG="+string(cfgData))
-	require.Contains(t, string(data), "GITALY_TLS="+string(tlsCfgData))
 	require.Contains(t, string(data), "CORRELATION_ID="+correlationID)
 	require.Contains(t, string(data), "GITALY_LOG_DIR="+cfg.Logging.Dir)
+	require.Contains(t, string(data), smudgeEnv)
 }
 
 func compressedFileContents(t *testing.T, format gitalypb.GetArchiveRequest_Format, name string) []byte {
