@@ -339,8 +339,6 @@ func TestCache_failedWrite(t *testing.T) {
 			require.NoError(t, r1.Close(), "errors on the write end are not propagated via Close()")
 			require.Error(t, r1.Wait(ctx), "error propagation happens via Wait()")
 
-			time.Sleep(10 * time.Millisecond)
-
 			const happy = "all is good"
 			r2, created, err := c.FindOrCreate(tc.desc, writeString(happy))
 			require.NoError(t, err)

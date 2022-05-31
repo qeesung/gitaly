@@ -320,7 +320,11 @@ func (c *cache) newEntry(key string, create func(io.Writer) error) (_ *Stream, _
 
 	go func() {
 		err := runCreate(e.pipe, create)
-		e.waiter.SetError(err)
+
+		// We defer this until after we have removed the cache entry so that the waiter is
+		// only unblocked when the cache key has already been pruned from the cache.
+		defer e.waiter.SetError(err)
+
 		if err != nil {
 			c.logger.WithError(err).Error("create cache entry")
 			c.m.Lock()
