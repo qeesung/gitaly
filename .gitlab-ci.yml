@@ -81,7 +81,9 @@ include:
     - *cache_gems_configuration
     - *cache_go_configuration
   services:
-    - postgres:${POSTGRES_VERSION}
+    - name: postgres:${POSTGRES_VERSION}
+      alias: postgres
+      command: ["postgres", "-c", "max_connections=500"]
   variables: &postgres_variables
     PGHOST: postgres
     PGPORT: 5432
@@ -205,7 +207,9 @@ test:coverage:
 test:pgbouncer:
   <<: *test_definition
   services:
-    - postgres:${POSTGRES_VERSION}
+    - name: postgres:${POSTGRES_VERSION}
+      alias: postgres
+      command: ["postgres", "-c", "max_connections=500"]
     - name: bitnami/pgbouncer:${PGBOUNCER_VERSION}
       alias: pgbouncer
   variables:
