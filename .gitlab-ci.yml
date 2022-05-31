@@ -23,6 +23,10 @@ variables:
   # Run tests with an intercepted home directory so that we detect cases where
   # Gitaly picks up the gitconfig even though it ought not to.
   GITALY_TESTING_INTERCEPT_HOME: "YesPlease"
+  # TEST_UID is the user ID we use to run tests in an unprivileged way. 9999 is
+  # chosen as a semi-random value so as to not interfer with any preexisting
+  # users.
+  TEST_UID: 9999
 
 include:
   - template: Workflows/MergeRequest-Pipelines.gitlab-ci.yml
@@ -84,11 +88,14 @@ include:
     PGUSER: postgres
     POSTGRES_DB: praefect_test
     POSTGRES_HOST_AUTH_METHOD: trust
-    TEST_REPORT: /tmp/go-tests-report.xml
-    TEST_COVERAGE_DIR: /tmp/coverage
+    TEST_REPORT: _unprivileged/go-tests-report.xml
+    TEST_COVERAGE_DIR: _unprivileged
   before_script: &test_before_script
     - go version
     - while ! psql -h $PGHOST -U $PGUSER -c 'SELECT 1' > /dev/null; do echo "awaiting Postgres service to be ready..." && sleep 1 ; done && echo "Postgres service is ready!"
+    # Create a directory for the unprivileged user that we're running tests as.
+    # This is required so that we can still store test reports successfully.
+    - install --directory --owner=${TEST_UID} --group=${TEST_UID} _unprivileged
   artifacts:
     paths:
       - ruby/tmp/gitaly-rspec-test.log
@@ -163,7 +170,7 @@ test:
     # But the actual tests should run unprivileged. This assures that we pay
     # proper attention to permission bits and that we don't modify the source
     # directory.
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs make ${TARGET} SKIP_RSPEC_BUILD=YesPlease $(test "${GIT_VERSION}" = default && echo WITH_BUNDLED_GIT=YesPlease)
+    - setpriv --reuid=${TEST_UID} --regid=${TEST_UID} --clear-groups --no-new-privs make ${TARGET} SKIP_RSPEC_BUILD=YesPlease $(test "${GIT_VERSION}" = default && echo WITH_BUNDLED_GIT=YesPlease)
   parallel:
     matrix:
       # The following jobs all test with our default Git version, which is
@@ -188,7 +195,7 @@ test:coverage:
   script:
     # We need to explicitly build all prerequisites so that we can run tests unprivileged.
     - make -j$(nproc) build prepare-tests $(pwd)/_build/tools/gocover-cobertura
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs make cover SKIP_RSPEC_BUILD=YesPlease
+    - setpriv --reuid=${TEST_UID} --regid=${TEST_UID} --clear-groups --no-new-privs make cover SKIP_RSPEC_BUILD=YesPlease
   artifacts:
     reports:
       coverage_report:
@@ -230,14 +237,14 @@ test:pgbouncer:
   script:
     # We need to explicitly build all prerequisites so that we can run tests unprivileged.
     - make -j$(nproc) build prepare-tests
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs make test-with-praefect SKIP_RSPEC_BUILD=YesPlease
+    - setpriv --reuid=${TEST_UID} --regid=${TEST_UID} --clear-groups --no-new-privs make test-with-praefect SKIP_RSPEC_BUILD=YesPlease
 
 test:nightly:
   <<: *test_definition
   script:
     - go version
     - make -j$(nproc) build prepare-tests
-    - setpriv --reuid=9999 --regid=9999 --clear-groups --no-new-privs make ${TARGET} SKIP_RSPEC_BUILD=YesPlease
+    - setpriv --reuid=${TEST_UID} --regid=${TEST_UID} --clear-groups --no-new-privs make ${TARGET} SKIP_RSPEC_BUILD=YesPlease
   parallel:
     matrix:
       - GIT_VERSION: [ "master", "next" ]
