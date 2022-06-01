@@ -92,12 +92,21 @@ include:
     POSTGRES_HOST_AUTH_METHOD: trust
     TEST_REPORT: _unprivileged/go-tests-report.xml
     TEST_COVERAGE_DIR: _unprivileged
+    TEST_FULL_OUTPUT: /tmp/test-output.log
   before_script: &test_before_script
     - go version
     - while ! psql -h $PGHOST -U $PGUSER -c 'SELECT 1' > /dev/null; do echo "awaiting Postgres service to be ready..." && sleep 1 ; done && echo "Postgres service is ready!"
     # Create a directory for the unprivileged user that we're running tests as.
     # This is required so that we can still store test reports successfully.
     - install --directory --owner=${TEST_UID} --group=${TEST_UID} _unprivileged
+  after_script:
+    - |
+      # Checking for panics in ${TEST_FULL_OUTPUT}
+      if [ "${CI_JOB_STATUS}" = "failed" ] && grep 'Output":"panic' "${TEST_FULL_OUTPUT}" > /dev/null; then
+        echo -e "\e[0Ksection_start:`date +%s`:panic_stack_traces[collapsed=true]\r\e[0K\e[0;31mPanic stack traces\e[0m"
+        ruby -e "require 'json'; f = File.read(ENV['TEST_FULL_OUTPUT']); f.lines.each do |l| out = JSON.parse(l); puts out['Output']; end" | awk '/^panic/ || /goroutine/,/^\s*$/'
+        echo -e "\e[0Ksection_end:`date +%s`:panic_stack_traces\r\e[0K"
+      fi
   artifacts:
     paths:
       - ruby/tmp/gitaly-rspec-test.log
