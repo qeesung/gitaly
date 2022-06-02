@@ -161,3 +161,173 @@ func TestFindChangedPathsRequest_failing(t *testing.T) {
 		})
 	}
 }
+
+func TestFindChangedPathsBetweenCommitsRequest_success(t *testing.T) {
+	ctx := testhelper.Context(t)
+	_, repo, _, client := setupDiffService(ctx, t)
+
+	testCases := []struct {
+		desc          string
+		leftCommit    string
+		rightCommit   string
+		expectedPaths []*gitalypb.ChangedPaths
+	}{
+		{
+			desc:        "Returns the expected results between distant commits",
+			leftCommit:  "54fcc214b94e78d7a41a9a8fe6d87a5e59500e51",
+			rightCommit: "5b4bb08538b9249995b94aa69121365ba9d28082",
+			expectedPaths: []*gitalypb.ChangedPaths{
+				{
+					Status: gitalypb.ChangedPaths_DELETED,
+					Path:   []byte("CONTRIBUTING.md"),
+				},
+				{
+					Status: gitalypb.ChangedPaths_ADDED,
+					Path:   []byte("NEW_FILE.md"),
+				},
+				{
+					Status: gitalypb.ChangedPaths_MODIFIED,
+					Path:   []byte("README.md"),
+				},
+			},
+		},
+		{
+			desc:        "Returns the expected results when a file is renamed",
+			leftCommit:  "e63f41fe459e62e1228fcef60d7189127aeba95a",
+			rightCommit: "94bb47ca1297b7b3731ff2a36923640991e9236f",
+			expectedPaths: []*gitalypb.ChangedPaths{
+				{
+					Status: gitalypb.ChangedPaths_DELETED,
+					Path:   []byte("CHANGELOG"),
+				},
+				{
+					Status: gitalypb.ChangedPaths_ADDED,
+					Path:   []byte("CHANGELOG.md"),
+				},
+			},
+		},
+		{
+			desc:        "Returns the expected results with diverging commits",
+			leftCommit:  "5b4bb08538b9249995b94aa69121365ba9d28082",
+			rightCommit: "f0f390655872bb2772c85a0128b2fbc2d88670cb",
+			expectedPaths: []*gitalypb.ChangedPaths{
+				{
+					Status: gitalypb.ChangedPaths_ADDED,
+					Path:   []byte("CONTRIBUTING.md"),
+				},
+				{
+					Status: gitalypb.ChangedPaths_MODIFIED,
+					Path:   []byte("NEW_FILE.md"),
+				},
+				{
+					Status: gitalypb.ChangedPaths_MODIFIED,
+					Path:   []byte("README.md"),
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			rpcRequest := &gitalypb.FindChangedPathsBetweenCommitsRequest{Repository: repo, LeftCommitId: tc.leftCommit, RightCommitId: tc.rightCommit}
+
+			stream, err := client.FindChangedPathsBetweenCommits(ctx, rpcRequest)
+			require.NoError(t, err)
+
+			var paths []*gitalypb.ChangedPaths
+			for {
+				fetchedPaths, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+
+				require.NoError(t, err)
+
+				paths = append(paths, fetchedPaths.GetPaths()...)
+			}
+
+			require.Equal(t, tc.expectedPaths, paths)
+		})
+	}
+}
+
+func TestFindChangedPathsBetweenCommitsRequest_failing(t *testing.T) {
+	ctx := testhelper.Context(t)
+	cfg, repo, _, client := setupDiffService(ctx, t, testserver.WithDisablePraefect())
+
+	tests := []struct {
+		desc        string
+		repo        *gitalypb.Repository
+		leftCommit  string
+		rightCommit string
+		err         error
+	}{
+		{
+			desc:        "Repo not found",
+			repo:        &gitalypb.Repository{StorageName: repo.GetStorageName(), RelativePath: "bar.git"},
+			leftCommit:  "742518b2be68fc750bb4c357c0df821a88113286",
+			rightCommit: "e4003da16c1c2c3fc4567700121b17bf8e591c6c",
+			err:         status.Errorf(codes.NotFound, "GetRepoPath: not a git repository: %q", filepath.Join(cfg.Storages[0].Path, "bar.git")),
+		},
+		{
+			desc:        "Storage not found",
+			repo:        &gitalypb.Repository{StorageName: "foo", RelativePath: "bar.git"},
+			leftCommit:  "742518b2be68fc750bb4c357c0df821a88113286",
+			rightCommit: "e4003da16c1c2c3fc4567700121b17bf8e591c6c",
+			err:         status.Error(codes.InvalidArgument, "GetStorageByName: no such storage: \"foo\""),
+		},
+		{
+			desc:        "Left commit cannot be an empty commit",
+			repo:        repo,
+			leftCommit:  "",
+			rightCommit: "e4003da16c1c2c3fc4567700121b17bf8e591c6c",
+			err:         status.Error(codes.InvalidArgument, "FindChangedPathsBetweenCommits: commits cannot contain an empty commit"),
+		},
+		{
+			desc:        "Right commit cannot be an empty commit",
+			repo:        repo,
+			leftCommit:  "742518b2be68fc750bb4c357c0df821a88113286",
+			rightCommit: "",
+			err:         status.Error(codes.InvalidArgument, "FindChangedPathsBetweenCommits: commits cannot contain an empty commit"),
+		},
+		{
+			desc:        "Invalid left commit",
+			repo:        repo,
+			leftCommit:  "invalidinvalidinvalid",
+			rightCommit: "e4003da16c1c2c3fc4567700121b17bf8e591c6c",
+			err:         status.Error(codes.NotFound, "FindChangedPathsBetweenCommits: commit: invalidinvalidinvalid can not be found"),
+		},
+		{
+			desc:        "Invalid right commit",
+			repo:        repo,
+			leftCommit:  "742518b2be68fc750bb4c357c0df821a88113286",
+			rightCommit: "invalidinvalidinvalid",
+			err:         status.Error(codes.NotFound, "FindChangedPathsBetweenCommits: commit: invalidinvalidinvalid can not be found"),
+		},
+		{
+			desc:        "Left commit not found",
+			repo:        repo,
+			leftCommit:  "z4003da16c1c2c3fc4567700121b17bf8e591c6c",
+			rightCommit: "e4003da16c1c2c3fc4567700121b17bf8e591c6c",
+			err:         status.Error(codes.NotFound, "FindChangedPathsBetweenCommits: commit: z4003da16c1c2c3fc4567700121b17bf8e591c6c can not be found"),
+		},
+		{
+			desc:        "Right commit not found",
+			repo:        repo,
+			leftCommit:  "742518b2be68fc750bb4c357c0df821a88113286",
+			rightCommit: "z4003da16c1c2c3fc4567700121b17bf8e591c6c",
+			err:         status.Error(codes.NotFound, "FindChangedPathsBetweenCommits: commit: z4003da16c1c2c3fc4567700121b17bf8e591c6c can not be found"),
+		},
+	}
+
+	for _, tc := range tests {
+		rpcRequest := &gitalypb.FindChangedPathsBetweenCommitsRequest{Repository: tc.repo, LeftCommitId: tc.leftCommit, RightCommitId: tc.rightCommit}
+		stream, err := client.FindChangedPathsBetweenCommits(ctx, rpcRequest)
+		require.NoError(t, err)
+
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err := stream.Recv()
+			testhelper.RequireGrpcError(t, tc.err, err)
+		})
+	}
+}

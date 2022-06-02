@@ -30,6 +30,8 @@ type DiffServiceClient interface {
 	DiffStats(ctx context.Context, in *DiffStatsRequest, opts ...grpc.CallOption) (DiffService_DiffStatsClient, error)
 	// Return a list of files changed along with the status of each file
 	FindChangedPaths(ctx context.Context, in *FindChangedPathsRequest, opts ...grpc.CallOption) (DiffService_FindChangedPathsClient, error)
+	// Return a list of files changed between commits along with the status of each file
+	FindChangedPathsBetweenCommits(ctx context.Context, in *FindChangedPathsBetweenCommitsRequest, opts ...grpc.CallOption) (DiffService_FindChangedPathsBetweenCommitsClient, error)
 }
 
 type diffServiceClient struct {
@@ -232,6 +234,38 @@ func (x *diffServiceFindChangedPathsClient) Recv() (*FindChangedPathsResponse, e
 	return m, nil
 }
 
+func (c *diffServiceClient) FindChangedPathsBetweenCommits(ctx context.Context, in *FindChangedPathsBetweenCommitsRequest, opts ...grpc.CallOption) (DiffService_FindChangedPathsBetweenCommitsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DiffService_ServiceDesc.Streams[6], "/gitaly.DiffService/FindChangedPathsBetweenCommits", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &diffServiceFindChangedPathsBetweenCommitsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type DiffService_FindChangedPathsBetweenCommitsClient interface {
+	Recv() (*FindChangedPathsBetweenCommitsResponse, error)
+	grpc.ClientStream
+}
+
+type diffServiceFindChangedPathsBetweenCommitsClient struct {
+	grpc.ClientStream
+}
+
+func (x *diffServiceFindChangedPathsBetweenCommitsClient) Recv() (*FindChangedPathsBetweenCommitsResponse, error) {
+	m := new(FindChangedPathsBetweenCommitsResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // DiffServiceServer is the server API for DiffService service.
 // All implementations must embed UnimplementedDiffServiceServer
 // for forward compatibility
@@ -248,6 +282,8 @@ type DiffServiceServer interface {
 	DiffStats(*DiffStatsRequest, DiffService_DiffStatsServer) error
 	// Return a list of files changed along with the status of each file
 	FindChangedPaths(*FindChangedPathsRequest, DiffService_FindChangedPathsServer) error
+	// Return a list of files changed between commits along with the status of each file
+	FindChangedPathsBetweenCommits(*FindChangedPathsBetweenCommitsRequest, DiffService_FindChangedPathsBetweenCommitsServer) error
 	mustEmbedUnimplementedDiffServiceServer()
 }
 
@@ -272,6 +308,9 @@ func (UnimplementedDiffServiceServer) DiffStats(*DiffStatsRequest, DiffService_D
 }
 func (UnimplementedDiffServiceServer) FindChangedPaths(*FindChangedPathsRequest, DiffService_FindChangedPathsServer) error {
 	return status.Errorf(codes.Unimplemented, "method FindChangedPaths not implemented")
+}
+func (UnimplementedDiffServiceServer) FindChangedPathsBetweenCommits(*FindChangedPathsBetweenCommitsRequest, DiffService_FindChangedPathsBetweenCommitsServer) error {
+	return status.Errorf(codes.Unimplemented, "method FindChangedPathsBetweenCommits not implemented")
 }
 func (UnimplementedDiffServiceServer) mustEmbedUnimplementedDiffServiceServer() {}
 
@@ -412,6 +451,27 @@ func (x *diffServiceFindChangedPathsServer) Send(m *FindChangedPathsResponse) er
 	return x.ServerStream.SendMsg(m)
 }
 
+func _DiffService_FindChangedPathsBetweenCommits_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(FindChangedPathsBetweenCommitsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DiffServiceServer).FindChangedPathsBetweenCommits(m, &diffServiceFindChangedPathsBetweenCommitsServer{stream})
+}
+
+type DiffService_FindChangedPathsBetweenCommitsServer interface {
+	Send(*FindChangedPathsBetweenCommitsResponse) error
+	grpc.ServerStream
+}
+
+type diffServiceFindChangedPathsBetweenCommitsServer struct {
+	grpc.ServerStream
+}
+
+func (x *diffServiceFindChangedPathsBetweenCommitsServer) Send(m *FindChangedPathsBetweenCommitsResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // DiffService_ServiceDesc is the grpc.ServiceDesc for DiffService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -448,6 +508,11 @@ var DiffService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "FindChangedPaths",
 			Handler:       _DiffService_FindChangedPaths_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "FindChangedPathsBetweenCommits",
+			Handler:       _DiffService_FindChangedPathsBetweenCommits_Handler,
 			ServerStreams: true,
 		},
 	},
