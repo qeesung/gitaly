@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 	"sync/atomic"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
@@ -33,16 +32,15 @@ type requestQueue struct {
 	// closed indicates whether the queue is closed for additional requests.
 	closed int32
 
+	// isReadingObject indicates whether there is a read in progress.
+	isReadingObject int32
+
 	// isObjectQueue is set to `true` when this is a request queue which can be used for reading
 	// objects. If set to `false`, then this can only be used to read object info.
 	isObjectQueue bool
 
 	stdout *bufio.Reader
 	stdin  *bufio.Writer
-
-	// currentObject is the currently read object.
-	currentObject     *Object
-	currentObjectLock sync.Mutex
 
 	// trace is the current tracing span.
 	trace *trace
@@ -51,13 +49,8 @@ type requestQueue struct {
 // isDirty returns true either if there are outstanding requests for objects or if the current
 // object hasn't yet been fully consumed.
 func (q *requestQueue) isDirty() bool {
-	q.currentObjectLock.Lock()
-	defer q.currentObjectLock.Unlock()
-
-	// We must check for the current object first: we cannot queue another object due to the
-	// object lock, but we may queue another request while checking for dirtiness.
-	if q.currentObject != nil {
-		return q.currentObject.isDirty()
+	if atomic.LoadInt32(&q.isReadingObject) != 0 {
+		return true
 	}
 
 	if atomic.LoadInt64(&q.outstandingRequests) != 0 {
@@ -72,14 +65,7 @@ func (q *requestQueue) isClosed() bool {
 }
 
 func (q *requestQueue) close() {
-	if atomic.CompareAndSwapInt32(&q.closed, 0, 1) {
-		q.currentObjectLock.Lock()
-		defer q.currentObjectLock.Unlock()
-
-		if q.currentObject != nil {
-			q.currentObject.close()
-		}
-	}
+	atomic.StoreInt32(&q.closed, 1)
 }
 
 func (q *requestQueue) RequestRevision(revision git.Revision) error {
@@ -122,46 +108,74 @@ func (q *requestQueue) Flush() error {
 	return nil
 }
 
+type readerFunc func([]byte) (int, error)
+
+func (fn readerFunc) Read(buf []byte) (int, error) { return fn(buf) }
+
 func (q *requestQueue) ReadObject() (*Object, error) {
 	if !q.isObjectQueue {
 		panic("object queue used to read object info")
 	}
 
-	q.currentObjectLock.Lock()
-	defer q.currentObjectLock.Unlock()
-
-	if q.currentObject != nil {
-		// If the current object is still dirty, then we must not try to read a new object.
-		if q.currentObject.isDirty() {
-			return nil, fmt.Errorf("current object has not been fully read")
-		}
-
-		q.currentObject.close()
-		q.currentObject = nil
-
-		// If we have already read an object before, then we must consume the trailing
-		// newline after the object's data.
-		if _, err := q.stdout.ReadByte(); err != nil {
-			return nil, err
-		}
+	// We need to ensure that only a single call to `ReadObject()` can happen at the
+	// same point in time.
+	//
+	// Note that this must happen before we read the current object: otherwise, a
+	// concurrent caller might've already swapped it out under our feet.
+	if !atomic.CompareAndSwapInt32(&q.isReadingObject, 0, 1) {
+		return nil, fmt.Errorf("current object has not been fully read")
 	}
 
 	objectInfo, err := q.readInfo()
 	if err != nil {
+		// In the general case we cannot know why reading the object's info has failed. And
+		// given that git-cat-file(1) is stateful, we cannot say whether it's safe to
+		// continue reading from it now or whether we need to keep the queue dirty instead.
+		// So we keep `isReadingObject == 0` in the general case so that it continues to
+		// stay dirty.
+		//
+		// One known exception is when we've got a NotFoundError: this is a graceful failure
+		// and we can continue reading from the process.
+		if IsNotFound(err) {
+			atomic.StoreInt32(&q.isReadingObject, 0)
+		}
+
 		return nil, err
 	}
 	q.trace.recordRequest(objectInfo.Type)
 
-	q.currentObject = &Object{
-		ObjectInfo: *objectInfo,
-		dataReader: io.LimitedReader{
+	// objectReader first reads the object data from stdout. After that, it discards
+	// the trailing newline byte that separate the different objects. Finally, it
+	// undirties the reader so the next object can be read.
+	objectReader := io.MultiReader(
+		&io.LimitedReader{
 			R: q.stdout,
 			N: objectInfo.Size,
 		},
-		bytesRemaining: objectInfo.Size,
-	}
+		readerFunc(func([]byte) (int, error) {
+			if _, err := io.CopyN(io.Discard, q.stdout, 1); err != nil {
+				return 0, fmt.Errorf("discard newline: %q", err)
+			}
 
-	return q.currentObject, nil
+			atomic.StoreInt32(&q.isReadingObject, 0)
+
+			return 0, io.EOF
+		}),
+	)
+
+	return &Object{
+		ObjectInfo: *objectInfo,
+		dataReader: readerFunc(func(buf []byte) (int, error) {
+			// The tests assert that no data can be read after the queue is closed.
+			// Some data could be actually read even after the queue closes due to the buffering.
+			// Check here if the queue is closed and refuse to read more if so.
+			if q.isClosed() {
+				return 0, os.ErrClosed
+			}
+
+			return objectReader.Read(buf)
+		}),
+	}, nil
 }
 
 func (q *requestQueue) ReadInfo() (*ObjectInfo, error) {
