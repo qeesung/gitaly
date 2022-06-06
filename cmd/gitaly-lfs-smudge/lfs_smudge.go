@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/git-lfs/git-lfs/lfs"
+	"github.com/git-lfs/git-lfs/v3/lfs"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/smudge"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"

@@ -1,17 +1,20 @@
 module gitlab.com/gitlab-org/gitaly/v15
 
 require (
+	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/beevik/ntp v0.3.0
 	github.com/cloudflare/tableflip v1.2.2
 	github.com/containerd/cgroups v0.0.0-20201118023556-2819c83ced99
+	github.com/dpotapov/go-spnego v0.0.0-20220426193508-b7f82e4507db // indirect
 	github.com/getsentry/sentry-go v0.13.0
-	github.com/git-lfs/git-lfs v1.5.1-0.20210304194248-2e1d981afbe3
+	github.com/git-lfs/git-lfs/v3 v3.2.0
 	github.com/go-enry/go-license-detector/v4 v4.3.0
 	github.com/go-git/go-git/v5 v5.3.0 // indirect
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.2.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
+	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/yamux v0.0.0-20210316155119-a95892c5f864
 	github.com/jackc/pgconn v1.10.1
@@ -33,10 +36,11 @@ require (
 	gitlab.com/gitlab-org/labkit v1.14.0
 	go.uber.org/goleak v1.1.10
 	gocloud.dev v0.23.0
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5 // indirect
-	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4 // indirect
+	golang.org/x/net v0.0.0-20220531201128-c960675eff93 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220503163025-988cb79eb6c6
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
 	google.golang.org/grpc v1.40.1
 	google.golang.org/protobuf v1.28.0
