@@ -6,6 +6,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -143,24 +144,22 @@ func (s *Server) UserUpdateBranch(ctx context.Context, req *gitalypb.UserUpdateB
 	return &gitalypb.UserUpdateBranchResponse{}, nil
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+// UserDeleteBranch force-deletes a single branch in the context of a specific user. It executes
+// hooks and contacts Rails to verify that the user is indeed allowed to delete that branch.
 func (s *Server) UserDeleteBranch(ctx context.Context, req *gitalypb.UserDeleteBranchRequest) (*gitalypb.UserDeleteBranchResponse, error) {
-	// That we do the branch name & user check here first only in
-	// UserDelete but not UserCreate is "intentional", i.e. it's
-	// always been that way.
 	if len(req.BranchName) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "Bad Request (empty branch name)")
+		return nil, helper.ErrInvalidArgumentf("bad request: empty branch name")
 	}
 
 	if req.User == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Bad Request (empty user)")
+		return nil, helper.ErrInvalidArgumentf("bad request: empty user")
 	}
 
 	referenceName := git.NewReferenceNameFromBranchName(string(req.BranchName))
 
 	referenceValue, err := s.localrepo(req.GetRepository()).ResolveRevision(ctx, referenceName.Revision())
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "branch not found: %s", req.BranchName)
+		return nil, helper.ErrFailedPreconditionf("branch not found: %q", req.BranchName)
 	}
 
 	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, nil, referenceName, git.ZeroOID, referenceValue); err != nil {
@@ -173,10 +172,10 @@ func (s *Server) UserDeleteBranch(ctx context.Context, req *gitalypb.UserDeleteB
 
 		var updateRefError updateref.Error
 		if errors.As(err, &updateRefError) {
-			return nil, status.Error(codes.FailedPrecondition, err.Error())
+			return nil, helper.ErrFailedPrecondition(err)
 		}
 
-		return nil, err
+		return nil, helper.ErrInternalf("deleting reference: %w", err)
 	}
 
 	return &gitalypb.UserDeleteBranchResponse{}, nil

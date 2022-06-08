@@ -22,7 +22,15 @@ type OperationServiceClient interface {
 	UserCreateBranch(ctx context.Context, in *UserCreateBranchRequest, opts ...grpc.CallOption) (*UserCreateBranchResponse, error)
 	// This comment is left unintentionally blank.
 	UserUpdateBranch(ctx context.Context, in *UserUpdateBranchRequest, opts ...grpc.CallOption) (*UserUpdateBranchResponse, error)
-	// This comment is left unintentionally blank.
+	// UserDeleteBranch force-deletes a single branch in the context of a specific user. It executes
+	// hooks and contacts Rails to verify that the user is indeed allowed to delete that branch. The
+	// following known error conditions may happen:
+	//
+	// - Returns `InvalidArgument` in case either the branch name or user are not set.
+	// - Returns `FailedPrecondition` in case the branch does not exist.
+	// - Returns `OK` with a `PreReceiveError` in case custom hooks refused the update.
+	// - Returns `FailedPrecondition` in case updating the reference fails because of a concurrent
+	//   write to the same reference.
 	UserDeleteBranch(ctx context.Context, in *UserDeleteBranchRequest, opts ...grpc.CallOption) (*UserDeleteBranchResponse, error)
 	// UserCreateTag creates a new tag.
 	UserCreateTag(ctx context.Context, in *UserCreateTagRequest, opts ...grpc.CallOption) (*UserCreateTagResponse, error)
@@ -324,7 +332,15 @@ type OperationServiceServer interface {
 	UserCreateBranch(context.Context, *UserCreateBranchRequest) (*UserCreateBranchResponse, error)
 	// This comment is left unintentionally blank.
 	UserUpdateBranch(context.Context, *UserUpdateBranchRequest) (*UserUpdateBranchResponse, error)
-	// This comment is left unintentionally blank.
+	// UserDeleteBranch force-deletes a single branch in the context of a specific user. It executes
+	// hooks and contacts Rails to verify that the user is indeed allowed to delete that branch. The
+	// following known error conditions may happen:
+	//
+	// - Returns `InvalidArgument` in case either the branch name or user are not set.
+	// - Returns `FailedPrecondition` in case the branch does not exist.
+	// - Returns `OK` with a `PreReceiveError` in case custom hooks refused the update.
+	// - Returns `FailedPrecondition` in case updating the reference fails because of a concurrent
+	//   write to the same reference.
 	UserDeleteBranch(context.Context, *UserDeleteBranchRequest) (*UserDeleteBranchResponse, error)
 	// UserCreateTag creates a new tag.
 	UserCreateTag(context.Context, *UserCreateTagRequest) (*UserCreateTagResponse, error)

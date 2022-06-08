@@ -22,7 +22,15 @@ module Gitaly
       rpc :UserCreateBranch, ::Gitaly::UserCreateBranchRequest, ::Gitaly::UserCreateBranchResponse
       # This comment is left unintentionally blank.
       rpc :UserUpdateBranch, ::Gitaly::UserUpdateBranchRequest, ::Gitaly::UserUpdateBranchResponse
-      # This comment is left unintentionally blank.
+      # UserDeleteBranch force-deletes a single branch in the context of a specific user. It executes
+      # hooks and contacts Rails to verify that the user is indeed allowed to delete that branch. The
+      # following known error conditions may happen:
+      #
+      # - Returns `InvalidArgument` in case either the branch name or user are not set.
+      # - Returns `FailedPrecondition` in case the branch does not exist.
+      # - Returns `OK` with a `PreReceiveError` in case custom hooks refused the update.
+      # - Returns `FailedPrecondition` in case updating the reference fails because of a concurrent
+      #   write to the same reference.
       rpc :UserDeleteBranch, ::Gitaly::UserDeleteBranchRequest, ::Gitaly::UserDeleteBranchResponse
       # UserCreateTag creates a new tag.
       rpc :UserCreateTag, ::Gitaly::UserCreateTagRequest, ::Gitaly::UserCreateTagResponse

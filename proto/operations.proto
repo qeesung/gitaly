@@ -29,7 +29,15 @@ service OperationService {
     };
   }
 
-  // This comment is left unintentionally blank.
+  // UserDeleteBranch force-deletes a single branch in the context of a specific user. It executes
+  // hooks and contacts Rails to verify that the user is indeed allowed to delete that branch. The
+  // following known error conditions may happen:
+  //
+  // - Returns `InvalidArgument` in case either the branch name or user are not set.
+  // - Returns `FailedPrecondition` in case the branch does not exist.
+  // - Returns `OK` with a `PreReceiveError` in case custom hooks refused the update.
+  // - Returns `FailedPrecondition` in case updating the reference fails because of a concurrent
+  //   write to the same reference.
   rpc UserDeleteBranch(UserDeleteBranchRequest) returns (UserDeleteBranchResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -192,20 +200,40 @@ message UserUpdateBranchResponse {
   string pre_receive_error = 1;
 }
 
-// This comment is left unintentionally blank.
+// UserDeleteBranchRequest is a request for the UserDeleteBranch RPC.
 message UserDeleteBranchRequest {
-  // This comment is left unintentionally blank.
+  // Repository is the repository to delete the branch in.
   Repository repository = 1 [(target_repository)=true];
-  // This comment is left unintentionally blank.
+  // BranchName is the name of the branch that shall be deleted. This is expected to be the branch
+  // name only, e.g. in case you want to delete `refs/heads/main` the request needs to only contain
+  // `main` as the branch name.
   bytes branch_name = 2;
-  // This comment is left unintentionally blank.
+  // User is the user on whose behalf we should delete the branch. This information is used to
+  // perform access checks against the Rails `/internal/allowed` API. This user is also exposed to
+  // any custom hooks executed as part of this RPC call.
   User user = 3;
 }
 
-// This comment is left unintentionally blank.
+// UserDeleteBranchResponse is a response for the UserDeleteBranch RPC.
 message UserDeleteBranchResponse {
-  // This comment is left unintentionally blank.
+  // PreReceiveError is an error that is returned in case deletion of the branch failed either
+  // because of failing access checks or because hooks have refused the update.
   string pre_receive_error = 1;
+}
+
+// UserDeleteBranchError is an error returned by the UserDeleteBranch RPC in some specific well
+// defined error cases.
+message UserDeleteBranchError {
+  oneof error {
+    // AccessCheckError is set if the RPC failed because `/internal/allowed` failed.
+    AccessCheckError access_check = 1;
+    // ReferenceUpdateError is set if the RPC failed because updating the
+    // reference to the new object ID has failed.
+    ReferenceUpdateError reference_update = 2;
+    // CustomHook is set if any custom hook which has running as part of this RPC call has returned
+    // a non-zero exit code.
+    CustomHookError custom_hook = 3;
+  }
 }
 
 // This comment is left unintentionally blank.
