@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
 )
@@ -12,6 +14,18 @@ import (
 // ConfigEnvironmentKey is the key that gitaly-lfs-smudge expects the configuration to exist at. The
 // value of this environment variable should be the JSON-encoded `Config` struct.
 const ConfigEnvironmentKey = "GITALY_LFS_SMUDGE_CONFIG"
+
+// DriverType determines the type of the smudge filter.
+type DriverType int
+
+const (
+	// DriverTypeFilter indicates that the smudge filter is to be run once per object. This is
+	// the current default but will be phased out eventually in favor of DriverTypeProcess.
+	DriverTypeFilter = DriverType(0)
+	// DriverTypeProcess is a long-running smudge filter that can process multiple objects in
+	// one session. See gitattributes(5), "Long Running Filter Process".
+	DriverTypeProcess = DriverType(1)
+)
 
 // Config is the configuration used to run gitaly-lfs-smudge. It must be injected via environment
 // variables.
@@ -24,6 +38,8 @@ type Config struct {
 	Gitlab config.Gitlab `json:"gitlab"`
 	// TLS contains configuration for setting up a TLS-encrypted connection to Rails.
 	TLS config.TLS `json:"tls"`
+	// DriverType is the type of the smudge driver that should be used.
+	DriverType DriverType `json:"driver_type"`
 }
 
 // ConfigFromEnvironment loads the Config structure from the set of given environment variables.
@@ -76,4 +92,22 @@ func (c Config) Environment() (string, error) {
 	}
 
 	return fmt.Sprintf("%s=%s", ConfigEnvironmentKey, marshalled), nil
+}
+
+// GitConfiguration returns the Git configuration required to run the smudge filter.
+func (c Config) GitConfiguration(cfg config.Cfg) (git.ConfigPair, error) {
+	switch c.DriverType {
+	case DriverTypeFilter:
+		return git.ConfigPair{
+			Key:   "filter.lfs.smudge",
+			Value: filepath.Join(cfg.BinDir, "gitaly-lfs-smudge"),
+		}, nil
+	case DriverTypeProcess:
+		return git.ConfigPair{
+			Key:   "filter.lfs.process",
+			Value: filepath.Join(cfg.BinDir, "gitaly-lfs-smudge"),
+		}, nil
+	default:
+		return git.ConfigPair{}, fmt.Errorf("unknown driver type: %v", c.DriverType)
+	}
 }

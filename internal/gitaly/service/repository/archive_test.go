@@ -3,6 +3,7 @@ package repository
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +17,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/smudge"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -167,7 +170,12 @@ func TestGetArchiveSuccess(t *testing.T) {
 	}
 }
 
-func TestGetArchiveWithLfsSuccess(t *testing.T) {
+func TestGetArchive_includeLfsBlobs(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.GetArchiveLfsFilterProcess).Run(t, testGetArchiveIncludeLfsBlobs)
+}
+
+func testGetArchiveIncludeLfsBlobs(t *testing.T, ctx context.Context) {
 	t.Parallel()
 	defaultOptions := gitlab.TestServerOptions{
 		SecretToken: secretToken,
@@ -191,7 +199,6 @@ func TestGetArchiveWithLfsSuccess(t *testing.T) {
 	client := newRepositoryClient(t, cfg, serverSocketPath)
 	cfg.SocketPath = serverSocketPath
 
-	ctx := testhelper.Context(t)
 	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
@@ -469,13 +476,17 @@ func TestGetArchivePathInjection(t *testing.T) {
 	require.Zero(t, authorizedKeysFileStat.Size())
 }
 
-func TestGetArchiveEnv(t *testing.T) {
+func TestGetArchive_environment(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.GetArchiveLfsFilterProcess).Run(t, testGetArchiveEnvironment)
+}
+
+func testGetArchiveEnvironment(t *testing.T, ctx context.Context) {
 	testhelper.SkipWithPraefect(t, "It's not possible to create repositories through the API with the git command overwritten by the script.")
 
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
-	ctx := testhelper.Context(t)
 
 	gitCmdFactory := gittest.NewInterceptingCommandFactory(ctx, t, cfg, func(git.ExecutionEnvironment) string {
 		return `#!/bin/sh
@@ -497,28 +508,55 @@ func TestGetArchiveEnv(t *testing.T) {
 	correlationID := correlation.SafeRandomID()
 	ctx = correlation.ContextWithCorrelation(ctx, correlationID)
 
-	req := &gitalypb.GetArchiveRequest{
-		Repository: repo,
-		CommitId:   commitID,
-	}
-
 	smudgeCfg := smudge.Config{
 		GlRepository: gittest.GlRepository,
 		Gitlab:       cfg.Gitlab,
 		TLS:          cfg.TLS,
+		DriverType:   smudge.DriverTypeFilter,
+	}
+
+	if featureflag.GetArchiveLfsFilterProcess.IsEnabled(ctx) {
+		smudgeCfg.DriverType = smudge.DriverTypeProcess
 	}
 
 	smudgeEnv, err := smudgeCfg.Environment()
 	require.NoError(t, err)
 
-	stream, err := client.GetArchive(ctx, req)
-	require.NoError(t, err)
+	for _, tc := range []struct {
+		desc            string
+		includeLFSBlobs bool
+		expectedEnv     []string
+	}{
+		{
+			desc:            "without LFS blobs",
+			includeLFSBlobs: false,
+			expectedEnv: []string{
+				"CORRELATION_ID=" + correlationID,
+			},
+		},
+		{
+			desc:            "with LFS blobs",
+			includeLFSBlobs: true,
+			expectedEnv: []string{
+				"CORRELATION_ID=" + correlationID,
+				smudgeEnv,
+				"GITALY_LOG_DIR=" + cfg.Logging.Dir,
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			stream, err := client.GetArchive(ctx, &gitalypb.GetArchiveRequest{
+				Repository:      repo,
+				CommitId:        commitID,
+				IncludeLfsBlobs: tc.includeLFSBlobs,
+			})
+			require.NoError(t, err)
 
-	data, err := consumeArchive(stream)
-	require.NoError(t, err)
-	require.Contains(t, string(data), "CORRELATION_ID="+correlationID)
-	require.Contains(t, string(data), "GITALY_LOG_DIR="+cfg.Logging.Dir)
-	require.Contains(t, string(data), smudgeEnv)
+			data, err := consumeArchive(stream)
+			require.NoError(t, err)
+			require.ElementsMatch(t, tc.expectedEnv, strings.Split(text.ChompBytes(data), "\n"))
+		})
+	}
 }
 
 func compressedFileContents(t *testing.T, format gitalypb.GetArchiveRequest_Format, name string) []byte {

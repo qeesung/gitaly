@@ -332,3 +332,58 @@ func TestEachSidebandPacket(t *testing.T) {
 		})
 	}
 }
+
+func TestPayload(t *testing.T) {
+	for _, tc := range []struct {
+		desc            string
+		input           string
+		expectedErr     string
+		expectedPayload []byte
+	}{
+		{
+			desc:        "packet too small",
+			input:       "123",
+			expectedErr: "packet too small",
+		},
+		{
+			desc:        "invalid length prefix",
+			input:       "something",
+			expectedErr: "parsing length header \"some\": strconv.ParseUint: parsing \"some\": invalid syntax",
+		},
+		{
+			desc:        "flush packet",
+			input:       "0000",
+			expectedErr: "flush packets do not have a payload",
+		},
+		{
+			desc:        "packet with trailing bytes",
+			input:       "0005atrailing",
+			expectedErr: "packet length 13 does not match header length 5",
+		},
+		{
+			desc:        "packet with missing bytes",
+			input:       "0006a",
+			expectedErr: "packet length 5 does not match header length 6",
+		},
+		{
+			desc:            "empty packet",
+			input:           "0004",
+			expectedPayload: []byte{},
+		},
+		{
+			desc:            "packet with data",
+			input:           "0068" + strings.Repeat("x", 100),
+			expectedPayload: bytes.Repeat([]byte("x"), 100),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			payload, err := Payload([]byte(tc.input))
+			if tc.expectedErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, tc.expectedErr)
+			}
+			require.Equal(t, tc.expectedPayload, payload)
+		})
+	}
+}

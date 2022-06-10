@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
@@ -19,21 +18,19 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v15/streamio"
-	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/protobuf/proto"
 )
 
 type archiveParams struct {
-	ctx         context.Context
 	writer      io.Writer
 	in          *gitalypb.GetArchiveRequest
 	compressCmd *exec.Cmd
 	format      string
 	archivePath string
 	exclude     []string
-	binDir      string
 	loggingDir  string
 }
 
@@ -86,15 +83,13 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 
 	ctxlogrus.Extract(ctx).WithField("request_hash", requestHash(in)).Info("request details")
 
-	return s.handleArchive(archiveParams{
-		ctx:         ctx,
+	return s.handleArchive(ctx, archiveParams{
 		writer:      writer,
 		in:          in,
 		compressCmd: compressCmd,
 		format:      format,
 		archivePath: path,
 		exclude:     exclude,
-		binDir:      s.binDir,
 		loggingDir:  s.loggingCfg.Dir,
 	})
 }
@@ -177,7 +172,7 @@ func findGetArchivePath(ctx context.Context, f *catfile.TreeEntryFinder, commitI
 	return true, nil
 }
 
-func (s *server) handleArchive(p archiveParams) error {
+func (s *server) handleArchive(ctx context.Context, p archiveParams) error {
 	var args []string
 	pathspecs := make([]string, 0, len(p.exclude)+1)
 	if !p.in.GetElidePath() {
@@ -196,31 +191,40 @@ func (s *server) handleArchive(p archiveParams) error {
 		pathspecs = append(pathspecs, ":(exclude)"+exclude)
 	}
 
-	smudgeCfg := smudge.Config{
-		GlRepository: p.in.GetRepository().GetGlRepository(),
-		Gitlab:       s.cfg.Gitlab,
-		TLS:          s.cfg.TLS,
-	}
-
-	smudgeEnv, err := smudgeCfg.Environment()
-	if err != nil {
-		return fmt.Errorf("setting up smudge environment: %w", err)
-	}
-
-	env := []string{
-		smudgeEnv,
-		fmt.Sprintf("CORRELATION_ID=%s", correlation.ExtractFromContext(p.ctx)),
-		fmt.Sprintf("%s=%s", log.GitalyLogDirEnvKey, p.loggingDir),
-	}
-
+	var env []string
 	var config []git.ConfigPair
 
 	if p.in.GetIncludeLfsBlobs() {
-		binary := filepath.Join(p.binDir, "gitaly-lfs-smudge")
-		config = append(config, git.ConfigPair{Key: "filter.lfs.smudge", Value: binary})
+		smudgeCfg := smudge.Config{
+			GlRepository: p.in.GetRepository().GetGlRepository(),
+			Gitlab:       s.cfg.Gitlab,
+			TLS:          s.cfg.TLS,
+			DriverType:   smudge.DriverTypeFilter,
+		}
+
+		if featureflag.GetArchiveLfsFilterProcess.IsEnabled(ctx) {
+			smudgeCfg.DriverType = smudge.DriverTypeProcess
+		}
+
+		smudgeEnv, err := smudgeCfg.Environment()
+		if err != nil {
+			return fmt.Errorf("setting up smudge environment: %w", err)
+		}
+
+		smudgeGitConfig, err := smudgeCfg.GitConfiguration(s.cfg)
+		if err != nil {
+			return fmt.Errorf("setting up smudge gitconfig: %w", err)
+		}
+
+		env = append(
+			env,
+			smudgeEnv,
+			fmt.Sprintf("%s=%s", log.GitalyLogDirEnvKey, p.loggingDir),
+		)
+		config = append(config, smudgeGitConfig)
 	}
 
-	archiveCommand, err := s.gitCmdFactory.New(p.ctx, p.in.GetRepository(), git.SubCmd{
+	archiveCommand, err := s.gitCmdFactory.New(ctx, p.in.GetRepository(), git.SubCmd{
 		Name:        "archive",
 		Flags:       []git.Option{git.ValueFlag{Name: "--format", Value: p.format}, git.ValueFlag{Name: "--prefix", Value: p.in.GetPrefix() + "/"}},
 		Args:        args,
@@ -231,7 +235,7 @@ func (s *server) handleArchive(p archiveParams) error {
 	}
 
 	if p.compressCmd != nil {
-		command, err := command.New(p.ctx, p.compressCmd, archiveCommand, p.writer, nil)
+		command, err := command.New(ctx, p.compressCmd, archiveCommand, p.writer, nil)
 		if err != nil {
 			return err
 		}

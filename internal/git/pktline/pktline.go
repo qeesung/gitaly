@@ -39,6 +39,30 @@ func Data(pkt []byte) []byte {
 	return pkt[4:]
 }
 
+// Payload returns the pktline's data. It verifies that the length header matches what we expect as
+// data.
+func Payload(pkt []byte) ([]byte, error) {
+	if len(pkt) < 4 {
+		return nil, fmt.Errorf("packet too small")
+	}
+
+	if IsFlush(pkt) {
+		return nil, fmt.Errorf("flush packets do not have a payload")
+	}
+
+	lengthHeader := string(pkt[:4])
+	length, err := strconv.ParseUint(lengthHeader, 16, 16)
+	if err != nil {
+		return nil, fmt.Errorf("parsing length header %q: %w", lengthHeader, err)
+	}
+
+	if uint64(len(pkt)) != length {
+		return nil, fmt.Errorf("packet length %d does not match header length %d", len(pkt), length)
+	}
+
+	return pkt[4:], nil
+}
+
 // IsFlush detects the special flush packet '0000'
 func IsFlush(pkt []byte) bool {
 	return bytes.Equal(pkt, PktFlush())

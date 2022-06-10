@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
 	gitalylog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
 	"gitlab.com/gitlab-org/labkit/log"
+	"gitlab.com/gitlab-org/labkit/tracing"
 )
 
 func requireStdin(msg string) {
@@ -59,14 +61,31 @@ func initLogging(environment []string) (io.Closer, error) {
 }
 
 func run(environment []string, out io.Writer, in io.Reader) error {
+	// Since the environment is sanitized at the moment, we're only
+	// using this to extract the correlation ID. The finished() call
+	// to clean up the tracing will be a NOP here.
+	ctx, finished := tracing.ExtractFromEnv(context.Background())
+	defer finished()
+
 	cfg, err := smudge.ConfigFromEnvironment(environment)
 	if err != nil {
 		return fmt.Errorf("loading configuration: %w", err)
 	}
 
-	if err := smudgeContents(cfg, out, in); err != nil {
-		return fmt.Errorf("running smudge filter: %w", err)
-	}
+	switch cfg.DriverType {
+	case smudge.DriverTypeFilter:
+		if err := filter(ctx, cfg, out, in); err != nil {
+			return fmt.Errorf("running smudge filter: %w", err)
+		}
 
-	return nil
+		return nil
+	case smudge.DriverTypeProcess:
+		if err := process(ctx, cfg, out, in); err != nil {
+			return fmt.Errorf("running smudge process: %w", err)
+		}
+
+		return nil
+	default:
+		return fmt.Errorf("unknown driver type: %v", cfg.DriverType)
+	}
 }
