@@ -86,19 +86,19 @@ ifeq (${FIPS_MODE}, 1)
 endif
 
 # Dependency versions
-GOLANGCI_LINT_VERSION     ?= 1.44.2
-PROTOLINT_VERSION         ?= 0.37.1
+GOLANGCI_LINT_VERSION     ?= v1.46.1
+PROTOLINT_VERSION         ?= v0.38.1
 GOCOVER_COBERTURA_VERSION ?= aaee18c8195c3f2d90e5ef80ca918d265463842a
-GOFUMPT_VERSION           ?= 0.3.1
-GOIMPORTS_VERSION         ?= 2538eef75904eff384a2551359968e40c207d9d2
-GOTESTSUM_VERSION         ?= v1.7.0
-GO_LICENSES_VERSION       ?= v1.0.0
+GOFUMPT_VERSION           ?= v0.3.1
+GOIMPORTS_VERSION         ?= v0.1.10
+GOTESTSUM_VERSION         ?= v1.8.1
+GO_LICENSES_VERSION       ?= v1.2.1
 # https://pkg.go.dev/github.com/protocolbuffers/protobuf
-PROTOC_VERSION            ?= v3.17.3
+PROTOC_VERSION            ?= v21.1
 # https://pkg.go.dev/google.golang.org/protobuf
-PROTOC_GEN_GO_VERSION     ?= 1.26.0
+PROTOC_GEN_GO_VERSION     ?= v1.28.0
 # https://pkg.go.dev/google.golang.org/grpc/cmd/protoc-gen-go-grpc
-PROTOC_GEN_GO_GRPC_VERSION?= 1.1.0
+PROTOC_GEN_GO_GRPC_VERSION?= v1.2.0
 # Git2Go and libgit2 may need to be updated in sync. Please refer to
 # https://github.com/libgit2/git2go/#which-go-version-to-use for a
 # compatibility matrix.
@@ -640,7 +640,7 @@ ${PROTOC}: ${DEPENDENCY_DIR}/protoc.version | ${TOOLS_DIR}
 	${Q}${GIT} -C "${PROTOC_SOURCE_DIR}" checkout ${GIT_QUIET} --detach FETCH_HEAD
 	${Q}${GIT} -C "${PROTOC_SOURCE_DIR}" submodule update --init --recursive
 	${Q}rm -rf "${PROTOC_BUILD_DIR}"
-	${Q}cmake "${PROTOC_SOURCE_DIR}"/cmake -B "${PROTOC_BUILD_DIR}" ${PROTOC_BUILD_OPTIONS}
+	${Q}cmake "${PROTOC_SOURCE_DIR}" -B "${PROTOC_BUILD_DIR}" ${PROTOC_BUILD_OPTIONS}
 	${Q}cmake --build "${PROTOC_BUILD_DIR}" --target install -- -j $(shell nproc)
 	${Q}cp "${PROTOC_INSTALL_DIR}"/bin/protoc ${PROTOC}
 
@@ -657,21 +657,21 @@ ${PROTOC_GEN_GITALY_PROTOLIST}: | ${TOOLS_DIR}
 ${GOCOVER_COBERTURA}: TOOL_PACKAGE = github.com/t-yuki/gocover-cobertura
 ${GOCOVER_COBERTURA}: TOOL_VERSION = ${GOCOVER_COBERTURA_VERSION}
 ${GOFUMPT}:           TOOL_PACKAGE = mvdan.cc/gofumpt
-${GOFUMPT}:           TOOL_VERSION = v${GOFUMPT_VERSION}
+${GOFUMPT}:           TOOL_VERSION = ${GOFUMPT_VERSION}
 ${GOIMPORTS}:         TOOL_PACKAGE = golang.org/x/tools/cmd/goimports
 ${GOIMPORTS}:         TOOL_VERSION = ${GOIMPORTS_VERSION}
 ${GOLANGCI_LINT}:     TOOL_PACKAGE = github.com/golangci/golangci-lint/cmd/golangci-lint
-${GOLANGCI_LINT}:     TOOL_VERSION = v${GOLANGCI_LINT_VERSION}
+${GOLANGCI_LINT}:     TOOL_VERSION = ${GOLANGCI_LINT_VERSION}
 ${PROTOLINT}:         TOOL_PACKAGE = github.com/yoheimuta/protolint/cmd/protolint
-${PROTOLINT}:         TOOL_VERSION = v${PROTOLINT_VERSION}
+${PROTOLINT}:         TOOL_VERSION = ${PROTOLINT_VERSION}
 ${GOTESTSUM}:         TOOL_PACKAGE = gotest.tools/gotestsum
 ${GOTESTSUM}:         TOOL_VERSION = ${GOTESTSUM_VERSION}
 ${GO_LICENSES}:       TOOL_PACKAGE = github.com/google/go-licenses
 ${GO_LICENSES}:       TOOL_VERSION = ${GO_LICENSES_VERSION}
 ${PROTOC_GEN_GO}:     TOOL_PACKAGE = google.golang.org/protobuf/cmd/protoc-gen-go
-${PROTOC_GEN_GO}:     TOOL_VERSION = v${PROTOC_GEN_GO_VERSION}
+${PROTOC_GEN_GO}:     TOOL_VERSION = ${PROTOC_GEN_GO_VERSION}
 ${PROTOC_GEN_GO_GRPC}:TOOL_PACKAGE = google.golang.org/grpc/cmd/protoc-gen-go-grpc
-${PROTOC_GEN_GO_GRPC}:TOOL_VERSION = v${PROTOC_GEN_GO_GRPC_VERSION}
+${PROTOC_GEN_GO_GRPC}:TOOL_VERSION = ${PROTOC_GEN_GO_GRPC_VERSION}
 
 ${TEST_REPO_MIRROR}:
 	${GIT} clone --mirror ${GIT_QUIET} https://gitlab.com/gitlab-org/gitlab-test.git $@
