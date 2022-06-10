@@ -320,9 +320,12 @@ message UserMergeBranchResponse {
   // Second message
   // If set, the merge has been applied to the branch.
   OperationBranchUpdate branch_update = 3;
-  // PreReceiveError is never set. Instead, we return a proper gRPC error with
-  // UserMergeBranchError details set to an AccessCheckError.
-  string pre_receive_error = 4 [deprecated=true];
+
+  // PreReceiveError had previously been set in case access checks refused the merge. This has been
+  // changed to Instead we return a proper gRPC error with UserMergeBranchError details set to an
+  // AccessCheckError.
+  reserved "pre_receive_error";
+  reserved 4;
 }
 
 // UserMergeBranchError includes error descriptions which may be set as error
@@ -374,9 +377,11 @@ message UserMergeToRefRequest {
 message UserMergeToRefResponse {
   // commit_id is the object ID of the computed merge commit.
   string commit_id = 1;
-  // PreReceiveError is never set because this RPC does not perform
-  // authentication via `/internal/allowed`.
-  string pre_receive_error = 2 [deprecated=true];
+
+  // PreReceiveError had never been set because this RPC does not perform authentication via
+  // `/internal/allowed`. This field was thus removed without replacement.
+  reserved "pre_receive_error";
+  reserved 2;
 }
 
 // OperationBranchUpdate contains the details of a branch update.
@@ -753,6 +758,7 @@ message UserSquashRequest {
 message UserSquashResponse {
   // squash_sha is the object ID of the squashed commit.
   string squash_sha = 1;
+
   // DEPRECATED: https://gitlab.com/gitlab-org/gitaly/proto/merge_requests/161
   reserved 2;
   reserved "pre_receive_error";
@@ -760,7 +766,8 @@ message UserSquashResponse {
   // GitError is not used anymore. Instead, this RPC always returns a real
   // error with an optional UserRebaseConfirmableError, which may be set on
   // special errors.
-  string git_error = 3 [deprecated=true];
+  reserved 3;
+  reserved "git_error";
 }
 
 // This comment is left unintentionally blank.

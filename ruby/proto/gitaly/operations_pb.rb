@@ -77,7 +77,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.UserMergeBranchResponse" do
       optional :commit_id, :string, 1
       optional :branch_update, :message, 3, "gitaly.OperationBranchUpdate"
-      optional :pre_receive_error, :string, 4
     end
     add_message "gitaly.UserMergeBranchError" do
       oneof :error do
@@ -99,7 +98,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.UserMergeToRefResponse" do
       optional :commit_id, :string, 1
-      optional :pre_receive_error, :string, 2
     end
     add_message "gitaly.OperationBranchUpdate" do
       optional :commit_id, :string, 1
@@ -252,7 +250,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.UserSquashResponse" do
       optional :squash_sha, :string, 1
-      optional :git_error, :string, 3
     end
     add_message "gitaly.UserRebaseConfirmableError" do
       oneof :error do

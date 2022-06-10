@@ -556,23 +556,17 @@ func TestUserMergeBranch_allowed(t *testing.T) {
 	mergeBranchHeadAfter := "ff0ac4dfa30d6b26fd14aa83a75650355270bf76"
 
 	for _, tc := range []struct {
-		desc                      string
-		allowed                   bool
-		allowedMessage            string
-		allowedErr                error
-		expectedErr               error
-		expectedResponse          *gitalypb.UserMergeBranchResponse
-		expectedResponseWithoutFF *gitalypb.UserMergeBranchResponse
+		desc             string
+		allowed          bool
+		allowedMessage   string
+		allowedErr       error
+		expectedErr      error
+		expectedResponse *gitalypb.UserMergeBranchResponse
 	}{
 		{
 			desc:    "allowed",
 			allowed: true,
 			expectedResponse: &gitalypb.UserMergeBranchResponse{
-				BranchUpdate: &gitalypb.OperationBranchUpdate{
-					CommitId: mergeBranchHeadAfter,
-				},
-			},
-			expectedResponseWithoutFF: &gitalypb.UserMergeBranchResponse{
 				BranchUpdate: &gitalypb.OperationBranchUpdate{
 					CommitId: mergeBranchHeadAfter,
 				},
@@ -595,9 +589,6 @@ func TestUserMergeBranch_allowed(t *testing.T) {
 					},
 				},
 			),
-			expectedResponseWithoutFF: &gitalypb.UserMergeBranchResponse{
-				PreReceiveError: "GitLab: you shall not pass",
-			},
 		},
 		{
 			desc:       "failing",
@@ -615,9 +606,6 @@ func TestUserMergeBranch_allowed(t *testing.T) {
 					},
 				},
 			),
-			expectedResponseWithoutFF: &gitalypb.UserMergeBranchResponse{
-				PreReceiveError: "GitLab: failure",
-			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -1285,10 +1273,8 @@ func TestUserMergeToRef_ignoreHooksRequest(t *testing.T) {
 		t.Run(hookName, func(t *testing.T) {
 			gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
-			resp, err := client.UserMergeToRef(ctx, request)
+			_, err := client.UserMergeToRef(ctx, request)
 			require.NoError(t, err)
-			//nolint:staticcheck
-			require.Empty(t, resp.PreReceiveError)
 		})
 	}
 }

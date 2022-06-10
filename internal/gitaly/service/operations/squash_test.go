@@ -74,8 +74,6 @@ func TestUserSquash_successful(t *testing.T) {
 
 			response, err := client.UserSquash(ctx, request)
 			require.NoError(t, err)
-			//nolint:staticcheck
-			require.Empty(t, response.GetGitError())
 
 			commit, err := repo.ReadCommit(ctx, git.Revision(response.SquashSha))
 			require.NoError(t, err)
@@ -227,8 +225,6 @@ func TestUserSquash_stableID(t *testing.T) {
 		Timestamp:     &timestamppb.Timestamp{Seconds: 1234512345},
 	})
 	require.NoError(t, err)
-	//nolint:staticcheck
-	require.Empty(t, response.GetGitError())
 
 	commit, err := repo.ReadCommit(ctx, git.Revision(response.SquashSha))
 	require.NoError(t, err)
@@ -288,8 +284,6 @@ func TestUserSquash_threeWayMerge(t *testing.T) {
 
 	response, err := client.UserSquash(ctx, request)
 	require.NoError(t, err)
-	//nolint:staticcheck
-	require.Empty(t, response.GetGitError())
 
 	commit, err := repo.ReadCommit(ctx, git.Revision(response.SquashSha))
 	require.NoError(t, err)
@@ -320,10 +314,8 @@ func TestUserSquash_splitIndex(t *testing.T) {
 		EndSha:        endSha,
 	}
 
-	response, err := client.UserSquash(ctx, request)
+	_, err := client.UserSquash(ctx, request)
 	require.NoError(t, err)
-	//nolint:staticcheck
-	require.Empty(t, response.GetGitError())
 	require.False(t, ensureSplitIndexExists(t, cfg, repoPath))
 }
 
@@ -372,8 +364,6 @@ func TestUserSquash_renames(t *testing.T) {
 
 	response, err := client.UserSquash(ctx, request)
 	require.NoError(t, err)
-	//nolint:staticcheck
-	require.Empty(t, response.GetGitError())
 
 	commit, err := repo.ReadCommit(ctx, git.Revision(response.SquashSha))
 	require.NoError(t, err)
@@ -404,10 +394,8 @@ func TestUserSquash_missingFileOnTargetBranch(t *testing.T) {
 		EndSha:        endSha,
 	}
 
-	response, err := client.UserSquash(ctx, request)
+	_, err := client.UserSquash(ctx, request)
 	require.NoError(t, err)
-	//nolint:staticcheck
-	require.Empty(t, response.GetGitError())
 }
 
 func TestUserSquash_emptyCommit(t *testing.T) {
