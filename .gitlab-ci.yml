@@ -394,3 +394,20 @@ qa:nightly-praefect-migration-test:
     project: gitlab-org/quality/praefect-migration-testing
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+balu-fips-test-job:
+    image: registry.access.redhat.com/ubi8/ubi:8.5
+    before_script:
+        - dnf install -y openssl
+        - echo "Hello World" > test_file
+    script:
+        - which gitlab-runner-helper || whereis gitlab-runner-helper
+        - cat /proc/sys/crypto/fips_enabled
+        - openssl md5 test_file || echo "md5 disabled"
+    needs: []
+    tags:
+        - fips
+    cache:
+        key: 'balu-test-cache'
+        paths:
+            - test_file
