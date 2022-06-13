@@ -6,7 +6,9 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -163,6 +165,67 @@ func (s *Server) UserDeleteBranch(ctx context.Context, req *gitalypb.UserDeleteB
 	}
 
 	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, nil, referenceName, git.ZeroOID, referenceValue); err != nil {
+		if featureflag.UserDeleteBranchStructuredErrors.IsEnabled(ctx) {
+			var notAllowedError hook.NotAllowedError
+			var customHookErr updateref.CustomHookError
+			var updateRefError updateref.Error
+
+			if errors.As(err, &notAllowedError) {
+				detailedErr, err := helper.ErrWithDetails(
+					helper.ErrPermissionDeniedf("deletion denied by access checks: %w", err),
+					&gitalypb.UserDeleteBranchError{
+						Error: &gitalypb.UserDeleteBranchError_AccessCheck{
+							AccessCheck: &gitalypb.AccessCheckError{
+								ErrorMessage: notAllowedError.Message,
+								UserId:       notAllowedError.UserID,
+								Protocol:     notAllowedError.Protocol,
+								Changes:      notAllowedError.Changes,
+							},
+						},
+					},
+				)
+				if err != nil {
+					return nil, helper.ErrInternalf("error details: %w", err)
+				}
+
+				return nil, detailedErr
+			} else if errors.As(err, &customHookErr) {
+				detailedErr, err := helper.ErrWithDetails(
+					helper.ErrPermissionDeniedf("deletion denied by custom hooks: %w", err),
+					&gitalypb.UserDeleteBranchError{
+						Error: &gitalypb.UserDeleteBranchError_CustomHook{
+							CustomHook: customHookErr.Proto(),
+						},
+					},
+				)
+				if err != nil {
+					return nil, helper.ErrInternalf("error details: %w", err)
+				}
+
+				return nil, detailedErr
+			} else if errors.As(err, &updateRefError) {
+				detailedErr, err := helper.ErrWithDetails(
+					helper.ErrFailedPreconditionf("reference update failed: %w", updateRefError),
+					&gitalypb.UserDeleteBranchError{
+						Error: &gitalypb.UserDeleteBranchError_ReferenceUpdate{
+							ReferenceUpdate: &gitalypb.ReferenceUpdateError{
+								ReferenceName: []byte(updateRefError.Reference.String()),
+								OldOid:        updateRefError.OldOID.String(),
+								NewOid:        updateRefError.NewOID.String(),
+							},
+						},
+					},
+				)
+				if err != nil {
+					return nil, helper.ErrInternalf("error details: %w", err)
+				}
+
+				return nil, detailedErr
+			}
+
+			return nil, helper.ErrInternalf("deleting reference: %w", err)
+		}
+
 		var customHookErr updateref.CustomHookError
 		if errors.As(err, &customHookErr) {
 			return &gitalypb.UserDeleteBranchResponse{

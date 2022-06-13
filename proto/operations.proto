@@ -35,9 +35,14 @@ service OperationService {
   //
   // - Returns `InvalidArgument` in case either the branch name or user are not set.
   // - Returns `FailedPrecondition` in case the branch does not exist.
-  // - Returns `OK` with a `PreReceiveError` in case custom hooks refused the update.
-  // - Returns `FailedPrecondition` in case updating the reference fails because of a concurrent
-  //   write to the same reference.
+  // - Returns `OK` with a `PreReceiveError` in case custom hooks refused the update. If the
+  //   `gitaly_user_delete_branch_structured_errors` feature flag is enabled this error case will
+  //   instead return `PermissionDenied` with either a `CustomHook` or AccessCheck` structured
+  //   error.
+  // - Returns `FailedPrecondition` in case updating the reference fails because
+  //   of a concurrent write to the same reference. If the
+  //   `gitaly_user_delete_branch_structured_errors` feature flag is set this error case will
+  //   instead return `FailedPrecondition` with a `ReferenceUpdate` structured error.
   rpc UserDeleteBranch(UserDeleteBranchRequest) returns (UserDeleteBranchResponse) {
     option (op_type) = {
       op: MUTATOR
