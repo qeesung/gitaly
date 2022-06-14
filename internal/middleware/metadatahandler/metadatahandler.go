@@ -17,12 +17,18 @@ import (
 
 var requests = promauto.NewCounterVec(
 	prometheus.CounterOpts{
-		Namespace: "gitaly",
-		Subsystem: "service",
-		Name:      "client_requests_total",
-		Help:      "Counter of client requests received by client, call_site, auth version, response code and deadline_type",
+		Name: "gitaly_service_client_requests_total",
+		Help: "Counter of client requests received by client, call_site, auth version, response code and deadline_type",
 	},
-	[]string{"client_name", "grpc_service", "call_site", "auth_version", "grpc_code", "deadline_type"},
+	[]string{
+		"client_name",
+		"grpc_service",
+		"grpc_method",
+		"call_site",
+		"auth_version",
+		"grpc_code",
+		"deadline_type",
+	},
 )
 
 type metadataTags struct {
@@ -149,12 +155,12 @@ func addMetadataTags(ctx context.Context, grpcMethodType string) metadataTags {
 	return metaTags
 }
 
-func extractServiceName(fullMethodName string) string {
+func extractServiceAndMethodName(fullMethodName string) (string, string) {
 	fullMethodName = strings.TrimPrefix(fullMethodName, "/") // remove leading slash
 	if i := strings.Index(fullMethodName, "/"); i >= 0 {
-		return fullMethodName[:i]
+		return fullMethodName[:i], fullMethodName[i+1:]
 	}
-	return unknownValue
+	return unknownValue, unknownValue
 }
 
 func streamRPCType(info *grpc.StreamServerInfo) string {
@@ -168,11 +174,12 @@ func streamRPCType(info *grpc.StreamServerInfo) string {
 
 func reportWithPrometheusLabels(metaTags metadataTags, fullMethod string, err error) {
 	grpcCode := helper.GrpcCode(err)
-	serviceName := extractServiceName(fullMethod)
+	serviceName, methodName := extractServiceAndMethodName(fullMethod)
 
 	requests.WithLabelValues(
 		metaTags.clientName,   // client_name
 		serviceName,           // grpc_service
+		methodName,            // grpc_method
 		metaTags.callSite,     // call_site
 		metaTags.authVersion,  // auth_version
 		grpcCode.String(),     // grpc_code

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/labkit/correlation"
@@ -152,29 +153,40 @@ func TestGRPCTags(t *testing.T) {
 
 func Test_extractServiceName(t *testing.T) {
 	tests := []struct {
-		name           string
-		fullMethodName string
-		want           string
+		name                    string
+		fullMethodName          string
+		wantService, wantMethod string
 	}{
 		{
 			name:           "blank",
 			fullMethodName: "",
-			want:           unknownValue,
-		}, {
+			wantService:    unknownValue,
+			wantMethod:     unknownValue,
+		},
+		{
 			name:           "normal",
 			fullMethodName: "/gitaly.OperationService/method",
-			want:           "gitaly.OperationService",
-		}, {
+			wantService:    "gitaly.OperationService",
+			wantMethod:     "method",
+		},
+		{
 			name:           "malformed",
 			fullMethodName: "//method",
-			want:           "",
+			wantService:    "",
+			wantMethod:     "method",
+		},
+		{
+			name:           "malformed",
+			fullMethodName: "/gitaly.OperationService/",
+			wantService:    "gitaly.OperationService",
+			wantMethod:     "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := extractServiceName(tt.fullMethodName); got != tt.want {
-				t.Errorf("extractServiceName() = %v, want %v", got, tt.want)
-			}
+			gotService, gotMethod := extractServiceAndMethodName(tt.fullMethodName)
+			assert.Equal(t, tt.wantService, gotService)
+			assert.Equal(t, tt.wantMethod, gotMethod)
 		})
 	}
 }
