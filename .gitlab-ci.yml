@@ -130,7 +130,7 @@ danger-review:
       - .ruby
     policy: pull-push
 
-build:
+.build_template: &build_template
   needs: []
   stage: build
   cache:
@@ -150,7 +150,15 @@ build:
         TEST_BOOT_ARGS: "--bundled-git"
       - GIT_VERSION: "v2.33.0"
 
-build:binaries:
+build:
+  <<: *build_template
+
+build-fips:
+  #TODO - replace with a FIPS based image
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.33-postgresql-11
+  <<: *build_template
+
+build:binaries: &build_binaries
   needs: []
   stage: build
   cache:
@@ -173,7 +181,12 @@ build:binaries:
     matrix:
       - GO_VERSION: [ "1.16", "1.17" ]
 
-test:
+build:binaries-fips:
+  #TODO - replace with a FIPS based image
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.33-postgresql-11
+  <<: *build_binaries
+
+test: &test
   <<: *test_definition
   script:
     # We need to prepare test dependencies as privileged user.
@@ -200,7 +213,12 @@ test:
       - POSTGRES_VERSION: "11.14-alpine"
         TARGET: [ test, test-with-praefect ]
 
-test:coverage:
+test-fips:
+  #TODO - replace with a FIPS based image
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.33-postgresql-11
+  <<: *test
+
+test:coverage: &test_coverage
   <<: *test_definition
   coverage: /^total:\t+\(statements\)\t+\d+\.\d+%$/
   script:
@@ -213,7 +231,12 @@ test:coverage:
         coverage_format: cobertura
         path: ${TEST_COVERAGE_DIR}/cobertura.xml
 
-test:pgbouncer:
+test:coverage:fips:
+  #TODO - replace with a FIPS based image
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.33-postgresql-11
+  <<: *test_coverage
+
+test:pgbouncer: &test_pgbouncer
   <<: *test_definition
   services:
     - name: postgres:${POSTGRES_VERSION}
@@ -252,7 +275,12 @@ test:pgbouncer:
     - make -j$(nproc) build prepare-tests
     - setpriv --reuid=${TEST_UID} --regid=${TEST_UID} --clear-groups --no-new-privs make test-with-praefect SKIP_RSPEC_BUILD=YesPlease
 
-test:nightly:
+test:pgbouncer:fips:
+  #TODO - replace with a FIPS based image
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.33-postgresql-11
+  <<: *test_pgbouncer
+
+.test:nightly:
   <<: *test_definition
   script:
     - go version
@@ -265,7 +293,7 @@ test:nightly:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
 
-test:praefect_smoke:
+test:praefect_smoke: &test_praefect_smoke
   <<: *test_definition
   script:
     - make -j$(nproc)
@@ -273,7 +301,12 @@ test:praefect_smoke:
     - ./_build/bin/praefect -config config.praefect.toml sql-ping
     - ./_build/bin/praefect -config config.praefect.toml sql-migrate
 
-verify:
+test:praefect_smoke:fips:
+  #TODO - replace with a FIPS based image
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.33-postgresql-11
+  <<: *test_praefect_smoke
+
+verify: &verify
   needs: []
   stage: test
   cache:
@@ -291,6 +324,11 @@ verify:
       - ruby/proto/gitaly/*
       - proto/go/gitalypb/*
     when: on_failure
+
+verify:fips:
+  #TODO - replace with a FIPS based image
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}-golang-${GO_VERSION}-git-2.33-postgresql-11
+  <<: *verify
 
 dbschema:
   needs: []
