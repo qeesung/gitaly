@@ -1,3 +1,0 @@
-source 'https://rubygems.org'
-
-gem 'gitlab-dangerfiles', '~> 3.1.0', require: false

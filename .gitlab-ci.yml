@@ -120,15 +120,7 @@ danger-review:
   stage: build
   allow_failure: true
   variables:
-    BUNDLE_GEMFILE: danger/Gemfile
-  cache:
-    key:
-      files:
-        - danger/Gemfile.lock
-      prefix: debian-${DEBIAN_VERSION}-ruby-${RUBY_VERSION}
-    paths:
-      - .ruby
-    policy: pull-push
+    GITLAB_DANGERFILES_VERSION: "3.1.0"
 
 build:
   needs: []
