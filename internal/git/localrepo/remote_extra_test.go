@@ -25,7 +25,7 @@ func TestRepo_FetchInternal(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
-	gitCmdFactory, readGitProtocol := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
+	protocolDetectingFactory := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
 
 	cfg.SocketPath = testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterSSHServiceServer(srv, ssh.NewServer(
@@ -49,7 +49,7 @@ func TestRepo_FetchInternal(t *testing.T) {
 			deps.GetGit2goExecutor(),
 			deps.GetHousekeepingManager(),
 		))
-	}, testserver.WithGitCommandFactory(gitCmdFactory))
+	}, testserver.WithGitCommandFactory(protocolDetectingFactory))
 
 	remoteRepoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
@@ -95,7 +95,7 @@ func TestRepo_FetchInternal(t *testing.T) {
 		require.NoDirExists(t, filepath.Join(repoPath, "objects/info/commit-graphs"))
 
 		// Assert that we're using the expected Git protocol version, which is protocol v2.
-		require.Equal(t, "GIT_PROTOCOL=version=2\n", readGitProtocol())
+		require.Equal(t, "GIT_PROTOCOL=version=2\n", protocolDetectingFactory.ReadProtocol(t))
 
 		require.NoFileExists(t, filepath.Join(repoPath, "FETCH_HEAD"))
 	})

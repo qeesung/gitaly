@@ -132,10 +132,10 @@ func TestSuccessfulInfoRefsUploadPackWithGitProtocol(t *testing.T) {
 	cfg := testcfg.Build(t)
 	ctx := testhelper.Context(t)
 
-	gitCmdFactory, readProtocol := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
+	protocolDetectingFactory := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
 
 	server := startSmartHTTPServerWithOptions(t, cfg, nil, []testserver.GitalyServerOpt{
-		testserver.WithGitCommandFactory(gitCmdFactory),
+		testserver.WithGitCommandFactory(protocolDetectingFactory),
 	})
 	cfg.SocketPath = server.Address()
 
@@ -161,7 +161,7 @@ func TestSuccessfulInfoRefsUploadPackWithGitProtocol(t *testing.T) {
 		}
 	}
 
-	envData := readProtocol()
+	envData := protocolDetectingFactory.ReadProtocol(t)
 	require.Contains(t, envData, fmt.Sprintf("GIT_PROTOCOL=%s\n", git.ProtocolV2))
 }
 

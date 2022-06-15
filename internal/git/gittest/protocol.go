@@ -13,10 +13,15 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
-// NewProtocolDetectingCommandFactory creates a new intercepting Git command factory that allows the
-// protocol to be tested. It returns this factory and a function to read the GIT_PROTOCOL
-// environment variable created by the wrapper script.
-func NewProtocolDetectingCommandFactory(ctx context.Context, t testing.TB, cfg config.Cfg) (git.CommandFactory, func() string) {
+// ProtocolDetectingCommandFactory is an intercepting Git command factory that allows the protocol
+// to be tested.
+type ProtocolDetectingCommandFactory struct {
+	git.CommandFactory
+	envPath string
+}
+
+// NewProtocolDetectingCommandFactory returns a new ProtocolDetectingCommandFactory.
+func NewProtocolDetectingCommandFactory(ctx context.Context, t testing.TB, cfg config.Cfg) ProtocolDetectingCommandFactory {
 	envPath := filepath.Join(testhelper.TempDir(t), "git-env")
 
 	gitCmdFactory := NewInterceptingCommandFactory(ctx, t, cfg, func(execEnv git.ExecutionEnvironment) string {
@@ -27,9 +32,20 @@ func NewProtocolDetectingCommandFactory(ctx context.Context, t testing.TB, cfg c
 		`, envPath, execEnv.BinaryPath)
 	})
 
-	return gitCmdFactory, func() string {
-		data, err := os.ReadFile(envPath)
-		require.NoError(t, err)
-		return string(data)
+	return ProtocolDetectingCommandFactory{
+		CommandFactory: gitCmdFactory,
+		envPath:        envPath,
 	}
+}
+
+// ReadProtocol reads the protocol used by previous Git executions.
+func (p *ProtocolDetectingCommandFactory) ReadProtocol(t *testing.T) string {
+	data, err := os.ReadFile(p.envPath)
+	require.NoError(t, err)
+	return string(data)
+}
+
+// Reset resets previously recorded protocols.
+func (p *ProtocolDetectingCommandFactory) Reset(t *testing.T) {
+	require.NoError(t, os.RemoveAll(p.envPath))
 }

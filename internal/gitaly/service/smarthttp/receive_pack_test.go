@@ -178,10 +178,10 @@ func TestSuccessfulReceivePackRequestWithGitProtocol(t *testing.T) {
 	testcfg.BuildGitalyHooks(t, cfg)
 	ctx := testhelper.Context(t)
 
-	gitCmdFactory, readProto := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
+	protocolDetectingFactory := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
 
 	server := startSmartHTTPServerWithOptions(t, cfg, nil, []testserver.GitalyServerOpt{
-		testserver.WithGitCommandFactory(gitCmdFactory),
+		testserver.WithGitCommandFactory(protocolDetectingFactory),
 	})
 
 	cfg.SocketPath = server.Address()
@@ -200,7 +200,7 @@ func TestSuccessfulReceivePackRequestWithGitProtocol(t *testing.T) {
 	firstRequest := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "user-123", GlRepository: "project-123", GitProtocol: git.ProtocolV2}
 	doPush(t, stream, firstRequest, push.body)
 
-	envData := readProto()
+	envData := protocolDetectingFactory.ReadProtocol(t)
 	require.Equal(t, fmt.Sprintf("GIT_PROTOCOL=%s\n", git.ProtocolV2), envData)
 
 	// The fact that this command succeeds means that we got the commit correctly, no further checks should be needed.

@@ -193,9 +193,9 @@ func TestServer_PostUploadPackWithSidechannel_gitProtocol(t *testing.T) {
 
 func testServerPostUploadPackGitProtocol(t *testing.T, ctx context.Context, makeRequest requestMaker, opts ...testcfg.Option) {
 	cfg := testcfg.Build(t, opts...)
-	gitCmdFactory, readProto := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
+	protocolDetectingFactory := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
 	server := startSmartHTTPServerWithOptions(t, cfg, nil, []testserver.GitalyServerOpt{
-		testserver.WithGitCommandFactory(gitCmdFactory),
+		testserver.WithGitCommandFactory(protocolDetectingFactory),
 	})
 	cfg.SocketPath = server.Address()
 
@@ -219,7 +219,7 @@ func testServerPostUploadPackGitProtocol(t *testing.T, ctx context.Context, make
 	_, err := makeRequest(ctx, t, server.Address(), cfg.Auth.Token, rpcRequest, requestBody)
 	require.NoError(t, err)
 
-	envData := readProto()
+	envData := protocolDetectingFactory.ReadProtocol(t)
 	require.Equal(t, fmt.Sprintf("GIT_PROTOCOL=%s\n", git.ProtocolV2), envData)
 }
 
