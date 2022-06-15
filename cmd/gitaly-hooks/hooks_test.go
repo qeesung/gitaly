@@ -58,7 +58,7 @@ func rawFeatureFlags(ctx context.Context) featureflag.Raw {
 
 // envForHooks generates a set of environment variables for gitaly hooks
 func envForHooks(t testing.TB, ctx context.Context, cfg config.Cfg, repo *gitalypb.Repository, glHookValues glHookValues, proxyValues proxyValues, gitPushOptions ...string) []string {
-	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.ReceiveHooksPayload{
+	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.UserDetails{
 		UserID:   glHookValues.GLID,
 		Username: glHookValues.GLUsername,
 		Protocol: glHookValues.GLProtocol,
@@ -407,7 +407,7 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 					Node:    "node",
 					Primary: tc.primary,
 				},
-				&git.ReceiveHooksPayload{
+				&git.UserDetails{
 					UserID:   glID,
 					Username: glUsername,
 					Protocol: glProtocol,

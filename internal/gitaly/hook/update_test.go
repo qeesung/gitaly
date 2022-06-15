@@ -31,7 +31,7 @@ func TestUpdate_customHooks(t *testing.T) {
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
 	))
 
-	receiveHooksPayload := &git.ReceiveHooksPayload{
+	receiveHooksPayload := &git.UserDetails{
 		UserID:   "1234",
 		Username: "user",
 		Protocol: "web",
@@ -231,7 +231,7 @@ func TestUpdate_quarantine(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("quarantined: %v", isQuarantined), func(t *testing.T) {
 			env, err := git.NewHooksPayload(cfg, repo, nil,
-				&git.ReceiveHooksPayload{
+				&git.UserDetails{
 					UserID:   "1234",
 					Username: "user",
 					Protocol: "web",

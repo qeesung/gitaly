@@ -75,7 +75,7 @@ func TestPostReceive_customHook(t *testing.T) {
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
 	))
 
-	receiveHooksPayload := &git.ReceiveHooksPayload{
+	receiveHooksPayload := &git.UserDetails{
 		UserID:   "1234",
 		Username: "user",
 		Protocol: "web",
@@ -240,7 +240,7 @@ func (m *postreceiveAPIMock) PostReceive(ctx context.Context, glRepository, glID
 func TestPostReceive_gitlab(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
-	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.ReceiveHooksPayload{
+	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.UserDetails{
 		UserID:   "1234",
 		Username: "user",
 		Protocol: "web",
@@ -381,7 +381,7 @@ func TestPostReceive_quarantine(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("quarantined: %v", isQuarantined), func(t *testing.T) {
 			env, err := git.NewHooksPayload(cfg, repo, nil,
-				&git.ReceiveHooksPayload{
+				&git.UserDetails{
 					UserID:   "1234",
 					Username: "user",
 					Protocol: "web",

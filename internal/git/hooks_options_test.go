@@ -8,8 +8,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
+	grpcmetadata "google.golang.org/grpc/metadata"
 )
 
 func TestWithRefHook(t *testing.T) {
@@ -54,4 +56,30 @@ func TestWithRefHook(t *testing.T) {
 			}, actualEnvVars)
 		})
 	}
+}
+
+func TestWithPackObjectsHookEnv(t *testing.T) {
+	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	ctx := testhelper.Context(t)
+	cfg.PackObjectsCache.Enabled = true
+
+	userID := "user-123"
+	username := "username"
+	protocol := "protocol"
+
+	opt := git.WithPackObjectsHookEnv(repo, protocol)
+	subCmd := git.SubCmd{Name: "upload-pack", Args: []string{"a/b/c"}}
+
+	ctx = grpcmetadata.AppendToOutgoingContext(ctx, "user_id", userID, "username", username)
+	ctx = metadata.OutgoingToIncoming(ctx)
+
+	cmd, err := gittest.NewCommandFactory(t, cfg, git.WithSkipHooks()).New(ctx, repo, subCmd, opt)
+	require.NoError(t, err)
+
+	payload, err := git.HooksPayloadFromEnv(cmd.Env())
+	require.NoError(t, err)
+
+	require.Equal(t, userID, payload.UserDetails.UserID)
+	require.Equal(t, username, payload.UserDetails.Username)
+	require.Equal(t, protocol, payload.UserDetails.Protocol)
 }

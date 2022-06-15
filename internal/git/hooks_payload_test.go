@@ -75,7 +75,7 @@ func TestHooksPayload(t *testing.T) {
 	})
 
 	t.Run("receive hooks payload", func(t *testing.T) {
-		env, err := git.NewHooksPayload(cfg, repo, nil, &git.ReceiveHooksPayload{
+		env, err := git.NewHooksPayload(cfg, repo, nil, &git.UserDetails{
 			UserID:   "1234",
 			Username: "user",
 			Protocol: "ssh",
@@ -95,7 +95,7 @@ func TestHooksPayload(t *testing.T) {
 			RuntimeDir:          cfg.RuntimeDir,
 			InternalSocket:      cfg.InternalSocketPath(),
 			InternalSocketToken: cfg.Auth.Token,
-			ReceiveHooksPayload: &git.ReceiveHooksPayload{
+			UserDetails: &git.UserDetails{
 				UserID:   "1234",
 				Username: "user",
 				Protocol: "ssh",

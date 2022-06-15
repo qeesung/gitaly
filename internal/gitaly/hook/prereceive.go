@@ -113,13 +113,13 @@ func (m *GitLabHookManager) preReceiveHook(ctx context.Context, payload git.Hook
 	if repo.GetGlRepository() == "" {
 		return helper.ErrInternalf("repository not set")
 	}
-	if payload.ReceiveHooksPayload == nil {
+	if payload.UserDetails == nil {
 		return helper.ErrInternalf("payload has no receive hooks info")
 	}
-	if payload.ReceiveHooksPayload.UserID == "" {
+	if payload.UserDetails.UserID == "" {
 		return helper.ErrInternalf("user ID not set")
 	}
-	if payload.ReceiveHooksPayload.Protocol == "" {
+	if payload.UserDetails.Protocol == "" {
 		return helper.ErrInternalf("protocol not set")
 	}
 
@@ -128,8 +128,8 @@ func (m *GitLabHookManager) preReceiveHook(ctx context.Context, payload git.Hook
 		GitObjectDirectory:            repo.GitObjectDirectory,
 		GitAlternateObjectDirectories: repo.GitAlternateObjectDirectories,
 		GLRepository:                  repo.GetGlRepository(),
-		GLID:                          payload.ReceiveHooksPayload.UserID,
-		GLProtocol:                    payload.ReceiveHooksPayload.Protocol,
+		GLID:                          payload.UserDetails.UserID,
+		GLProtocol:                    payload.UserDetails.Protocol,
 		Changes:                       string(changes),
 	}
 
@@ -143,8 +143,8 @@ func (m *GitLabHookManager) preReceiveHook(ctx context.Context, payload git.Hook
 		// changes in gitlab-shell first.
 		return NotAllowedError{
 			Message:  err.Error(),
-			UserID:   payload.ReceiveHooksPayload.UserID,
-			Protocol: payload.ReceiveHooksPayload.Protocol,
+			UserID:   payload.UserDetails.UserID,
+			Protocol: payload.UserDetails.Protocol,
 			Changes:  changes,
 		}
 	}
@@ -154,8 +154,8 @@ func (m *GitLabHookManager) preReceiveHook(ctx context.Context, payload git.Hook
 	if !allowed {
 		return NotAllowedError{
 			Message:  message,
-			UserID:   payload.ReceiveHooksPayload.UserID,
-			Protocol: payload.ReceiveHooksPayload.Protocol,
+			UserID:   payload.UserDetails.UserID,
+			Protocol: payload.UserDetails.Protocol,
 			Changes:  changes,
 		}
 	}

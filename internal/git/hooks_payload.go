@@ -71,15 +71,21 @@ type HooksPayload struct {
 	// it's not set, no transactional voting will happen.
 	Transaction *txinfo.Transaction `json:"transaction"`
 
-	// ReceiveHooksPayload contains information required when executing
-	// git-receive-pack.
-	ReceiveHooksPayload *ReceiveHooksPayload `json:"receive_hooks_payload"`
+	// UserDetails contains information required when executing
+	// git-receive-pack or git-upload-pack
+	UserDetails *UserDetails `json:"user_details"`
+	// ReceiveHooksPayload should be identical to UserDetails.
+	// Since the git2go binary is replaced before the gitaly binary, there
+	// is a period of time during an upgrade when the gitaly binary is older
+	// than the corresponding git2go binary. So, we need to keep the
+	// receive_hooks_payload key for one release before we can remove it.
+	ReceiveHooksPayload *UserDetails `json:"receive_hooks_payload"`
 }
 
-// ReceiveHooksPayload contains all information which is required for hooks
+// UserDetails contains all information which is required for hooks
 // executed by git-receive-pack, namely the pre-receive, update or post-receive
 // hook.
-type ReceiveHooksPayload struct {
+type UserDetails struct {
 	// Username contains the name of the user who has caused the hook to be executed.
 	Username string `json:"username"`
 	// UserID contains the ID of the user who has caused the hook to be executed.
@@ -102,7 +108,7 @@ func NewHooksPayload(
 	cfg config.Cfg,
 	repo *gitalypb.Repository,
 	tx *txinfo.Transaction,
-	receiveHooksPayload *ReceiveHooksPayload,
+	userDetails *UserDetails,
 	requestedHooks Hook,
 	featureFlags featureflag.Raw,
 ) HooksPayload {
@@ -112,7 +118,7 @@ func NewHooksPayload(
 		InternalSocket:      cfg.InternalSocketPath(),
 		InternalSocketToken: cfg.Auth.Token,
 		Transaction:         tx,
-		ReceiveHooksPayload: receiveHooksPayload,
+		UserDetails:         userDetails,
 		RequestedHooks:      requestedHooks,
 		FeatureFlags:        featureFlags,
 	}
