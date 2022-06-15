@@ -17,9 +17,9 @@ require (
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/yamux v0.0.0-20210316155119-a95892c5f864
-	github.com/jackc/pgconn v1.10.1
-	github.com/jackc/pgtype v1.9.1
-	github.com/jackc/pgx/v4 v4.14.1
+	github.com/jackc/pgconn v1.12.1
+	github.com/jackc/pgtype v1.11.0
+	github.com/jackc/pgx/v4 v4.16.1
 	github.com/kelseyhightower/envconfig v1.3.0
 	github.com/libgit2/git2go/v33 v33.0.9
 	github.com/olekukonko/tablewriter v0.0.5
