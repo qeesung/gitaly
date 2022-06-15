@@ -637,6 +637,10 @@ func TestUserSquash_conflicts(t *testing.T) {
 					ConflictingFiles: [][]byte{
 						[]byte("b"),
 					},
+					ConflictingCommitIds: []string{
+						theirs.String(),
+						ours.String(),
+					},
 				},
 			},
 		},

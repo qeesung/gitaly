@@ -23,6 +23,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.MergeConflictError" do
       repeated :conflicting_files, :bytes, 1
+      repeated :conflicting_commit_ids, :string, 2
     end
     add_message "gitaly.ReferencesLockedError" do
     end

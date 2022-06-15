@@ -85,10 +85,34 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 			return helper.ErrInvalidArgument(err)
 		}
 
-		if strings.Contains(err.Error(), "could not auto-merge due to conflicts") || errors.As(err, &git2go.ConflictingFilesError{}) {
-			return helper.ErrFailedPreconditionf("Failed to merge for source_sha %s into target_sha %s",
-				firstRequest.CommitId, revision.String())
+		var conflictErr git2go.ConflictingFilesError
+		if errors.As(err, &conflictErr) {
+			conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
+			for _, conflictingFile := range conflictErr.ConflictingFiles {
+				conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
+			}
+
+			detailedErr, err := helper.ErrWithDetails(
+				helper.ErrFailedPreconditionf("merging commits: %w", err),
+				&gitalypb.UserMergeBranchError{
+					Error: &gitalypb.UserMergeBranchError_MergeConflict{
+						MergeConflict: &gitalypb.MergeConflictError{
+							ConflictingFiles: conflictingFiles,
+							ConflictingCommitIds: []string{
+								revision.String(),
+								firstRequest.CommitId,
+							},
+						},
+					},
+				},
+			)
+			if err != nil {
+				return helper.ErrInternalf("error details: %w", err)
+			}
+
+			return detailedErr
 		}
+
 		return helper.ErrInternal(err)
 	}
 

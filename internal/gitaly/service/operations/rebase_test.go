@@ -593,13 +593,14 @@ func testFailedUserRebaseConfirmableDueToGitError(t *testing.T, ctx context.Cont
 		Seed: gittest.SeedGitLabTest,
 	})
 
-	failedBranchName := "rebase-encoding-failure-trigger"
-	branchSha := getBranchSha(t, cfg, repoPath, failedBranchName)
+	targetBranch := "rebase-encoding-failure-trigger"
+	targetBranchCommitID := getBranchSha(t, cfg, repoPath, targetBranch)
+	sourceBranchCommitID := getBranchSha(t, cfg, repoPath, "master")
 
 	rebaseStream, err := client.UserRebaseConfirmable(ctx)
 	require.NoError(t, err)
 
-	headerRequest := buildHeaderRequest(repoProto, gittest.TestUser, "1", failedBranchName, branchSha, repoCopyProto, "master")
+	headerRequest := buildHeaderRequest(repoProto, gittest.TestUser, "1", targetBranch, targetBranchCommitID, repoCopyProto, "master")
 
 	require.NoError(t, rebaseStream.Send(headerRequest), "send header")
 
@@ -610,7 +611,13 @@ func testFailedUserRebaseConfirmableDueToGitError(t *testing.T, ctx context.Cont
 			&gitalypb.UserRebaseConfirmableError{
 				Error: &gitalypb.UserRebaseConfirmableError_RebaseConflict{
 					RebaseConflict: &gitalypb.MergeConflictError{
-						ConflictingFiles: [][]byte{[]byte("README.md")},
+						ConflictingFiles: [][]byte{
+							[]byte("README.md"),
+						},
+						ConflictingCommitIds: []string{
+							sourceBranchCommitID,
+							targetBranchCommitID,
+						},
 					},
 				},
 			},
@@ -623,8 +630,8 @@ func testFailedUserRebaseConfirmableDueToGitError(t *testing.T, ctx context.Cont
 		require.Equal(t, io.EOF, err)
 	}
 
-	newBranchSha := getBranchSha(t, cfg, repoPath, failedBranchName)
-	require.Equal(t, branchSha, newBranchSha, "branch should not change when the rebase fails due to GitError")
+	newBranchSha := getBranchSha(t, cfg, repoPath, targetBranch)
+	require.Equal(t, targetBranchCommitID, newBranchSha, "branch should not change when the rebase fails due to GitError")
 }
 
 func getBranchSha(t *testing.T, cfg config.Cfg, repoPath string, branchName string) string {

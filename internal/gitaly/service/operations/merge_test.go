@@ -544,7 +544,22 @@ func TestUserMergeBranch_conflict(t *testing.T) {
 	}), "send first request")
 
 	firstResponse, err := mergeBidi.Recv()
-	testhelper.RequireGrpcError(t, helper.ErrFailedPreconditionf("Failed to merge for source_sha %s into target_sha %s", divergedFrom, divergedInto), err)
+	testhelper.RequireGrpcError(t, errWithDetails(t,
+		helper.ErrFailedPreconditionf("merging commits: merge: there are conflicting files"),
+		&gitalypb.UserMergeBranchError{
+			Error: &gitalypb.UserMergeBranchError_MergeConflict{
+				MergeConflict: &gitalypb.MergeConflictError{
+					ConflictingFiles: [][]byte{
+						[]byte(conflictingFile),
+					},
+					ConflictingCommitIds: []string{
+						divergedInto.String(),
+						divergedFrom.String(),
+					},
+				},
+			},
+		},
+	), err)
 	require.Nil(t, firstResponse)
 }
 

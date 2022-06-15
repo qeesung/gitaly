@@ -345,6 +345,8 @@ message UserMergeBranchError {
     // CustomHook is set if any custom hook which has running as part of this RPC call has returned
     // a non-zero exit code.
     CustomHookError custom_hook = 3;
+    // MergeConflictError is set if merging the revisions has resulted in conflicting files.
+    MergeConflictError merge_conflict = 4;
   }
 }
 

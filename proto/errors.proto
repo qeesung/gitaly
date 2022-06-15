@@ -48,6 +48,9 @@ message MergeConflictError {
   // field is empty, then there has still been a merge conflict, but it wasn't
   // able to determine which files have been conflicting.
   repeated bytes conflicting_files = 1;
+  // ConflictingCommitIds is the set of commit IDs that caused the conflict. In the general case,
+  // this should be set to two commit IDs.
+  repeated string conflicting_commit_ids = 2;
 }
 
 // ReferencesLockedError is an error returned when an ref update fails because

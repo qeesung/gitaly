@@ -82,6 +82,10 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 						Error: &gitalypb.UserRebaseConfirmableError_RebaseConflict{
 							RebaseConflict: &gitalypb.MergeConflictError{
 								ConflictingFiles: conflictingFiles,
+								ConflictingCommitIds: []string{
+									startRevision.String(),
+									oldrev.String(),
+								},
 							},
 						},
 					},

@@ -175,6 +175,10 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 					Error: &gitalypb.UserSquashError_RebaseConflict{
 						RebaseConflict: &gitalypb.MergeConflictError{
 							ConflictingFiles: conflictingFiles,
+							ConflictingCommitIds: []string{
+								startCommit.String(),
+								endCommit.String(),
+							},
 						},
 					},
 				},
