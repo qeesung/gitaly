@@ -106,7 +106,7 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 		RuntimeDir:          cfg.RuntimeDir,
 		InternalSocket:      cfg.InternalSocketPath(),
 		InternalSocketToken: cfg.Auth.Token,
-		ReceiveHooksPayload: &git.ReceiveHooksPayload{
+		UserDetails: &git.UserDetails{
 			UserID:   "123",
 			Username: "user",
 			Protocol: "http",

@@ -39,7 +39,7 @@ func TestHookManager_stopCalled(t *testing.T) {
 		cfg,
 		repo,
 		&expectedTx,
-		&git.ReceiveHooksPayload{
+		&git.UserDetails{
 			UserID:   "1234",
 			Username: "user",
 			Protocol: "web",

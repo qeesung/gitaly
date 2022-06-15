@@ -60,6 +60,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.PackObjectsHookWithSidechannelRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
       repeated :args, :string, 2
+      optional :gl_id, :string, 3
+      optional :gl_username, :string, 5
+      optional :git_protocol, :string, 6
     end
     add_message "gitaly.PackObjectsHookWithSidechannelResponse" do
     end

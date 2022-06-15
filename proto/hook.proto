@@ -156,6 +156,13 @@ message PackObjectsHookWithSidechannelRequest {
   Repository repository = 1 [(target_repository)=true];
   // args contains the arguments passed to the pack-objects hook, without the leading "git"
   repeated string args = 2;
+  // GlId is the user id of the initator of the fetch
+  string gl_id = 3;
+  // GlUsername is the username of the initator of the fetch
+  string gl_username = 5;
+  // GitProtocol is the protocol used for the fetch
+  string git_protocol = 6;
+
 }
 
 // This comment is left unintentionally blank.

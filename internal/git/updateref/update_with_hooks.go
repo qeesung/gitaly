@@ -172,7 +172,7 @@ func (u *UpdaterWithHooks) UpdateReference(
 
 	changes := fmt.Sprintf("%s %s %s\n", oldrev, newrev, reference)
 
-	receiveHooksPayload := git.ReceiveHooksPayload{
+	receiveHooksPayload := git.UserDetails{
 		UserID:   user.GetGlId(),
 		Username: user.GetGlUsername(),
 		Protocol: "web",

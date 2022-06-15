@@ -103,7 +103,7 @@ func TestHooksMissingStdin(t *testing.T) {
 					Node:    "node-1",
 					Primary: tc.primary,
 				},
-				&git.ReceiveHooksPayload{
+				&git.UserDetails{
 					UserID:   "key_id",
 					Username: "username",
 					Protocol: "protocol",
@@ -231,7 +231,7 @@ To create a merge request for okay, visit:
 				cfg,
 				repo,
 				nil,
-				&git.ReceiveHooksPayload{
+				&git.UserDetails{
 					UserID:   "key_id",
 					Username: "username",
 					Protocol: "protocol",

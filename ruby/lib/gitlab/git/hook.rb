@@ -116,7 +116,7 @@ module Gitlab
           git_path: Gitlab.config.git.bin_path,
           internal_socket: Gitlab.config.gitaly.internal_socket,
           internal_socket_token: ENV['GITALY_TOKEN'],
-          receive_hooks_payload: {
+          user_details: {
             userid: gl_id,
             username: gl_username,
             protocol: GL_PROTOCOL

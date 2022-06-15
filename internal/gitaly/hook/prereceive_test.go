@@ -34,7 +34,7 @@ func TestPrereceive_customHooks(t *testing.T) {
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
 	))
 
-	receiveHooksPayload := &git.ReceiveHooksPayload{
+	receiveHooksPayload := &git.UserDetails{
 		UserID:   "1234",
 		Username: "user",
 		Protocol: "web",
@@ -200,7 +200,7 @@ func TestPrereceive_quarantine(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("quarantined: %v", isQuarantined), func(t *testing.T) {
 			env, err := git.NewHooksPayload(cfg, repo, nil,
-				&git.ReceiveHooksPayload{
+				&git.UserDetails{
 					UserID:   "1234",
 					Username: "user",
 					Protocol: "web",
@@ -252,7 +252,7 @@ func (m *prereceiveAPIMock) PostReceive(context.Context, string, string, string,
 func TestPrereceive_gitlab(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
-	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.ReceiveHooksPayload{
+	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.UserDetails{
 		UserID:   "1234",
 		Username: "user",
 		Protocol: "web",

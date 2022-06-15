@@ -150,10 +150,10 @@ func (m *GitLabHookManager) postReceiveHook(ctx context.Context, payload git.Hoo
 		return helper.ErrInternalf("hook got no reference updates")
 	}
 
-	if payload.ReceiveHooksPayload == nil {
+	if payload.UserDetails == nil {
 		return helper.ErrInternalf("payload has no receive hooks info")
 	}
-	if payload.ReceiveHooksPayload.UserID == "" {
+	if payload.UserDetails.UserID == "" {
 		return helper.ErrInternalf("user ID not set")
 	}
 	if repo.GetGlRepository() == "" {
@@ -162,7 +162,7 @@ func (m *GitLabHookManager) postReceiveHook(ctx context.Context, payload git.Hoo
 
 	ok, messages, err := m.gitlabClient.PostReceive(
 		ctx, repo.GetGlRepository(),
-		payload.ReceiveHooksPayload.UserID,
+		payload.UserDetails.UserID,
 		string(stdin),
 		pushOptions...,
 	)

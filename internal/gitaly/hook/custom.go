@@ -193,9 +193,9 @@ func (m *GitLabHookManager) customHooksEnv(ctx context.Context, payload git.Hook
 		"GIT_DIR="+repoPath,
 		"GL_REPOSITORY="+payload.Repo.GetGlRepository(),
 		"GL_PROJECT_PATH="+payload.Repo.GetGlProjectPath(),
-		"GL_ID="+payload.ReceiveHooksPayload.UserID,
-		"GL_USERNAME="+payload.ReceiveHooksPayload.Username,
-		"GL_PROTOCOL="+payload.ReceiveHooksPayload.Protocol,
+		"GL_ID="+payload.UserDetails.UserID,
+		"GL_USERNAME="+payload.UserDetails.Username,
+		"GL_PROTOCOL="+payload.UserDetails.Protocol,
 	), nil
 }
 

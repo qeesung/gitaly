@@ -121,7 +121,7 @@ func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, st
 	commandOpts := []git.CmdOpt{
 		git.WithGitProtocol(req),
 		git.WithConfig(config...),
-		git.WithPackObjectsHookEnv(repo),
+		git.WithPackObjectsHookEnv(repo, "ssh"),
 	}
 
 	var stderrBuilder strings.Builder
