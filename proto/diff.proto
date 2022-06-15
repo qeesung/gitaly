@@ -233,10 +233,46 @@ message DiffStatsResponse {
 // to its parent. Merge commits will show files which are different to all of
 // its parents.
 message FindChangedPathsRequest {
+  // Request is a single request to pass to git diff-tree.
+  message Request {
+    // TreeRequest compares two trees.
+    message TreeRequest {
+      // left_tree_revision is the revision of the left tree to compare. Accepts any revision that
+      // peels to a tree object.
+      string left_tree_revision = 1;
+      // right_tree_revision is the revision of the right tree to compare. Accepts any revision that
+      // peels to a tree object.
+      string right_tree_revision = 2;
+    }
+
+    // CommitRequest compares a commit to its parents (or some other commits.)
+    message CommitRequest {
+      // commit_revision is the revision of the commit that should be compared. If no `parent_commit_revisions`
+      // are given, then the commit will be compared against its parents. The revision needs to peel to a
+      // commit object.
+      string commit_revision = 1;
+      // parent_commit_revisions are the revisions of commits to treat as the commit's parents. This is an
+      // optional field: if not specified, the actual parents of the commit referred to by `commit_revision`
+      // are used.
+      repeated string parent_commit_revisions = 2;
+    }
+
+    oneof type {
+      // tree_request is a request comparing two trees with each other.
+      TreeRequest tree_request = 1;
+      // commit_request is a request comparing one or more commits with each other.
+      CommitRequest commit_request = 2;
+    }
+  }
+
   // This comment is left unintentionally blank.
   Repository repository = 1 [(target_repository)=true];
-  // This comment is left unintentionally blank.
-  repeated string commits = 2;
+  // commits is the list of commits to compare to their parents. This field is deprecated. To adapt to the new calling
+  // convention you can create one `CommitRequest` per commit, where each `CommitRequest` has only the `commit_revision`
+  // field.
+  repeated string commits = 2 [deprecated=true];
+  // requests specifies the requests of what to compare.
+  repeated Request requests = 3;
 }
 
 // Returns a list of files that have been changed in the commits given

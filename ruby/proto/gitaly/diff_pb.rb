@@ -92,6 +92,21 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.FindChangedPathsRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
       repeated :commits, :string, 2
+      repeated :requests, :message, 3, "gitaly.FindChangedPathsRequest.Request"
+    end
+    add_message "gitaly.FindChangedPathsRequest.Request" do
+      oneof :type do
+        optional :tree_request, :message, 1, "gitaly.FindChangedPathsRequest.Request.TreeRequest"
+        optional :commit_request, :message, 2, "gitaly.FindChangedPathsRequest.Request.CommitRequest"
+      end
+    end
+    add_message "gitaly.FindChangedPathsRequest.Request.TreeRequest" do
+      optional :left_tree_revision, :string, 1
+      optional :right_tree_revision, :string, 2
+    end
+    add_message "gitaly.FindChangedPathsRequest.Request.CommitRequest" do
+      optional :commit_revision, :string, 1
+      repeated :parent_commit_revisions, :string, 2
     end
     add_message "gitaly.FindChangedPathsResponse" do
       repeated :paths, :message, 1, "gitaly.ChangedPaths"
@@ -125,6 +140,9 @@ module Gitaly
   DiffStats = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DiffStats").msgclass
   DiffStatsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.DiffStatsResponse").msgclass
   FindChangedPathsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindChangedPathsRequest").msgclass
+  FindChangedPathsRequest::Request = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindChangedPathsRequest.Request").msgclass
+  FindChangedPathsRequest::Request::TreeRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindChangedPathsRequest.Request.TreeRequest").msgclass
+  FindChangedPathsRequest::Request::CommitRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindChangedPathsRequest.Request.CommitRequest").msgclass
   FindChangedPathsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindChangedPathsResponse").msgclass
   ChangedPaths = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ChangedPaths").msgclass
   ChangedPaths::Status = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ChangedPaths.Status").enummodule
