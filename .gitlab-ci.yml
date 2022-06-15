@@ -265,6 +265,13 @@ test:praefect_smoke:
     - ./_build/bin/praefect -config config.praefect.toml sql-ping
     - ./_build/bin/praefect -config config.praefect.toml sql-migrate
 
+test:macos:
+  <<: *test_definition
+  script:
+    - make -j$(nproc) test WITH_BUNDLED_GIT=YesPlease
+  tags:
+    - shared-macos-amd64
+
 verify:
   needs: []
   stage: test
