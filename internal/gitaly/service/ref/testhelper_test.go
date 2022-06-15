@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var localBranches = map[string]*gitalypb.GitCommit{
@@ -81,7 +82,7 @@ func runRefServiceServer(t testing.TB, cfg config.Cfg) string {
 
 func newRefServiceClient(t testing.TB, serverSocketPath string) (gitalypb.RefServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
 	require.NoError(t, err)

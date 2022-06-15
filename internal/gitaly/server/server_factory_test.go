@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
@@ -298,7 +299,7 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 
 		go server.Serve(ln)
 
-		conn, err := grpc.DialContext(ctx, ln.Addr().String(), grpc.WithInsecure())
+		conn, err := grpc.DialContext(ctx, ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		require.NoError(t, err)
 		t.Cleanup(func() { testhelper.MustClose(t, conn) })
 		*builder.conn = conn

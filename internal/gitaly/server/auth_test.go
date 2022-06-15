@@ -34,6 +34,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -45,7 +46,7 @@ func TestMain(m *testing.M) {
 func TestSanity(t *testing.T) {
 	serverSocketPath := runServer(t, testcfg.Build(t))
 
-	conn, err := dial(serverSocketPath, []grpc.DialOption{grpc.WithInsecure()})
+	conn, err := dial(serverSocketPath, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())})
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.Close() })
 
@@ -102,7 +103,7 @@ func TestAuthFailures(t *testing.T) {
 			}))
 
 			serverSocketPath := runServer(t, cfg)
-			connOpts := append(tc.opts, grpc.WithInsecure())
+			connOpts := append(tc.opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			t.Cleanup(func() { conn.Close() })
@@ -145,7 +146,7 @@ func TestAuthSuccess(t *testing.T) {
 			}))
 
 			serverSocketPath := runServer(t, cfg)
-			connOpts := append(tc.opts, grpc.WithInsecure())
+			connOpts := append(tc.opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			t.Cleanup(func() { conn.Close() })
@@ -176,7 +177,7 @@ func newOperationClient(t *testing.T, token, serverSocketPath string) (gitalypb.
 	t.Helper()
 
 	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(token)),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
@@ -260,7 +261,7 @@ func runSecureServer(t *testing.T, cfg config.Cfg) string {
 func TestUnaryNoAuth(t *testing.T) {
 	cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{Auth: auth.Config{Token: "testtoken"}}))
 	path := runServer(t, cfg)
-	conn, err := grpc.Dial(path, grpc.WithInsecure())
+	conn, err := grpc.Dial(path, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer testhelper.MustClose(t, conn)
 	ctx := testhelper.Context(t)
@@ -281,7 +282,7 @@ func TestStreamingNoAuth(t *testing.T) {
 	cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{Auth: auth.Config{Token: "testtoken"}}))
 
 	path := runServer(t, cfg)
-	conn, err := dial(path, []grpc.DialOption{grpc.WithInsecure()})
+	conn, err := dial(path, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())})
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.Close() })
 	ctx := testhelper.Context(t)

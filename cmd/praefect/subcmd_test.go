@@ -10,6 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -49,7 +50,7 @@ func listenAndServe(t testing.TB, svcs []svcRegistrar) (net.Listener, testhelper
 
 	// verify the service is up
 	addr := fmt.Sprintf("%s://%s", ln.Addr().Network(), ln.Addr())
-	cc, err := grpc.DialContext(ctx, addr, grpc.WithBlock(), grpc.WithInsecure())
+	cc, err := grpc.DialContext(ctx, addr, grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	require.NoError(t, cc.Close())
 

@@ -9,6 +9,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/grpc-proxy/proxy"
 	testservice "gitlab.com/gitlab-org/gitaly/v15/internal/praefect/grpc-proxy/testdata"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func newListener(tb testing.TB) net.Listener {
@@ -35,7 +36,7 @@ func newBackendPinger(tb testing.TB, ctx context.Context) (*grpc.ClientConn, *in
 	cc, err := grpc.DialContext(
 		ctx,
 		listener.Addr().String(),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(
 			grpc.ForceCodec(proxy.NewCodec()),
@@ -71,7 +72,7 @@ func newProxy(tb testing.TB, ctx context.Context, director proxy.StreamDirector,
 	proxyCC, err := grpc.DialContext(
 		ctx,
 		listener.Addr().String(),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	)
 	require.NoError(tb, err)

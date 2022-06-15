@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/peer"
 )
 
@@ -119,7 +120,7 @@ func (s *ServerHandshaker) Handshake(conn net.Conn, authInfo credentials.AuthInf
 		"multiplexed/"+conn.RemoteAddr().String(),
 		append(
 			s.dialOpts,
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return muxSession.Open() }),
 		)...,
 	)

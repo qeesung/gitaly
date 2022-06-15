@@ -30,6 +30,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	grpc_metadata "google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -221,7 +222,7 @@ func (s *ProxyHappySuite) SetupSuite() {
 	require.NoError(s.T(), err, "must be able to allocate a port for listenerServer")
 
 	// Setup of the proxy's Director.
-	s.connProxy2Server, err = grpc.Dial(listenerServer.Addr().String(), grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.ForceCodec(proxy.NewCodec())))
+	s.connProxy2Server, err = grpc.Dial(listenerServer.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultCallOptions(grpc.ForceCodec(proxy.NewCodec())))
 	require.NoError(s.T(), err, "must not error on deferred client Dial")
 	director := func(ctx context.Context, fullName string, peeker proxy.StreamPeeker) (*proxy.StreamParameters, error) {
 		payload, err := peeker.Peek()
@@ -269,7 +270,7 @@ func (s *ProxyHappySuite) SetupSuite() {
 	// Setup client for test suite
 	ctx := testhelper.Context(s.T())
 
-	s.connClient2Proxy, err = grpc.DialContext(ctx, listenerProxy.Addr().String(), grpc.WithInsecure())
+	s.connClient2Proxy, err = grpc.DialContext(ctx, listenerProxy.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(s.T(), err, "must not error on deferred client Dial")
 	s.client = pb.NewTestServiceClient(s.connClient2Proxy)
 }
@@ -381,7 +382,7 @@ func TestProxyErrorPropagation(t *testing.T) {
 			ctx := testhelper.Context(t)
 
 			backendClientConn, err := grpc.DialContext(ctx, "unix://"+backendListener.Addr().String(),
-				grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.ForceCodec(proxy.NewCodec())))
+				grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultCallOptions(grpc.ForceCodec(proxy.NewCodec())))
 			require.NoError(t, err)
 			defer func() {
 				require.NoError(t, backendClientConn.Close())
@@ -409,7 +410,7 @@ func TestProxyErrorPropagation(t *testing.T) {
 			go func() { proxyServer.Serve(proxyListener) }()
 			defer proxyServer.Stop()
 
-			proxyClientConn, err := grpc.DialContext(ctx, "unix://"+proxyListener.Addr().String(), grpc.WithInsecure())
+			proxyClientConn, err := grpc.DialContext(ctx, "unix://"+proxyListener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)
 			defer func() {
 				require.NoError(t, proxyClientConn.Close())

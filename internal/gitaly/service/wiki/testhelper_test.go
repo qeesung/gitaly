@@ -21,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type createWikiPageOpts struct {
@@ -97,7 +98,7 @@ func setupWikiService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server) 
 func newWikiClient(t testing.TB, serverSocketPath string) gitalypb.WikiServiceClient {
 	t.Helper()
 
-	conn, err := grpc.Dial(serverSocketPath, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverSocketPath, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.Close() })
 	return gitalypb.NewWikiServiceClient(conn)

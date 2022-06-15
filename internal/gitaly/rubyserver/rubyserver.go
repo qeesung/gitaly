@@ -25,6 +25,7 @@ import (
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // ConnectTimeout is the timeout for establishing a connection to the gitaly-ruby process.
@@ -306,7 +307,7 @@ func (s *Server) createConnection(ctx context.Context) (*grpc.ClientConn, error)
 func dialOptions() []grpc.DialOption {
 	return []grpc.DialOption{
 		grpc.WithBlock(), // With this we get retries. Without, connections fail fast.
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		// Use a custom dialer to ensure that we don't experience
 		// issues in environments that have proxy configurations
 		// https://gitlab.com/gitlab-org/gitaly/merge_requests/1072#note_140408512

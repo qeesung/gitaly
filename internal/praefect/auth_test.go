@@ -21,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestAuthFailures(t *testing.T) {
@@ -53,7 +54,7 @@ func TestAuthFailures(t *testing.T) {
 			defer srv.Stop()
 			defer cleanup()
 
-			connOpts := append(tc.opts, grpc.WithInsecure())
+			connOpts := append(tc.opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			defer conn.Close()
@@ -102,7 +103,7 @@ func TestAuthSuccess(t *testing.T) {
 			defer srv.Stop()
 			defer cleanup()
 
-			connOpts := append(tc.opts, grpc.WithInsecure())
+			connOpts := append(tc.opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			defer conn.Close()
