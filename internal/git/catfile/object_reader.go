@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -147,68 +146,21 @@ func (o *objectReader) ObjectQueue(ctx context.Context) (ObjectQueue, func(), er
 
 // Object represents data returned by `git cat-file --batch`
 type Object struct {
-	// bytesRemaining tracks the number of bytes which are left to be read. While this duplicates the
-	// information tracked in dataReader.N, this cannot be helped given that we need to make
-	// access to this information atomic so there's no race between updating it and checking the
-	// process for dirtiness. While we could use locking instead of atomics, we'd have to lock
-	// during the whole read duration -- and thus it'd become impossible to check for dirtiness
-	// at the same time.
-	//
-	// We list the atomic fields first to ensure they are 64-bit and 32-bit aligned:
-	// https://pkg.go.dev/sync/atomic#pkg-note-BUG
-	bytesRemaining int64
-
-	// closed determines whether the object is closed for reading.
-	closed int32
-
 	// ObjectInfo represents main information about object
 	ObjectInfo
 
 	// dataReader is reader which has all the object data.
-	dataReader io.LimitedReader
-}
-
-// isDirty determines whether the object is still dirty, that is whether there are still unconsumed
-// bytes.
-func (o *Object) isDirty() bool {
-	return atomic.LoadInt64(&o.bytesRemaining) != 0
-}
-
-func (o *Object) isClosed() bool {
-	return atomic.LoadInt32(&o.closed) == 1
-}
-
-func (o *Object) close() {
-	atomic.StoreInt32(&o.closed, 1)
+	dataReader io.Reader
 }
 
 func (o *Object) Read(p []byte) (int, error) {
-	if o.isClosed() {
-		return 0, os.ErrClosed
-	}
-
-	n, err := o.dataReader.Read(p)
-	if atomic.AddInt64(&o.bytesRemaining, int64(-n)) < 0 {
-		return n, fmt.Errorf("bytes remaining became negative while reading object")
-	}
-
-	return n, err
+	return o.dataReader.Read(p)
 }
 
 // WriteTo implements the io.WriterTo interface. It defers the write to the embedded object reader
 // via `io.Copy()`, which in turn will use `WriteTo()` or `ReadFrom()` in case these interfaces are
 // implemented by the respective reader or writer.
 func (o *Object) WriteTo(w io.Writer) (int64, error) {
-	if o.isClosed() {
-		return 0, os.ErrClosed
-	}
-
-	// While the `io.LimitedReader` does not support WriteTo, `io.Copy()` will make use of
-	// `ReadFrom()` in case the writer implements it.
-	n, err := io.Copy(w, &o.dataReader)
-	if atomic.AddInt64(&o.bytesRemaining, -n) < 0 {
-		return n, fmt.Errorf("bytes remaining became negative while reading object")
-	}
-
-	return n, err
+	// `io.Copy()` will make use of `ReadFrom()` in case the writer implements it.
+	return io.Copy(w, o.dataReader)
 }

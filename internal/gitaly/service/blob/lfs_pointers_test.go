@@ -11,12 +11,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v14/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -65,6 +67,10 @@ var lfsPointers = map[string]*gitalypb.LFSPointer{
 func TestListLFSPointers(t *testing.T) {
 	ctx := testhelper.Context(t)
 	_, repo, _, client := setup(ctx, t)
+
+	ctx = testhelper.MergeOutgoingMetadata(ctx,
+		metadata.Pairs(catfile.SessionIDField, "1"),
+	)
 
 	for _, tc := range []struct {
 		desc             string

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v14/internal/git/catfile"
@@ -38,15 +39,20 @@ func CatfileObject(
 	objectReader catfile.ObjectReader,
 	it ObjectIterator,
 ) (CatfileObjectIterator, error) {
-	queue, cleanup, err := objectReader.ObjectQueue(ctx)
+	queue, queueCleanup, err := objectReader.ObjectQueue(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	var queueRefcount int32 = 2
 
 	requestChan := make(chan catfileObjectRequest, 32)
 	go func() {
-		defer close(requestChan)
+		defer func() {
+			close(requestChan)
+			if atomic.AddInt32(&queueRefcount, -1) == 0 {
+				queueCleanup()
+			}
+		}()
 
 		sendRequest := func(request catfileObjectRequest) bool {
 			// Please refer to `sendResult()` for why we treat the context specially.
@@ -74,6 +80,15 @@ func CatfileObject(
 			if isDone := sendRequest(catfileObjectRequest{
 				objectName: it.ObjectName(),
 			}); isDone {
+				// If the context got cancelled, then we need to flush out all
+				// outstanding requests so that the downstream consumer is
+				// unblocked.
+				if err := queue.Flush(); err != nil {
+					sendRequest(catfileObjectRequest{err: err})
+					return
+				}
+
+				sendRequest(catfileObjectRequest{err: ctx.Err()})
 				return
 			}
 
@@ -99,7 +114,12 @@ func CatfileObject(
 
 	resultChan := make(chan CatfileObjectResult)
 	go func() {
-		defer close(resultChan)
+		defer func() {
+			close(resultChan)
+			if atomic.AddInt32(&queueRefcount, -1) == 0 {
+				queueCleanup()
+			}
+		}()
 
 		sendResult := func(result CatfileObjectResult) bool {
 			// In case the context has been cancelled, we have a race between observing

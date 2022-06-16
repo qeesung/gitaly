@@ -411,7 +411,6 @@ func TestObjectReader_queue(t *testing.T) {
 
 		require.True(t, reader.isClosed())
 		require.True(t, queue.isClosed())
-		require.True(t, object.isClosed())
 
 		_, err = io.ReadAll(object)
 		require.Equal(t, os.ErrClosed, err)
