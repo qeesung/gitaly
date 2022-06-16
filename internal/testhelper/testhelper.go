@@ -173,9 +173,6 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// deep in the call stack, so almost every test function would have to inject it into its
 	// context.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.RunCommandsInCGroup, true)
-	// ConcurrencyQueueEnforceMax is in the codepath of every RPC call since its in the limithandler
-	// middleware.
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.ConcurrencyQueueEnforceMax, true)
 	// Randomly inject the Git flag so that we have coverage of tests with both old and new Git
 	// version by pure chance.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2361Gl1, rnd.Int()%2 == 0)

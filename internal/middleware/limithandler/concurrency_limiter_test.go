@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/status"
@@ -244,100 +243,70 @@ func TestConcurrencyLimiter_queueLimit(t *testing.T) {
 	queueLimit := 10
 	ctx := testhelper.Context(t)
 
-	testCases := []struct {
-		desc          string
-		featureFlagOn bool
-	}{
-		{
-			desc:          "feature flag on",
-			featureFlagOn: true,
-		},
-		{
-			desc:          "feature flag off",
-			featureFlagOn: false,
-		},
-	}
+	monitorCh := make(chan struct{})
+	monitor := &blockingQueueCounter{queuedCh: monitorCh}
+	ch := make(chan struct{})
+	limiter := NewConcurrencyLimiter(1, queueLimit, nil, monitor)
 
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			ctx = featureflag.IncomingCtxWithFeatureFlag(
-				ctx,
-				featureflag.ConcurrencyQueueEnforceMax,
-				tc.featureFlagOn,
-			)
-
-			monitorCh := make(chan struct{})
-			monitor := &blockingQueueCounter{queuedCh: monitorCh}
-			ch := make(chan struct{})
-			limiter := NewConcurrencyLimiter(1, queueLimit, nil, monitor)
-
-			// occupied with one live request that takes a long time to complete
-			go func() {
-				_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-					ch <- struct{}{}
-					<-ch
-					return nil, nil
-				})
-				require.NoError(t, err)
-			}()
-
-			<-monitorCh
+	// occupied with one live request that takes a long time to complete
+	go func() {
+		_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+			ch <- struct{}{}
 			<-ch
-
-			var wg sync.WaitGroup
-			// fill up the queue
-			for i := 0; i < queueLimit; i++ {
-				wg.Add(1)
-				go func() {
-					_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-						return nil, nil
-					})
-					require.NoError(t, err)
-					wg.Done()
-				}()
-			}
-
-			var queued int
-			for range monitorCh {
-				queued++
-				if queued == queueLimit {
-					break
-				}
-			}
-
-			errChan := make(chan error, 1)
-			go func() {
-				_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-					return nil, nil
-				})
-				errChan <- err
-			}()
-
-			if tc.featureFlagOn {
-				err := <-errChan
-				assert.Error(t, err)
-
-				s, ok := status.FromError(err)
-				require.True(t, ok)
-				details := s.Details()
-				require.Len(t, details, 1)
-
-				limitErr, ok := details[0].(*gitalypb.LimitError)
-				require.True(t, ok)
-
-				assert.Equal(t, ErrMaxQueueSize.Error(), limitErr.ErrorMessage)
-				assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
-				assert.Equal(t, monitor.droppedSize, 1)
-			} else {
-				<-monitorCh
-				assert.Equal(t, int64(queueLimit+1), limiter.queued)
-				assert.Equal(t, monitor.droppedSize, 0)
-			}
-
-			close(ch)
-			wg.Wait()
+			return nil, nil
 		})
+		require.NoError(t, err)
+	}()
+
+	<-monitorCh
+	<-ch
+
+	var wg sync.WaitGroup
+	// fill up the queue
+	for i := 0; i < queueLimit; i++ {
+		wg.Add(1)
+		go func() {
+			_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+				return nil, nil
+			})
+			require.NoError(t, err)
+			wg.Done()
+		}()
 	}
+
+	var queued int
+	for range monitorCh {
+		queued++
+		if queued == queueLimit {
+			break
+		}
+	}
+
+	errChan := make(chan error, 1)
+	go func() {
+		_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+			return nil, nil
+		})
+		errChan <- err
+	}()
+
+	err := <-errChan
+	assert.Error(t, err)
+
+	s, ok := status.FromError(err)
+	require.True(t, ok)
+	details := s.Details()
+	require.Len(t, details, 1)
+
+	limitErr, ok := details[0].(*gitalypb.LimitError)
+	require.True(t, ok)
+
+	assert.Equal(t, ErrMaxQueueSize.Error(), limitErr.ErrorMessage)
+	assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+	assert.Equal(t, monitor.droppedSize, 1)
+
+	close(ch)
+	wg.Wait()
 }
 
 type blockingDequeueCounter struct {

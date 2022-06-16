@@ -242,11 +242,7 @@ func TestStreamLimitHandler(t *testing.T) {
 
 			client, conn := newClient(t, serverSocketPath)
 			defer conn.Close()
-			ctx := featureflag.IncomingCtxWithFeatureFlag(
-				testhelper.Context(t),
-				featureflag.ConcurrencyQueueEnforceMax,
-				true,
-			)
+			ctx := testhelper.Context(t)
 
 			totalCalls := 10
 
@@ -300,11 +296,7 @@ func TestStreamLimitHandler_error(t *testing.T) {
 	client, conn := newClient(t, serverSocketPath)
 	defer conn.Close()
 
-	ctx := featureflag.IncomingCtxWithFeatureFlag(
-		testhelper.Context(t),
-		featureflag.ConcurrencyQueueEnforceMax,
-		true,
-	)
+	ctx := testhelper.Context(t)
 
 	respChan := make(chan *pb.BidirectionalResponse)
 	go func() {
@@ -416,11 +408,7 @@ func TestConcurrencyLimitHandlerMetrics(t *testing.T) {
 	client, conn := newClient(t, serverSocketPath)
 	defer conn.Close()
 
-	ctx := featureflag.IncomingCtxWithFeatureFlag(
-		testhelper.Context(t),
-		featureflag.ConcurrencyQueueEnforceMax,
-		true,
-	)
+	ctx := testhelper.Context(t)
 
 	respCh := make(chan *pb.UnaryResponse)
 	go func() {

@@ -11,7 +11,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -118,8 +117,7 @@ func (c *ConcurrencyLimiter) queueInc(ctx context.Context) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	if featureflag.ConcurrencyQueueEnforceMax.IsEnabled(ctx) &&
-		c.queuedLimit > 0 &&
+	if c.queuedLimit > 0 &&
 		c.queued >= c.queuedLimit {
 		c.monitor.Dropped(ctx, "max_size")
 		return ErrMaxQueueSize
