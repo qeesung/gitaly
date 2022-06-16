@@ -119,7 +119,7 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 		cmd := exec.Command(
 			"go",
 			"build",
-			"-tags", "static,system_libgit2",
+			"-tags", "static,system_libgit2,gitaly_test",
 			"-o", sharedBinaryPath,
 			sourcePath,
 		)

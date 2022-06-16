@@ -9,12 +9,16 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	git "github.com/libgit2/git2go/v33"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 	glog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/labkit/correlation"
 )
 
@@ -61,11 +65,22 @@ func main() {
 	encoder := gob.NewEncoder(os.Stdout)
 
 	var logFormat, logLevel, correlationID string
+	var enabledFeatureFlags, disabledFeatureFlags featureFlagArg
 
 	flags := flag.NewFlagSet(git2go.BinaryName, flag.PanicOnError)
 	flags.StringVar(&logFormat, "log-format", "", "logging format")
 	flags.StringVar(&logLevel, "log-level", "", "logging level")
 	flags.StringVar(&correlationID, "correlation-id", "", "correlation ID used for request tracing")
+	flags.Var(
+		&enabledFeatureFlags,
+		"enabled-feature-flags",
+		"comma separated list of explicitly enabled feature flags",
+	)
+	flags.Var(
+		&disabledFeatureFlags,
+		"disabled-feature-flags",
+		"comma separated list of explicitly disabled feature flags",
+	)
 	_ = flags.Parse(os.Args[1:])
 
 	if correlationID == "" {
@@ -76,8 +91,10 @@ func main() {
 
 	ctx := correlation.ContextWithCorrelation(context.Background(), correlationID)
 	logger := glog.Default().WithFields(logrus.Fields{
-		"command.name":   git2go.BinaryName,
-		"correlation_id": correlationID,
+		"command.name":           git2go.BinaryName,
+		"correlation_id":         correlationID,
+		"enabled_feature_flags":  enabledFeatureFlags,
+		"disabled_feature_flags": disabledFeatureFlags,
 	})
 
 	if flags.NArg() < 1 {
@@ -116,10 +133,41 @@ func main() {
 	subcmdLogger.Infof("starting %s command", subcmdFlags.Name())
 
 	ctx = ctxlogrus.ToContext(ctx, subcmdLogger)
+
+	featureFlags := make(featureflag.Raw)
+	enabledFeatureFlags.SetRaw(featureFlags, true)
+	disabledFeatureFlags.SetRaw(featureFlags, false)
+
+	ctx = metadata.OutgoingToIncoming(featureflag.OutgoingWithRaw(ctx, featureFlags))
+
 	if err := subcmd.Run(ctx, decoder, encoder); err != nil {
 		subcmdLogger.WithError(err).Errorf("%s command failed", subcmdFlags.Name())
 		fatalf(logger, encoder, "%s: %s", subcmdFlags.Name(), err)
 	}
 
 	subcmdLogger.Infof("%s command finished", subcmdFlags.Name())
+}
+
+type featureFlagArg []string
+
+func (v *featureFlagArg) String() string {
+	return strings.Join(*v, ",")
+}
+
+func (v *featureFlagArg) Set(s string) error {
+	if s == "" {
+		return nil
+	}
+
+	for _, enabledFF := range strings.Split(s, ",") {
+		*v = append(*v, enabledFF)
+	}
+
+	return nil
+}
+
+func (v featureFlagArg) SetRaw(raw featureflag.Raw, enabled bool) {
+	for _, ff := range v {
+		raw[ff] = strconv.FormatBool(enabled)
+	}
 }

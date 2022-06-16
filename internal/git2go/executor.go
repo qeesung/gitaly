@@ -9,6 +9,7 @@ import (
 	"io"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
@@ -17,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	glog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/version"
 	"gitlab.com/gitlab-org/labkit/correlation"
 )
@@ -55,6 +57,19 @@ func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Re
 		return nil, fmt.Errorf("gitaly-git2go: %w", err)
 	}
 
+	var enabledFeatureFlags, disabledFeatureFlags []string
+
+	for ff, value := range featureflag.RawFromContext(ctx) {
+		switch value {
+		case "true":
+			enabledFeatureFlags = append(enabledFeatureFlags, ff)
+		case "false":
+			disabledFeatureFlags = append(disabledFeatureFlags, ff)
+		default:
+			return nil, fmt.Errorf("invalid value for feature flag %q: %q", ff, value)
+		}
+	}
+
 	env := alternates.Env(repoPath, repo.GetGitObjectDirectory(), repo.GetGitAlternateObjectDirectories())
 	env = append(env, b.gitCmdFactory.GetExecutionEnvironment(ctx).EnvironmentVariables...)
 
@@ -67,6 +82,8 @@ func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Re
 		"-log-format", b.logFormat,
 		"-log-level", b.logLevel,
 		"-correlation-id", correlation.ExtractFromContext(ctx),
+		"-enabled-feature-flags", strings.Join(enabledFeatureFlags, ","),
+		"-disabled-feature-flags", strings.Join(disabledFeatureFlags, ","),
 		subcmd,
 	}, args...)
 
