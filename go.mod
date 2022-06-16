@@ -9,7 +9,6 @@ require (
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/git-lfs/git-lfs/v3 v3.2.0
 	github.com/go-enry/go-license-detector/v4 v4.3.0
-	github.com/go-git/go-git/v5 v5.3.0 // indirect
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.2.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
@@ -32,12 +31,11 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/uber/jaeger-client-go v2.29.1+incompatible
-	gitlab.com/gitlab-org/gitlab-shell v1.9.8-0.20210720163109-50da611814d2
+	gitlab.com/gitlab-org/gitlab-shell v1.9.8-0.20220606180012-26bfd750e8ac
 	gitlab.com/gitlab-org/labkit v1.14.0
 	go.uber.org/goleak v1.1.10
 	gocloud.dev v0.23.0
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
-	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5 // indirect
 	golang.org/x/net v0.0.0-20220531201128-c960675eff93 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 	golang.org/x/sys v0.0.0-20220614162138-6c1b26c55098

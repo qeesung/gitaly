@@ -18,7 +18,6 @@ func TestConfigFromEnvironment(t *testing.T) {
 			Password:    "correcthorsebatterystaple",
 			CAFile:      "/ca/file",
 			CAPath:      "/ca/path",
-			SelfSigned:  true,
 		},
 		SecretFile: "/secret/path",
 	}
@@ -157,7 +156,6 @@ func TestConfig_Environment(t *testing.T) {
 				Password:    "correcthorsebatterystaple",
 				CAFile:      "/ca/file",
 				CAPath:      "/ca/path",
-				SelfSigned:  true,
 			},
 			SecretFile: "/secret/path",
 		},

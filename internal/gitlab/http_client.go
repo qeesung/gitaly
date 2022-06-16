@@ -52,7 +52,6 @@ func NewHTTPClient(
 		gitlabCfg.RelativeURLRoot,
 		gitlabCfg.HTTPSettings.CAFile,
 		gitlabCfg.HTTPSettings.CAPath,
-		gitlabCfg.HTTPSettings.SelfSigned,
 		uint64(gitlabCfg.HTTPSettings.ReadTimeout),
 		opts,
 	)

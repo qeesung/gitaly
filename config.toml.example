@@ -119,7 +119,6 @@ url = "http+unix://%2Fhome%2Fgit%2Fgitlab%2Ftmp%2Fsockets%2Fgitlab-workhorse.soc
 # password = somepass
 # ca_file = /etc/ssl/cert.pem
 # ca_path = /etc/pki/tls/certs
-self_signed_cert = false
 
 # # You can adjust the concurrency of each RPC endpoint
 # [[concurrency]]
