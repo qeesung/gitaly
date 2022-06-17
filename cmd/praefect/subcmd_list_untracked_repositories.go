@@ -68,7 +68,7 @@ func (cmd listUntrackedRepositories) Exec(flags *flag.FlagSet, cfg config.Config
 	ctx = metadata.AppendToOutgoingContext(ctx, "client_name", listUntrackedRepositoriesName)
 
 	logger := cmd.logger.WithField("correlation_id", correlation.ExtractFromContext(ctx))
-	logger.Debugf("starting %s command", cmd.FlagSet().Name())
+	logger.Debugf("starting %s command", flags.Name())
 
 	logger.Debug("dialing to gitaly nodes...")
 	nodeSet, err := dialGitalyStorages(ctx, cfg, defaultDialTimeout)

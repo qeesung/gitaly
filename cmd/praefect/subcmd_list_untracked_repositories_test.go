@@ -90,7 +90,7 @@ func TestListUntrackedRepositories_Exec(t *testing.T) {
 	out := &bytes.Buffer{}
 	cmd := newListUntrackedRepositories(testhelper.NewDiscardingLogger(t), out)
 	fs := cmd.FlagSet()
-	require.NoError(t, fs.Parse([]string{}))
+	require.NoError(t, fs.Parse([]string{"-older-than", "4h"}))
 
 	// Repositories not managed by praefect.
 	repo1, repo1Path := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
@@ -99,12 +99,12 @@ func TestListUntrackedRepositories_Exec(t *testing.T) {
 
 	require.NoError(t, os.Chtimes(
 		repo1Path,
-		time.Now().Add(-(6*time.Hour+1*time.Second)),
-		time.Now().Add(-(6*time.Hour+1*time.Second))))
+		time.Now().Add(-(4*time.Hour+1*time.Second)),
+		time.Now().Add(-(4*time.Hour+1*time.Second))))
 	require.NoError(t, os.Chtimes(
 		repo2Path,
-		time.Now().Add(-(6*time.Hour+1*time.Second)),
-		time.Now().Add(-(6*time.Hour+1*time.Second))))
+		time.Now().Add(-(4*time.Hour+1*time.Second)),
+		time.Now().Add(-(4*time.Hour+1*time.Second))))
 
 	require.NoError(t, cmd.Exec(fs, conf))
 
