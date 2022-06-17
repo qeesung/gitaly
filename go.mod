@@ -34,7 +34,7 @@ require (
 	github.com/uber/jaeger-client-go v2.29.1+incompatible
 	gitlab.com/gitlab-org/gitlab-shell v1.9.8-0.20210720163109-50da611814d2
 	gitlab.com/gitlab-org/labkit v1.14.0
-	go.uber.org/goleak v1.1.10
+	go.uber.org/goleak v1.1.12
 	gocloud.dev v0.23.0
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5 // indirect
