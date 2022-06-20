@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -297,37 +298,36 @@ func TestRemoveRepository_removeReplicationEvents(t *testing.T) {
 	ticker := helper.NewManualTicker()
 	defer ticker.Stop()
 
-	errChan := make(chan error, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		cmd := &removeRepository{virtualStorage: virtualStorage, relativePath: relativePath}
-		errChan <- cmd.removeReplicationEvents(ctx, testhelper.NewDiscardingLogger(t), db.DB, ticker)
+		defer wg.Done()
+
+		// Tick multiple times so that we know that at least one event must have been processed by
+		// the command.
+		ticker.Tick()
+		ticker.Tick()
+		ticker.Tick()
+
+		// Verify that the database now only contains a single job, which is the "in_progress" one.
+		var jobIDs glsql.Uint64Provider
+		row := db.QueryRowContext(ctx, `SELECT id FROM replication_queue`)
+		assert.NoError(t, row.Scan(jobIDs.To()...))
+		assert.Equal(t, []uint64{inProgressEvent.ID}, jobIDs.Values())
+
+		// Now we acknowledge the "in_progress" job so that it will also get pruned. This
+		// will also stop the processing loop as there are no more jobs left.
+		acknowledgedJobIDs, err = queue.Acknowledge(ctx, datastore.JobStateCompleted, []uint64{inProgressEvent.ID})
+		assert.NoError(t, err)
+		assert.Equal(t, []uint64{inProgressEvent.ID}, acknowledgedJobIDs)
+
+		ticker.Tick()
 	}()
 
-	// Tick multiple times so that we know that at least one event must have been processed by
-	// the command.
-	ticker.Tick()
-	ticker.Tick()
-	ticker.Tick()
+	cmd := &removeRepository{virtualStorage: virtualStorage, relativePath: relativePath}
+	require.NoError(t, cmd.removeReplicationEvents(ctx, testhelper.NewDiscardingLogger(t), db.DB, ticker))
 
-	// Verify that the database now only contains a single job, which is the "in_progress" one.
-	var jobIDs glsql.Uint64Provider
-	rows, err := db.QueryContext(ctx, `SELECT id FROM replication_queue`)
-	require.NoError(t, err)
-	defer rows.Close()
-	require.NoError(t, glsql.ScanAll(rows, &jobIDs))
-	require.NoError(t, rows.Err())
-	require.Equal(t, []uint64{inProgressEvent.ID}, jobIDs.Values())
-
-	// Now we acknowledge the "in_progress" job so that it will also get pruned. This
-	// will also stop the processing loop as there are no more jobs left.
-	acknowledgedJobIDs, err = queue.Acknowledge(ctx, datastore.JobStateCompleted, []uint64{inProgressEvent.ID})
-	require.NoError(t, err)
-	require.Equal(t, []uint64{inProgressEvent.ID}, acknowledgedJobIDs)
-
-	ticker.Tick()
-
-	// The command should stop now because there are no more jobs in the replication queue.
-	require.NoError(t, <-errChan)
+	wg.Wait()
 
 	// And now we can finally assert that the replication queue is empty.
 	var notExists bool
