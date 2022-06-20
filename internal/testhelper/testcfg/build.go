@@ -116,10 +116,17 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 			"PATH=%s:%s", filepath.Dir(gitExecEnv.BinaryPath), os.Getenv("PATH"),
 		))
 
+		buildTags := []string{
+			"static", "system_libgit2", "gitaly_test",
+		}
+		if os.Getenv("GITALY_TESTING_ENABLE_FIPS") != "" {
+			buildTags = append(buildTags, "fips")
+		}
+
 		cmd := exec.Command(
 			"go",
 			"build",
-			"-tags", "static,system_libgit2,gitaly_test",
+			"-tags", strings.Join(buildTags, ","),
 			"-o", sharedBinaryPath,
 			sourcePath,
 		)

@@ -41,7 +41,6 @@ bindir           ?= ${exec_prefix}/bin
 INSTALL_DEST_DIR := ${DESTDIR}${bindir}
 ## The prefix where Git will be installed to.
 GIT_PREFIX       ?= ${GIT_DEFAULT_PREFIX}
-FIPS_MODE        ?= 0
 
 # Tools
 GIT                         := $(shell command -v git)
@@ -75,7 +74,11 @@ GIT2GO_BUILD_TAGS := static,system_libgit2
 # of the string "TEMP_GITALY_BUILD_ID".
 TEMPORARY_BUILD_ID := 54454D505F474954414C595F4255494C445F4944
 
-ifeq (${FIPS_MODE}, 1)
+## FIPS_MODE controls whether to build Gitaly and dependencies in FIPS mode.
+## Set this to a non-empty value to enable it.
+FIPS_MODE ?=
+
+ifdef FIPS_MODE
     SERVER_BUILD_TAGS := ${SERVER_BUILD_TAGS},fips
     GIT2GO_BUILD_TAGS := ${GIT2GO_BUILD_TAGS},fips
 
@@ -83,6 +86,8 @@ ifeq (${FIPS_MODE}, 1)
     # requested. Note that we explicitly don't do the same for SHA1: we
     # instead use SHA1DC to protect users against the SHAttered attack.
     GIT_FIPS_BUILD_OPTIONS := OPENSSL_SHA256=YesPlease
+
+    export GITALY_TESTING_ENABLE_FIPS := YesPlease
 endif
 
 # Dependency versions
