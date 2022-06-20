@@ -6,22 +6,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
@@ -32,15 +32,16 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v15/streamio"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 )
 
 const (
 	uploadPackCapabilities = "report-status side-band-64k agent=git/2.12.0"
 )
 
-func TestSuccessfulReceivePackRequest(t *testing.T) {
+func TestPostReceivePack_successful(t *testing.T) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
 	cfg.GitlabShell.Dir = "/foo/bar/gitlab-shell"
@@ -51,10 +52,10 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 	})
 	cfg.SocketPath = server.Address()
 
-	ctx := testhelper.Context(t)
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
+	repo.GlProjectPath = "project/path"
 
 	client, conn := newSmartHTTPClient(t, server.Address(), cfg.Auth.Token)
 	defer conn.Close()
@@ -75,19 +76,21 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)
 
-	push := newTestPush(t, cfg, nil)
+	_, newCommitID, request := createPushRequest(t, cfg)
+	response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
+		Repository:   repo,
+		GlUsername:   "user",
+		GlId:         "123",
+		GlRepository: "project-456",
+	}, request)
 
-	projectPath := "project/path"
+	requireSideband(t, []string{
+		"0049\x01000eunpack ok\n0019ok refs/heads/master\n0019ok refs/heads/branch\n0000",
+	}, response)
 
-	repo.GlProjectPath = projectPath
-	firstRequest := &gitalypb.PostReceivePackRequest{Repository: repo, GlUsername: "user", GlId: "123", GlRepository: "project-456"}
-	response := doPush(t, stream, firstRequest, push.body)
-
-	expectedResponse := "0049\x01000eunpack ok\n0019ok refs/heads/master\n0019ok refs/heads/branch\n00000000"
-	require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
-
-	// The fact that this command succeeds means that we got the commit correctly, no further checks should be needed.
-	gittest.Exec(t, cfg, "-C", repoPath, "show", push.newHead)
+	// The fact that this command succeeds means that we got the commit correctly, no further
+	// checks should be needed.
+	gittest.Exec(t, cfg, "-C", repoPath, "show", newCommitID.String())
 
 	envData := testhelper.MustReadFile(t, hookOutputFile)
 	payload, err := git.HooksPayloadFromEnv(strings.Split(string(envData), "\n"))
@@ -116,13 +119,14 @@ func TestSuccessfulReceivePackRequest(t *testing.T) {
 	}, payload)
 }
 
-func TestReceivePackHiddenRefs(t *testing.T) {
+func TestPostReceivePack_hiddenRefs(t *testing.T) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
 
-	ctx := testhelper.Context(t)
 	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
@@ -146,44 +150,44 @@ func TestReceivePackHiddenRefs(t *testing.T) {
 		"refs/pipelines/1",
 	} {
 		t.Run(ref, func(t *testing.T) {
-			request := &bytes.Buffer{}
-			gittest.WritePktlineString(t, request, fmt.Sprintf("%s %s %s\x00 %s",
-				oldHead, newHead, ref, uploadPackCapabilities))
-			gittest.WritePktlineFlush(t, request)
+			var request bytes.Buffer
+			gittest.WritePktlinef(t, &request, "%s %s %s\x00 %s", oldHead, newHead, ref, uploadPackCapabilities)
+			gittest.WritePktlineFlush(t, &request)
 
 			// The options passed are the same ones used when doing an actual push.
 			revisions := strings.NewReader(fmt.Sprintf("^%s\n%s\n", oldHead, newHead))
-			pack := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: revisions},
+			gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: revisions, Stdout: &request},
 				"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
 			)
-			request.Write(pack)
 
 			stream, err := client.PostReceivePack(ctx)
 			require.NoError(t, err)
 
-			response := doPush(t, stream, &gitalypb.PostReceivePackRequest{
-				Repository: repoProto, GlUsername: "user", GlId: "123", GlRepository: "project-456",
-			}, request)
+			response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
+				Repository:   repoProto,
+				GlUsername:   "user",
+				GlId:         "123",
+				GlRepository: "project-456",
+			}, &request)
 
-			require.Contains(t, string(response), fmt.Sprintf("%s deny updating a hidden ref", ref))
+			require.Contains(t, response, fmt.Sprintf("%s deny updating a hidden ref", ref))
 		})
 	}
 }
 
-func TestSuccessfulReceivePackRequestWithGitProtocol(t *testing.T) {
+func TestPostReceivePack_protocolV2(t *testing.T) {
 	t.Parallel()
 
-	cfg := testcfg.Build(t)
-
-	testcfg.BuildGitalyHooks(t, cfg)
 	ctx := testhelper.Context(t)
+
+	cfg := testcfg.Build(t)
+	testcfg.BuildGitalyHooks(t, cfg)
 
 	protocolDetectingFactory := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
 
 	server := startSmartHTTPServerWithOptions(t, cfg, nil, []testserver.GitalyServerOpt{
 		testserver.WithGitCommandFactory(protocolDetectingFactory),
 	})
-
 	cfg.SocketPath = server.Address()
 
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
@@ -196,25 +200,29 @@ func TestSuccessfulReceivePackRequestWithGitProtocol(t *testing.T) {
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)
 
-	push := newTestPush(t, cfg, nil)
-	firstRequest := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "user-123", GlRepository: "project-123", GitProtocol: git.ProtocolV2}
-	doPush(t, stream, firstRequest, push.body)
+	_, newCommitID, request := createPushRequest(t, cfg)
+	performPush(t, stream, &gitalypb.PostReceivePackRequest{
+		Repository:   repo,
+		GlId:         "user-123",
+		GlRepository: "project-123",
+		GitProtocol:  git.ProtocolV2,
+	}, request)
 
 	envData := protocolDetectingFactory.ReadProtocol(t)
 	require.Equal(t, fmt.Sprintf("GIT_PROTOCOL=%s\n", git.ProtocolV2), envData)
 
 	// The fact that this command succeeds means that we got the commit correctly, no further checks should be needed.
-	gittest.Exec(t, cfg, "-C", repoPath, "show", push.newHead)
+	gittest.Exec(t, cfg, "-C", repoPath, "show", newCommitID.String())
 }
 
-func TestFailedReceivePackRequestWithGitOpts(t *testing.T) {
+func TestPostReceivePack_rejectViaGitConfigOptions(t *testing.T) {
 	t.Parallel()
 
-	cfg := testcfg.Build(t)
+	ctx := testhelper.Context(t)
 
+	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
 
-	ctx := testhelper.Context(t)
 	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
@@ -225,23 +233,29 @@ func TestFailedReceivePackRequestWithGitOpts(t *testing.T) {
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)
 
-	push := newTestPush(t, cfg, nil)
-	firstRequest := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "user-123", GlRepository: "project-123", GitConfigOptions: []string{"receive.MaxInputSize=1"}}
-	response := doPush(t, stream, firstRequest, push.body)
+	_, _, request := createPushRequest(t, cfg)
+	response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
+		Repository:       repo,
+		GlId:             "user-123",
+		GlRepository:     "project-123",
+		GitConfigOptions: []string{"receive.MaxInputSize=1"},
+	}, request)
 
-	expectedResponse := "002e\x02fatal: pack exceeds maximum allowed size\n0081\x010028unpack unpack-objects abnormal exit\n0028ng refs/heads/master unpacker error\n0028ng refs/heads/branch unpacker error\n00000000"
-	require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
+	requireSideband(t, []string{
+		"002e\x02fatal: pack exceeds maximum allowed size\n",
+		"0081\x010028unpack unpack-objects abnormal exit\n0028ng refs/heads/master unpacker error\n0028ng refs/heads/branch unpacker error\n0000",
+	}, response)
 }
 
-func TestFailedReceivePackRequestDueToHooksFailure(t *testing.T) {
+func TestPostReceivePack_rejectViaHooks(t *testing.T) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg, git.WithHooksPath(testhelper.TempDir(t)))
-	ctx := testhelper.Context(t)
 
-	hookContent := []byte("#!/bin/sh\nexit 1")
-	require.NoError(t, os.WriteFile(filepath.Join(gitCmdFactory.HooksPath(ctx), "pre-receive"), hookContent, 0o755))
+	testhelper.WriteExecutable(t, filepath.Join(gitCmdFactory.HooksPath(ctx), "pre-receive"), []byte("#!/bin/sh\nexit 1"))
 
 	server := startSmartHTTPServerWithOptions(t, cfg, nil, []testserver.GitalyServerOpt{
 		testserver.WithGitCommandFactory(gitCmdFactory),
@@ -258,102 +272,19 @@ func TestFailedReceivePackRequestDueToHooksFailure(t *testing.T) {
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)
 
-	push := newTestPush(t, cfg, nil)
-	firstRequest := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "user-123", GlRepository: "project-123"}
-	response := doPush(t, stream, firstRequest, push.body)
+	_, _, request := createPushRequest(t, cfg)
+	response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
+		Repository:   repo,
+		GlId:         "user-123",
+		GlRepository: "project-123",
+	}, request)
 
-	expectedResponse := "007d\x01000eunpack ok\n0033ng refs/heads/master pre-receive hook declined\n0033ng refs/heads/branch pre-receive hook declined\n00000000"
-	require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
+	requireSideband(t, []string{
+		"007d\x01000eunpack ok\n0033ng refs/heads/master pre-receive hook declined\n0033ng refs/heads/branch pre-receive hook declined\n0000",
+	}, response)
 }
 
-func doPush(t *testing.T, stream gitalypb.SmartHTTPService_PostReceivePackClient, firstRequest *gitalypb.PostReceivePackRequest, body io.Reader) []byte {
-	require.NoError(t, stream.Send(firstRequest))
-
-	sw := streamio.NewWriter(func(p []byte) error {
-		return stream.Send(&gitalypb.PostReceivePackRequest{Data: p})
-	})
-	_, err := io.Copy(sw, body)
-	require.NoError(t, err)
-
-	require.NoError(t, stream.CloseSend())
-
-	responseBuffer := bytes.Buffer{}
-	rr := streamio.NewReader(func() ([]byte, error) {
-		resp, err := stream.Recv()
-		return resp.GetData(), err
-	})
-	_, err = io.Copy(&responseBuffer, rr)
-	require.NoError(t, err)
-
-	return responseBuffer.Bytes()
-}
-
-type pushData struct {
-	newHead string
-	body    io.Reader
-}
-
-func newTestPush(t *testing.T, cfg config.Cfg, fileContents []byte) *pushData {
-	_, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
-		WithWorktree: true,
-	})
-
-	oldHead, newHead := createCommit(t, cfg, repoPath, fileContents)
-
-	// ReceivePack request is a packet line followed by a packet flush, then the pack file of the objects we want to push.
-	// This is explained a bit in https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols#_uploading_data
-	// We form the packet line the same way git executable does: https://github.com/git/git/blob/d1a13d3fcb252631361a961cb5e2bf10ed467cba/send-pack.c#L524-L527
-	requestBuffer := &bytes.Buffer{}
-
-	pkt := fmt.Sprintf("%s %s refs/heads/master\x00 %s", oldHead, newHead, uploadPackCapabilities)
-	fmt.Fprintf(requestBuffer, "%04x%s", len(pkt)+4, pkt)
-
-	pkt = fmt.Sprintf("%s %s refs/heads/branch", git.ZeroOID, newHead)
-	fmt.Fprintf(requestBuffer, "%04x%s", len(pkt)+4, pkt)
-
-	fmt.Fprintf(requestBuffer, "%s", pktFlushStr)
-
-	// We need to get a pack file containing the objects we want to push, so we use git pack-objects
-	// which expects a list of revisions passed through standard input. The list format means
-	// pack the objects needed if I have oldHead but not newHead (think of it from the perspective of the remote repo).
-	// For more info, check the man pages of both `git-pack-objects` and `git-rev-list --objects`.
-	stdin := strings.NewReader(fmt.Sprintf("^%s\n%s\n", oldHead, newHead))
-
-	// The options passed are the same ones used when doing an actual push.
-	pack := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: stdin},
-		"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
-	)
-	requestBuffer.Write(pack)
-
-	return &pushData{newHead: newHead, body: requestBuffer}
-}
-
-// createCommit creates a commit on HEAD with a file containing the
-// specified contents.
-func createCommit(t *testing.T, cfg config.Cfg, repoPath string, fileContents []byte) (oldHead string, newHead string) {
-	commitMsg := fmt.Sprintf("Testing ReceivePack RPC around %d", time.Now().Unix())
-	committerName := "Scrooge McDuck"
-	committerEmail := "scrooge@mcduck.com"
-
-	// The latest commit ID on the remote repo
-	oldHead = text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "master"))
-
-	changedFile := "README.md"
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, changedFile), fileContents, 0o644))
-
-	gittest.Exec(t, cfg, "-C", repoPath, "add", changedFile)
-	gittest.Exec(t, cfg, "-C", repoPath,
-		"-c", fmt.Sprintf("user.name=%s", committerName),
-		"-c", fmt.Sprintf("user.email=%s", committerEmail),
-		"commit", "-m", commitMsg)
-
-	// The commit ID we want to push to the remote repo
-	newHead = text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "master"))
-
-	return oldHead, newHead
-}
-
-func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
+func TestPostReceivePack_requestValidation(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -364,9 +295,9 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 	defer conn.Close()
 
 	for _, tc := range []struct {
-		desc    string
-		request *gitalypb.PostReceivePackRequest
-		code    codes.Code
+		desc        string
+		request     *gitalypb.PostReceivePackRequest
+		expectedErr error
 	}{
 		{
 			desc: "Repository doesn't exist",
@@ -377,12 +308,24 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 				},
 				GlId: "user-123",
 			},
-			code: codes.InvalidArgument,
+			expectedErr: func() error {
+				if testhelper.IsPraefectEnabled() {
+					return helper.ErrInvalidArgumentf("repo scoped: invalid Repository")
+				}
+
+				return helper.ErrInvalidArgumentf("GetStorageByName: no such storage: %q", "fake")
+			}(),
 		},
 		{
 			desc:    "Repository is nil",
 			request: &gitalypb.PostReceivePackRequest{Repository: nil, GlId: "user-123"},
-			code:    codes.InvalidArgument,
+			expectedErr: func() error {
+				if testhelper.IsPraefectEnabled() {
+					return helper.ErrInvalidArgumentf("repo scoped: empty Repository")
+				}
+
+				return helper.ErrInvalidArgumentf("PostReceivePack: empty Repository")
+			}(),
 		},
 		{
 			desc: "Empty GlId",
@@ -393,12 +336,12 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 				},
 				GlId: "",
 			},
-			code: func() codes.Code {
+			expectedErr: func() error {
 				if testhelper.IsPraefectEnabled() {
-					return codes.NotFound
+					return helper.ErrNotFoundf("mutator call: route repository mutator: get repository id: repository %q/%q not found", cfg.Storages[0].Name, "path/to/repo")
 				}
 
-				return codes.InvalidArgument
+				return helper.ErrInvalidArgumentf("PostReceivePack: empty GlId")
 			}(),
 		},
 		{
@@ -411,12 +354,12 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 				GlId: "user-123",
 				Data: []byte("Fail"),
 			},
-			code: func() codes.Code {
+			expectedErr: func() error {
 				if testhelper.IsPraefectEnabled() {
-					return codes.NotFound
+					return helper.ErrNotFoundf("mutator call: route repository mutator: get repository id: repository %q/%q not found", cfg.Storages[0].Name, "path/to/repo")
 				}
 
-				return codes.InvalidArgument
+				return helper.ErrInvalidArgumentf("PostReceivePack: non-empty Data")
 			}(),
 		},
 	} {
@@ -429,13 +372,15 @@ func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
 			require.NoError(t, stream.CloseSend())
 
 			err = drainPostReceivePackResponse(stream)
-			testhelper.RequireGrpcCode(t, err, tc.code)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 		})
 	}
 }
 
 func TestPostReceivePack_invalidObjects(t *testing.T) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
 
@@ -445,7 +390,6 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 	})
 	cfg.SocketPath = server.Address()
 
-	ctx := testhelper.Context(t)
 	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
@@ -464,7 +408,7 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 	for _, tc := range []struct {
 		desc             string
 		prepareCommit    func(t *testing.T, repoPath string) bytes.Buffer
-		expectedResponse string
+		expectedSideband []string
 		expectObject     bool
 	}{
 		{
@@ -479,8 +423,10 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 				buf.WriteString("Commit message\n")
 				return buf
 			},
-			expectedResponse: "0030\x01000eunpack ok\n0019ok refs/heads/master\n00000000",
-			expectObject:     true,
+			expectedSideband: []string{
+				"0030\x01000eunpack ok\n0019ok refs/heads/master\n0000",
+			},
+			expectObject: true,
 		},
 		{
 			desc: "missing author and committer date",
@@ -494,8 +440,10 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 				buf.WriteString("Commit message\n")
 				return buf
 			},
-			expectedResponse: "0030\x01000eunpack ok\n0019ok refs/heads/master\n00000000",
-			expectObject:     true,
+			expectedSideband: []string{
+				"0030\x01000eunpack ok\n0019ok refs/heads/master\n0000",
+			},
+			expectObject: true,
 		},
 		{
 			desc: "zero-padded file mode",
@@ -523,8 +471,10 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 				buf.WriteString("Commit message\n")
 				return buf
 			},
-			expectedResponse: "0030\x01000eunpack ok\n0019ok refs/heads/master\n00000000",
-			expectObject:     true,
+			expectedSideband: []string{
+				"0030\x01000eunpack ok\n0019ok refs/heads/master\n0000",
+			},
+			expectObject: true,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -547,14 +497,13 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 
 			stream, err := client.PostReceivePack(ctx)
 			require.NoError(t, err)
-			firstRequest := &gitalypb.PostReceivePackRequest{
+			response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
 				Repository:   repoProto,
 				GlId:         "user-123",
 				GlRepository: "project-456",
-			}
-			response := doPush(t, stream, firstRequest, body)
+			}, body)
 
-			require.Contains(t, string(response), tc.expectedResponse)
+			requireSideband(t, tc.expectedSideband, response)
 
 			exists, err := repo.HasRevision(ctx, git.Revision(commitID+"^{commit}"))
 			require.NoError(t, err)
@@ -563,13 +512,14 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 	}
 }
 
-func TestReceivePackFsck(t *testing.T) {
+func TestPostReceivePack_fsck(t *testing.T) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
 
-	ctx := testhelper.Context(t)
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
@@ -587,16 +537,14 @@ func TestReceivePackFsck(t *testing.T) {
 		),
 	)
 
-	stdin := strings.NewReader(fmt.Sprintf("^%s\n%s\n", head, commit))
-	pack := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: stdin},
-		"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
-	)
-
 	var body bytes.Buffer
 	gittest.WritePktlineString(t, &body, fmt.Sprintf("%s %s refs/heads/master\x00 %s", head, commit, "report-status side-band-64k agent=git/2.12.0"))
 	gittest.WritePktlineFlush(t, &body)
-	_, err := body.Write(pack)
-	require.NoError(t, err)
+
+	stdin := strings.NewReader(fmt.Sprintf("^%s\n%s\n", head, commit))
+	gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: stdin, Stdout: &body},
+		"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
+	)
 
 	client, conn := newSmartHTTPClient(t, cfg.SocketPath, cfg.Auth.Token)
 	defer conn.Close()
@@ -604,35 +552,28 @@ func TestReceivePackFsck(t *testing.T) {
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)
 
-	response := doPush(t, stream, &gitalypb.PostReceivePackRequest{
+	response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
 		Repository:   repo,
 		GlId:         "user-123",
 		GlRepository: "project-456",
 	}, &body)
 
-	require.Contains(t, string(response), "duplicateEntries: contains duplicate file entries")
+	require.Contains(t, response, "duplicateEntries: contains duplicate file entries")
 }
 
-func drainPostReceivePackResponse(stream gitalypb.SmartHTTPService_PostReceivePackClient) error {
-	var err error
-	for err == nil {
-		_, err = stream.Recv()
-	}
-	return err
-}
-
-func TestPostReceivePackToHooks(t *testing.T) {
+func TestPostReceivePack_hooks(t *testing.T) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
 
-	ctx := testhelper.Context(t)
-	repo, testRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	testcfg.BuildGitalyHooks(t, cfg)
+
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
-
-	testcfg.BuildGitalyHooks(t, cfg)
 
 	const (
 		secretToken  = "secret token"
@@ -640,17 +581,17 @@ func TestPostReceivePackToHooks(t *testing.T) {
 		glID         = "key-123"
 	)
 
-	var cleanup func()
 	cfg.GitlabShell.Dir = testhelper.TempDir(t)
 
 	cfg.Auth.Token = "abc123"
 	cfg.Gitlab.SecretFile = gitlab.WriteShellSecretFile(t, cfg.GitlabShell.Dir, secretToken)
 
-	push := newTestPush(t, cfg, nil)
-	oldHead := text.ChompBytes(gittest.Exec(t, cfg, "-C", testRepoPath, "rev-parse", "HEAD"))
+	_, newCommitID, request := createPushRequest(t, cfg)
+	oldHead := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD"))
 
-	changes := fmt.Sprintf("%s %s refs/heads/master\n", oldHead, push.newHead)
+	changes := fmt.Sprintf("%s %s refs/heads/master\n", oldHead, newCommitID)
 
+	var cleanup func()
 	cfg.Gitlab.URL, cleanup = gitlab.NewTestServer(t, gitlab.TestServerOptions{
 		User:                        "",
 		Password:                    "",
@@ -663,7 +604,7 @@ func TestPostReceivePackToHooks(t *testing.T) {
 	})
 	defer cleanup()
 
-	gittest.WriteCheckNewObjectExistsHook(t, testRepoPath)
+	gittest.WriteCheckNewObjectExistsHook(t, repoPath)
 
 	client, conn := newSmartHTTPClient(t, cfg.SocketPath, cfg.Auth.Token)
 	defer conn.Close()
@@ -671,21 +612,21 @@ func TestPostReceivePackToHooks(t *testing.T) {
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)
 
-	firstRequest := &gitalypb.PostReceivePackRequest{
+	response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
 		Repository:   repo,
 		GlId:         glID,
 		GlRepository: glRepository,
-	}
+	}, request)
 
-	response := doPush(t, stream, firstRequest, push.body)
-
-	expectedResponse := "0049\x01000eunpack ok\n0019ok refs/heads/master\n0019ok refs/heads/branch\n00000000"
-	require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
+	requireSideband(t, []string{
+		"0049\x01000eunpack ok\n0019ok refs/heads/master\n0019ok refs/heads/branch\n0000",
+	}, response)
 	require.Equal(t, io.EOF, drainPostReceivePackResponse(stream))
 }
 
-func TestPostReceiveWithTransactionsViaPraefect(t *testing.T) {
+func TestPostReceivePack_transactionsViaPraefect(t *testing.T) {
 	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
@@ -697,32 +638,25 @@ func TestPostReceiveWithTransactionsViaPraefect(t *testing.T) {
 
 	testcfg.BuildGitalyHooks(t, cfg)
 
-	secretToken := "secret token"
-	glID := "key-1234"
-	glRepository := "some_repo"
-	gitlabUser := "gitlab_user-1234"
-	gitlabPassword := "gitlabsecret9887"
-
 	opts := gitlab.TestServerOptions{
-		User:         gitlabUser,
-		Password:     gitlabPassword,
-		SecretToken:  secretToken,
-		GLID:         glID,
-		GLRepository: glRepository,
+		User:         "gitlab_user-1234",
+		Password:     "gitlabsecret9887",
+		SecretToken:  "secret token",
+		GLID:         "key-1234",
+		GLRepository: "some_repo",
 		RepoPath:     repoPath,
 	}
 
 	serverURL, cleanup := gitlab.NewTestServer(t, opts)
 	defer cleanup()
 
-	gitlabShellDir := testhelper.TempDir(t)
-	cfg.GitlabShell.Dir = gitlabShellDir
+	cfg.GitlabShell.Dir = testhelper.TempDir(t)
 	cfg.Gitlab.URL = serverURL
-	cfg.Gitlab.HTTPSettings.User = gitlabUser
-	cfg.Gitlab.HTTPSettings.Password = gitlabPassword
-	cfg.Gitlab.SecretFile = filepath.Join(gitlabShellDir, ".gitlab_shell_secret")
+	cfg.Gitlab.HTTPSettings.User = opts.User
+	cfg.Gitlab.HTTPSettings.Password = opts.Password
+	cfg.Gitlab.SecretFile = filepath.Join(cfg.GitlabShell.Dir, ".gitlab_shell_secret")
 
-	gitlab.WriteShellSecretFile(t, gitlabShellDir, secretToken)
+	gitlab.WriteShellSecretFile(t, cfg.GitlabShell.Dir, opts.SecretToken)
 
 	client, conn := newSmartHTTPClient(t, cfg.SocketPath, cfg.Auth.Token)
 	defer conn.Close()
@@ -730,12 +664,16 @@ func TestPostReceiveWithTransactionsViaPraefect(t *testing.T) {
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)
 
-	push := newTestPush(t, cfg, nil)
-	request := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: glID, GlRepository: glRepository}
-	response := doPush(t, stream, request, push.body)
+	_, _, pushRequest := createPushRequest(t, cfg)
+	response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
+		Repository:   repo,
+		GlId:         opts.GLID,
+		GlRepository: opts.GLRepository,
+	}, pushRequest)
 
-	expectedResponse := "0049\x01000eunpack ok\n0019ok refs/heads/master\n0019ok refs/heads/branch\n00000000"
-	require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
+	requireSideband(t, []string{
+		"0049\x01000eunpack ok\n0019ok refs/heads/master\n0019ok refs/heads/branch\n0000",
+	}, response)
 }
 
 type testTransactionServer struct {
@@ -750,11 +688,12 @@ func (t *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalyp
 	}, nil
 }
 
-func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
+func TestPostReceivePack_referenceTransactionHook(t *testing.T) {
 	t.Parallel()
 
-	cfg := testcfg.Build(t)
+	ctx := testhelper.Context(t)
 
+	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyHooks(t, cfg)
 
 	refTransactionServer := &testTransactionServer{}
@@ -768,7 +707,6 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 		))
 		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
 	}, testserver.WithDisablePraefect())
-	ctx := testhelper.Context(t)
 
 	ctx, err := txinfo.InjectTransaction(ctx, 1234, "primary", true)
 	require.NoError(t, err)
@@ -786,11 +724,16 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 
 		repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
-		request := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "key-1234", GlRepository: "some_repo"}
-		response := doPush(t, stream, request, newTestPush(t, cfg, nil).body)
+		_, _, pushRequest := createPushRequest(t, cfg)
+		response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
+			Repository:   repo,
+			GlId:         "key-1234",
+			GlRepository: "some_repo",
+		}, pushRequest)
 
-		expectedResponse := "0049\x01000eunpack ok\n0019ok refs/heads/master\n0019ok refs/heads/branch\n00000000"
-		require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
+		requireSideband(t, []string{
+			"0049\x01000eunpack ok\n0019ok refs/heads/master\n0019ok refs/heads/branch\n0000",
+		}, response)
 		require.Equal(t, 5, refTransactionServer.called)
 	})
 
@@ -814,16 +757,20 @@ func TestPostReceiveWithReferenceTransactionHook(t *testing.T) {
 		gittest.WritePktlineString(t, uploadPackData, fmt.Sprintf("%s %s refs/heads/delete-me\x00 %s", branchOID, git.ZeroOID.String(), uploadPackCapabilities))
 		gittest.WritePktlineFlush(t, uploadPackData)
 
-		request := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "key-1234", GlRepository: "some_repo"}
-		response := doPush(t, stream, request, uploadPackData)
+		response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
+			Repository:   repo,
+			GlId:         "key-1234",
+			GlRepository: "some_repo",
+		}, uploadPackData)
 
-		expectedResponse := "0033\x01000eunpack ok\n001cok refs/heads/delete-me\n00000000"
-		require.Equal(t, expectedResponse, string(response), "Expected response to be %q, got %q", expectedResponse, response)
+		requireSideband(t, []string{
+			"0033\x01000eunpack ok\n001cok refs/heads/delete-me\n0000",
+		}, response)
 		require.Equal(t, 3, refTransactionServer.called)
 	})
 }
 
-func TestPostReceive_allRejected(t *testing.T) {
+func TestPostReceivePack_notAllowed(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -872,8 +819,98 @@ func TestPostReceive_allRejected(t *testing.T) {
 
 	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
+	_, _, pushRequest := createPushRequest(t, cfg)
 	request := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "key-1234", GlRepository: "some_repo"}
-	doPush(t, stream, request, newTestPush(t, cfg, nil).body)
+	performPush(t, stream, request, pushRequest)
 
 	require.Equal(t, 1, refTransactionServer.called)
+}
+
+func createPushRequest(t *testing.T, cfg config.Cfg) (git.ObjectID, git.ObjectID, io.Reader) {
+	_, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+
+	oldCommitID := git.ObjectID(text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD")))
+	newCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(oldCommitID))
+
+	// ReceivePack request is a packet line followed by a packet flush, then the pack file of the objects we want to push.
+	// This is explained a bit in https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols#_uploading_data
+	// We form the packet line the same way git executable does: https://github.com/git/git/blob/d1a13d3fcb252631361a961cb5e2bf10ed467cba/send-pack.c#L524-L527
+	var request bytes.Buffer
+	gittest.WritePktlinef(t, &request, "%s %s refs/heads/master\x00 %s", oldCommitID, newCommitID, uploadPackCapabilities)
+	gittest.WritePktlinef(t, &request, "%s %s refs/heads/branch", git.ZeroOID, newCommitID)
+	gittest.WritePktlineFlush(t, &request)
+
+	// We need to get a pack file containing the objects we want to push, so we use git pack-objects
+	// which expects a list of revisions passed through standard input. The list format means
+	// pack the objects needed if I have oldHead but not newHead (think of it from the perspective of the remote repo).
+	// For more info, check the man pages of both `git-pack-objects` and `git-rev-list --objects`.
+	stdin := strings.NewReader(fmt.Sprintf("^%s\n%s\n", oldCommitID, newCommitID))
+
+	// The options passed are the same ones used when doing an actual push.
+	gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: stdin, Stdout: &request},
+		"-C", repoPath, "pack-objects", "--stdout", "--revs", "--thin", "--delta-base-offset", "-q",
+	)
+
+	return oldCommitID, newCommitID, &request
+}
+
+func performPush(t *testing.T, stream gitalypb.SmartHTTPService_PostReceivePackClient, firstRequest *gitalypb.PostReceivePackRequest, body io.Reader) string {
+	require.NoError(t, stream.Send(firstRequest))
+
+	sw := streamio.NewWriter(func(p []byte) error {
+		return stream.Send(&gitalypb.PostReceivePackRequest{Data: p})
+	})
+	_, err := io.Copy(sw, body)
+	require.NoError(t, err)
+	require.NoError(t, stream.CloseSend())
+
+	var response bytes.Buffer
+	rr := streamio.NewReader(func() ([]byte, error) {
+		resp, err := stream.Recv()
+		return resp.GetData(), err
+	})
+	_, err = io.Copy(&response, rr)
+	require.NoError(t, err)
+
+	return response.String()
+}
+
+func drainPostReceivePackResponse(stream gitalypb.SmartHTTPService_PostReceivePackClient) error {
+	var err error
+	for err == nil {
+		_, err = stream.Recv()
+	}
+	return err
+}
+
+// requireSideband compares the actual sideband data to expected sideband data. This function is
+// required to filter out any keep-alive packets which Git may send over the sideband and which are
+// kind of unpredictable for us.
+func requireSideband(t testing.TB, expectedSidebandMessages []string, actualInput string) {
+	t.Helper()
+
+	scanner := pktline.NewScanner(strings.NewReader(actualInput))
+
+	var actualSidebandMessages []string
+	for scanner.Scan() {
+		payload := scanner.Bytes()
+
+		// Flush packets terminate the communication via side-channels, so we expect them to
+		// come.
+		if pktline.IsFlush(payload) {
+			require.Equal(t, expectedSidebandMessages, actualSidebandMessages)
+			return
+		}
+
+		// git-receive-pack(1) by default sends keep-alive packets every 5 seconds after it
+		// has received the full packfile. We must filter out these keep-alive packets to
+		// not break tests on machines which are really slow to execute.
+		if string(payload) == "0005\x01" {
+			continue
+		}
+
+		actualSidebandMessages = append(actualSidebandMessages, string(payload))
+	}
+
+	require.FailNow(t, "expected to receive a flush to terminate the protocol")
 }

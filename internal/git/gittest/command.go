@@ -35,6 +35,20 @@ func ExecOpts(t testing.TB, cfg config.Cfg, execCfg ExecConfig, args ...string) 
 
 	cmd := createCommand(t, cfg, execCfg, args...)
 
+	// If the caller has passed an stdout writer to us we cannot use `cmd.Output()`. So
+	// we detect this case and call `cmd.Run()` instead.
+	if execCfg.Stdout != nil {
+		if err := cmd.Run(); err != nil {
+			t.Log(cfg.Git.BinPath, args)
+			if ee, ok := err.(*exec.ExitError); ok {
+				t.Logf("%s\n", ee.Stderr)
+			}
+			t.Fatal(err)
+		}
+
+		return nil
+	}
+
 	output, err := cmd.Output()
 	if err != nil {
 		t.Log(cfg.Git.BinPath, args)

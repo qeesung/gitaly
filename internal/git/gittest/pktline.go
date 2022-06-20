@@ -1,6 +1,7 @@
 package gittest
 
 import (
+	"fmt"
 	"io"
 	"testing"
 
@@ -11,6 +12,13 @@ import (
 // WritePktlineString writes the pktline-formatted data into the writer.
 func WritePktlineString(t *testing.T, writer io.Writer, data string) {
 	_, err := pktline.WriteString(writer, data)
+	require.NoError(t, err)
+}
+
+// WritePktlinef formats the given format string and writes the pktline-formatted data into the
+// writer.
+func WritePktlinef(t *testing.T, writer io.Writer, format string, args ...interface{}) {
+	_, err := pktline.WriteString(writer, fmt.Sprintf(format, args...))
 	require.NoError(t, err)
 }
 
