@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/sentry"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
@@ -143,7 +144,7 @@ func TestLoadPrometheus(t *testing.T) {
 
 	require.Equal(t, ":9236", cfg.PrometheusListenAddr)
 	require.Equal(t, prometheus.Config{
-		ScrapeTimeout:      time.Second,
+		ScrapeTimeout:      duration.Duration(time.Second),
 		GRPCLatencyBuckets: []float64{0, 1, 2},
 	}, cfg.Prometheus)
 }
@@ -723,7 +724,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			expect: DailyJob{
 				Hour:     11,
 				Minute:   23,
-				Duration: Duration(45 * time.Minute),
+				Duration: duration.Duration(45 * time.Minute),
 				Storages: []string{"default"},
 			},
 		},
@@ -761,7 +762,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			expect: DailyJob{
 				Hour:     0,
 				Minute:   59,
-				Duration: Duration(24*time.Hour + time.Second),
+				Duration: duration.Duration(24*time.Hour + time.Second),
 			},
 			validateErr: errors.New("daily maintenance specified duration 24h0m1s must be less than 24 hours"),
 		},
@@ -769,7 +770,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			rawCfg: `[daily_maintenance]
 			duration = "meow"`,
 			expect:  DailyJob{},
-			loadErr: errors.New("load toml: (2, 4): unmarshal text: time: invalid duration"),
+			loadErr: errors.New("load toml: toml: time: invalid duration \"meow\""),
 		},
 		{
 			rawCfg: `[daily_maintenance]
@@ -788,7 +789,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			expect: DailyJob{
 				Hour:     12,
 				Minute:   0,
-				Duration: Duration(10 * time.Minute),
+				Duration: duration.Duration(10 * time.Minute),
 				Storages: []string{"default"},
 			},
 		},
@@ -1113,7 +1114,7 @@ path="/foobar"
 			in: storageConfig + `[pack_objects_cache]
 enabled = true
 `,
-			out: StreamCacheConfig{Enabled: true, MaxAge: Duration(5 * time.Minute), Dir: "/foobar/+gitaly/PackObjectsCache"},
+			out: StreamCacheConfig{Enabled: true, MaxAge: duration.Duration(5 * time.Minute), Dir: "/foobar/+gitaly/PackObjectsCache"},
 		},
 		{
 			desc: "enabled with custom values",
@@ -1122,7 +1123,7 @@ enabled = true
 dir = "/bazqux"
 max_age = "10m"
 `,
-			out: StreamCacheConfig{Enabled: true, MaxAge: Duration(10 * time.Minute), Dir: "/bazqux"},
+			out: StreamCacheConfig{Enabled: true, MaxAge: duration.Duration(10 * time.Minute), Dir: "/bazqux"},
 		},
 		{
 			desc: "enabled with 0 storages",
