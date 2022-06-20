@@ -2,13 +2,16 @@ package repository
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
@@ -109,6 +112,7 @@ func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
 	txManager.Reset()
 
 	masterOID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/master"))
+	featureOID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/feature"))
 
 	// keep-around refs are not cloned in the initial step, but are added via the second call to
 	// git-fetch(1). We thus create some of them to exercise their behaviour with regards to
@@ -124,11 +128,13 @@ func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
 	stream, err := client.CreateRepositoryFromBundle(ctx)
 	require.NoError(t, err)
 
+	createdRepo := &gitalypb.Repository{
+		StorageName:  repoProto.GetStorageName(),
+		RelativePath: gittest.NewRepositoryName(t, true),
+	}
+
 	require.NoError(t, stream.Send(&gitalypb.CreateRepositoryFromBundleRequest{
-		Repository: &gitalypb.Repository{
-			StorageName:  repoProto.GetStorageName(),
-			RelativePath: "create.git",
-		},
+		Repository: createdRepo,
 	}))
 
 	bundle := gittest.Exec(t, cfg, "-C", repoPath, "bundle", "create", "-",
@@ -152,15 +158,47 @@ func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
 		return transaction.PhasedVote{Vote: vote, Phase: phase}
 	}
 
-	// While the following votes are opaque to us, this doesn't really matter. All we do
-	// care about is that they're stable.
+	createdRepoPath, err := config.NewLocator(cfg).GetRepoPath(gittest.RewrittenRepository(ctx, t, cfg, createdRepo))
+	require.NoError(t, err)
+
+	refsVote := voting.VoteFromData([]byte(strings.Join([]string{
+		fmt.Sprintf("%s %s refs/keep-around/2", git.ZeroOID, masterOID),
+		fmt.Sprintf("%s %s refs/keep-around/1", git.ZeroOID, masterOID),
+		fmt.Sprintf("%s %s refs/heads/feature", git.ZeroOID, featureOID),
+		fmt.Sprintf("%s %s refs/heads/master", git.ZeroOID, masterOID),
+	}, "\n") + "\n"))
+
+	// Compute the second vote hash to assert that we really hash exactly the files that we
+	// expect to hash. Furthermore, this is required for cross-platform compatibility given that
+	// the configuration may be different depending on the platform.
+	hash := voting.NewVoteHash()
+	for _, filePath := range []string{
+		"HEAD",
+		"config",
+		"refs/heads/feature",
+		"refs/heads/master",
+		"refs/keep-around/1",
+		"refs/keep-around/2",
+	} {
+		file, err := os.Open(filepath.Join(createdRepoPath, filePath))
+		require.NoError(t, err)
+
+		_, err = io.Copy(hash, file)
+		require.NoError(t, err)
+
+		testhelper.MustClose(t, file)
+	}
+
+	filesVote, err := hash.Vote()
+	require.NoError(t, err)
+
 	require.Equal(t, []transaction.PhasedVote{
 		// These are the votes created by git-fetch(1).
-		createVote("47553c06f575f757ad56ef3216c59804b72aa4a6", voting.Prepared),
-		createVote("47553c06f575f757ad56ef3216c59804b72aa4a6", voting.Committed),
+		createVote(refsVote.String(), voting.Prepared),
+		createVote(refsVote.String(), voting.Committed),
 		// And this is the manual votes we compute by walking the repository.
-		createVote("5947862798db146701879742c0d8fd988ca37797", voting.Prepared),
-		createVote("5947862798db146701879742c0d8fd988ca37797", voting.Committed),
+		createVote(filesVote.String(), voting.Prepared),
+		createVote(filesVote.String(), voting.Committed),
 	}, txManager.Votes())
 }
 
