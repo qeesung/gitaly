@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	logconfig "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/log"
 )
 

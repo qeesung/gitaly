@@ -25,7 +25,6 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/opencontainers/runtime-spec v1.0.2
 	github.com/opentracing/opentracing-go v1.2.0
-	github.com/pelletier/go-toml v1.8.1
 	github.com/pelletier/go-toml/v2 v2.0.2
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
