@@ -4,7 +4,7 @@
 package main
 
 import (
-	"errors"
+	"context"
 	"testing"
 	"time"
 
@@ -14,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
@@ -116,8 +117,8 @@ func TestCherryPick(t *testing.T) {
 			commit: []gittest.TreeEntry{
 				{Path: "file", Content: "foobar", Mode: "100644"},
 			},
-			expectedErr:    git2go.HasConflictsError{},
-			expectedErrMsg: "cherry-pick: could not apply due to conflicts",
+			expectedErr:    git2go.ConflictingFilesError{},
+			expectedErrMsg: "cherry-pick: there are conflicting files",
 		},
 		{
 			desc: "empty cherry-pick fails",
@@ -161,7 +162,11 @@ func TestCherryPick(t *testing.T) {
 		}
 
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := testhelper.Context(t)
+			ctx := featureflag.ContextWithFeatureFlag(
+				testhelper.Context(t),
+				featureflag.CherryPickStructuredErrors,
+				true,
+			)
 
 			committer := git.Signature{
 				Name:  "Baz",
@@ -183,7 +188,7 @@ func TestCherryPick(t *testing.T) {
 				require.EqualError(t, err, tc.expectedErrMsg)
 
 				if tc.expectedErr != nil {
-					require.True(t, errors.Is(err, tc.expectedErr))
+					require.ErrorAs(t, err, &tc.expectedErr)
 				}
 				return
 			}
@@ -216,5 +221,69 @@ func TestCherryPick(t *testing.T) {
 				require.Equal(t, []byte(contents), blob.Contents())
 			}
 		})
+	}
+}
+
+func TestCherryPickStructuredErrors(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.CherryPickStructuredErrors).Run(t,
+		testCherryPickStructuredErrors,
+	)
+}
+
+func testCherryPickStructuredErrors(t *testing.T, ctx context.Context) {
+	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
+
+	testcfg.BuildGitalyGit2Go(t, cfg)
+	executor := buildExecutor(t, cfg)
+
+	base := gittest.WriteCommit(
+		t,
+		cfg,
+		repoPath,
+		gittest.WithParents(),
+		gittest.WithTreeEntries(gittest.TreeEntry{
+			Path: "file", Content: "foo", Mode: "100644",
+		}))
+
+	ours := gittest.WriteCommit(
+		t,
+		cfg,
+		repoPath,
+		gittest.WithParents(base),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Path: "file", Content: "fooqux", Mode: "100644"},
+		)).String()
+
+	commit := gittest.WriteCommit(
+		t,
+		cfg,
+		repoPath,
+		gittest.WithParents(base),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Path: "file", Content: "foobar", Mode: "100644"},
+		)).String()
+
+	committer := git.Signature{
+		Name:  "Baz",
+		Email: "baz@example.com",
+		When:  time.Date(2021, 1, 17, 14, 45, 51, 0, time.FixedZone("", +2*60*60)),
+	}
+
+	_, err := executor.CherryPick(ctx, repo, git2go.CherryPickCommand{
+		Repository:    repoPath,
+		CommitterName: committer.Name,
+		CommitterMail: committer.Email,
+		CommitterDate: committer.When,
+		Message:       "Foo",
+		Ours:          ours,
+		Commit:        commit,
+	})
+
+	if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
+		require.EqualError(t, err, "cherry-pick: there are conflicting files")
+		require.ErrorAs(t, err, &git2go.ConflictingFilesError{})
+	} else {
+		require.EqualError(t, err, "cherry-pick: could not apply due to conflicts")
+		require.ErrorAs(t, err, &git2go.HasConflictsError{})
 	}
 }

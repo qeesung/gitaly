@@ -1,18 +1,24 @@
 package operations
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -367,8 +373,19 @@ func TestServer_UserCherryPick_failedWithPreReceiveError(t *testing.T) {
 			gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
 			response, err := client.UserCherryPick(ctx, request)
-			require.NoError(t, err)
-			require.Contains(t, response.PreReceiveError, "GL_ID="+gittest.TestUser.GlId)
+			require.Nil(t, response)
+			testhelper.RequireGrpcError(t, errWithDetails(t,
+				helper.ErrFailedPrecondition(
+					errors.New("access check failed"),
+				),
+				&gitalypb.UserCherryPickError{
+					Error: &gitalypb.UserCherryPickError_AccessCheck{
+						AccessCheck: &gitalypb.AccessCheckError{
+							ErrorMessage: "GL_ID=user-123",
+						},
+					},
+				},
+			), err)
 		})
 	}
 }
@@ -397,9 +414,15 @@ func TestServer_UserCherryPick_failedWithCreateTreeError(t *testing.T) {
 	}
 
 	response, err := client.UserCherryPick(ctx, request)
-	require.NoError(t, err)
-	require.NotEmpty(t, response.CreateTreeError)
-	require.Equal(t, gitalypb.UserCherryPickResponse_EMPTY, response.CreateTreeErrorCode)
+	require.Nil(t, response)
+	testhelper.RequireGrpcError(t, errWithDetails(t,
+		helper.ErrFailedPrecondition(
+			errors.New("cherry-pick: could not apply because the result was empty"),
+		),
+		&gitalypb.UserCherryPickError{
+			Error: &gitalypb.UserCherryPickError_ChangesAlreadyApplied{},
+		},
+	), err)
 }
 
 func TestServer_UserCherryPick_failedWithCommitError(t *testing.T) {
@@ -428,14 +451,30 @@ func TestServer_UserCherryPick_failedWithCommitError(t *testing.T) {
 	}
 
 	response, err := client.UserCherryPick(ctx, request)
-	require.NoError(t, err)
-	require.Equal(t, "Branch diverged", response.CommitError)
+	require.Nil(t, response)
+	s, ok := status.FromError(err)
+	require.True(t, ok)
+
+	details := s.Details()
+	require.Len(t, details, 1)
+	detailedErr, ok := details[0].(*gitalypb.UserCherryPickError)
+	require.True(t, ok)
+
+	targetBranchDivergedErr, ok := detailedErr.Error.(*gitalypb.UserCherryPickError_TargetBranchDiverged)
+	require.True(t, ok)
+	assert.Equal(t, []byte("8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"), targetBranchDivergedErr.TargetBranchDiverged.ParentRevision)
 }
 
-func TestServer_UserCherryPick_failedWithConflict(t *testing.T) {
+func TestServerUserCherryPickRailedWithConflict(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
+	testhelper.NewFeatureSets(featureflag.CherryPickStructuredErrors).Run(
+		t,
+		testServerUserCherryPickRailedWithConflict,
+	)
+}
+
+func testServerUserCherryPickRailedWithConflict(t *testing.T, ctx context.Context) {
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -456,9 +495,25 @@ func TestServer_UserCherryPick_failedWithConflict(t *testing.T) {
 	}
 
 	response, err := client.UserCherryPick(ctx, request)
-	require.NoError(t, err)
-	require.NotEmpty(t, response.CreateTreeError)
-	require.Equal(t, gitalypb.UserCherryPickResponse_CONFLICT, response.CreateTreeErrorCode)
+	if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
+		require.Nil(t, response)
+		s, ok := status.FromError(err)
+		require.True(t, ok)
+
+		details := s.Details()
+		require.Len(t, details, 1)
+		detailedErr, ok := details[0].(*gitalypb.UserCherryPickError)
+		require.True(t, ok)
+
+		conflictErr, ok := detailedErr.Error.(*gitalypb.UserCherryPickError_CherryPickConflict)
+		require.True(t, ok)
+		require.Len(t, conflictErr.CherryPickConflict.ConflictingFiles, 1)
+		assert.Equal(t, []byte("NEW_FILE.md"), conflictErr.CherryPickConflict.ConflictingFiles[0])
+	} else {
+		require.NoError(t, err)
+		require.NotEmpty(t, response.CreateTreeError)
+		require.Equal(t, gitalypb.UserCherryPickResponse_CONFLICT, response.CreateTreeErrorCode)
+	}
 }
 
 func TestServer_UserCherryPick_successfulWithGivenCommits(t *testing.T) {
@@ -545,8 +600,9 @@ func TestServer_UserCherryPick_quarantine(t *testing.T) {
 	}
 
 	response, err := client.UserCherryPick(ctx, request)
-	require.NoError(t, err)
-	require.NotNil(t, response)
+	require.Nil(t, response)
+	require.NotNil(t, err)
+	assert.Contains(t, err.Error(), "access check failed")
 
 	hookOutput := testhelper.MustReadFile(t, outputPath)
 	oid, err := git.NewObjectIDFromHex(text.ChompBytes(hookOutput))
