@@ -31,6 +31,8 @@ def main
   FileUtils.mkdir_p(socket_dir)
   File.chmod(0700, socket_dir)
 
+  Labkit::FIPS.enable_fips_mode! if Labkit::FIPS.enabled?
+
   set_rugged_search_path
   load_distributed_tracing
 
