@@ -115,7 +115,7 @@ func Dial(ctx context.Context, rawAddress string, connOpts []grpc.DialOption, ha
 	}
 
 	if transportCredentials == nil {
-		connOpts = append(connOpts, grpc.WithInsecure())
+		connOpts = append(connOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
 		connOpts = append(connOpts, grpc.WithTransportCredentials(transportCredentials))
 	}

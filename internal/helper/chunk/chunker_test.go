@@ -9,6 +9,7 @@ import (
 	test "gitlab.com/gitlab-org/gitaly/v15/internal/helper/chunk/testdata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -89,7 +90,7 @@ func runServer(t *testing.T, s *server, opt ...grpc.ServerOption) (*grpc.Server,
 
 func newClient(t *testing.T, serverSocketPath string) (test.TestClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
 	if err != nil {

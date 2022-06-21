@@ -92,7 +92,7 @@ func TestBackchannel_concurrentRequestsFromMultipleClients(t *testing.T) {
 			defer wg.Done()
 
 			<-start
-			client, err := grpc.Dial(ln.Addr().String(), grpc.WithInsecure())
+			client, err := grpc.Dial(ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -272,7 +272,7 @@ func Benchmark(b *testing.B) {
 					go srv.Serve(ln)
 					ctx := testhelper.Context(b)
 
-					opts := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
+					opts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials())}
 					if tc.multiplexed {
 						clientHandshaker := NewClientHandshaker(newLogger(), func() Server { return grpc.NewServer() })
 						opts = []grpc.DialOption{

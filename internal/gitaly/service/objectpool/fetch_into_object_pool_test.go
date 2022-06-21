@@ -24,6 +24,7 @@ import (
 	"gitlab.com/gitlab-org/labkit/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -95,7 +96,7 @@ func TestFetchIntoObjectPool_hooks(t *testing.T) {
 		Seed: gittest.SeedGitLabTest,
 	})
 
-	conn, err := grpc.Dial(cfg.SocketPath, grpc.WithInsecure())
+	conn, err := grpc.Dial(cfg.SocketPath, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer testhelper.MustClose(t, conn)
 
@@ -138,7 +139,7 @@ func TestFetchIntoObjectPool_CollectLogStatistics(t *testing.T) {
 		Seed: gittest.SeedGitLabTest,
 	})
 
-	conn, err := grpc.Dial(cfg.SocketPath, grpc.WithInsecure())
+	conn, err := grpc.Dial(cfg.SocketPath, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	t.Cleanup(func() { testhelper.MustClose(t, conn) })
 	client := gitalypb.NewObjectPoolServiceClient(conn)

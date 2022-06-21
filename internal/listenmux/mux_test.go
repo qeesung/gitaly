@@ -66,7 +66,7 @@ func TestMux_normalClientNoMux(t *testing.T) {
 
 	addr := serverWithHandshaker(t, nil)
 
-	cc, err := grpc.Dial(addr, grpc.WithInsecure())
+	cc, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer cc.Close()
 
@@ -83,7 +83,7 @@ func TestMux_normalClientMuxIgnored(t *testing.T) {
 		}),
 	)
 
-	cc, err := grpc.Dial(addr, grpc.WithInsecure())
+	cc, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer cc.Close()
 
@@ -104,7 +104,7 @@ func TestMux_muxClientPassesThrough(t *testing.T) {
 
 	cc, err := grpc.Dial(
 		"ignored",
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			c, err := net.Dial("tcp", addr)
 			if err != nil {
@@ -264,7 +264,7 @@ func TestMux_concurrency(t *testing.T) {
 		go func() {
 			<-start
 			grpcHealthErrors <- func() error {
-				cc, err := grpc.Dial(addr, grpc.WithInsecure())
+				cc, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 				if err != nil {
 					return err
 				}

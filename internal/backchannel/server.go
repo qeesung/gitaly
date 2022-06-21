@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/peer"
 )
 
@@ -114,12 +115,12 @@ func (s *ServerHandshaker) Handshake(conn net.Conn, authInfo credentials.AuthInf
 	}
 
 	// The address does not actually matter but we set it so clientConn.Target returns a meaningful value.
-	// WithInsecure is used as the multiplexer operates within a TLS session already if one is configured.
+	// Insecure credentials are used as the multiplexer operates within a TLS session already if one is configured.
 	backchannelConn, err := grpc.Dial(
 		"multiplexed/"+conn.RemoteAddr().String(),
 		append(
 			s.dialOpts,
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return muxSession.Open() }),
 		)...,
 	)

@@ -14,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testdb"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type mockRepositoryService struct {
@@ -101,7 +102,7 @@ func TestReplicatorDestroy(t *testing.T) {
 			go srv.Serve(ln)
 			defer srv.Stop()
 
-			clientConn, err := grpc.Dial(ln.Addr().String(), grpc.WithInsecure())
+			clientConn, err := grpc.Dial(ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)
 			defer clientConn.Close()
 

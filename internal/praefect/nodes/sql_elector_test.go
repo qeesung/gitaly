@@ -46,7 +46,7 @@ func TestGetPrimaryAndSecondaries(t *testing.T) {
 
 	cc0, err := grpc.Dial(
 		"unix://"+internalSocket0,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	defer testhelper.MustClose(t, cc0)
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestSqlElector_slow_execution(t *testing.T) {
 
 	gitalyConn, err := grpc.Dial(
 		"unix://"+gitalySocket,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	defer testhelper.MustClose(t, gitalyConn)
 	require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestBasicFailover(t *testing.T) {
 	addr0 := "unix://" + internalSocket0
 	cc0, err := grpc.Dial(
 		addr0,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	defer testhelper.MustClose(t, cc0)
 	require.NoError(t, err)
@@ -133,7 +133,7 @@ func TestBasicFailover(t *testing.T) {
 	addr1 := "unix://" + internalSocket1
 	cc1, err := grpc.Dial(
 		addr1,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	defer testhelper.MustClose(t, cc1)
 

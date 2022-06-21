@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestGitalyServerInfo(t *testing.T) {
@@ -65,7 +66,7 @@ func TestServerNoAuth(t *testing.T) {
 
 	addr := runServer(t, cfg)
 
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	t.Cleanup(func() { testhelper.MustClose(t, conn) })
 	ctx := testhelper.Context(t)
@@ -78,7 +79,7 @@ func TestServerNoAuth(t *testing.T) {
 
 func newServerClient(t *testing.T, serverSocketPath string) gitalypb.ServerServiceClient {
 	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(testhelper.RepositoryAuthToken)),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)

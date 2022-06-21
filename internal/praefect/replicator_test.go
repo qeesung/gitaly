@@ -39,6 +39,7 @@ import (
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
@@ -285,7 +286,7 @@ func TestConfirmReplication(t *testing.T) {
 	testRepoB, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 	connOpts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(cfg.Auth.Token)),
 	}
 	conn, err := grpc.Dial(srvSocketPath, connOpts...)
@@ -760,7 +761,7 @@ func newRepositoryClient(t *testing.T, serverSocketPath, token string) gitalypb.
 
 	conn, err := grpc.Dial(
 		serverSocketPath,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(token)),
 	)
 	require.NoError(t, err)

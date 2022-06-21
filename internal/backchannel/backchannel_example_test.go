@@ -121,7 +121,7 @@ func invokeWithMuxedClient(logger *logrus.Entry, address string) error {
 }
 
 func invokeWithNormalClient(address string) error {
-	return invokeWithOpts(address, grpc.WithInsecure())
+	return invokeWithOpts(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
 
 func invokeWithOpts(address string, opts ...grpc.DialOption) error {

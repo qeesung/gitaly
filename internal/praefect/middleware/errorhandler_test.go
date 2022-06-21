@@ -16,6 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -72,7 +73,7 @@ func TestStreamInterceptor(t *testing.T) {
 		) (*proxy.StreamParameters, error) {
 			cc, err := grpc.Dial("unix://"+internalServerSocketPath,
 				grpc.WithDefaultCallOptions(grpc.ForceCodec(proxy.NewCodec())),
-				grpc.WithInsecure(),
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithStreamInterceptor(StreamErrorHandler(registry, errTracker, nodeName)),
 			)
 			require.NoError(t, err)
@@ -91,7 +92,7 @@ func TestStreamInterceptor(t *testing.T) {
 	defer praefectSrv.Stop()
 	go praefectSrv.Serve(praefectLis)
 
-	praefectCC, err := grpc.Dial("unix://"+praefectSocket, grpc.WithInsecure())
+	praefectCC, err := grpc.Dial("unix://"+praefectSocket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	defer testhelper.MustClose(t, praefectCC)
 	require.NoError(t, err)
 
