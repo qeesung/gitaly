@@ -399,7 +399,7 @@ func handlePackObjectsWithSidechannel(ctx context.Context, payload git.HooksPayl
 		glID = payload.UserDetails.UserID
 		glUsername = payload.UserDetails.Username
 		gitProtocol = payload.UserDetails.Protocol
-	} else {
+	} else if payload.ReceiveHooksPayload != nil {
 		glID = payload.ReceiveHooksPayload.UserID
 		glUsername = payload.ReceiveHooksPayload.Username
 		gitProtocol = payload.ReceiveHooksPayload.Protocol
