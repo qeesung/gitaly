@@ -243,6 +243,9 @@ var commandDescriptions = map[string]commandDescription{
 		// We cannot use --end-of-options here because pseudo revisions like `--all`
 		// and `--not` count as options.
 		flags: scNoRefUpdates | scNoEndOfOptions,
+		opts: append(append([]GlobalOption{
+			ConfigPair{Key: "core.alternateRefsCommand", Value: "exit 0 #"},
+		})),
 		validatePositionalArgs: func(args []string) error {
 			for _, arg := range args {
 				// git-rev-list(1) supports pseudo-revision arguments which can be
