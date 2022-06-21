@@ -301,4 +301,14 @@ message ChangedPaths {
   bytes path = 1;
   // This comment is left unintentionally blank.
   Status status = 2;
+  // old_mode is the mode of the changed path previous to the change. May be one of the following values:
+  //
+  //   - 0o000000 if the path does not exist.
+  //   - 0o100644 if the path refers to a normal file.
+  //   - 0o100755 if the path refers to an executable file.
+  //   - 0o040000 if the path refers to a tree entry.
+  //   - 0o160000 if the path refers to a submodule.
+  int32 old_mode = 3;
+  // new_mode is the mode of the changed path after the change. Please refer to `old_mode` for a list of potential values.
+  int32 new_mode = 4;
 }

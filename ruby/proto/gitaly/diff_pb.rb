@@ -114,6 +114,8 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.ChangedPaths" do
       optional :path, :bytes, 1
       optional :status, :enum, 2, "gitaly.ChangedPaths.Status"
+      optional :old_mode, :int32, 3
+      optional :new_mode, :int32, 4
     end
     add_enum "gitaly.ChangedPaths.Status" do
       value :ADDED, 0

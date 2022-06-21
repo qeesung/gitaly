@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
@@ -116,6 +117,16 @@ func nextPath(reader *bufio.Reader) (*gitalypb.ChangedPaths, error) {
 		return nil, fmt.Errorf("git diff-tree parsing failed on: %v", line)
 	}
 
+	oldMode, err := strconv.ParseInt(string(split[0]), 8, 32)
+	if err != nil {
+		return nil, fmt.Errorf("parsing old mode: %w", err)
+	}
+
+	newMode, err := strconv.ParseInt(string(split[1]), 8, 32)
+	if err != nil {
+		return nil, fmt.Errorf("parsing new mode: %w", err)
+	}
+
 	pathStatus := split[4]
 
 	path, err := reader.ReadBytes(numStatDelimiter)
@@ -137,8 +148,10 @@ func nextPath(reader *bufio.Reader) (*gitalypb.ChangedPaths, error) {
 	}
 
 	changedPath := &gitalypb.ChangedPaths{
-		Status: parsedPath,
-		Path:   path[:len(path)-1],
+		Status:  parsedPath,
+		Path:    path[:len(path)-1],
+		OldMode: int32(oldMode),
+		NewMode: int32(newMode),
 	}
 
 	return changedPath, nil
