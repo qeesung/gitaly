@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
@@ -24,7 +25,7 @@ func newCache(dir string) Cache {
 	return New(config.StreamCacheConfig{
 		Enabled: true,
 		Dir:     dir,
-		MaxAge:  config.Duration(time.Hour),
+		MaxAge:  duration.Duration(time.Hour),
 	}, log.Default())
 }
 

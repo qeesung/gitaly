@@ -138,7 +138,7 @@ func (b Blackbox) Run() error {
 }
 
 func (b Blackbox) runProbes() {
-	for ; ; time.Sleep(b.cfg.sleepDuration) {
+	for ; ; time.Sleep(b.cfg.sleepDuration.Duration()) {
 		for _, probe := range b.cfg.Probes {
 			entry := log.Default().WithFields(map[string]interface{}{
 				"probe": probe.Name,

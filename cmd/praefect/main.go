@@ -440,15 +440,15 @@ func run(
 	metricsCollectors = append(metricsCollectors, transactionManager, coordinator, repl)
 	if db != nil {
 		dbMetricCollectors := []prometheus.Collector{
-			datastore.NewRepositoryStoreCollector(logger, conf.VirtualStorageNames(), db, conf.Prometheus.ScrapeTimeout),
-			datastore.NewQueueDepthCollector(logger, db, conf.Prometheus.ScrapeTimeout),
+			datastore.NewRepositoryStoreCollector(logger, conf.VirtualStorageNames(), db, conf.Prometheus.ScrapeTimeout.Duration()),
+			datastore.NewQueueDepthCollector(logger, db, conf.Prometheus.ScrapeTimeout.Duration()),
 		}
 
 		if conf.BackgroundVerification.VerificationInterval > 0 {
 			dbMetricCollectors = append(dbMetricCollectors, datastore.NewVerificationQueueDepthCollector(
 				logger,
 				db,
-				conf.Prometheus.ScrapeTimeout,
+				conf.Prometheus.ScrapeTimeout.Duration(),
 				conf.BackgroundVerification.VerificationInterval,
 				conf.StorageNames(),
 			))

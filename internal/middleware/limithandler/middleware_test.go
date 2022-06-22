@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/limithandler"
 	pb "gitlab.com/gitlab-org/gitaly/v15/internal/middleware/limithandler/testdata"
@@ -487,7 +488,7 @@ func testRateLimitHandler(t *testing.T, ctx context.Context) {
 	methodName := "/test.limithandler.Test/Unary"
 	cfg := config.Cfg{
 		RateLimiting: []config.RateLimiting{
-			{RPC: methodName, Interval: 1 * time.Hour, Burst: 1},
+			{RPC: methodName, Interval: duration.Duration(1 * time.Hour), Burst: 1},
 		},
 	}
 
