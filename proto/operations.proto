@@ -221,9 +221,9 @@ message UserDeleteBranchRequest {
 
 // UserDeleteBranchResponse is a response for the UserDeleteBranch RPC.
 message UserDeleteBranchResponse {
-  // PreReceiveError is an error that is returned in case deletion of the branch failed either
-  // because of failing access checks or because hooks have refused the update.
-  string pre_receive_error = 1;
+  // PreReceiveError is never set anymore. This RPC will instead return a UserDeleteBranchError for
+  // a subset of well-defined error cases.
+  string pre_receive_error = 1 [deprecated=true];
 }
 
 // UserDeleteBranchError is an error returned by the UserDeleteBranch RPC in some specific well

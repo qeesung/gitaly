@@ -16,7 +16,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -380,12 +379,8 @@ func TestUserCreateBranch_failure(t *testing.T) {
 
 func TestUserDeleteBranch_success(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserDeleteBranchStructuredErrors).Run(t, testUserDeleteBranchSuccess)
-}
 
-func testUserDeleteBranchSuccess(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
@@ -439,25 +434,8 @@ func testUserDeleteBranchSuccess(t *testing.T, ctx context.Context) {
 
 func TestUserDeleteBranch_allowed(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserDeleteBranchStructuredErrors).Run(t, testUserDeleteBranchAllowed)
-}
 
-func testUserDeleteBranchAllowed(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
-	responseIfUnstructured := func(response *gitalypb.UserDeleteBranchResponse) *gitalypb.UserDeleteBranchResponse {
-		if featureflag.UserDeleteBranchStructuredErrors.IsEnabled(ctx) {
-			return nil
-		}
-		return response
-	}
-
-	errIfStructured := func(err error) error {
-		if featureflag.UserDeleteBranchStructuredErrors.IsEnabled(ctx) {
-			return err
-		}
-		return nil
-	}
+	ctx := testhelper.Context(t)
 
 	for _, tc := range []struct {
 		desc             string
@@ -477,7 +455,7 @@ func testUserDeleteBranchAllowed(t *testing.T, ctx context.Context) {
 			allowed: func(context.Context, gitlab.AllowedParams) (bool, string, error) {
 				return false, "something something", nil
 			},
-			expectedErr: errIfStructured(errWithDetails(t,
+			expectedErr: errWithDetails(t,
 				helper.ErrPermissionDeniedf("deletion denied by access checks: GitLab: something something"),
 				&gitalypb.UserDeleteBranchError{
 					Error: &gitalypb.UserDeleteBranchError_AccessCheck{
@@ -491,17 +469,14 @@ func testUserDeleteBranchAllowed(t *testing.T, ctx context.Context) {
 						},
 					},
 				},
-			)),
-			expectedResponse: responseIfUnstructured(&gitalypb.UserDeleteBranchResponse{
-				PreReceiveError: "GitLab: something something",
-			}),
+			),
 		},
 		{
 			desc: "error",
 			allowed: func(context.Context, gitlab.AllowedParams) (bool, string, error) {
 				return false, "something something", fmt.Errorf("something else")
 			},
-			expectedErr: errIfStructured(errWithDetails(t,
+			expectedErr: errWithDetails(t,
 				helper.ErrPermissionDeniedf("deletion denied by access checks: GitLab: something else"),
 				&gitalypb.UserDeleteBranchError{
 					Error: &gitalypb.UserDeleteBranchError_AccessCheck{
@@ -515,10 +490,7 @@ func testUserDeleteBranchAllowed(t *testing.T, ctx context.Context) {
 						},
 					},
 				},
-			)),
-			expectedResponse: responseIfUnstructured(&gitalypb.UserDeleteBranchResponse{
-				PreReceiveError: "GitLab: something else",
-			}),
+			),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -542,11 +514,8 @@ func testUserDeleteBranchAllowed(t *testing.T, ctx context.Context) {
 
 func TestUserDeleteBranch_concurrentUpdate(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserDeleteBranchStructuredErrors).Run(t, testUserDeleteBranchConcurrentUpdate)
-}
 
-func testUserDeleteBranchConcurrentUpdate(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
@@ -568,32 +537,25 @@ func testUserDeleteBranchConcurrentUpdate(t *testing.T, ctx context.Context) {
 		BranchName: []byte("concurrent-update"),
 		User:       gittest.TestUser,
 	})
-	if featureflag.UserDeleteBranchStructuredErrors.IsEnabled(ctx) {
-		testhelper.RequireGrpcError(t, errWithDetails(t,
-			helper.ErrFailedPreconditionf("reference update failed: Could not update refs/heads/concurrent-update. Please refresh and try again."),
-			&gitalypb.UserDeleteBranchError{
-				Error: &gitalypb.UserDeleteBranchError_ReferenceUpdate{
-					ReferenceUpdate: &gitalypb.ReferenceUpdateError{
-						OldOid:        commitID.String(),
-						NewOid:        git.ZeroOID.String(),
-						ReferenceName: []byte("refs/heads/concurrent-update"),
-					},
+	testhelper.RequireGrpcError(t, errWithDetails(t,
+		helper.ErrFailedPreconditionf("reference update failed: Could not update refs/heads/concurrent-update. Please refresh and try again."),
+		&gitalypb.UserDeleteBranchError{
+			Error: &gitalypb.UserDeleteBranchError_ReferenceUpdate{
+				ReferenceUpdate: &gitalypb.ReferenceUpdateError{
+					OldOid:        commitID.String(),
+					NewOid:        git.ZeroOID.String(),
+					ReferenceName: []byte("refs/heads/concurrent-update"),
 				},
 			},
-		), err)
-	} else {
-		testhelper.RequireGrpcError(t, helper.ErrFailedPreconditionf("Could not update refs/heads/concurrent-update. Please refresh and try again."), err)
-	}
+		},
+	), err)
 	require.Nil(t, response)
 }
 
 func TestUserDeleteBranch_hooks(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserDeleteBranchStructuredErrors).Run(t, testUserDeleteBranchHooks)
-}
 
-func testUserDeleteBranchHooks(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
@@ -622,11 +584,8 @@ func testUserDeleteBranchHooks(t *testing.T, ctx context.Context) {
 
 func TestUserDeleteBranch_transaction(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserDeleteBranchStructuredErrors).Run(t, testUserDeleteBranchTransaction)
-}
 
-func testUserDeleteBranchTransaction(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
 	// This creates a new branch "delete-me" which exists both in the packed-refs file and as a
@@ -679,11 +638,8 @@ func testUserDeleteBranchTransaction(t *testing.T, ctx context.Context) {
 
 func TestUserDeleteBranch_invalidArgument(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserDeleteBranchStructuredErrors).Run(t, testUserDeleteBranchInvalidArgument)
-}
 
-func testUserDeleteBranchInvalidArgument(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
@@ -734,11 +690,8 @@ func testUserDeleteBranchInvalidArgument(t *testing.T, ctx context.Context) {
 
 func TestUserDeleteBranch_hookFailure(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserDeleteBranchStructuredErrors).Run(t, testUserDeleteBranchHookFailure)
-}
 
-func testUserDeleteBranchHookFailure(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
@@ -770,24 +723,19 @@ func testUserDeleteBranchHookFailure(t *testing.T, ctx context.Context) {
 			gittest.WriteCustomHook(t, repoPath, tc.hookName, hookContent)
 
 			response, err := client.UserDeleteBranch(ctx, request)
-			if featureflag.UserDeleteBranchStructuredErrors.IsEnabled(ctx) {
-				testhelper.RequireGrpcError(t, errWithDetails(t,
-					helper.ErrPermissionDeniedf("deletion denied by custom hooks: %s\n", "GL_ID=user-123"),
-					&gitalypb.UserDeleteBranchError{
-						Error: &gitalypb.UserDeleteBranchError_CustomHook{
-							CustomHook: &gitalypb.CustomHookError{
-								HookType: tc.hookType,
-								Stdout:   []byte("GL_ID=user-123\n"),
-							},
+			testhelper.RequireGrpcError(t, errWithDetails(t,
+				helper.ErrPermissionDeniedf("deletion denied by custom hooks: %s\n", "GL_ID=user-123"),
+				&gitalypb.UserDeleteBranchError{
+					Error: &gitalypb.UserDeleteBranchError_CustomHook{
+						CustomHook: &gitalypb.CustomHookError{
+							HookType: tc.hookType,
+							Stdout:   []byte("GL_ID=user-123\n"),
 						},
 					},
-				), err)
+				},
+			), err)
 
-				require.Nil(t, response)
-			} else {
-				require.NoError(t, err)
-				require.Contains(t, response.PreReceiveError, "GL_ID="+gittest.TestUser.GlId)
-			}
+			require.Nil(t, response)
 
 			branches := gittest.Exec(t, cfg, "-C", repoPath, "for-each-ref", "--", "refs/heads/"+branchNameInput)
 			require.Contains(t, string(branches), branchNameInput, "branch name does not exist in branches list")
@@ -797,11 +745,8 @@ func testUserDeleteBranchHookFailure(t *testing.T, ctx context.Context) {
 
 func TestBranchHookOutput(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserDeleteBranchStructuredErrors).Run(t, testBranchHookOutput)
-}
 
-func testBranchHookOutput(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
@@ -893,25 +838,19 @@ func testBranchHookOutput(t *testing.T, ctx context.Context) {
 				defer gittest.Exec(t, cfg, "-C", repoPath, "branch", "-d", branchNameInput)
 
 				deleteResponse, err := client.UserDeleteBranch(ctx, deleteRequest)
-				if featureflag.UserDeleteBranchStructuredErrors.IsEnabled(ctx) {
-					testhelper.RequireGrpcError(t, errWithDetails(t,
-						helper.ErrPermissionDeniedf("deletion denied by custom hooks: %s", expectedError),
-						&gitalypb.UserDeleteBranchError{
-							Error: &gitalypb.UserDeleteBranchError_CustomHook{
-								CustomHook: &gitalypb.CustomHookError{
-									HookType: hookTestCase.hookType,
-									Stdout:   []byte(testCase.expectedStdout),
-									Stderr:   []byte(testCase.expectedStderr),
-								},
+				testhelper.RequireGrpcError(t, errWithDetails(t,
+					helper.ErrPermissionDeniedf("deletion denied by custom hooks: %s", expectedError),
+					&gitalypb.UserDeleteBranchError{
+						Error: &gitalypb.UserDeleteBranchError_CustomHook{
+							CustomHook: &gitalypb.CustomHookError{
+								HookType: hookTestCase.hookType,
+								Stdout:   []byte(testCase.expectedStdout),
+								Stderr:   []byte(testCase.expectedStderr),
 							},
 						},
-					), err)
-
-					require.Nil(t, deleteResponse)
-				} else {
-					require.NoError(t, err)
-					require.Equal(t, expectedError, deleteResponse.PreReceiveError)
-				}
+					},
+				), err)
+				require.Nil(t, deleteResponse)
 			})
 		}
 	}
