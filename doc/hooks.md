@@ -36,11 +36,31 @@ execute the hook logic inside of the Gitaly server process. It uses the injected
 information to connect to Gitaly and execute the respective RPC call. The
 execution path is:
 
-1. Git locates the hook using `core.hooksPath`. If found, this is a symlink
-   which points to the `gitaly-hooks` executable.
+1. Gitaly symlinks `pre-receive`, `update`, `post-receive`, and
+   `reference-transaction` hooks to the `gitaly-hooks` binary from a
+   subdirectory of Gitaly's runtime directory.
+1. Git locates the hook using `core.hooksPath`.
 1. `gitaly-hooks` connects to Gitaly and executes the corresponding RPC call in
    Gitaly, passing along any hook-specific information to the RPC.
 1. Gitaly performs the hook-specific logic in the RPC handler.
+
+## `gitaly-hooks` binary
+
+`gitaly-hooks` is a binary that is the single point of entry for git hooks
+through gitaly.
+
+### Subcommands
+
+`gitaly-hooks` has the following subcommands:
+
+| subcommand     | purpose  | arguments | stdin  |
+|----------------|----------|-----------|--------|
+| `check`        | checks if the hooks can reach the gitlab server | none | none |
+| `pre-receive`  | used as the git pre-receive hook  none | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
+| `update`       | used as the git update hook | `<ref-name>` `<old-object>` `<new-object>` | none
+| `post-receive` | used as the git post-receive hook | none | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
+| `reference-transaction` | used as the git reference-transactionhook | `prepared|committed|aborted` | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
+| `git`          | used as the git pack-objects hook | `pack-objects` `[--stdout]` `[--shallow-file]` | `<object-list>` |
 
 ## Hook-specific logic
 
