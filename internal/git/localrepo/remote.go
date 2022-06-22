@@ -128,14 +128,6 @@ func (repo *Repo) FetchInternal(
 	commandOptions := []git.CmdOpt{
 		git.WithEnv(opts.Env...),
 		git.WithStderr(opts.Stderr),
-		// We've observed performance issues when fetching into big repositories part of an
-		// object pool. The root cause of this seems to be the connectivity check, which by
-		// default will also include references of any alternates. Given that object pools
-		// often have hundreds of thousands of references, this is quite expensive to
-		// compute. Below config entry will disable listing of alternate refs: they
-		// shouldn't even be included in the negotiation phase, so they aren't going to
-		// matter in the connectivity check either.
-		git.WithConfig(git.ConfigPair{Key: "core.alternateRefsCommand", Value: "exit 0 #"}),
 		git.WithInternalFetchWithSidechannel(
 			&gitalypb.SSHUploadPackWithSidechannelRequest{
 				Repository:       remoteRepo,

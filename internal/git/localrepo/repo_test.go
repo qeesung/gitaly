@@ -1,18 +1,19 @@
 package localrepo
 
 import (
-	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -43,198 +44,301 @@ func TestRepo(t *testing.T) {
 }
 
 func TestSize(t *testing.T) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
-	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 	catfileCache := catfile.NewCache(cfg)
 	t.Cleanup(catfileCache.Stop)
 
+	ctx := testhelper.Context(t)
+
+	commandArgFile := filepath.Join(testhelper.TempDir(t), "args")
+	interceptingFactory := gittest.NewInterceptingCommandFactory(ctx, t, cfg, func(execEnv git.ExecutionEnvironment) string {
+		return fmt.Sprintf(`#!/bin/bash
+			echo "$@" >%q
+			exec %q "$@"
+		`, commandArgFile, execEnv.BinaryPath)
+	})
+
 	testCases := []struct {
-		desc         string
-		setup        func(repoPath string, t *testing.T)
-		expectedSize int64
+		desc              string
+		setup             func(t *testing.T) *gitalypb.Repository
+		opts              []RepoSizeOption
+		expectedSize      int64
+		expectedUseBitmap bool
 	}{
 		{
 			desc:         "empty repository",
 			expectedSize: 0,
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				return repoProto
+			},
+			expectedUseBitmap: true,
 		},
 		{
-			desc: "one committed file",
-			setup: func(repoPath string, t *testing.T) {
-				require.NoError(t, os.WriteFile(
-					filepath.Join(repoPath, "file"),
-					bytes.Repeat([]byte("a"), 1000),
-					0o644,
-				))
+			desc: "referenced commit",
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
-				cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "add", "file")
-				require.NoError(t, cmd.Run())
-				cmd = gittest.NewCommand(t, cfg, "-C", repoPath, "commit", "-m", "initial")
-				require.NoError(t, cmd.Run())
+				gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1000)},
+					),
+					gittest.WithBranch("main"),
+				)
+
+				return repoProto
 			},
-			expectedSize: 202,
+			expectedSize:      203,
+			expectedUseBitmap: true,
 		},
 		{
-			desc: "one large loose blob",
-			setup: func(repoPath string, t *testing.T) {
-				require.NoError(t, os.WriteFile(
-					filepath.Join(repoPath, "file"),
-					bytes.Repeat([]byte("a"), 1000),
-					0o644,
-				))
+			desc: "unreferenced commit",
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
-				cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "checkout", "-b", "branch-a")
-				require.NoError(t, cmd.Run())
-				cmd = gittest.NewCommand(t, cfg, "-C", repoPath, "add", "file")
-				require.NoError(t, cmd.Run())
-				cmd = gittest.NewCommand(t, cfg, "-C", repoPath, "commit", "-m", "initial")
-				require.NoError(t, cmd.Run())
-				cmd = gittest.NewCommand(t, cfg, "-C", repoPath, "update-ref", "-d", "refs/heads/branch-a")
-				require.NoError(t, cmd.Run())
+				gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1000)},
+					),
+				)
+
+				return repoProto
 			},
-			expectedSize: 0,
+			expectedSize:      0,
+			expectedUseBitmap: true,
 		},
 		{
 			desc: "modification to blob without repack",
-			setup: func(repoPath string, t *testing.T) {
-				require.NoError(t, os.WriteFile(
-					filepath.Join(repoPath, "file"),
-					bytes.Repeat([]byte("a"), 1000),
-					0o644,
-				))
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
-				cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "add", "file")
-				require.NoError(t, cmd.Run())
-				cmd = gittest.NewCommand(t, cfg, "-C", repoPath, "commit", "-m", "initial")
-				require.NoError(t, cmd.Run())
+				rootCommitID := gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1000)},
+					),
+				)
 
-				f, err := os.OpenFile(
-					filepath.Join(repoPath, "file"),
-					os.O_APPEND|os.O_WRONLY,
-					0o644)
-				require.NoError(t, err)
-				defer f.Close()
-				_, err = f.WriteString("a")
-				assert.NoError(t, err)
+				gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(rootCommitID),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1001)},
+					),
+					gittest.WithMessage("modification"),
+					gittest.WithBranch("main"),
+				)
 
-				cmd = gittest.NewCommand(t, cfg, "-C", repoPath, "commit", "-am", "modification")
-				require.NoError(t, cmd.Run())
+				return repoProto
 			},
-			expectedSize: 437,
+			expectedSize:      439,
+			expectedUseBitmap: true,
 		},
 		{
 			desc: "modification to blob after repack",
-			setup: func(repoPath string, t *testing.T) {
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+				rootCommitID := gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1000)},
+					),
+				)
+
+				gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(rootCommitID),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1001)},
+					),
+					gittest.WithMessage("modification"),
+					gittest.WithBranch("main"),
+				)
+
+				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-a", "-d")
+
+				return repoProto
+			},
+			expectedSize:      398,
+			expectedUseBitmap: true,
+		},
+		{
+			desc: "excluded single ref",
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+				gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
+					),
+					gittest.WithBranch("exclude-me"),
+				)
+
+				gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("x", 2000)},
+					),
+					gittest.WithBranch("include-me"),
+				)
+
+				return repoProto
+			},
+			opts: []RepoSizeOption{
+				WithExcludeRefs("refs/heads/exclude-me"),
+			},
+			expectedSize:      217,
+			expectedUseBitmap: true,
+		},
+		{
+			desc: "excluded everything",
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+				gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
+					),
+					gittest.WithBranch("exclude-me"),
+				)
+
+				return repoProto
+			},
+			opts: []RepoSizeOption{
+				WithExcludeRefs("refs/heads/*"),
+			},
+			expectedSize:      0,
+			expectedUseBitmap: true,
+		},
+		{
+			desc: "repo with alternate",
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				_, poolPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
 				require.NoError(t, os.WriteFile(
-					filepath.Join(repoPath, "file"),
-					bytes.Repeat([]byte("a"), 1000),
-					0o644,
+					filepath.Join(repoPath, "objects", "info", "alternates"),
+					[]byte(filepath.Join(poolPath, "objects")),
+					os.ModePerm,
 				))
 
-				cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "add", "file")
-				require.NoError(t, cmd.Run())
-				cmd = gittest.NewCommand(t, cfg, "-C", repoPath, "commit", "-m", "initial")
-				require.NoError(t, cmd.Run())
+				for _, path := range []string{repoPath, poolPath} {
+					gittest.WriteCommit(t, cfg, path,
+						gittest.WithParents(),
+						gittest.WithTreeEntries(
+							gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
+						),
+						gittest.WithBranch("main"),
+					)
+				}
 
-				f, err := os.OpenFile(
-					filepath.Join(repoPath, "file"),
-					os.O_APPEND|os.O_WRONLY,
-					0o644)
-				require.NoError(t, err)
-				defer f.Close()
-				_, err = f.WriteString("a")
-				assert.NoError(t, err)
-
-				cmd = gittest.NewCommand(t, cfg, "-C", repoPath, "commit", "-am", "modification")
-				require.NoError(t, cmd.Run())
-
-				cmd = gittest.NewCommand(t, cfg, "-C", repoPath, "repack", "-a", "-d")
-				require.NoError(t, cmd.Run())
+				return repoProto
 			},
-			expectedSize: 391,
+			// While both repositories have the same contents, we should still return
+			// the actual repository's size because we don't exclude the alternate.
+			expectedSize: 207,
+			// Even though we have an alternate, we should still use bitmap indices
+			// given that we don't use `--not --alternate-refs`.
+			expectedUseBitmap: true,
+		},
+		{
+			desc: "exclude alternate with identical contents",
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				_, poolPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+				require.NoError(t, os.WriteFile(
+					filepath.Join(repoPath, "objects", "info", "alternates"),
+					[]byte(filepath.Join(poolPath, "objects")),
+					os.ModePerm,
+				))
+
+				// We write the same object into both repositories, so we should
+				// exclude it from our size calculations.
+				for _, path := range []string{repoPath, poolPath} {
+					gittest.WriteCommit(t, cfg, path,
+						gittest.WithParents(),
+						gittest.WithTreeEntries(
+							gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
+						),
+						gittest.WithBranch("main"),
+					)
+				}
+
+				return repoProto
+			},
+			opts: []RepoSizeOption{
+				WithoutAlternates(),
+			},
+			expectedSize:      0,
+			expectedUseBitmap: false,
+		},
+		{
+			desc: "exclude alternate with additional contents",
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				_, poolPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+				require.NoError(t, os.WriteFile(
+					filepath.Join(repoPath, "objects", "info", "alternates"),
+					[]byte(filepath.Join(poolPath, "objects")),
+					os.ModePerm,
+				))
+
+				for i, path := range []string{repoPath, poolPath} {
+					// We first write one blob into the repo that is the same
+					// across both repositories.
+					rootCommitID := gittest.WriteCommit(t, cfg, path,
+						gittest.WithParents(),
+						gittest.WithTreeEntries(
+							gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
+						),
+					)
+
+					// But this time we also write a second commit into each of
+					// the repositories that is not the same to simulate history
+					// that has diverged.
+					gittest.WriteCommit(t, cfg, path,
+						gittest.WithParents(rootCommitID),
+						gittest.WithTreeEntries(
+							gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: fmt.Sprintf("%d", i)},
+						),
+						gittest.WithBranch("main"),
+					)
+				}
+
+				return repoProto
+			},
+			opts: []RepoSizeOption{
+				WithoutAlternates(),
+			},
+			expectedSize:      224,
+			expectedUseBitmap: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			pbRepo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
-				WithWorktree: true,
-			})
-			repo := New(config.NewLocator(cfg), gitCmdFactory, catfileCache, pbRepo)
-			if tc.setup != nil {
-				tc.setup(repoPath, t)
-			}
+			require.NoError(t, os.RemoveAll(commandArgFile))
 
-			ctx := testhelper.Context(t)
-			size, err := repo.Size(ctx)
+			repoProto := tc.setup(t)
+			repo := New(config.NewLocator(cfg), interceptingFactory, catfileCache, repoProto)
+
+			size, err := repo.Size(ctx, tc.opts...)
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedSize, size)
+			require.Equal(t, tc.expectedSize, size)
+
+			commandArgs := text.ChompBytes(testhelper.MustReadFile(t, commandArgFile))
+			if tc.expectedUseBitmap {
+				require.Contains(t, commandArgs, "--use-bitmap-index")
+			} else {
+				require.NotContains(t, commandArgs, "--use-bitmap-index")
+			}
 		})
 	}
-}
-
-func TestSize_excludeRefs(t *testing.T) {
-	cfg := testcfg.Build(t)
-	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
-	catfileCache := catfile.NewCache(cfg)
-	t.Cleanup(catfileCache.Stop)
-
-	pbRepo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-	blob := bytes.Repeat([]byte("a"), 1000)
-	blobOID := gittest.WriteBlob(t, cfg, repoPath, blob)
-	treeOID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
-		{
-			OID:  blobOID,
-			Mode: "100644",
-			Path: "1kbblob",
-		},
-	})
-	commitOID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(treeOID))
-
-	repo := New(config.NewLocator(cfg), gitCmdFactory, catfileCache, pbRepo)
-
-	ctx := testhelper.Context(t)
-	sizeBeforeKeepAround, err := repo.Size(ctx)
-	require.NoError(t, err)
-
-	gittest.WriteRef(t, cfg, repoPath, git.ReferenceName("refs/keep-around/keep1"), commitOID)
-
-	sizeWithKeepAround, err := repo.Size(ctx)
-	require.NoError(t, err)
-	assert.Less(t, sizeBeforeKeepAround, sizeWithKeepAround)
-
-	sizeWithoutKeepAround, err := repo.Size(ctx, WithExcludeRefs("refs/keep-around/*"))
-	require.NoError(t, err)
-
-	assert.Equal(t, sizeBeforeKeepAround, sizeWithoutKeepAround)
-}
-
-func TestSize_excludeAlternates(t *testing.T) {
-	cfg := testcfg.Build(t)
-	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
-	catfileCache := catfile.NewCache(cfg)
-	t.Cleanup(catfileCache.Stop)
-	locator := config.NewLocator(cfg)
-
-	pbRepo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-	_, altRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-
-	require.NoError(t, os.WriteFile(
-		filepath.Join(repoPath, "objects", "info", "alternates"),
-		[]byte(filepath.Join(altRepoPath, "objects")),
-		os.ModePerm,
-	))
-
-	repo := New(locator, gitCmdFactory, catfileCache, pbRepo)
-
-	ctx := testhelper.Context(t)
-
-	gittest.Exec(t, cfg, "-C", repoPath, "gc")
-
-	sizeIncludingAlternates, err := repo.Size(ctx)
-	require.NoError(t, err)
-	assert.Greater(t, sizeIncludingAlternates, int64(0))
-
-	sizeExcludingAlternates, err := repo.Size(ctx, WithoutAlternates())
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), sizeExcludingAlternates)
 }
