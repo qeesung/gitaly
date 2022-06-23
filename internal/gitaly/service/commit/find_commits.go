@@ -6,7 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
@@ -16,6 +19,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
+
+var statsPattern = regexp.MustCompile(`\s(\d+)\sfiles? changed(,\s(\d+)\sinsertions?\(\+\))?(,\s(\d+)\sdeletions?\(-\))?`)
 
 func (s *server) FindCommits(req *gitalypb.FindCommitsRequest, stream gitalypb.CommitService_FindCommitsServer) error {
 	ctx := stream.Context()
@@ -64,7 +69,7 @@ func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsReque
 	}
 	defer cancel()
 
-	getCommits := NewGetCommits(logCmd, objectReader)
+	getCommits := NewGetCommits(logCmd, objectReader, req.GetIncludeShortstat())
 
 	if calculateOffsetManually(req) {
 		if err := getCommits.Offset(int(req.GetOffset())); err != nil {
@@ -79,7 +84,7 @@ func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsReque
 		}
 	}
 
-	if err := streamCommits(getCommits, stream, req.GetTrailers()); err != nil {
+	if err := streamCommits(getCommits, stream, req.GetTrailers(), req.GetIncludeShortstat()); err != nil {
 		return fmt.Errorf("error streaming commits: %v", err)
 	}
 	return nil
@@ -96,11 +101,17 @@ type GetCommits struct {
 }
 
 // NewGetCommits returns a new GetCommits object
-func NewGetCommits(cmd *command.Command, objectReader catfile.ObjectReader) *GetCommits {
-	return &GetCommits{
+func NewGetCommits(cmd *command.Command, objectReader catfile.ObjectReader, shortStat bool) *GetCommits {
+	getCommits := &GetCommits{
 		scanner:      bufio.NewScanner(cmd),
 		objectReader: objectReader,
 	}
+	// If include shortstat, the scanner splits commits by special token,
+	// so that the commit hash and stats are combined.
+	if shortStat {
+		getCommits.scanner.Split(splitStat)
+	}
+	return getCommits
 }
 
 // Scan indicates whether or not there are more commits to return
@@ -129,10 +140,16 @@ func (g *GetCommits) Offset(offset int) error {
 }
 
 // Commit returns the current commit
-func (g *GetCommits) Commit(ctx context.Context, trailers bool) (*gitalypb.GitCommit, error) {
+func (g *GetCommits) Commit(ctx context.Context, trailers, shortStat bool) (*gitalypb.GitCommit, error) {
 	logOutput := strings.TrimSpace(g.scanner.Text())
 	var revAndTrailers []string
+	var revAndStats []string
 	var revision string
+
+	if shortStat {
+		revAndStats = strings.SplitN(logOutput, "\n", 2)
+		logOutput = revAndStats[0]
+	}
 
 	if trailers {
 		revAndTrailers = strings.SplitN(logOutput, "\000", 2)
@@ -140,6 +157,7 @@ func (g *GetCommits) Commit(ctx context.Context, trailers bool) (*gitalypb.GitCo
 	} else {
 		revision = logOutput
 	}
+
 	commit, err := catfile.GetCommit(ctx, g.objectReader, git.Revision(revision))
 	if err != nil {
 		return nil, fmt.Errorf("cat-file get commit %q: %v", revision, err)
@@ -149,10 +167,17 @@ func (g *GetCommits) Commit(ctx context.Context, trailers bool) (*gitalypb.GitCo
 		commit.Trailers = trailerparser.Parse([]byte(revAndTrailers[1]))
 	}
 
+	if shortStat && len(revAndStats) == 2 {
+		commit.ShortStats, err = parseStat(revAndStats[1])
+		if err != nil {
+			return nil, fmt.Errorf("get stats: %w", err)
+		}
+	}
+
 	return commit, nil
 }
 
-func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCommitsServer, trailers bool) error {
+func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCommitsServer, trailers, shortStat bool) error {
 	ctx := stream.Context()
 
 	chunker := chunk.New(&commitsSender{
@@ -164,7 +189,7 @@ func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCom
 	})
 
 	for getCommits.Scan() {
-		commit, err := getCommits.Commit(ctx, trailers)
+		commit, err := getCommits.Commit(ctx, trailers, shortStat)
 		if err != nil {
 			return err
 		}
@@ -173,6 +198,7 @@ func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCom
 			return err
 		}
 	}
+
 	if getCommits.Err() != nil {
 		return fmt.Errorf("get commits: %v", getCommits.Err())
 	}
@@ -182,9 +208,14 @@ func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCom
 
 func getLogCommandSubCmd(req *gitalypb.FindCommitsRequest) git.SubCmd {
 	logFormatOption := "--format=%H"
+	// To split the commits by '\x01' instead of '\n'
+	if req.GetIncludeShortstat() {
+		logFormatOption = "--format=%x01%H"
+	}
 	if req.GetTrailers() {
 		logFormatOption += "%x00%(trailers:unfold,separator=%x00)"
 	}
+
 	subCmd := git.SubCmd{Name: "log", Flags: []git.Option{git.Flag{Name: logFormatOption}}}
 
 	//  We will perform the offset in Go because --follow doesn't play well with --skip.
@@ -230,6 +261,73 @@ func getLogCommandSubCmd(req *gitalypb.FindCommitsRequest) git.SubCmd {
 	if req.GetOrder() == gitalypb.FindCommitsRequest_TOPO {
 		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--topo-order"})
 	}
+	if req.GetIncludeShortstat() {
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--shortstat"})
+	}
 
 	return subCmd
+}
+
+func parseStat(line string) (*gitalypb.CommitStatInfo, error) {
+	statInfo := &gitalypb.CommitStatInfo{}
+
+	matched := statsPattern.FindStringSubmatch(line)
+	if len(matched) != 6 {
+		return nil, fmt.Errorf("expected match 6 sub exp, got %d", len(matched))
+	}
+
+	fileStr, addStr, delStr := matched[1], matched[3], matched[5]
+
+	file64, err := strconv.ParseInt(fileStr, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("parse stat:%v", err)
+	}
+	statInfo.ChangedFiles = int32(file64)
+
+	if len(addStr) > 0 {
+		add64, err := strconv.ParseInt(addStr, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("parse stat:%v", err)
+		}
+
+		statInfo.Additions = int32(add64)
+	}
+
+	if len(delStr) > 0 {
+		del64, err := strconv.ParseInt(delStr, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("parse stat:%v", err)
+		}
+
+		statInfo.Deletions = int32(del64)
+	}
+
+	return statInfo, nil
+}
+
+func splitStat(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	// Skip leading `\x01`.
+	var start, width int
+	for start < len(data) {
+		var r rune
+		r, width = utf8.DecodeRune(data[start:])
+		if r != '\x01' {
+			break
+		}
+		start += width
+	}
+	// Scan until `\x01`, marking end of commit.
+	for i := start; i < len(data); i += width {
+		var r rune
+		r, width = utf8.DecodeRune(data[i:])
+		if r == '\x01' {
+			return i + width, data[start:i], nil
+		}
+	}
+
+	if atEOF && len(data) > start {
+		return len(data), data[start:], nil
+	}
+	// Request more data.
+	return start, nil, nil
 }

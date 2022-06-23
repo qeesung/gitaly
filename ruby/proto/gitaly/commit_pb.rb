@@ -195,6 +195,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :order, :enum, 14, "gitaly.FindCommitsRequest.Order"
       optional :global_options, :message, 15, "gitaly.GlobalOptions"
       optional :trailers, :bool, 16
+      optional :include_shortstat, :bool, 17
     end
     add_enum "gitaly.FindCommitsRequest.Order" do
       value :NONE, 0
