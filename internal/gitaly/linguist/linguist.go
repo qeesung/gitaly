@@ -95,13 +95,13 @@ func (inst *Instance) startGitLinguist(ctx context.Context, repoPath string, com
 	cmd := exec.Command(bundle, "exec", "bin/gitaly-linguist", "--repository="+repoPath, "--commit="+commitID)
 	cmd.Dir = inst.cfg.Ruby.Dir
 
-	internalCmd, err := command.New(ctx, cmd, nil, nil, nil, env.AllowedRubyEnvironment(os.Environ())...)
+	internalCmd, err := command.New(ctx, cmd,
+		command.WithEnvironment(env.AllowedRubyEnvironment(os.Environ())),
+		command.WithCommandName("git-linguist", "stats"),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("creating command: %w", err)
 	}
-
-	internalCmd.SetMetricsCmd("git-linguist")
-	internalCmd.SetMetricsSubCmd("stats")
 
 	return internalCmd, nil
 }

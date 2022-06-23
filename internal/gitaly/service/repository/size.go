@@ -67,7 +67,7 @@ func (s *server) GetObjectDirectorySize(ctx context.Context, in *gitalypb.GetObj
 }
 
 func getPathSize(ctx context.Context, path string) int64 {
-	cmd, err := command.New(ctx, exec.Command("du", "-sk", path), nil, nil, nil)
+	cmd, err := command.New(ctx, exec.Command("du", "-sk", path))
 	if err != nil {
 		ctxlogrus.Extract(ctx).WithError(err).Warn("ignoring du command error")
 		return 0

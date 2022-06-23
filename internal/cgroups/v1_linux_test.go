@@ -81,7 +81,7 @@ func TestAddCommand(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	cmd1 := exec.Command("ls", "-hal", ".")
-	cmd2, err := command.New(ctx, cmd1, nil, nil, nil)
+	cmd2, err := command.New(ctx, cmd1)
 	require.NoError(t, err)
 	require.NoError(t, cmd2.Wait())
 
@@ -91,7 +91,8 @@ func TestAddCommand(t *testing.T) {
 	}
 
 	t.Run("without a repository", func(t *testing.T) {
-		require.NoError(t, v1Manager2.AddCommand(cmd2, nil))
+		_, err := v1Manager2.AddCommand(cmd2, nil)
+		require.NoError(t, err)
 
 		checksum := crc32.ChecksumIEEE([]byte(strings.Join(cmd2.Args(), "/")))
 		groupID := uint(checksum) % config.Repositories.Count
@@ -109,7 +110,8 @@ func TestAddCommand(t *testing.T) {
 	})
 
 	t.Run("with a repository", func(t *testing.T) {
-		require.NoError(t, v1Manager2.AddCommand(cmd2, repo))
+		_, err := v1Manager2.AddCommand(cmd2, repo)
+		require.NoError(t, err)
 
 		checksum := crc32.ChecksumIEEE([]byte(strings.Join([]string{
 			"default",
@@ -150,6 +152,8 @@ func TestCleanup(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
+	t.Parallel()
+
 	mock := newMock(t)
 	repo := &gitalypb.Repository{
 		StorageName:  "default",
@@ -167,22 +171,23 @@ func TestMetrics(t *testing.T) {
 	mock.setupMockCgroupFiles(t, v1Manager1, 2)
 
 	require.NoError(t, v1Manager1.Setup())
-	ctx := testhelper.Context(t)
 
+	ctx := testhelper.Context(t)
 	logger, hook := test.NewNullLogger()
 	logger.SetLevel(logrus.DebugLevel)
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
-	cmd, err := command.New(ctx, exec.Command("ls", "-hal", "."), nil, nil, nil)
+	cmd, err := command.New(ctx, exec.Command("ls", "-hal", "."), command.WithCgroup(v1Manager1, repo))
 	require.NoError(t, err)
-	gitCmd1, err := command.New(ctx, exec.Command("ls", "-hal", "."), nil, nil, nil)
+	gitCmd1, err := command.New(ctx, exec.Command("ls", "-hal", "."), command.WithCgroup(v1Manager1, repo))
 	require.NoError(t, err)
-	gitCmd2, err := command.New(ctx, exec.Command("ls", "-hal", "."), nil, nil, nil)
+	gitCmd2, err := command.New(ctx, exec.Command("ls", "-hal", "."), command.WithCgroup(v1Manager1, repo))
 	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, gitCmd2.Wait())
+	}()
 
-	require.NoError(t, v1Manager1.AddCommand(cmd, repo))
-	require.NoError(t, v1Manager1.AddCommand(gitCmd1, repo))
-	require.NoError(t, v1Manager1.AddCommand(gitCmd2, repo))
+	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
 	require.NoError(t, gitCmd1.Wait())
 

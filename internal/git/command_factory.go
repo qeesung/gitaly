@@ -17,7 +17,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 )
 
 // CommandFactory is designed to create and run git commands in a protected and fully managed manner.
@@ -341,7 +340,7 @@ func (cf *ExecCommandFactory) GitVersion(ctx context.Context) (Version, error) {
 	// Furthermore, note that we're not using `newCommand()` but instead hand-craft the command.
 	// This is required to avoid a cyclic dependency when we need to check the version in
 	// `newCommand()` itself.
-	cmd, err := command.New(ctx, exec.Command(execEnv.BinaryPath, "version"), nil, nil, nil, execEnv.EnvironmentVariables...)
+	cmd, err := command.New(ctx, exec.Command(execEnv.BinaryPath, "version"), command.WithEnvironment(execEnv.EnvironmentVariables))
 	if err != nil {
 		return Version{}, fmt.Errorf("spawning version command: %w", err)
 	}
@@ -397,17 +396,14 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo repository.Gi
 	execCommand := exec.Command(execEnv.BinaryPath, args...)
 	execCommand.Dir = dir
 
-	command, err := command.New(ctx, execCommand, config.stdin, config.stdout, config.stderr, env...)
+	command, err := command.New(ctx, execCommand, append(
+		config.commandOpts,
+		command.WithEnvironment(env),
+		command.WithCommandName("git", sc.Subcommand()),
+		command.WithCgroup(cf.cgroupsManager, repo),
+	)...)
 	if err != nil {
 		return nil, err
-	}
-
-	command.SetMetricsSubCmd(sc.Subcommand())
-
-	if featureflag.RunCommandsInCGroup.IsEnabled(ctx) {
-		if err := cf.cgroupsManager.AddCommand(command, repo); err != nil {
-			return nil, err
-		}
 	}
 
 	return command, nil

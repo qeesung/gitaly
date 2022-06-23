@@ -13,8 +13,8 @@ type Manager interface {
 	// It is expected to be called once at Gitaly startup from any
 	// instance of the Manager.
 	Setup() error
-	// AddCommand adds a Command to a cgroup
-	AddCommand(*command.Command, repository.GitRepo) error
+	// AddCommand adds a Command to a cgroup.
+	AddCommand(*command.Command, repository.GitRepo) (string, error)
 	// Cleanup cleans up cgroups created in Setup.
 	// It is expected to be called once at Gitaly shutdown from any
 	// instance of the Manager.

@@ -24,9 +24,9 @@ func (m *mockCgroupsManager) Setup() error {
 	return nil
 }
 
-func (m *mockCgroupsManager) AddCommand(c *command.Command, repo repository.GitRepo) error {
+func (m *mockCgroupsManager) AddCommand(c *command.Command, repo repository.GitRepo) (string, error) {
 	m.commands = append(m.commands, c)
-	return nil
+	return "", nil
 }
 
 func (m *mockCgroupsManager) Cleanup() error {

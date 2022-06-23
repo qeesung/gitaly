@@ -62,7 +62,7 @@ func (s *server) RestoreCustomHooks(stream gitalypb.RepositoryService_RestoreCus
 	}
 
 	ctx := stream.Context()
-	cmd, err := command.New(ctx, exec.Command("tar", cmdArgs...), reader, nil, nil)
+	cmd, err := command.New(ctx, exec.Command("tar", cmdArgs...), command.WithStdin(reader))
 	if err != nil {
 		return status.Errorf(codes.Internal, "RestoreCustomHooks: Could not untar custom hooks tar %v", err)
 	}
@@ -149,7 +149,7 @@ func (s *server) restoreCustomHooksWithVoting(stream gitalypb.RepositoryService_
 		customHooksDir,
 	}
 
-	cmd, err := command.New(ctx, exec.Command("tar", cmdArgs...), reader, nil, nil)
+	cmd, err := command.New(ctx, exec.Command("tar", cmdArgs...), command.WithStdin(reader))
 	if err != nil {
 		return helper.ErrInternalf("RestoreCustomHooks: Could not untar custom hooks tar %w", err)
 	}

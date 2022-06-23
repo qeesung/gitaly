@@ -63,7 +63,7 @@ func New(ctx context.Context, repo git.RepositoryExecutor, opts ...UpdaterOpt) (
 			Flags: []git.Option{git.Flag{Name: "-z"}, git.Flag{Name: "--stdin"}},
 		},
 		txOption,
-		git.WithStdin(command.SetupStdin),
+		git.WithSetupStdin(),
 		git.WithStderr(&stderr),
 	)
 	if err != nil {

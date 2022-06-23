@@ -24,7 +24,7 @@ func TestReadMonitorTimeout(t *testing.T) {
 		waitPipeR, // this pipe reader lets us block the multi reader
 	)
 
-	r, monitor, err := NewReadMonitor(ctx, in)
+	r, monitor, cleanup, err := NewReadMonitor(ctx, in)
 	require.NoError(t, err)
 
 	timeoutTicker := helper.NewManualTicker()
@@ -40,6 +40,8 @@ func TestReadMonitorTimeout(t *testing.T) {
 	require.Error(t, ctx.Err())
 	require.Equal(t, ctx.Err(), context.Canceled)
 	require.True(t, elapsed < time.Second, "Expected context to be cancelled quickly, but it was not")
+
+	cleanup()
 
 	// Verify that pipe is closed
 	_, err = io.ReadAll(r)
@@ -61,8 +63,9 @@ func TestReadMonitorSuccess(t *testing.T) {
 		strings.NewReader(postTimeoutPayload),
 	)
 
-	r, monitor, err := NewReadMonitor(ctx, in)
+	r, monitor, cleanup, err := NewReadMonitor(ctx, in)
 	require.NoError(t, err)
+	defer cleanup()
 
 	timeoutTicker := helper.NewManualTicker()
 

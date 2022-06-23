@@ -230,7 +230,9 @@ func (s *server) handleArchive(ctx context.Context, p archiveParams) error {
 	}
 
 	if p.compressCmd != nil {
-		command, err := command.New(ctx, p.compressCmd, archiveCommand, p.writer, nil)
+		command, err := command.New(ctx, p.compressCmd,
+			command.WithStdin(archiveCommand), command.WithStdout(p.writer),
+		)
 		if err != nil {
 			return err
 		}

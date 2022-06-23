@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,17 +15,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
+	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/sidechannel"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -123,6 +128,234 @@ func testUploadPackTimeout(t *testing.T, opts ...testcfg.Option) {
 
 		return code, nil
 	})
+}
+
+func TestUploadPackWithSidechannel_client(t *testing.T) {
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+	cfg.SocketPath = runSSHServer(t, cfg)
+
+	repo, repoPath := gittest.CreateRepository(testhelper.Context(t), t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
+	commitID := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD^{commit}")
+
+	registry := sidechannel.NewRegistry()
+	clientHandshaker := sidechannel.NewClientHandshaker(testhelper.NewDiscardingLogEntry(t), registry)
+	conn, err := grpc.Dial(cfg.SocketPath,
+		grpc.WithTransportCredentials(clientHandshaker.ClientHandshake(insecure.NewCredentials())),
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(cfg.Auth.Token)),
+	)
+	require.NoError(t, err)
+
+	client := gitalypb.NewSSHServiceClient(conn)
+	defer testhelper.MustClose(t, conn)
+
+	for _, tc := range []struct {
+		desc             string
+		request          *gitalypb.SSHUploadPackWithSidechannelRequest
+		client           func(clientConn *sidechannel.ClientConn, cancelContext func()) error
+		expectedErr      error
+		expectedResponse *gitalypb.SSHUploadPackWithSidechannelResponse
+	}{
+		{
+			desc: "successful clone",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository: repo,
+			},
+			client: func(clientConn *sidechannel.ClientConn, _ func()) error {
+				gittest.WritePktlineString(t, clientConn, "want "+text.ChompBytes(commitID)+" multi_ack\n")
+				gittest.WritePktlineFlush(t, clientConn)
+				gittest.WritePktlineString(t, clientConn, "done\n")
+
+				require.NoError(t, clientConn.CloseWrite())
+
+				return nil
+			},
+			expectedResponse: &gitalypb.SSHUploadPackWithSidechannelResponse{},
+		},
+		{
+			desc: "successful clone with protocol v2",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository:  repo,
+				GitProtocol: git.ProtocolV2,
+			},
+			client: func(clientConn *sidechannel.ClientConn, _ func()) error {
+				gittest.WritePktlineString(t, clientConn, "command=fetch\n")
+				gittest.WritePktlineString(t, clientConn, "agent=git/2.36.1\n")
+				gittest.WritePktlineString(t, clientConn, "object-format=sha1\n")
+				gittest.WritePktlineDelim(t, clientConn)
+				gittest.WritePktlineString(t, clientConn, "want "+text.ChompBytes(commitID)+"\n")
+				gittest.WritePktlineString(t, clientConn, "done\n")
+				gittest.WritePktlineFlush(t, clientConn)
+
+				require.NoError(t, clientConn.CloseWrite())
+
+				return nil
+			},
+			expectedResponse: &gitalypb.SSHUploadPackWithSidechannelResponse{},
+		},
+		{
+			desc: "client talks protocol v0 but v2 is requested",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository:  repo,
+				GitProtocol: git.ProtocolV2,
+			},
+			client: func(clientConn *sidechannel.ClientConn, _ func()) error {
+				gittest.WritePktlineString(t, clientConn, "want "+text.ChompBytes(commitID)+" multi_ack\n")
+				gittest.WritePktlineFlush(t, clientConn)
+				gittest.WritePktlineString(t, clientConn, "done\n")
+
+				require.NoError(t, clientConn.CloseWrite())
+
+				return nil
+			},
+			expectedErr: helper.ErrInternalf(
+				"cmd wait: exit status 128, stderr: %q",
+				"fatal: unknown capability 'want 1e292f8fedd741b75372e19097c76d327140c312 multi_ack'\n",
+			),
+		},
+		{
+			desc: "client talks protocol v2 but v0 is requested",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository: repo,
+			},
+			client: func(clientConn *sidechannel.ClientConn, _ func()) error {
+				gittest.WritePktlineString(t, clientConn, "command=fetch\n")
+				gittest.WritePktlineString(t, clientConn, "agent=git/2.36.1\n")
+				gittest.WritePktlineString(t, clientConn, "object-format=sha1\n")
+				gittest.WritePktlineDelim(t, clientConn)
+				gittest.WritePktlineString(t, clientConn, "want "+text.ChompBytes(commitID)+"\n")
+				gittest.WritePktlineString(t, clientConn, "done\n")
+				gittest.WritePktlineFlush(t, clientConn)
+
+				require.NoError(t, clientConn.CloseWrite())
+
+				return nil
+			},
+			expectedErr: helper.ErrInternalf(
+				"cmd wait: exit status 128, stderr: %q",
+				"fatal: git upload-pack: protocol error, expected to get object ID, not 'command=fetch'\n",
+			),
+		},
+		{
+			desc: "missing input",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository:  repo,
+				GitProtocol: git.ProtocolV2,
+			},
+			client: func(clientConn *sidechannel.ClientConn, _ func()) error {
+				require.NoError(t, clientConn.CloseWrite())
+				return nil
+			},
+			expectedResponse: &gitalypb.SSHUploadPackWithSidechannelResponse{},
+		},
+		{
+			desc: "short write",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository:  repo,
+				GitProtocol: git.ProtocolV2,
+			},
+			client: func(clientConn *sidechannel.ClientConn, _ func()) error {
+				gittest.WritePktlineString(t, clientConn, "command=fetch\n")
+
+				_, err := io.WriteString(clientConn, "0011agent")
+				require.NoError(t, err)
+				require.NoError(t, clientConn.CloseWrite())
+
+				return nil
+			},
+			expectedErr: helper.ErrInternalf("cmd wait: exit status 128, stderr: %q", "fatal: the remote end hung up unexpectedly\n"),
+		},
+		{
+			desc: "garbage",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository:  repo,
+				GitProtocol: git.ProtocolV2,
+			},
+			client: func(clientConn *sidechannel.ClientConn, _ func()) error {
+				gittest.WritePktlineString(t, clientConn, "foobar")
+				require.NoError(t, clientConn.CloseWrite())
+				return nil
+			},
+			expectedErr: helper.ErrInternalf("cmd wait: exit status 128, stderr: %q", "fatal: unknown capability 'foobar'\n"),
+		},
+		{
+			desc: "close and cancellation",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository:  repo,
+				GitProtocol: git.ProtocolV2,
+			},
+			client: func(clientConn *sidechannel.ClientConn, cancelContext func()) error {
+				gittest.WritePktlineString(t, clientConn, "command=fetch\n")
+				gittest.WritePktlineString(t, clientConn, "agent=git/2.36.1\n")
+
+				require.NoError(t, clientConn.CloseWrite())
+				cancelContext()
+
+				return nil
+			},
+			expectedErr: helper.ErrCanceled(context.Canceled),
+		},
+		{
+			desc: "cancellation and close",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository:  repo,
+				GitProtocol: git.ProtocolV2,
+			},
+			client: func(clientConn *sidechannel.ClientConn, cancelContext func()) error {
+				gittest.WritePktlineString(t, clientConn, "command=fetch\n")
+				gittest.WritePktlineString(t, clientConn, "agent=git/2.36.1\n")
+
+				cancelContext()
+				require.NoError(t, clientConn.CloseWrite())
+
+				return nil
+			},
+			expectedErr: helper.ErrCanceled(context.Canceled),
+		},
+		{
+			desc: "cancellation without close",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository:  repo,
+				GitProtocol: git.ProtocolV2,
+			},
+			client: func(clientConn *sidechannel.ClientConn, cancelContext func()) error {
+				gittest.WritePktlineString(t, clientConn, "command=fetch\n")
+				gittest.WritePktlineString(t, clientConn, "agent=git/2.36.1\n")
+
+				cancelContext()
+
+				return nil
+			},
+			expectedErr: helper.ErrCanceled(context.Canceled),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(testhelper.Context(t))
+
+			ctx, waiter := sidechannel.RegisterSidechannel(ctx, registry, func(clientConn *sidechannel.ClientConn) (returnedErr error) {
+				errCh := make(chan error, 1)
+				go func() {
+					_, err := io.Copy(io.Discard, clientConn)
+					errCh <- err
+				}()
+				defer func() {
+					if err := <-errCh; err != nil && returnedErr == nil {
+						returnedErr = err
+					}
+				}()
+
+				return tc.client(clientConn, cancel)
+			})
+			defer testhelper.MustClose(t, waiter)
+
+			response, err := client.SSHUploadPackWithSidechannel(ctx, tc.request)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
+			testhelper.ProtoEqual(t, tc.expectedResponse, response)
+		})
+	}
 }
 
 func requireFailedSSHStream(t *testing.T, recv func() (int32, error)) {

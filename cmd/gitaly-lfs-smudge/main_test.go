@@ -184,10 +184,10 @@ func TestGitalyLFSSmudge(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			cmd, err := command.New(ctx,
 				exec.Command(binary),
-				tc.stdin,
-				&stdout,
-				&stderr,
-				env...,
+				command.WithStdin(tc.stdin),
+				command.WithStdout(&stdout),
+				command.WithStderr(&stderr),
+				command.WithEnvironment(env),
 			)
 			require.NoError(t, err)
 

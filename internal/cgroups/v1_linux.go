@@ -102,7 +102,7 @@ func (cg *CGroupV1Manager) Setup() error {
 func (cg *CGroupV1Manager) AddCommand(
 	cmd *command.Command,
 	repo repository.GitRepo,
-) error {
+) (string, error) {
 	var key string
 	if repo == nil {
 		key = strings.Join(cmd.Args(), "/")
@@ -117,9 +117,7 @@ func (cg *CGroupV1Manager) AddCommand(
 	groupID := uint(checksum) % cg.cfg.Repositories.Count
 	cgroupPath := cg.repoPath(int(groupID))
 
-	cmd.SetCgroupPath(cgroupPath)
-
-	return cg.addToCgroup(cmd.Pid(), cgroupPath)
+	return cgroupPath, cg.addToCgroup(cmd.Pid(), cgroupPath)
 }
 
 func (cg *CGroupV1Manager) addToCgroup(pid int, cgroupPath string) error {

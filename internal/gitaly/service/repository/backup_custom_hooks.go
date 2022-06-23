@@ -30,7 +30,7 @@ func (s *server) BackupCustomHooks(in *gitalypb.BackupCustomHooksRequest, stream
 
 	ctx := stream.Context()
 	tar := exec.Command("tar", "-c", "-f", "-", "-C", repoPath, customHooksDir)
-	cmd, err := command.New(ctx, tar, nil, writer, nil)
+	cmd, err := command.New(ctx, tar, command.WithStdout(writer))
 	if err != nil {
 		return status.Errorf(codes.Internal, "%v", err)
 	}

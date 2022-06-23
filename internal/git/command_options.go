@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
@@ -168,9 +169,7 @@ func ConvertConfigOptions(options []string) ([]ConfigPair, error) {
 type cmdCfg struct {
 	env             []string
 	globals         []GlobalOption
-	stdin           io.Reader
-	stdout          io.Writer
-	stderr          io.Writer
+	commandOpts     []command.Option
 	hooksConfigured bool
 }
 
@@ -181,7 +180,15 @@ type CmdOpt func(context.Context, config.Cfg, CommandFactory, *cmdCfg) error
 // command suitable for `Write()`ing to.
 func WithStdin(r io.Reader) CmdOpt {
 	return func(_ context.Context, _ config.Cfg, _ CommandFactory, c *cmdCfg) error {
-		c.stdin = r
+		c.commandOpts = append(c.commandOpts, command.WithStdin(r))
+		return nil
+	}
+}
+
+// WithSetupStdin sets up the command so that it can be `Write()`en to.
+func WithSetupStdin() CmdOpt {
+	return func(_ context.Context, _ config.Cfg, _ CommandFactory, c *cmdCfg) error {
+		c.commandOpts = append(c.commandOpts, command.WithSetupStdin())
 		return nil
 	}
 }
@@ -189,7 +196,7 @@ func WithStdin(r io.Reader) CmdOpt {
 // WithStdout sets the command's stdout.
 func WithStdout(w io.Writer) CmdOpt {
 	return func(_ context.Context, _ config.Cfg, _ CommandFactory, c *cmdCfg) error {
-		c.stdout = w
+		c.commandOpts = append(c.commandOpts, command.WithStdout(w))
 		return nil
 	}
 }
@@ -197,7 +204,7 @@ func WithStdout(w io.Writer) CmdOpt {
 // WithStderr sets the command's stderr.
 func WithStderr(w io.Writer) CmdOpt {
 	return func(_ context.Context, _ config.Cfg, _ CommandFactory, c *cmdCfg) error {
-		c.stderr = w
+		c.commandOpts = append(c.commandOpts, command.WithStderr(w))
 		return nil
 	}
 }
@@ -299,6 +306,15 @@ func withInternalFetch(req repoScopedRequest, withSidechannel bool) func(ctx con
 			c.env = append(c.env, "GITALY_USE_SIDECHANNEL=1")
 		}
 
+		return nil
+	}
+}
+
+// WithFinalizer sets up the finalizer to be run when the command is being wrapped up. It will be
+// called after `Wait()` has returned.
+func WithFinalizer(finalizer func(*command.Command)) CmdOpt {
+	return func(_ context.Context, _ config.Cfg, _ CommandFactory, c *cmdCfg) error {
+		c.commandOpts = append(c.commandOpts, command.WithFinalizer(finalizer))
 		return nil
 	}
 }

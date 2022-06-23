@@ -67,7 +67,7 @@ func untar(ctx context.Context, path string, in *gitalypb.CreateRepositoryFromSn
 		return status.Errorf(codes.Internal, "HTTP server: %v", rsp.Status)
 	}
 
-	cmd, err := command.New(ctx, exec.Command("tar", "-C", path, "-xvf", "-"), rsp.Body, nil, nil)
+	cmd, err := command.New(ctx, exec.Command("tar", "-C", path, "-xvf", "-"), command.WithStdin(rsp.Body))
 	if err != nil {
 		return err
 	}

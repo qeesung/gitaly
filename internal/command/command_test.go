@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"regexp"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -19,30 +19,30 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
-func TestMain(m *testing.M) {
-	testhelper.Run(m)
-}
+func TestNew_environment(t *testing.T) {
+	t.Parallel()
 
-func TestNewCommandExtraEnv(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	extraVar := "FOOBAR=123456"
-	buff := &bytes.Buffer{}
-	cmd, err := New(ctx, exec.Command("/usr/bin/env"), nil, buff, nil, extraVar)
+
+	var buf bytes.Buffer
+	cmd, err := New(ctx, exec.Command("/usr/bin/env"), WithStdout(&buf), WithEnvironment([]string{extraVar}))
 
 	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
 
-	require.Contains(t, strings.Split(buff.String(), "\n"), extraVar)
+	require.Contains(t, strings.Split(buf.String(), "\n"), extraVar)
 }
 
-func TestNewCommandExportedEnv(t *testing.T) {
+func TestNew_exportedEnvironment(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	testCases := []struct {
+	for _, tc := range []struct {
 		key   string
 		value string
 	}{
@@ -110,9 +110,7 @@ func TestNewCommandExportedEnv(t *testing.T) {
 			key:   "NO_PROXY",
 			value: "https://excluded:5000",
 		},
-	}
-
-	for _, tc := range testCases {
+	} {
 		t.Run(tc.key, func(t *testing.T) {
 			if tc.key == "LD_LIBRARY_PATH" && runtime.GOOS == "darwin" {
 				t.Skip("System Integrity Protection prevents using dynamic linker (dyld) environment variables on macOS. https://apple.co/2XDH4iC")
@@ -120,50 +118,41 @@ func TestNewCommandExportedEnv(t *testing.T) {
 
 			testhelper.ModifyEnvironment(t, tc.key, tc.value)
 
-			buff := &bytes.Buffer{}
-			cmd, err := New(ctx, exec.Command("/usr/bin/env"), nil, buff, nil)
+			var buf bytes.Buffer
+			cmd, err := New(ctx, exec.Command("/usr/bin/env"), WithStdout(&buf))
 			require.NoError(t, err)
 			require.NoError(t, cmd.Wait())
 
 			expectedEnv := fmt.Sprintf("%s=%s", tc.key, tc.value)
-			require.Contains(t, strings.Split(buff.String(), "\n"), expectedEnv)
+			require.Contains(t, strings.Split(buf.String(), "\n"), expectedEnv)
 		})
 	}
 }
 
-func TestNewCommandUnexportedEnv(t *testing.T) {
+func TestNew_unexportedEnv(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	unexportedEnvKey, unexportedEnvVal := "GITALY_UNEXPORTED_ENV", "foobar"
 	testhelper.ModifyEnvironment(t, unexportedEnvKey, unexportedEnvVal)
 
-	buff := &bytes.Buffer{}
-	cmd, err := New(ctx, exec.Command("/usr/bin/env"), nil, buff, nil)
-
+	var buf bytes.Buffer
+	cmd, err := New(ctx, exec.Command("/usr/bin/env"), WithStdout(&buf))
 	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
 
-	require.NotContains(t, strings.Split(buff.String(), "\n"), fmt.Sprintf("%s=%s", unexportedEnvKey, unexportedEnvVal))
+	require.NotContains(t, strings.Split(buf.String(), "\n"), fmt.Sprintf("%s=%s", unexportedEnvKey, unexportedEnvVal))
 }
 
-func TestRejectEmptyContextDone(t *testing.T) {
-	defer func() {
-		p := recover()
-		if p == nil {
-			t.Error("expected panic, got none")
-			return
-		}
+func TestNew_rejectContextWithoutDone(t *testing.T) {
+	t.Parallel()
 
-		if _, ok := p.(contextWithoutDonePanic); !ok {
-			panic(p)
-		}
-	}()
-
-	_, err := New(testhelper.ContextWithoutCancel(), exec.Command("true"), nil, nil, nil)
-	require.NoError(t, err)
+	require.PanicsWithValue(t, contextWithoutDonePanic("command spawned with context without Done() channel"), func() {
+		_, err := New(testhelper.ContextWithoutCancel(), exec.Command("true"))
+		require.NoError(t, err)
+	})
 }
 
-func TestNewCommandTimeout(t *testing.T) {
+func TestNew_spawnTimeout(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	defer func(ch chan struct{}, t time.Duration) {
@@ -177,39 +166,33 @@ func TestNewCommandTimeout(t *testing.T) {
 	spawnTimeout := 200 * time.Millisecond
 	spawnConfig.Timeout = spawnTimeout
 
-	testDeadline := time.After(1 * time.Second)
 	tick := time.After(spawnTimeout / 2)
 
 	errCh := make(chan error)
 	go func() {
-		_, err := New(ctx, exec.Command("true"), nil, nil, nil)
+		_, err := New(ctx, exec.Command("true"))
 		errCh <- err
 	}()
 
-	var err error
-	timePassed := false
-
-wait:
-	for {
-		select {
-		case err = <-errCh:
-			break wait
-		case <-tick:
-			timePassed = true
-		case <-testDeadline:
-			t.Fatal("test timed out")
-		}
+	select {
+	case <-errCh:
+		require.FailNow(t, "expected spawning to be delayed")
+	case <-tick:
+		// This is the happy case: we expect spawning of the command to be delayed by up to
+		// 200ms until it finally times out.
 	}
 
-	require.True(t, timePassed, "time must have passed")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "process spawn timed out after")
+	// And after some time we expect that spawning of the command fails due to the configured
+	// timeout.
+	require.Equal(t, fmt.Errorf("process spawn timed out after 200ms"), <-errCh)
 }
 
-func TestCommand_Wait_interrupts_after_context_cancellation(t *testing.T) {
+func TestCommand_Wait_contextCancellationKillsCommand(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
-	cmd, err := New(ctx, exec.CommandContext(ctx, "sleep", "1h"), nil, nil, nil)
+	cmd, err := New(ctx, exec.CommandContext(ctx, "sleep", "1h"))
 	require.NoError(t, err)
 
 	// Cancel the command early.
@@ -222,184 +205,243 @@ func TestCommand_Wait_interrupts_after_context_cancellation(t *testing.T) {
 	require.Equal(t, -1, s)
 }
 
-func TestNewCommandWithSetupStdin(t *testing.T) {
+func TestNew_setupStdin(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
-	value := "Test value"
-	output := bytes.NewBuffer(nil)
+	stdin := "Test value"
 
-	cmd, err := New(ctx, exec.Command("cat"), SetupStdin, nil, nil)
+	var buf bytes.Buffer
+	cmd, err := New(ctx, exec.Command("cat"), WithSetupStdin(), WithStdout(&buf))
 	require.NoError(t, err)
 
-	_, err = fmt.Fprintf(cmd, "%s", value)
+	_, err = fmt.Fprintf(cmd, "%s", stdin)
 	require.NoError(t, err)
 
-	// The output of the `cat` subprocess should exactly match its input
-	_, err = io.CopyN(output, cmd, int64(len(value)))
+	require.NoError(t, cmd.Wait())
+	require.Equal(t, stdin, buf.String())
+}
+
+func TestCommand_read(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cmd, err := New(ctx, exec.Command("echo", "test value"))
 	require.NoError(t, err)
-	require.Equal(t, value, output.String())
+
+	output, err := io.ReadAll(cmd)
+	require.NoError(t, err)
+	require.Equal(t, "test value\n", string(output))
 
 	require.NoError(t, cmd.Wait())
 }
 
-func TestNewCommandNullInArg(t *testing.T) {
+func TestNew_nulByteInArgument(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
-	_, err := New(ctx, exec.Command("sh", "-c", "hello\x00world"), nil, nil, nil)
-	require.Error(t, err)
-	require.EqualError(t, err, `detected null byte in command argument "hello\x00world"`)
-}
-
-func TestNewNonExistent(t *testing.T) {
-	ctx := testhelper.Context(t)
-
-	cmd, err := New(ctx, exec.Command("command-non-existent"), nil, nil, nil)
+	cmd, err := New(ctx, exec.Command("sh", "-c", "hello\x00world"))
+	require.Equal(t, fmt.Errorf("detected null byte in command argument %q", "hello\x00world"), err)
 	require.Nil(t, cmd)
-	require.Error(t, err)
 }
 
-func TestCommandStdErr(t *testing.T) {
+func TestNew_missingBinary(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
-	var stdout, stderr bytes.Buffer
-	expectedMessage := `hello world\nhello world\nhello world\nhello world\nhello world\n`
+	cmd, err := New(ctx, exec.Command("command-non-existent"))
+	require.EqualError(t, err, "starting process [command-non-existent]: exec: \"command-non-existent\": executable file not found in $PATH")
+	require.Nil(t, cmd)
+}
 
-	logger := logrus.New()
-	logger.SetOutput(&stderr)
+func TestCommand_stderrLogging(t *testing.T) {
+	t.Parallel()
 
+	binaryPath := testhelper.WriteExecutable(t, filepath.Join(testhelper.TempDir(t), "script"), []byte(`#!/bin/bash
+		for i in {1..5}
+		do
+			echo 'hello world' 1>&2
+		done
+		exit 1
+	`))
+
+	logger, hook := test.NewNullLogger()
+	ctx := testhelper.Context(t)
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
-	cmd, err := New(ctx, exec.Command("./testdata/stderr_script.sh"), nil, &stdout, nil)
+	var stdout bytes.Buffer
+	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
+	require.NoError(t, err)
+
+	require.EqualError(t, cmd.Wait(), "exit status 1")
+	require.Empty(t, stdout.Bytes())
+	require.Equal(t, strings.Repeat("hello world\n", 5), hook.LastEntry().Message)
+}
+
+func TestCommand_stderrLoggingTruncation(t *testing.T) {
+	t.Parallel()
+
+	binaryPath := testhelper.WriteExecutable(t, filepath.Join(testhelper.TempDir(t), "script"), []byte(`#!/bin/bash
+		for i in {1..1000}
+		do
+			printf '%06d zzzzzzzzzz\n' $i >&2
+		done
+		exit 1
+	`))
+
+	logger, hook := test.NewNullLogger()
+	ctx := testhelper.Context(t)
+	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
+
+	var stdout bytes.Buffer
+	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
+	require.NoError(t, err)
+
+	require.Error(t, cmd.Wait())
+	require.Empty(t, stdout.Bytes())
+	require.Len(t, hook.LastEntry().Message, maxStderrBytes)
+}
+
+func TestCommand_stderrLoggingWithNulBytes(t *testing.T) {
+	t.Parallel()
+
+	binaryPath := testhelper.WriteExecutable(t, filepath.Join(testhelper.TempDir(t), "script"), []byte(`#!/bin/bash
+		dd if=/dev/zero bs=1000 count=1000 status=none >&2
+		exit 1
+	`))
+
+	logger, hook := test.NewNullLogger()
+	ctx := testhelper.Context(t)
+	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
+
+	var stdout bytes.Buffer
+	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
+	require.NoError(t, err)
+
+	require.Error(t, cmd.Wait())
+	require.Empty(t, stdout.Bytes())
+	require.Equal(t, strings.Repeat("\x00", maxStderrLineLength), hook.LastEntry().Message)
+}
+
+func TestCommand_stderrLoggingLongLine(t *testing.T) {
+	t.Parallel()
+
+	binaryPath := testhelper.WriteExecutable(t, filepath.Join(testhelper.TempDir(t), "script"), []byte(`#!/bin/bash
+		printf 'a%.0s' {1..8192} >&2
+		printf '\n' >&2
+		printf 'b%.0s' {1..8192} >&2
+		exit 1
+	`))
+
+	logger, hook := test.NewNullLogger()
+	ctx := testhelper.Context(t)
+	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
+
+	var stdout bytes.Buffer
+	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
+	require.NoError(t, err)
+
+	require.Error(t, cmd.Wait())
+	require.Empty(t, stdout.Bytes())
+	require.Equal(t,
+		strings.Join([]string{
+			strings.Repeat("a", maxStderrLineLength),
+			strings.Repeat("b", maxStderrLineLength),
+		}, "\n"),
+		hook.LastEntry().Message,
+	)
+}
+
+func TestCommand_stderrLoggingMaxBytes(t *testing.T) {
+	t.Parallel()
+
+	binaryPath := testhelper.WriteExecutable(t, filepath.Join(testhelper.TempDir(t), "script"), []byte(`#!/bin/bash
+		# This script is used to test that a command writes at most maxBytes to stderr. It
+		# simulates the edge case where the logwriter has already written MaxStderrBytes-1
+		# (9999) bytes
+
+		# This edge case happens when 9999 bytes are written. To simulate this,
+		# stderr_max_bytes_edge_case has 4 lines of the following format:
+		#
+		# line1: 3333 bytes long
+		# line2: 3331 bytes
+		# line3: 3331 bytes
+		# line4: 1 byte
+		#
+		# The first 3 lines sum up to 9999 bytes written, since we write a 2-byte escaped
+		# "\n" for each \n we see. The 4th line can be any data.
+
+		printf 'a%.0s' {1..3333} >&2
+		printf '\n' >&2
+		printf 'a%.0s' {1..3331} >&2
+		printf '\n' >&2
+		printf 'a%.0s' {1..3331} >&2
+		printf '\na\n' >&2
+		exit 1
+	`))
+
+	logger, hook := test.NewNullLogger()
+	ctx := testhelper.Context(t)
+	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
+
+	var stdout bytes.Buffer
+	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
 	require.NoError(t, err)
 	require.Error(t, cmd.Wait())
 
-	assert.Empty(t, stdout.Bytes())
-	require.Equal(t, expectedMessage, extractLastMessage(stderr.String()))
+	require.Empty(t, stdout.Bytes())
+	require.Len(t, hook.LastEntry().Message, maxStderrBytes)
 }
 
-func TestCommandStdErrLargeOutput(t *testing.T) {
-	ctx := testhelper.Context(t)
+type mockCgroupManager string
 
-	var stdout, stderr bytes.Buffer
-
-	logger := logrus.New()
-	logger.SetOutput(&stderr)
-
-	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
-
-	cmd, err := New(ctx, exec.Command("./testdata/stderr_many_lines.sh"), nil, &stdout, nil)
-	require.NoError(t, err)
-	require.Error(t, cmd.Wait())
-
-	assert.Empty(t, stdout.Bytes())
-	msg := strings.ReplaceAll(extractLastMessage(stderr.String()), "\\n", "\n")
-	require.LessOrEqual(t, len(msg), maxStderrBytes)
-}
-
-func TestCommandStdErrBinaryNullBytes(t *testing.T) {
-	ctx := testhelper.Context(t)
-
-	var stdout, stderr bytes.Buffer
-
-	logger := logrus.New()
-	logger.SetOutput(&stderr)
-
-	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
-
-	cmd, err := New(ctx, exec.Command("./testdata/stderr_binary_null.sh"), nil, &stdout, nil)
-	require.NoError(t, err)
-	require.Error(t, cmd.Wait())
-
-	assert.Empty(t, stdout.Bytes())
-	msg := strings.SplitN(extractLastMessage(stderr.String()), "\\n", 2)[0]
-	require.Equal(t, strings.Repeat("\\x00", maxStderrLineLength), msg)
-}
-
-func TestCommandStdErrLongLine(t *testing.T) {
-	ctx := testhelper.Context(t)
-
-	var stdout, stderr bytes.Buffer
-
-	logger := logrus.New()
-	logger.SetOutput(&stderr)
-
-	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
-
-	cmd, err := New(ctx, exec.Command("./testdata/stderr_repeat_a.sh"), nil, &stdout, nil)
-	require.NoError(t, err)
-	require.Error(t, cmd.Wait())
-
-	assert.Empty(t, stdout.Bytes())
-	require.Contains(t, stderr.String(), fmt.Sprintf("%s\\n%s", strings.Repeat("a", maxStderrLineLength), strings.Repeat("b", maxStderrLineLength)))
-}
-
-func TestCommandStdErrMaxBytes(t *testing.T) {
-	ctx := testhelper.Context(t)
-
-	var stdout, stderr bytes.Buffer
-
-	logger := logrus.New()
-	logger.SetOutput(&stderr)
-
-	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
-
-	cmd, err := New(ctx, exec.Command("./testdata/stderr_max_bytes_edge_case.sh"), nil, &stdout, nil)
-	require.NoError(t, err)
-	require.Error(t, cmd.Wait())
-
-	assert.Empty(t, stdout.Bytes())
-	message := extractLastMessage(stderr.String())
-	require.Equal(t, maxStderrBytes, len(strings.ReplaceAll(message, "\\n", "\n")))
-}
-
-var logMsgRegex = regexp.MustCompile(`msg="(.+?)"`)
-
-func extractLastMessage(logMessage string) string {
-	subMatchesAll := logMsgRegex.FindAllStringSubmatch(logMessage, -1)
-	if len(subMatchesAll) < 1 {
-		return ""
-	}
-
-	subMatches := subMatchesAll[len(subMatchesAll)-1]
-	if len(subMatches) != 2 {
-		return ""
-	}
-
-	return subMatches[1]
+func (m mockCgroupManager) AddCommand(*Command, repository.GitRepo) (string, error) {
+	return string(m), nil
 }
 
 func TestCommand_logMessage(t *testing.T) {
+	t.Parallel()
+
 	logger, hook := test.NewNullLogger()
 	logger.SetLevel(logrus.DebugLevel)
 
 	ctx := ctxlogrus.ToContext(testhelper.Context(t), logrus.NewEntry(logger))
 
-	cmd, err := New(ctx, exec.Command("echo", "hello world"), nil, nil, nil)
+	cmd, err := New(ctx, exec.Command("echo", "hello world"),
+		WithCgroup(mockCgroupManager("/sys/fs/cgroup/1"), nil),
+	)
 	require.NoError(t, err)
-	cgroupPath := "/sys/fs/cgroup/1"
-	cmd.SetCgroupPath(cgroupPath)
 
 	require.NoError(t, cmd.Wait())
 	logEntry := hook.LastEntry()
 	assert.Equal(t, cmd.Pid(), logEntry.Data["pid"])
 	assert.Equal(t, []string{"echo", "hello world"}, logEntry.Data["args"])
 	assert.Equal(t, 0, logEntry.Data["command.exitCode"])
-	assert.Equal(t, cgroupPath, logEntry.Data["command.cgroup_path"])
+	assert.Equal(t, "/sys/fs/cgroup/1", logEntry.Data["command.cgroup_path"])
 }
 
-func TestNewCommandSpawnTokenMetrics(t *testing.T) {
-	spawnTokenAcquiringSeconds.Reset()
+func TestNew_commandSpawnTokenMetrics(t *testing.T) {
+	defer func(old func(time.Time) float64) {
+		getSpawnTokenAcquiringSeconds = old
+	}(getSpawnTokenAcquiringSeconds)
 
-	ctx := testhelper.Context(t)
 	getSpawnTokenAcquiringSeconds = func(t time.Time) float64 {
 		return 1
 	}
+
+	spawnTokenAcquiringSeconds.Reset()
+
+	ctx := testhelper.Context(t)
 
 	tags := grpcmwtags.NewTags()
 	tags.Set("grpc.request.fullMethod", "/test.Service/TestRPC")
 	ctx = grpcmwtags.SetInContext(ctx, tags)
 
-	cmd, err := New(ctx, exec.Command("echo", "goodbye, cruel world."), nil, nil, nil)
+	cmd, err := New(ctx, exec.Command("echo", "goodbye, cruel world."))
 
 	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
@@ -408,7 +450,7 @@ func TestNewCommandSpawnTokenMetrics(t *testing.T) {
 # TYPE gitaly_command_spawn_token_acquiring_seconds_total counter
 gitaly_command_spawn_token_acquiring_seconds_total{cmd="echo",grpc_method="TestRPC",grpc_service="test.Service"} 1
 `
-	assert.NoError(
+	require.NoError(
 		t,
 		testutil.CollectAndCompare(
 			spawnTokenAcquiringSeconds,

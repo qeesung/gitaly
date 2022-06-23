@@ -98,10 +98,14 @@ func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, st
 		return 0, err
 	}
 
+	var wg sync.WaitGroup
 	pr, pw := io.Pipe()
-	defer pw.Close()
+	defer func() {
+		pw.Close()
+		wg.Wait()
+	}()
+
 	stdin = io.TeeReader(stdin, pw)
-	wg := sync.WaitGroup{}
 
 	wg.Add(1)
 	go func() {
@@ -146,15 +150,9 @@ func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, st
 	go monitor.Monitor(ctx, pktline.PktDone(), timeoutTicker, cancelCtx)
 
 	if err := cmd.Wait(); err != nil {
-		pw.Close()
-		wg.Wait()
-
 		status, _ := command.ExitStatus(err)
 		return status, fmt.Errorf("cmd wait: %w, stderr: %q", err, stderrBuilder.String())
 	}
-
-	pw.Close()
-	wg.Wait()
 
 	ctxlogrus.Extract(ctx).WithField("response_bytes", stdoutCounter.N).Info("request details")
 

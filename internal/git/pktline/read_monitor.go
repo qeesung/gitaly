@@ -40,27 +40,22 @@ type ReadMonitor struct {
 // to the pipe. The stream will be monitored for a pktline-formatted packet
 // matching pkt. If it isn't seen within the timeout, cancelFn will be called.
 //
-// Resources will be freed when the context is done, but you should close the
-// returned *os.File earlier if possible.
-func NewReadMonitor(ctx context.Context, r io.Reader) (*os.File, *ReadMonitor, error) {
+// The returned function will release allocated resources. You must make sure to call this
+// function.
+func NewReadMonitor(ctx context.Context, r io.Reader) (*os.File, *ReadMonitor, func(), error) {
 	pr, pw, err := os.Pipe()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	// Ensure all resources are closed once the context is done
-	go func() {
-		<-ctx.Done()
-
-		pr.Close()
-		pw.Close()
-	}()
-
 	return pr, &ReadMonitor{
-		pr:         pr,
-		pw:         pw,
-		underlying: r,
-	}, nil
+			pr:         pr,
+			pw:         pw,
+			underlying: r,
+		}, func() {
+			pr.Close()
+			pw.Close()
+		}, nil
 }
 
 // Monitor should be called at most once. It scans the stream, looking for the

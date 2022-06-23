@@ -146,7 +146,7 @@ func newObjectInfoReader(
 				git.Flag{Name: "--buffer"},
 			},
 		},
-		git.WithStdin(command.SetupStdin),
+		git.WithSetupStdin(),
 	)
 	if err != nil {
 		return nil, err
