@@ -18,7 +18,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v15/streamio"
 	"google.golang.org/protobuf/proto"
@@ -199,11 +198,7 @@ func (s *server) handleArchive(ctx context.Context, p archiveParams) error {
 			GlRepository: p.in.GetRepository().GetGlRepository(),
 			Gitlab:       s.cfg.Gitlab,
 			TLS:          s.cfg.TLS,
-			DriverType:   smudge.DriverTypeFilter,
-		}
-
-		if featureflag.GetArchiveLfsFilterProcess.IsEnabled(ctx) {
-			smudgeCfg.DriverType = smudge.DriverTypeProcess
+			DriverType:   smudge.DriverTypeProcess,
 		}
 
 		smudgeEnv, err := smudgeCfg.Environment()

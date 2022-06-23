@@ -3,7 +3,6 @@ package repository
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -18,7 +17,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -172,11 +170,9 @@ func TestGetArchiveSuccess(t *testing.T) {
 
 func TestGetArchive_includeLfsBlobs(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.GetArchiveLfsFilterProcess).Run(t, testGetArchiveIncludeLfsBlobs)
-}
 
-func testGetArchiveIncludeLfsBlobs(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
+
 	defaultOptions := gitlab.TestServerOptions{
 		SecretToken: secretToken,
 		LfsBody:     lfsBody,
@@ -478,14 +474,10 @@ func TestGetArchivePathInjection(t *testing.T) {
 
 func TestGetArchive_environment(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.GetArchiveLfsFilterProcess).Run(t, testGetArchiveEnvironment)
-}
 
-func testGetArchiveEnvironment(t *testing.T, ctx context.Context) {
 	testhelper.SkipWithPraefect(t, "It's not possible to create repositories through the API with the git command overwritten by the script.")
 
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
 	gitCmdFactory := gittest.NewInterceptingCommandFactory(ctx, t, cfg, func(git.ExecutionEnvironment) string {
@@ -512,11 +504,7 @@ func testGetArchiveEnvironment(t *testing.T, ctx context.Context) {
 		GlRepository: gittest.GlRepository,
 		Gitlab:       cfg.Gitlab,
 		TLS:          cfg.TLS,
-		DriverType:   smudge.DriverTypeFilter,
-	}
-
-	if featureflag.GetArchiveLfsFilterProcess.IsEnabled(ctx) {
-		smudgeCfg.DriverType = smudge.DriverTypeProcess
+		DriverType:   smudge.DriverTypeProcess,
 	}
 
 	smudgeEnv, err := smudgeCfg.Environment()
