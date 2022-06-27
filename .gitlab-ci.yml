@@ -270,6 +270,14 @@ test:fips:
       - TEST_TARGET: [ test, test-with-praefect ]
         FIPS_MODE: "YesPlease"
   rules:
+    # When running in a fork of Gitaly we don't have the runners available, and
+    # consequentially this job would fail anyway. So we configure the job to be
+    # a manual one in that case.
+    - if: $CI_PROJECT_PATH != "gitlab-org/gitaly"
+      when: manual
+      allow_failure: true
+    # Otherwise, we automatically run the job when either merging to the
+    # default branch or when the merge request has a FIPS label.
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_MERGE_REQUEST_LABELS =~ /FIPS/
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
