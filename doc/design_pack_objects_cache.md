@@ -34,7 +34,7 @@ The whole pack-objects cache path depends on
 option. When upload-pack would run git pack-objects to create a packfile for a
 client, it will run `gitaly-hooks` binary instead. The arguments when calling
 `gitaly-hooks` includes `git pack-objects` at the beginning. This pattern is
-similar to how Gitaly handles Git hooks during a push (such as `pre-preceive`
+similar to how Gitaly handles Git hooks during a push (such as `pre-receive`
 and `post-receive`).
 
 ## Problem scope

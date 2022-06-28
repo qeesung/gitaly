@@ -105,20 +105,6 @@ func (s *server) packObjectsHook(ctx context.Context, repo *gitalypb.Repository,
 	return r.Wait(ctx)
 }
 
-type contextWithoutCancel struct {
-	context.Context
-	valueCtx context.Context
-}
-
-func (cwc *contextWithoutCancel) Value(key interface{}) interface{} { return cwc.valueCtx.Value(key) }
-
-func cloneContextValues(ctx context.Context) context.Context {
-	return &contextWithoutCancel{
-		Context:  context.Background(),
-		valueCtx: ctx,
-	}
-}
-
 func (s *server) runPackObjects(ctx context.Context, w io.Writer, repo *gitalypb.Repository, args *packObjectsArgs, stdin io.ReadCloser, key string) error {
 	// We want to keep the context for logging, but we want to block all its
 	// cancelation signals (deadline, cancel etc.). This is because of
@@ -131,7 +117,7 @@ func (s *server) runPackObjects(ctx context.Context, w io.Writer, repo *gitalypb
 	// If the cancelation of client1 propagated into the runPackObjects
 	// goroutine this would affect client2. We don't want that. So to prevent
 	// that, we suppress the cancelation of the originating context.
-	ctx = cloneContextValues(ctx)
+	ctx = helper.SuppressCancellation(ctx)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
