@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -63,44 +64,62 @@ func (s *Server) UserCherryPick(ctx context.Context, req *gitalypb.UserCherryPic
 		Mainline:      mainline,
 	})
 	if err != nil {
-		var conflictErr git2go.ConflictingFilesError
-		var emptyErr git2go.EmptyError
+		if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
+			var conflictErr git2go.ConflictingFilesError
+			var emptyErr git2go.EmptyError
+
+			switch {
+			case errors.As(err, &conflictErr):
+				conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
+				for _, conflictingFile := range conflictErr.ConflictingFiles {
+					conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
+				}
+
+				detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
+					helper.ErrFailedPreconditionf("cherry pick: %w", err),
+					&gitalypb.UserCherryPickError{
+						Error: &gitalypb.UserCherryPickError_CherryPickConflict{
+							CherryPickConflict: &gitalypb.MergeConflictError{
+								ConflictingFiles: conflictingFiles,
+							},
+						},
+					},
+				)
+				if errGeneratingDetailedErr != nil {
+					return nil, helper.ErrInternalf("error details: %w", err)
+				}
+
+				return nil, detailedErr
+			case errors.As(err, &emptyErr):
+				detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
+					helper.ErrFailedPrecondition(err),
+					&gitalypb.UserCherryPickError{
+						Error: &gitalypb.UserCherryPickError_ChangesAlreadyApplied{},
+					},
+				)
+				if errGeneratingDetailedErr != nil {
+					return nil, helper.ErrInternalf("error details: %w", err)
+				}
+
+				return nil, detailedErr
+			case errors.Is(err, git2go.ErrInvalidArgument):
+				return nil, helper.ErrInvalidArgument(err)
+			default:
+				return nil, helper.ErrInternalf("cherry-pick command: %w", err)
+			}
+		}
+
 		switch {
-		case errors.As(err, &git2go.HasConflictsError{}):
+		case errors.As(err, &git2go.HasConflictsError{}) || errors.As(err, &git2go.ConflictingFilesError{}):
 			return &gitalypb.UserCherryPickResponse{
 				CreateTreeError:     err.Error(),
 				CreateTreeErrorCode: gitalypb.UserCherryPickResponse_CONFLICT,
 			}, nil
-		case errors.As(err, &conflictErr):
-			conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
-			for _, conflictingFile := range conflictErr.ConflictingFiles {
-				conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
-			}
-
-			detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
-				helper.ErrFailedPreconditionf("cherry pick: %w", err),
-				&gitalypb.UserCherryPickError{
-					Error: &gitalypb.UserCherryPickError_CherryPickConflict{
-						CherryPickConflict: &gitalypb.MergeConflictError{
-							ConflictingFiles: conflictingFiles,
-						},
-					},
-				})
-			if errGeneratingDetailedErr != nil {
-				return nil, helper.ErrInternalf("error details: %w", err)
-			}
-			return nil, detailedErr
-		case errors.As(err, &emptyErr):
-			detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
-				helper.ErrFailedPrecondition(err),
-				&gitalypb.UserCherryPickError{
-					Error: &gitalypb.UserCherryPickError_ChangesAlreadyApplied{},
-				})
-			if errGeneratingDetailedErr != nil {
-				return nil, helper.ErrInternalf("error details: %w", err)
-			}
-
-			return nil, detailedErr
+		case errors.As(err, &git2go.EmptyError{}):
+			return &gitalypb.UserCherryPickResponse{
+				CreateTreeError:     err.Error(),
+				CreateTreeErrorCode: gitalypb.UserCherryPickResponse_EMPTY,
+			}, nil
 		case errors.Is(err, git2go.ErrInvalidArgument):
 			return nil, helper.ErrInvalidArgument(err)
 		default:
@@ -129,42 +148,58 @@ func (s *Server) UserCherryPick(ctx context.Context, req *gitalypb.UserCherryPic
 			return nil, err
 		}
 		if !ancestor {
-			detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
-				helper.ErrFailedPrecondition(errors.New("cherry-pick: branch diverged")),
-				&gitalypb.UserCherryPickError{
-					Error: &gitalypb.UserCherryPickError_TargetBranchDiverged{
-						TargetBranchDiverged: &gitalypb.NotAncestorError{
-							ParentRevision: []byte(oldrev.Revision()),
-							ChildRevision:  []byte(newrev),
+			if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
+				detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
+					helper.ErrFailedPrecondition(errors.New("cherry-pick: branch diverged")),
+					&gitalypb.UserCherryPickError{
+						Error: &gitalypb.UserCherryPickError_TargetBranchDiverged{
+							TargetBranchDiverged: &gitalypb.NotAncestorError{
+								ParentRevision: []byte(oldrev.Revision()),
+								ChildRevision:  []byte(newrev),
+							},
 						},
-					},
-				})
+					})
 
-			if errGeneratingDetailedErr != nil {
-				return nil, helper.ErrInternalf("error details: %w", err)
+				if errGeneratingDetailedErr != nil {
+					return nil, helper.ErrInternalf("error details: %w", err)
+				}
+
+				return nil, detailedErr
 			}
 
-			return nil, detailedErr
+			return &gitalypb.UserCherryPickResponse{
+				CommitError: "Branch diverged",
+			}, nil
 		}
 	}
 
 	if err := s.updateReferenceWithHooks(ctx, req.GetRepository(), req.User, quarantineDir, referenceName, newrev, oldrev); err != nil {
-		if errors.As(err, &updateref.CustomHookError{}) {
-			detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
-				helper.ErrFailedPrecondition(errors.New("access check failed")),
-				&gitalypb.UserCherryPickError{
-					Error: &gitalypb.UserCherryPickError_AccessCheck{
-						AccessCheck: &gitalypb.AccessCheckError{
-							ErrorMessage: strings.TrimSuffix(err.Error(), "\n"),
+		if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
+			if errors.As(err, &updateref.CustomHookError{}) {
+				detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
+					helper.ErrFailedPrecondition(errors.New("access check failed")),
+					&gitalypb.UserCherryPickError{
+						Error: &gitalypb.UserCherryPickError_AccessCheck{
+							AccessCheck: &gitalypb.AccessCheckError{
+								ErrorMessage: strings.TrimSuffix(err.Error(), "\n"),
+							},
 						},
-					},
-				})
+					})
 
-			if errGeneratingDetailedErr != nil {
-				return nil, helper.ErrInternalf("error details: %w", err)
+				if errGeneratingDetailedErr != nil {
+					return nil, helper.ErrInternalf("error details: %w", err)
+				}
+
+				return nil, detailedErr
 			}
 
-			return nil, detailedErr
+			return nil, fmt.Errorf("update reference with hooks: %w", err)
+		}
+
+		if errors.As(err, &updateref.CustomHookError{}) {
+			return &gitalypb.UserCherryPickResponse{
+				PreReceiveError: err.Error(),
+			}, nil
 		}
 
 		return nil, fmt.Errorf("update reference with hooks: %w", err)
