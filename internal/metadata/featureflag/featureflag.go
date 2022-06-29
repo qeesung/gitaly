@@ -13,12 +13,16 @@ import (
 )
 
 var (
+	// EnableAllFeatureFlagsEnvVar will cause Gitaly to treat all feature flags as
+	// enabled in case its value is set to `true`. Only used for testing purposes.
+	EnableAllFeatureFlagsEnvVar = "GITALY_TESTING_ENABLE_ALL_FEATURE_FLAGS"
+
 	// featureFlagsOverride allows to enable all feature flags with a
 	// single environment variable. If the value of
 	// GITALY_TESTING_ENABLE_ALL_FEATURE_FLAGS is set to "true", then all
 	// feature flags will be enabled. This is only used for testing
 	// purposes such that we can run integration tests with feature flags.
-	featureFlagsOverride, _ = env.GetBool("GITALY_TESTING_ENABLE_ALL_FEATURE_FLAGS", false)
+	featureFlagsOverride, _ = env.GetBool(EnableAllFeatureFlagsEnvVar, false)
 
 	flagChecks = promauto.NewCounterVec(
 		prometheus.CounterOpts{

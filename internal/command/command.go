@@ -105,6 +105,11 @@ var (
 		// libcurl settings: https://curl.haxx.se/libcurl/c/CURLOPT_NOPROXY.html
 		"no_proxy",
 		"NO_PROXY",
+
+		// We must export this variable to child processes or otherwise we end up in
+		// an inconsistent state, where the parent process has all feature flags
+		// force-enabled while the child is using the usual defaults.
+		featureflag.EnableAllFeatureFlagsEnvVar,
 	}
 
 	// envInjector is responsible for injecting environment variables required for tracing into
