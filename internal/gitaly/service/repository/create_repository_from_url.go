@@ -21,13 +21,6 @@ func (s *server) cloneFromURLCommand(
 	repoURL, repoHost, repositoryFullPath, authorizationToken string, mirror bool,
 	opts ...git.CmdOpt,
 ) (*command.Command, error) {
-	u, err := url.Parse(repoURL)
-	if err != nil {
-		return nil, helper.ErrInternal(err)
-	}
-
-	var config []git.ConfigPair
-
 	cloneFlags := []git.Option{
 		git.Flag{Name: "--quiet"},
 	}
@@ -38,12 +31,18 @@ func (s *server) cloneFromURLCommand(
 		cloneFlags = append(cloneFlags, git.Flag{Name: "--bare"})
 	}
 
+	u, err := url.Parse(repoURL)
+	if err != nil {
+		return nil, helper.ErrInternal(err)
+	}
+
+	var config []git.ConfigPair
 	if u.User != nil {
-		pwd, set := u.User.Password()
+		password, hasPassword := u.User.Password()
 
 		var creds string
-		if set {
-			creds = u.User.Username() + ":" + pwd
+		if hasPassword {
+			creds = u.User.Username() + ":" + password
 		} else {
 			creds = u.User.Username()
 		}
@@ -51,11 +50,9 @@ func (s *server) cloneFromURLCommand(
 		u.User = nil
 		authHeader := fmt.Sprintf("Authorization: Basic %s", base64.StdEncoding.EncodeToString([]byte(creds)))
 		config = append(config, git.ConfigPair{Key: "http.extraHeader", Value: authHeader})
-	} else {
-		if len(authorizationToken) > 0 {
-			authHeader := fmt.Sprintf("Authorization: %s", authorizationToken)
-			config = append(config, git.ConfigPair{Key: "http.extraHeader", Value: authHeader})
-		}
+	} else if len(authorizationToken) > 0 {
+		authHeader := fmt.Sprintf("Authorization: %s", authorizationToken)
+		config = append(config, git.ConfigPair{Key: "http.extraHeader", Value: authHeader})
 	}
 
 	if repoHost != "" {
@@ -71,7 +68,7 @@ func (s *server) cloneFromURLCommand(
 			Flags: cloneFlags,
 			Args:  []string{u.String(), repositoryFullPath},
 		},
-		append(opts, git.WithConfig(config...))...,
+		append(opts, git.WithConfigEnv(config...))...,
 	)
 }
 

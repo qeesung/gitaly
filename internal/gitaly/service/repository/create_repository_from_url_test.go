@@ -186,53 +186,74 @@ func TestCreateRepositoryFromURL_redirect(t *testing.T) {
 
 func TestServer_CloneFromURLCommand(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
-
-	var authToken string
-	userInfo := "user:pass%21%3F%40"
-	repositoryFullPath := "full/path/to/repository"
-	url := fmt.Sprintf("https://%s@192.0.2.1/secretrepo.git", userInfo)
-	host := "www.example.com"
 
 	cfg := testcfg.Build(t)
 	s := server{cfg: cfg, gitCmdFactory: gittest.NewCommandFactory(t, cfg)}
-	cmd, err := s.cloneFromURLCommand(ctx, url, host, repositoryFullPath, authToken, false, git.WithDisabledHooks())
-	require.NoError(t, err)
 
-	expectedBareFlag := "--bare"
-	expectedScrubbedURL := "https://192.0.2.1/secretrepo.git"
-	expectedBasicAuthHeader := fmt.Sprintf("Authorization: Basic %s", base64.StdEncoding.EncodeToString([]byte("user:pass!?@")))
-	expectedAuthHeader := fmt.Sprintf("http.extraHeader=%s", expectedBasicAuthHeader)
-	expectedHostHeader := "http.extraHeader=Host: www.example.com"
+	user, password := "example_user", "pass%21%3F%40"
 
-	args := cmd.Args()
-	require.Contains(t, args, expectedBareFlag)
-	require.Contains(t, args, expectedScrubbedURL)
-	require.Contains(t, args, expectedAuthHeader)
-	require.Contains(t, args, expectedHostHeader)
-	require.NotContains(t, args, userInfo)
-}
+	for _, tc := range []struct {
+		desc               string
+		url                string
+		token              string
+		expectedAuthHeader string
+	}{
+		{
+			desc:  "user credentials",
+			url:   fmt.Sprintf("https://%s:%s@192.0.2.1/secretrepo.git", user, password),
+			token: "",
+			expectedAuthHeader: fmt.Sprintf(
+				"Authorization: Basic %s",
+				base64.StdEncoding.EncodeToString([]byte("example_user:pass!?@")),
+			),
+		},
+		{
+			desc:  "token",
+			url:   "https://192.0.2.1/secretrepo.git",
+			token: "some-token",
+			expectedAuthHeader: fmt.Sprintf(
+				"Authorization: %s", "some-token",
+			),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(testhelper.Context(t))
 
-func TestServer_CloneFromURLCommand_withToken(t *testing.T) {
-	t.Parallel()
-	ctx := testhelper.Context(t)
+			cmd, err := s.cloneFromURLCommand(
+				ctx,
+				tc.url,
+				"www.example.com",
+				"full/path/to/repository",
+				tc.token,
+				false,
+				git.WithDisabledHooks(),
+			)
+			require.NoError(t, err)
 
-	repositoryFullPath := "full/path/to/repository"
-	url := "https://www.example.com/secretrepo.git"
-	authToken := "GL-Geo EhEhKSUk_385GSLnS7BI:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjoie1wic2NvcGVcIjpcInJvb3QvZ2l0bGFiLWNlXCJ9IiwianRpIjoiNmQ4ZDM1NGQtZjUxYS00MDQ5LWExZjctMjUyMjk4YmQwMTI4IiwiaWF0IjoxNjQyMDk1MzY5LCJuYmYiOjE2NDIwOTUzNjQsImV4cCI6MTY0MjA5NTk2OX0.YEpfzg8305dUqkYOiB7_dhbL0FVSaUPgpSpMuKrgNrg"
+			// Kill the command so that it won't leak outside of the current test
+			// context. We know that it will return an error, but we cannot quite tell
+			// what kind of error it will be because it might fail either be to the kill
+			// signal or because it failed to clone the repository.
+			cancel()
+			require.Error(t, cmd.Wait())
 
-	cfg := testcfg.Build(t)
-	s := server{cfg: cfg, gitCmdFactory: gittest.NewCommandFactory(t, cfg)}
-	cmd, err := s.cloneFromURLCommand(ctx, url, "", repositoryFullPath, authToken, false, git.WithDisabledHooks())
-	require.NoError(t, err)
+			args := cmd.Args()
+			require.Contains(t, args, "--bare")
+			require.Contains(t, args, "https://192.0.2.1/secretrepo.git")
+			for _, arg := range args {
+				require.NotContains(t, arg, user)
+				require.NotContains(t, arg, password)
+				require.NotContains(t, arg, tc.expectedAuthHeader)
+			}
 
-	expectedScrubbedURL := "https://www.example.com/secretrepo.git"
-	expectedBasicAuthHeader := fmt.Sprintf("Authorization: %s", authToken)
-	expectedHeader := fmt.Sprintf("http.extraHeader=%s", expectedBasicAuthHeader)
-
-	args := cmd.Args()
-	require.Contains(t, args, expectedScrubbedURL)
-	require.Contains(t, args, expectedHeader)
+			require.Subset(t, cmd.Env(), []string{
+				"GIT_CONFIG_KEY_0=http.extraHeader",
+				"GIT_CONFIG_VALUE_0=" + tc.expectedAuthHeader,
+				"GIT_CONFIG_KEY_1=http.extraHeader",
+				"GIT_CONFIG_VALUE_1=Host: www.example.com",
+			})
+		})
+	}
 }
 
 func TestServer_CloneFromURLCommand_withMirror(t *testing.T) {
