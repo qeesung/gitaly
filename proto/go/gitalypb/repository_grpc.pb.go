@@ -136,6 +136,9 @@ type RepositoryServiceClient interface {
 	// an admin inspects the repository's gitconfig such that he can easily see
 	// what the repository name is.
 	SetFullPath(ctx context.Context, in *SetFullPathRequest, opts ...grpc.CallOption) (*SetFullPathResponse, error)
+	// FullPath reads the "gitlab.fullpath" configuration from the repository's
+	// gitconfig. Returns an error in case the full path has not been configured.
+	FullPath(ctx context.Context, in *FullPathRequest, opts ...grpc.CallOption) (*FullPathResponse, error)
 }
 
 type repositoryServiceClient struct {
@@ -825,6 +828,15 @@ func (c *repositoryServiceClient) SetFullPath(ctx context.Context, in *SetFullPa
 	return out, nil
 }
 
+func (c *repositoryServiceClient) FullPath(ctx context.Context, in *FullPathRequest, opts ...grpc.CallOption) (*FullPathResponse, error) {
+	out := new(FullPathResponse)
+	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/FullPath", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RepositoryServiceServer is the server API for RepositoryService service.
 // All implementations must embed UnimplementedRepositoryServiceServer
 // for forward compatibility
@@ -943,6 +955,9 @@ type RepositoryServiceServer interface {
 	// an admin inspects the repository's gitconfig such that he can easily see
 	// what the repository name is.
 	SetFullPath(context.Context, *SetFullPathRequest) (*SetFullPathResponse, error)
+	// FullPath reads the "gitlab.fullpath" configuration from the repository's
+	// gitconfig. Returns an error in case the full path has not been configured.
+	FullPath(context.Context, *FullPathRequest) (*FullPathResponse, error)
 	mustEmbedUnimplementedRepositoryServiceServer()
 }
 
@@ -1072,6 +1087,9 @@ func (UnimplementedRepositoryServiceServer) PruneUnreachableObjects(context.Cont
 }
 func (UnimplementedRepositoryServiceServer) SetFullPath(context.Context, *SetFullPathRequest) (*SetFullPathResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetFullPath not implemented")
+}
+func (UnimplementedRepositoryServiceServer) FullPath(context.Context, *FullPathRequest) (*FullPathResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FullPath not implemented")
 }
 func (UnimplementedRepositoryServiceServer) mustEmbedUnimplementedRepositoryServiceServer() {}
 
@@ -1883,6 +1901,24 @@ func _RepositoryService_SetFullPath_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RepositoryService_FullPath_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FullPathRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepositoryServiceServer).FullPath(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gitaly.RepositoryService/FullPath",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepositoryServiceServer).FullPath(ctx, req.(*FullPathRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RepositoryService_ServiceDesc is the grpc.ServiceDesc for RepositoryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2001,6 +2037,10 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetFullPath",
 			Handler:    _RepositoryService_SetFullPath_Handler,
+		},
+		{
+			MethodName: "FullPath",
+			Handler:    _RepositoryService_FullPath_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

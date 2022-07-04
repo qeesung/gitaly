@@ -123,6 +123,9 @@ module Gitaly
       # an admin inspects the repository's gitconfig such that he can easily see
       # what the repository name is.
       rpc :SetFullPath, ::Gitaly::SetFullPathRequest, ::Gitaly::SetFullPathResponse
+      # FullPath reads the "gitlab.fullpath" configuration from the repository's
+      # gitconfig. Returns an error in case the full path has not been configured.
+      rpc :FullPath, ::Gitaly::FullPathRequest, ::Gitaly::FullPathResponse
     end
 
     Stub = Service.rpc_stub_class

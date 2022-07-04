@@ -321,6 +321,12 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.SetFullPathResponse" do
     end
+    add_message "gitaly.FullPathRequest" do
+      optional :repository, :message, 1, "gitaly.Repository"
+    end
+    add_message "gitaly.FullPathResponse" do
+      optional :path, :string, 1
+    end
   end
 end
 
@@ -412,4 +418,6 @@ module Gitaly
   PruneUnreachableObjectsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.PruneUnreachableObjectsResponse").msgclass
   SetFullPathRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetFullPathRequest").msgclass
   SetFullPathResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.SetFullPathResponse").msgclass
+  FullPathRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FullPathRequest").msgclass
+  FullPathResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FullPathResponse").msgclass
 end

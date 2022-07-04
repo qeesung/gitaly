@@ -328,6 +328,14 @@ service RepositoryService {
       op: MUTATOR
     };
   }
+
+  // FullPath reads the "gitlab.fullpath" configuration from the repository's
+  // gitconfig. Returns an error in case the full path has not been configured.
+  rpc FullPath(FullPathRequest) returns (FullPathResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
 }
 
 // This comment is left unintentionally blank.
@@ -1044,4 +1052,16 @@ message SetFullPathRequest {
 
 // SetFullPathResponse is a response fqor the SetFullPath RPC.
 message SetFullPathResponse {
+}
+
+// FullPathRequest is a request for the FullPath RPC.
+message FullPathRequest {
+  // Repository is the repository whose gitconfig should be read.
+  Repository repository = 1 [(target_repository)=true];
+}
+
+// SetFullPathResponse is a response for the SetFullPath RPC.
+message FullPathResponse {
+  // Path read from the "gitlab.fullpath" config key.
+  string path = 1;
 }
