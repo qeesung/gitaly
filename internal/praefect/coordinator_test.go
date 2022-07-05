@@ -2689,8 +2689,8 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 
 func TestStreamParametersContext(t *testing.T) {
 	// Because we're using NewFeatureFlag, they'll end up in the All array.
-	enabledFF := featureflag.NewFeatureFlag("default-enabled", true)
-	disabledFF := featureflag.NewFeatureFlag("default-disabled", false)
+	enabledFF := featureflag.NewFeatureFlag("default-enabled", "", "", true)
+	disabledFF := featureflag.NewFeatureFlag("default-disabled", "", "", false)
 
 	type expectedFlag struct {
 		flag    featureflag.FeatureFlag

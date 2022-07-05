@@ -69,7 +69,10 @@ type FeatureFlag struct {
 }
 
 // NewFeatureFlag creates a new feature flag and adds it to the array of all existing feature flags.
-func NewFeatureFlag(name string, onByDefault bool) FeatureFlag {
+// The name must be of the format `some_feature_flag`. Accepts a version and rollout issue URL as
+// input that are not used for anything but only for the sake of linking to the feature flag rollout
+// issue in the Gitaly project.
+func NewFeatureFlag(name, version, rolloutIssueURL string, onByDefault bool) FeatureFlag {
 	featureFlag := FeatureFlag{
 		Name:        name,
 		OnByDefault: onByDefault,

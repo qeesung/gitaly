@@ -35,8 +35,8 @@ func (b *Executor) FeatureFlags(ctx context.Context, repo repository.GitRepo) (f
 }
 
 var (
-	featureA = featureflag.NewFeatureFlag("feature-a", false)
-	featureB = featureflag.NewFeatureFlag("feature-b", true)
+	featureA = featureflag.NewFeatureFlag("feature-a", "", "", false)
+	featureB = featureflag.NewFeatureFlag("feature-b", "", "", true)
 )
 
 func TestFeatureFlagsExecutor_FeatureFlags(t *testing.T) {
