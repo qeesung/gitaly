@@ -448,7 +448,7 @@ func TestNew_commandSpawnTokenMetrics(t *testing.T) {
 
 	expectedMetrics := `# HELP gitaly_command_spawn_token_acquiring_seconds_total Sum of time spent waiting for a spawn token
 # TYPE gitaly_command_spawn_token_acquiring_seconds_total counter
-gitaly_command_spawn_token_acquiring_seconds_total{cmd="echo",grpc_method="TestRPC",grpc_service="test.Service"} 1
+gitaly_command_spawn_token_acquiring_seconds_total{cmd="echo",git_version="",grpc_method="TestRPC",grpc_service="test.Service"} 1
 `
 	require.NoError(
 		t,

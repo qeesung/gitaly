@@ -396,11 +396,17 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo repository.Gi
 	execCommand := exec.Command(execEnv.BinaryPath, args...)
 	execCommand.Dir = dir
 
+	cmdGitVersion, err := cf.GitVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting Git version: %w", err)
+	}
+
 	command, err := command.New(ctx, execCommand, append(
 		config.commandOpts,
 		command.WithEnvironment(env),
 		command.WithCommandName("git", sc.Subcommand()),
 		command.WithCgroup(cf.cgroupsManager, repo),
+		command.WithCommandGitVersion(cmdGitVersion.String()),
 	)...)
 	if err != nil {
 		return nil, err

@@ -16,6 +16,7 @@ type config struct {
 
 	commandName    string
 	subcommandName string
+	gitVersion     string
 
 	cgroupsManager CgroupsManager
 	cgroupsRepo    repository.GitRepo
@@ -67,6 +68,13 @@ func WithCommandName(commandName, subcommandName string) Option {
 	return func(cfg *config) {
 		cfg.commandName = commandName
 		cfg.subcommandName = subcommandName
+	}
+}
+
+// WithCommandGitVersion overrides the "git_version" label used in metrics.
+func WithCommandGitVersion(gitCmdVersion string) Option {
+	return func(cfg *config) {
+		cfg.gitVersion = gitCmdVersion
 	}
 }
 
