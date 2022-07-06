@@ -2,11 +2,10 @@ package ref
 
 import (
 	"io"
-	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
@@ -19,28 +18,21 @@ func TestServer_ListRefs(t *testing.T) {
 	cfg, _, _, client := setupRefService(ctx, t)
 
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
-	// Checking out a worktree in an empty repository is not possible, so we must first write an empty commit.
-	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch), gittest.WithParents())
-	gittest.AddWorktree(t, cfg, repoPath, "worktree")
-	repoPath = filepath.Join(repoPath, "worktree")
-	// The worktree is detached, checkout the main so the branch pointer advances
-	// as we commit.
-	gittest.Exec(t, cfg, "-C", repoPath, "checkout", "main")
 
-	oldCommit := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/main"))
-
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "--allow-empty", "-m", "commit message")
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "--amend", "--date", "Wed Feb 16 14:01 2011 +0100", "--allow-empty", "--no-edit")
-	commit := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/main"))
+	oldCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents())
+	newCommitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithParents(oldCommitID),
+		gittest.WithAuthorDate(time.Date(2011, 2, 16, 14, 1, 0, 0, time.FixedZone("UTC+1", +1*60*60))),
+	)
 
 	for _, cmd := range [][]string{
-		{"update-ref", "refs/heads/main", commit},
-		{"tag", "lightweight-tag", commit},
+		{"update-ref", "refs/heads/main", newCommitID.String()},
+		{"tag", "lightweight-tag", newCommitID.String()},
 		{"tag", "-m", "tag message", "annotated-tag", "refs/heads/main"},
 		{"symbolic-ref", "refs/heads/symbolic", "refs/heads/main"},
-		{"update-ref", "refs/remote/remote-name/remote-branch", commit},
+		{"update-ref", "refs/remote/remote-name/remote-branch", newCommitID.String()},
 		{"symbolic-ref", "HEAD", "refs/heads/main"},
-		{"update-ref", "refs/heads/old", oldCommit},
+		{"update-ref", "refs/heads/old", oldCommitID.String()},
 	} {
 		gittest.Exec(t, cfg, append([]string{"-C", repoPath}, cmd...)...)
 	}
@@ -111,7 +103,7 @@ func TestServer_ListRefs(t *testing.T) {
 				},
 			},
 			expected: []*gitalypb.ListRefsResponse_Reference{
-				{Name: []byte("refs/heads/main"), Target: commit},
+				{Name: []byte("refs/heads/main"), Target: newCommitID.String()},
 			},
 		},
 		{
@@ -121,12 +113,12 @@ func TestServer_ListRefs(t *testing.T) {
 				Patterns:   [][]byte{[]byte("refs/")},
 			},
 			expected: []*gitalypb.ListRefsResponse_Reference{
-				{Name: []byte("refs/heads/main"), Target: commit},
-				{Name: []byte("refs/heads/old"), Target: oldCommit},
-				{Name: []byte("refs/heads/symbolic"), Target: commit},
-				{Name: []byte("refs/remote/remote-name/remote-branch"), Target: commit},
+				{Name: []byte("refs/heads/main"), Target: newCommitID.String()},
+				{Name: []byte("refs/heads/old"), Target: oldCommitID.String()},
+				{Name: []byte("refs/heads/symbolic"), Target: newCommitID.String()},
+				{Name: []byte("refs/remote/remote-name/remote-branch"), Target: newCommitID.String()},
 				{Name: []byte("refs/tags/annotated-tag"), Target: annotatedTagOID},
-				{Name: []byte("refs/tags/lightweight-tag"), Target: commit},
+				{Name: []byte("refs/tags/lightweight-tag"), Target: newCommitID.String()},
 			},
 		},
 		{
@@ -140,9 +132,9 @@ func TestServer_ListRefs(t *testing.T) {
 				},
 			},
 			expected: []*gitalypb.ListRefsResponse_Reference{
-				{Name: []byte("refs/heads/old"), Target: oldCommit},
-				{Name: []byte("refs/heads/main"), Target: commit},
-				{Name: []byte("refs/heads/symbolic"), Target: commit},
+				{Name: []byte("refs/heads/old"), Target: oldCommitID.String()},
+				{Name: []byte("refs/heads/main"), Target: newCommitID.String()},
+				{Name: []byte("refs/heads/symbolic"), Target: newCommitID.String()},
 			},
 		},
 		{
@@ -152,11 +144,11 @@ func TestServer_ListRefs(t *testing.T) {
 				Patterns:   [][]byte{[]byte("refs/heads/*"), []byte("refs/tags/*")},
 			},
 			expected: []*gitalypb.ListRefsResponse_Reference{
-				{Name: []byte("refs/heads/main"), Target: commit},
-				{Name: []byte("refs/heads/old"), Target: oldCommit},
-				{Name: []byte("refs/heads/symbolic"), Target: commit},
+				{Name: []byte("refs/heads/main"), Target: newCommitID.String()},
+				{Name: []byte("refs/heads/old"), Target: oldCommitID.String()},
+				{Name: []byte("refs/heads/symbolic"), Target: newCommitID.String()},
 				{Name: []byte("refs/tags/annotated-tag"), Target: annotatedTagOID},
-				{Name: []byte("refs/tags/lightweight-tag"), Target: commit},
+				{Name: []byte("refs/tags/lightweight-tag"), Target: newCommitID.String()},
 			},
 		},
 		{
@@ -167,12 +159,12 @@ func TestServer_ListRefs(t *testing.T) {
 				Patterns:   [][]byte{[]byte("refs/heads/*"), []byte("refs/tags/*")},
 			},
 			expected: []*gitalypb.ListRefsResponse_Reference{
-				{Name: []byte("HEAD"), Target: commit},
-				{Name: []byte("refs/heads/main"), Target: commit},
-				{Name: []byte("refs/heads/old"), Target: oldCommit},
-				{Name: []byte("refs/heads/symbolic"), Target: commit},
+				{Name: []byte("HEAD"), Target: newCommitID.String()},
+				{Name: []byte("refs/heads/main"), Target: newCommitID.String()},
+				{Name: []byte("refs/heads/old"), Target: oldCommitID.String()},
+				{Name: []byte("refs/heads/symbolic"), Target: newCommitID.String()},
 				{Name: []byte("refs/tags/annotated-tag"), Target: annotatedTagOID},
-				{Name: []byte("refs/tags/lightweight-tag"), Target: commit},
+				{Name: []byte("refs/tags/lightweight-tag"), Target: newCommitID.String()},
 			},
 		},
 	} {

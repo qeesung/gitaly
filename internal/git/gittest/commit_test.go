@@ -3,6 +3,7 @@ package gittest
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
@@ -56,6 +57,36 @@ func TestWriteCommit(t *testing.T) {
 				"my custom message",
 				"",
 				"foobar",
+			}, "\n"),
+		},
+		{
+			desc: "with author",
+			opts: []WriteCommitOption{
+				WithAuthorName("John Doe"),
+				WithAuthorDate(time.Date(2005, 4, 7, 15, 13, 13, 0, time.FixedZone("UTC-7", -7*60*60))),
+			},
+			expectedCommit: strings.Join([]string{
+				"tree 91639b9835ff541f312fd2735f639a50bf35d472",
+				"parent " + defaultParentID,
+				"author John Doe <scrooge@mcduck.com> 1112911993 -0700",
+				"committer " + defaultCommitter,
+				"",
+				"message",
+			}, "\n"),
+		},
+		{
+			desc: "with commiter",
+			opts: []WriteCommitOption{
+				WithCommitterName("John Doe"),
+				WithCommitterDate(time.Date(2005, 4, 7, 15, 13, 13, 0, time.FixedZone("UTC-7", -7*60*60))),
+			},
+			expectedCommit: strings.Join([]string{
+				"tree 91639b9835ff541f312fd2735f639a50bf35d472",
+				"parent " + defaultParentID,
+				"author Scrooge McDuck <scrooge@mcduck.com> 1572776879 +0100",
+				"committer John Doe <scrooge@mcduck.com> 1112911993 -0700",
+				"",
+				"message",
 			}, "\n"),
 		},
 		{

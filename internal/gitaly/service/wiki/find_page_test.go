@@ -1,9 +1,7 @@
 package wiki
 
 import (
-	"fmt"
 	"io"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -473,17 +471,13 @@ func testSuccessfulWikiFindPageRequestWithTrailers(t *testing.T, cfg config.Cfg,
 		gittest.WithMessage("main branch, empty commit"),
 	)
 
+	// Include UTF-8 to ensure encoding is handled.
 	page1Name := "Home Pagé"
-	createTestWikiPage(t, cfg, client, wikiRepo, repoPath, createWikiPageOpts{title: page1Name})
-
-	gittest.AddWorktree(t, cfg, repoPath, "worktree")
-	worktreePath := filepath.Join(repoPath, "worktree")
-	gittest.Exec(t, cfg, "-C", worktreePath, "checkout", "main")
-	gittest.Exec(t, cfg, "-C", worktreePath,
-		// Include UTF-8 to ensure encoding is handled
-		"-c", fmt.Sprintf("user.name=%s", "Scróoge McDuck"),
-		"-c", fmt.Sprintf("user.email=%s", "scrooge@mcduck.com"),
-		"commit", "--amend", "-m", "Empty commit", "-s")
+	author := "Scróoge McDuck"
+	createTestWikiPage(t, cfg, client, wikiRepo, repoPath, createWikiPageOpts{
+		title:      page1Name,
+		authorName: author,
+	})
 
 	request := &gitalypb.WikiFindPageRequest{
 		Repository: wikiRepo,
@@ -496,6 +490,7 @@ func testSuccessfulWikiFindPageRequestWithTrailers(t *testing.T, cfg config.Cfg,
 	receivedPage := readFullWikiPageFromWikiFindPageClient(t, c)
 	require.Equal(t, page1Name, string(receivedPage.Name))
 
-	receivedContent := receivedPage.GetRawData()
-	require.NotNil(t, receivedContent)
+	require.NotNil(t, receivedPage.GetRawData())
+	require.Equal(t, author, string(receivedPage.GetVersion().GetCommit().GetAuthor().GetName()))
+	require.Equal(t, author, string(receivedPage.GetVersion().GetCommit().GetCommitter().GetName()))
 }

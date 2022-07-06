@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"reflect"
 	"runtime"
 	"testing"
@@ -194,15 +193,6 @@ func setupRepositoryServiceWithoutRepo(t testing.TB, opts ...testserver.GitalySe
 	cfg.SocketPath = serverSocketPath
 
 	return cfg, client
-}
-
-func setupRepositoryServiceWithWorktree(ctx context.Context, t testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
-	cfg, repo, repoPath, client := setupRepositoryService(ctx, t, opts...)
-
-	gittest.AddWorktree(t, cfg, repoPath, "worktree")
-	repoPath = filepath.Join(repoPath, "worktree")
-
-	return cfg, repo, repoPath, client
 }
 
 func gitalyOrPraefect(gitalyMsg, praefectMsg string) string {

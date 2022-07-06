@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -323,43 +322,52 @@ func TestUserSquash_renames(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, ctx)
 
-	gittest.AddWorktree(t, cfg, repoPath, "worktree")
-	repoPath = filepath.Join(repoPath, "worktree")
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg)
+
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	originalFilename := "original-file.txt"
 	renamedFilename := "renamed-file.txt"
 
-	gittest.Exec(t, cfg, "-C", repoPath, "checkout", "-b", "squash-rename-test", "master")
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, originalFilename), []byte("This is a test"), 0o644))
-	gittest.Exec(t, cfg, "-C", repoPath, "add", ".")
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "-m", "test file")
+	rootCommitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithParents(),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Path: originalFilename, Mode: "100644", Content: "This is a test"},
+		),
+	)
 
-	startCommitID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD"))
+	startCommitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithParents(rootCommitID),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Path: renamedFilename, Mode: "100644", Content: "This is a test"},
+		),
+	)
 
-	gittest.Exec(t, cfg, "-C", repoPath, "mv", originalFilename, renamedFilename)
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "-a", "-m", "renamed test file")
+	changedCommitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithParents(rootCommitID),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Path: originalFilename, Mode: "100644", Content: "This is a change"},
+		),
+	)
 
-	// Modify the original file in another branch
-	gittest.Exec(t, cfg, "-C", repoPath, "checkout", "-b", "squash-rename-branch", startCommitID)
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, originalFilename), []byte("This is a change"), 0o644))
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "-a", "-m", "test")
-
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, originalFilename), []byte("This is another change"), 0o644))
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "-a", "-m", "test")
-
-	endCommitID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD"))
+	endCommitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithParents(changedCommitID),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Path: originalFilename, Mode: "100644", Content: "This is another change"},
+		),
+	)
 
 	request := &gitalypb.UserSquashRequest{
 		Repository:    repoProto,
 		User:          gittest.TestUser,
 		Author:        author,
 		CommitMessage: commitMessage,
-		StartSha:      startCommitID,
-		EndSha:        endCommitID,
+		StartSha:      startCommitID.String(),
+		EndSha:        endCommitID.String(),
 	}
 
 	response, err := client.UserSquash(ctx, request)
@@ -367,7 +375,7 @@ func TestUserSquash_renames(t *testing.T) {
 
 	commit, err := repo.ReadCommit(ctx, git.Revision(response.SquashSha))
 	require.NoError(t, err)
-	require.Equal(t, []string{startCommitID}, commit.ParentIds)
+	require.Equal(t, []string{startCommitID.String()}, commit.ParentIds)
 	require.Equal(t, author.Name, commit.Author.Name)
 	require.Equal(t, author.Email, commit.Author.Email)
 	require.Equal(t, gittest.TestUser.Name, commit.Committer.Name)
@@ -375,6 +383,10 @@ func TestUserSquash_renames(t *testing.T) {
 	require.Equal(t, gittest.TimezoneOffset, string(commit.Committer.Timezone))
 	require.Equal(t, gittest.TimezoneOffset, string(commit.Author.Timezone))
 	require.Equal(t, commitMessage, commit.Subject)
+
+	gittest.RequireTree(t, cfg, repoPath, response.SquashSha, []gittest.TreeEntry{
+		{Path: renamedFilename, Mode: "100644", Content: "This is another change", OID: "1b2ae89cca65f0d514f677981f012d708df651fc"},
+	})
 }
 
 func TestUserSquash_missingFileOnTargetBranch(t *testing.T) {

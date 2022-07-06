@@ -2,10 +2,7 @@ package repository
 
 import (
 	"bytes"
-	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -152,55 +149,52 @@ func TestSearchFilesByContentSuccessful(t *testing.T) {
 
 func TestSearchFilesByContentLargeFile(t *testing.T) {
 	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
-	cfg, repo, repoPath, client := setupRepositoryServiceWithWorktree(ctx, t)
+	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
-	committerName := "Scrooge McDuck"
-	committerEmail := "scrooge@mcduck.com"
-
-	largeFiles := []struct {
+	for _, tc := range []struct {
+		desc     string
 		filename string
 		line     string
 		repeated int
 		query    string
 	}{
 		{
+			desc:     "large file",
 			filename: "large_file_of_abcdefg_2mb",
 			line:     "abcdefghi\n", // 10 bytes
 			repeated: 210000,
 			query:    "abcdefg",
 		},
 		{
+			desc:     "large file with unicode",
 			filename: "large_file_of_unicode_1.5mb",
 			line:     "你见天吃了什么东西?\n", // 22 bytes
 			repeated: 70000,
 			query:    "什么东西",
 		},
-	}
-
-	for _, largeFile := range largeFiles {
-		t.Run(largeFile.filename, func(t *testing.T) {
-			require.NoError(t, os.WriteFile(filepath.Join(repoPath, largeFile.filename), bytes.Repeat([]byte(largeFile.line), largeFile.repeated), 0o644))
-			// By default, the worktree is detached. Checkout master so the branch advances with the commit.
-			gittest.Exec(t, cfg, "-C", repoPath, "checkout", "master")
-			gittest.Exec(t, cfg, "-C", repoPath, "add", ".")
-			gittest.Exec(t, cfg, "-C", repoPath,
-				"-c", fmt.Sprintf("user.name=%s", committerName),
-				"-c", fmt.Sprintf("user.email=%s", committerEmail), "commit", "-m", "large file commit", "--", largeFile.filename)
+	} {
+		t.Run(tc.filename, func(t *testing.T) {
+			gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(gittest.TreeEntry{
+				Path:    tc.filename,
+				Mode:    "100644",
+				Content: strings.Repeat(tc.line, tc.repeated),
+			}), gittest.WithBranch("master"))
 
 			stream, err := client.SearchFilesByContent(ctx, &gitalypb.SearchFilesByContentRequest{
 				Repository:      repo,
-				Query:           largeFile.query,
+				Query:           tc.query,
 				Ref:             []byte("master"),
 				ChunkedResponse: true,
 			})
 			require.NoError(t, err)
 
-			resp, err := consumeFilenameByContentChunked(stream)
+			response, err := consumeFilenameByContentChunked(stream)
 			require.NoError(t, err)
 
-			require.Equal(t, largeFile.repeated, len(bytes.Split(bytes.TrimRight(resp[0], "\n"), []byte("\n"))))
+			require.Equal(t, tc.repeated, len(bytes.Split(bytes.TrimRight(response[0], "\n"), []byte("\n"))))
 		})
 	}
 }

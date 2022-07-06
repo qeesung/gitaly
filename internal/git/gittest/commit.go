@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
@@ -22,7 +23,10 @@ const (
 type writeCommitConfig struct {
 	branch             string
 	parents            []git.ObjectID
+	authorDate         time.Time
+	authorName         string
 	committerName      string
+	committerDate      time.Time
 	message            string
 	treeEntries        []TreeEntry
 	treeID             git.ObjectID
@@ -77,10 +81,31 @@ func WithTree(treeID git.ObjectID) WriteCommitOption {
 	}
 }
 
+// WithAuthorName is an option for WriteCommit which will set the author name.
+func WithAuthorName(name string) WriteCommitOption {
+	return func(cfg *writeCommitConfig) {
+		cfg.authorName = name
+	}
+}
+
+// WithAuthorDate is an option for WriteCommit which will set the author date.
+func WithAuthorDate(date time.Time) WriteCommitOption {
+	return func(cfg *writeCommitConfig) {
+		cfg.authorDate = date
+	}
+}
+
 // WithCommitterName is an option for WriteCommit which will set the committer name.
 func WithCommitterName(name string) WriteCommitOption {
 	return func(cfg *writeCommitConfig) {
 		cfg.committerName = name
+	}
+}
+
+// WithCommitterDate is an option for WriteCommit which will set the committer date.
+func WithCommitterDate(date time.Time) WriteCommitOption {
+	return func(cfg *writeCommitConfig) {
+		cfg.committerDate = date
 	}
 }
 
@@ -130,8 +155,20 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 		tree = parents[0].String() + "^{tree}"
 	}
 
+	if writeCommitConfig.authorName == "" {
+		writeCommitConfig.authorName = committerName
+	}
+
+	if writeCommitConfig.authorDate.IsZero() {
+		writeCommitConfig.authorDate = time.Date(2019, 11, 3, 11, 27, 59, 0, time.FixedZone("UTC+1", 1*60*60))
+	}
+
 	if writeCommitConfig.committerName == "" {
 		writeCommitConfig.committerName = committerName
+	}
+
+	if writeCommitConfig.committerDate.IsZero() {
+		writeCommitConfig.committerDate = time.Date(2019, 11, 3, 11, 27, 59, 0, time.FixedZone("UTC+1", 1*60*60))
 	}
 
 	// Use 'commit-tree' instead of 'commit' because we are in a bare
@@ -155,6 +192,15 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 			fmt.Sprintf("GIT_ALTERNATE_OBJECT_DIRECTORIES=%s", filepath.Join(repoPath, "objects")),
 		)
 	}
+
+	env = append(env,
+		fmt.Sprintf("GIT_AUTHOR_DATE=%d %s", writeCommitConfig.authorDate.Unix(), writeCommitConfig.authorDate.Format("-0700")),
+		fmt.Sprintf("GIT_AUTHOR_NAME=%s", writeCommitConfig.authorName),
+		fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", committerEmail),
+		fmt.Sprintf("GIT_COMMITTER_DATE=%d %s", writeCommitConfig.committerDate.Unix(), writeCommitConfig.committerDate.Format("-0700")),
+		fmt.Sprintf("GIT_COMMITTER_NAME=%s", writeCommitConfig.committerName),
+		fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", committerEmail),
+	)
 
 	for _, parent := range parents {
 		commitArgs = append(commitArgs, "-p", parent.String())

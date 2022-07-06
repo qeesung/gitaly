@@ -31,8 +31,9 @@ const (
 	lfsBody     = "hello world\n"
 )
 
-func TestGetArchiveSuccess(t *testing.T) {
+func TestGetArchive_success(t *testing.T) {
 	t.Parallel()
+
 	ctx := testhelper.Context(t)
 	_, repo, _, client := setupRepositoryService(ctx, t)
 
@@ -148,13 +149,7 @@ func TestGetArchiveSuccess(t *testing.T) {
 				data, err := consumeArchive(stream)
 				require.NoError(t, err)
 
-				archiveFile, err := os.Create(filepath.Join(testhelper.TempDir(t), "archive"))
-				require.NoError(t, err)
-
-				_, err = archiveFile.Write(data)
-				require.NoError(t, err)
-
-				contents := string(compressedFileContents(t, format, archiveFile.Name()))
+				contents := compressedFileContents(t, format, data)
 
 				for _, content := range tc.contents {
 					require.Contains(t, contents, tc.prefix+content)
@@ -282,8 +277,9 @@ func TestGetArchive_includeLfsBlobs(t *testing.T) {
 	}
 }
 
-func TestGetArchiveFailure(t *testing.T) {
+func TestGetArchive_inputValidation(t *testing.T) {
 	t.Parallel()
+
 	ctx := testhelper.Context(t)
 	_, repo, _, client := setupRepositoryService(ctx, t)
 
@@ -408,68 +404,57 @@ func TestGetArchiveFailure(t *testing.T) {
 	}
 }
 
-func TestGetArchivePathInjection(t *testing.T) {
+func TestGetArchive_pathInjection(t *testing.T) {
 	t.Parallel()
+
 	ctx := testhelper.Context(t)
-	cfg, repo, repoPath, client := setupRepositoryServiceWithWorktree(ctx, t)
+	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
-	// Adding a temp directory representing the .ssh directory
-	sshDirectory := testhelper.TempDir(t)
+	// It used to be possible to inject options into `git-archive(1)`, with the worst outcome
+	// being that an adversary may create or overwrite arbitrary files in the filesystem in case
+	// they passed `--output`.
+	//
+	// We pretend that the adversary wants to override a fixed file `/non/existent`. In
+	// practice, thus would be something more interesting like `/etc/shadow` or `allowed_keys`.
+	// We then create a file inside the repository itself that has `--output=/non/existent` as
+	// relative path. This is done to verify that git-archive(1) indeed treats the parameter as
+	// a path and does not interpret it as an option.
+	outputPath := "/non/existent"
 
-	// Adding an empty authorized_keys file
-	authorizedKeysPath := filepath.Join(sshDirectory, "authorized_keys")
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{Path: "--output=", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+			{Path: "non", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+				{Path: "existent", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+					{Path: "injected file", Mode: "100644", Content: "injected content"},
+				})},
+			})},
+		})},
+	})))
 
-	authorizedKeysFile, err := os.Create(authorizedKeysPath)
-	require.NoError(t, err)
-	require.NoError(t, authorizedKeysFile.Close())
-
-	// Create the directory on the repository
-	repoExploitPath := filepath.Join(repoPath, "--output=", authorizedKeysPath)
-	require.NoError(t, os.MkdirAll(repoExploitPath, os.ModeDir|0o755))
-
-	f, err := os.Create(filepath.Join(repoExploitPath, "id_12345.pub"))
-	require.NoError(t, err)
-
-	evilPubKeyFile := `#
-		ssh-ed25519 my_super_evil_ssh_pubkey
-		#`
-
-	_, err = fmt.Fprint(f, evilPubKeyFile)
-	require.NoError(t, err)
-	require.NoError(t, f.Close())
-
-	// Add the directory to the repository
-	gittest.Exec(t, cfg, "-C", repoPath, "add", ".")
-	gittest.Exec(t, cfg, "-C", repoPath, "commit", "-m", "adding fake key file")
-	commitID := strings.TrimRight(string(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD")), "\n")
-
-	injectionPath := fmt.Sprintf("--output=%s", authorizedKeysPath)
-
-	req := &gitalypb.GetArchiveRequest{
+	// And now we fire the request path our bogus path to try and overwrite the output path.
+	stream, err := client.GetArchive(ctx, &gitalypb.GetArchiveRequest{
 		Repository: repo,
-		CommitId:   commitID,
+		CommitId:   commitID.String(),
 		Prefix:     "",
 		Format:     gitalypb.GetArchiveRequest_TAR,
-		Path:       []byte(injectionPath),
-	}
-
-	stream, err := client.GetArchive(ctx, req)
+		Path:       []byte("--output=" + outputPath),
+	})
 	require.NoError(t, err)
 
-	_, err = consumeArchive(stream)
+	content, err := consumeArchive(stream)
 	require.NoError(t, err)
 
-	authorizedKeysFile, err = os.Open(authorizedKeysPath)
-	require.NoError(t, err)
-	defer authorizedKeysFile.Close()
-
-	authorizedKeysFileBytes, err := io.ReadAll(authorizedKeysFile)
-	require.NoError(t, err)
-	authorizedKeysFileStat, err := authorizedKeysFile.Stat()
-	require.NoError(t, err)
-
-	require.NotContains(t, string(authorizedKeysFileBytes), evilPubKeyFile) // this should fail first in pre-fix failing test
-	require.Zero(t, authorizedKeysFileStat.Size())
+	require.NoFileExists(t, outputPath)
+	require.Equal(t,
+		strings.Join([]string{
+			"/",
+			"/--output=/",
+			"/--output=/non/",
+			"/--output=/non/existent/",
+			"/--output=/non/existent/injected file",
+		}, "\n"),
+		compressedFileContents(t, gitalypb.GetArchiveRequest_TAR, content),
+	)
 }
 
 func TestGetArchive_environment(t *testing.T) {
@@ -547,19 +532,23 @@ func TestGetArchive_environment(t *testing.T) {
 	}
 }
 
-func compressedFileContents(t *testing.T, format gitalypb.GetArchiveRequest_Format, name string) []byte {
+func compressedFileContents(t *testing.T, format gitalypb.GetArchiveRequest_Format, contents []byte) string {
+	path := filepath.Join(testhelper.TempDir(t), "archive")
+	require.NoError(t, os.WriteFile(path, contents, 0o644))
+
 	switch format {
 	case gitalypb.GetArchiveRequest_TAR:
-		return testhelper.MustRunCommand(t, nil, "tar", "tf", name)
+		return text.ChompBytes(testhelper.MustRunCommand(t, nil, "tar", "tf", path))
 	case gitalypb.GetArchiveRequest_TAR_GZ:
-		return testhelper.MustRunCommand(t, nil, "tar", "ztf", name)
+		return text.ChompBytes(testhelper.MustRunCommand(t, nil, "tar", "ztf", path))
 	case gitalypb.GetArchiveRequest_TAR_BZ2:
-		return testhelper.MustRunCommand(t, nil, "tar", "jtf", name)
+		return text.ChompBytes(testhelper.MustRunCommand(t, nil, "tar", "jtf", path))
 	case gitalypb.GetArchiveRequest_ZIP:
-		return testhelper.MustRunCommand(t, nil, "unzip", "-l", name)
+		return text.ChompBytes(testhelper.MustRunCommand(t, nil, "unzip", "-l", path))
+	default:
+		require.FailNow(t, "unsupported archive format: %v", format)
+		return ""
 	}
-
-	return nil
 }
 
 func consumeArchive(stream gitalypb.RepositoryService_GetArchiveClient) ([]byte, error) {

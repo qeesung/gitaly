@@ -237,9 +237,6 @@ func RewrittenRepository(ctx context.Context, t testing.TB, cfg config.Cfg, repo
 
 // InitRepoOpts contains options for InitRepo.
 type InitRepoOpts struct {
-	// WithWorktree determines whether the resulting Git repository should have a worktree or
-	// not.
-	WithWorktree bool
 	// WithRelativePath determines the relative path of this repository.
 	WithRelativePath string
 }
@@ -256,22 +253,16 @@ func InitRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...Init
 
 	relativePath := opt.WithRelativePath
 	if relativePath == "" {
-		relativePath = NewRepositoryName(t, !opt.WithWorktree)
+		relativePath = NewRepositoryName(t, true)
 	}
 	repoPath := filepath.Join(storage.Path, relativePath)
 
-	args := []string{"init"}
-	if !opt.WithWorktree {
-		args = append(args, "--bare")
-	}
+	args := []string{"init", "--bare"}
 
 	Exec(t, cfg, append(args, repoPath)...)
 
 	repo := InitRepoDir(t, storage.Path, relativePath)
 	repo.StorageName = storage.Name
-	if opt.WithWorktree {
-		repo.RelativePath = filepath.Join(repo.RelativePath, ".git")
-	}
 
 	t.Cleanup(func() { require.NoError(t, os.RemoveAll(repoPath)) })
 
@@ -283,9 +274,6 @@ type CloneRepoOpts struct {
 	// RelativePath determines the relative path of newly created Git repository. If unset, the
 	// relative path is computed via NewRepositoryName.
 	RelativePath string
-	// WithWorktree determines whether the resulting Git repository should have a worktree or
-	// not.
-	WithWorktree bool
 	// SourceRepo determines the name of the source repository which shall be cloned. The source
 	// repository is assumed to be relative to "_build/testrepos". If unset, defaults to
 	// "gitlab-test.git".
@@ -304,7 +292,7 @@ func CloneRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...Clo
 
 	relativePath := opt.RelativePath
 	if relativePath == "" {
-		relativePath = NewRepositoryName(t, !opt.WithWorktree)
+		relativePath = NewRepositoryName(t, true)
 	}
 
 	sourceRepo := opt.SourceRepo
@@ -315,13 +303,7 @@ func CloneRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...Clo
 	repo := InitRepoDir(t, storage.Path, relativePath)
 	repo.StorageName = storage.Name
 
-	args := []string{"clone", "--no-hardlinks", "--dissociate"}
-	if !opt.WithWorktree {
-		args = append(args, "--bare")
-	} else {
-		// For non-bare repos the relative path is the .git folder inside the path
-		repo.RelativePath = filepath.Join(relativePath, ".git")
-	}
+	args := []string{"clone", "--no-hardlinks", "--dissociate", "--bare"}
 
 	absolutePath := filepath.Join(storage.Path, relativePath)
 	Exec(t, cfg, append(args, testRepositoryPath(t, sourceRepo), absolutePath)...)

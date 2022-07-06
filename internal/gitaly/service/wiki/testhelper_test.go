@@ -29,6 +29,7 @@ type createWikiPageOpts struct {
 	content           []byte
 	format            string
 	forceContentEmpty bool
+	authorName        string
 }
 
 var mockPageContent = bytes.Repeat([]byte("Mock wiki page content"), 10000)
@@ -121,8 +122,13 @@ func writeWikiPage(t *testing.T, client gitalypb.WikiServiceClient, wikiRepo *gi
 		format = opts.format
 	}
 
+	authorName := opts.authorName
+	if authorName == "" {
+		authorName = "Ahmad Sherif"
+	}
+
 	commitDetails := &gitalypb.WikiCommitDetails{
-		Name:     []byte("Ahmad Sherif"),
+		Name:     []byte(authorName),
 		Email:    []byte("ahmad@gitlab.com"),
 		Message:  []byte("Add " + opts.title),
 		UserId:   int32(1),
