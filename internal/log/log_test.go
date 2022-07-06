@@ -491,10 +491,8 @@ func TestLogDeciderOption_logByRegexpMatch(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			require.NoError(t, os.Setenv("GITALY_LOG_REQUEST_METHOD_DENY_PATTERN", tc.skip))
-			defer func() { require.NoError(t, os.Unsetenv("GITALY_LOG_REQUEST_METHOD_DENY_PATTERN")) }()
-			require.NoError(t, os.Setenv("GITALY_LOG_REQUEST_METHOD_ALLOW_PATTERN", tc.only))
-			defer func() { require.NoError(t, os.Unsetenv("GITALY_LOG_REQUEST_METHOD_ALLOW_PATTERN")) }()
+			t.Setenv("GITALY_LOG_REQUEST_METHOD_DENY_PATTERN", tc.skip)
+			t.Setenv("GITALY_LOG_REQUEST_METHOD_ALLOW_PATTERN", tc.only)
 
 			logger, hook := test.NewNullLogger()
 			interceptor := grpcmwlogrus.UnaryServerInterceptor(logrus.NewEntry(logger), DeciderOption())

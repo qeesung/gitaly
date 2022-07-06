@@ -58,6 +58,12 @@ linters-settings:
       # they're tested as expected.
       - ^context.Background$
       - ^context.TODO$
+      # Tests should not set the bare environment functions, but instead use
+      # `testhelper.ModifyEnvironment()`. This function has sanity checks to
+      # verify we don't use `t.Parallel()` when setting envvars by using the
+      # `t.Setenv()` helper.
+      - ^os.Setenv$
+      - ^os.Unsetenv$
   stylecheck:
     # ST1000 checks for missing package comments. We don't use these for most
     # packages, so let's disable this check.

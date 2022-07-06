@@ -33,9 +33,8 @@ func TestGitCommandProxy(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	oldHTTPProxy := os.Getenv("http_proxy")
-	defer require.NoError(t, os.Setenv("http_proxy", oldHTTPProxy))
-	require.NoError(t, os.Setenv("http_proxy", ts.URL))
+	testhelper.ModifyEnvironment(t, "http_proxy", ts.URL)
+
 	ctx := testhelper.Context(t)
 
 	dir := testhelper.TempDir(t)

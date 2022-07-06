@@ -274,17 +274,14 @@ func ModifyEnvironment(t testing.TB, key string, value string) {
 	oldValue, hasOldValue := os.LookupEnv(key)
 	if value == "" {
 		require.NoError(t, os.Unsetenv(key))
+		t.Cleanup(func() {
+			if hasOldValue {
+				require.NoError(t, os.Setenv(key, oldValue))
+			}
+		})
 	} else {
-		require.NoError(t, os.Setenv(key, value))
+		t.Setenv(key, value)
 	}
-
-	t.Cleanup(func() {
-		if hasOldValue {
-			require.NoError(t, os.Setenv(key, oldValue))
-		} else {
-			require.NoError(t, os.Unsetenv(key))
-		}
-	})
 }
 
 // GenerateCerts creates a certificate that can be used to establish TLS protected TCP connection.

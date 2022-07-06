@@ -43,8 +43,6 @@ import (
 )
 
 func TestCreateFork_successful(t *testing.T) {
-	t.Parallel()
-
 	// We need to inject this once across all tests given that crypto/x509 only initializes
 	// certificates once. Changing injected certs during our tests is thus not going to fly well
 	// and would cause failure. We should eventually address this and provide better testing
