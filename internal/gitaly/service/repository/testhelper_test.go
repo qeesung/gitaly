@@ -109,8 +109,8 @@ func assertModTimeAfter(t *testing.T, afterTime time.Time, paths ...string) bool
 	return t.Failed()
 }
 
-func runRepositoryServerWithConfig(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server, opts ...testserver.GitalyServerOpt) string {
-	return testserver.RunGitalyServer(t, cfg, rubySrv, func(srv *grpc.Server, deps *service.Dependencies) {
+func runRepositoryService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server, opts ...testserver.GitalyServerOpt) (gitalypb.RepositoryServiceClient, string) {
+	serverSocketPath := testserver.RunGitalyServer(t, cfg, rubySrv, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterRepositoryServiceServer(srv, NewServer(
 			cfg,
 			deps.GetRubyServer(),
@@ -155,13 +155,8 @@ func runRepositoryServerWithConfig(t testing.TB, cfg config.Cfg, rubySrv *rubyse
 			deps.GetHousekeepingManager(),
 		))
 	}, opts...)
-}
 
-func runRepositoryService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server, opts ...testserver.GitalyServerOpt) (gitalypb.RepositoryServiceClient, string) {
-	serverSocketPath := runRepositoryServerWithConfig(t, cfg, rubySrv, opts...)
-	client := newRepositoryClient(t, cfg, serverSocketPath)
-
-	return client, serverSocketPath
+	return newRepositoryClient(t, cfg, serverSocketPath), serverSocketPath
 }
 
 func setupRepositoryService(ctx context.Context, t testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {

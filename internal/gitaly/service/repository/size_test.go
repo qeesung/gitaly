@@ -37,10 +37,9 @@ func TestRepositorySize_SuccessfulRequest(t *testing.T) {
 func testSuccessfulRepositorySizeRequestPoolMember(t *testing.T, ctx context.Context) {
 	cfg := testcfg.Build(t)
 
-	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil)
+	repoClient, serverSocketPath := runRepositoryService(t, cfg, nil)
 	cfg.SocketPath = serverSocketPath
 
-	repoClient := newRepositoryClient(t, cfg, serverSocketPath)
 	objectPoolClient := newObjectPoolClient(t, cfg, serverSocketPath)
 
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{

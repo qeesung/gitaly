@@ -11,31 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/cache"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git/housekeeping"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/rubyserver"
-	gserver "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/server"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/commit"
-	hookservice "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/hook"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/ref"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/remote"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/ssh"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/limithandler"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/praefectutil"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
 	gitalyx509 "gitlab.com/gitlab-org/gitaly/v15/internal/x509"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -68,20 +50,25 @@ func TestCreateFork_successful(t *testing.T) {
 			testcfg.BuildGitalyHooks(t, cfg)
 			testcfg.BuildGitalySSH(t, cfg)
 
-			var (
-				client gitalypb.RepositoryServiceClient
-				conn   *grpc.ClientConn
-			)
-
 			createRepoConfig := gittest.CreateRepositoryConfig{
 				Seed: gittest.SeedGitLabTest,
 			}
+			getReplicaPathConfig := gittest.GetReplicaPathConfig{}
+
+			var client gitalypb.RepositoryServiceClient
 			if tt.secure {
 				cfg.TLS = tlsConfig
-				cfg.TLSListenAddr = runSecureServer(t, cfg, nil)
+				cfg.TLSListenAddr = "localhost:0"
+
+				_, addr := runRepositoryService(t, cfg, nil)
+				cfg.TLSListenAddr = addr
+
+				var conn *grpc.ClientConn
 				client, conn = newSecureRepoClient(t, cfg.TLSListenAddr, cfg.Auth.Token, certPool)
 				t.Cleanup(func() { conn.Close() })
+
 				createRepoConfig.ClientConn = conn
+				getReplicaPathConfig.ClientConn = conn
 			} else {
 				client, cfg.SocketPath = runRepositoryService(t, cfg, nil)
 			}
@@ -101,13 +88,7 @@ func TestCreateFork_successful(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			replicaPath := forkedRepo.GetRelativePath()
-			if !tt.secure {
-				// Only the insecure test cases run through Praefect, so we only rewrite the path
-				// in that case.
-				replicaPath = gittest.GetReplicaPath(ctx, t, cfg, forkedRepo)
-			}
-
+			replicaPath := gittest.GetReplicaPath(ctx, t, cfg, forkedRepo, getReplicaPathConfig)
 			forkedRepoPath := filepath.Join(cfg.Storages[0].Path, replicaPath)
 
 			gittest.Exec(t, cfg, "-C", forkedRepoPath, "fsck")
@@ -249,91 +230,6 @@ func injectCustomCATestCerts(t *testing.T) (*x509.CertPool, config.TLS) {
 	require.True(t, pool.AppendCertsFromPEM(caPEMBytes))
 
 	return pool, config.TLS{CertPath: certFile, KeyPath: keyFile}
-}
-
-func runSecureServer(t *testing.T, cfg config.Cfg, rubySrv *rubyserver.Server) string {
-	t.Helper()
-
-	registry := backchannel.NewRegistry()
-	locator := config.NewLocator(cfg)
-	cache := cache.New(cfg, locator)
-	limitHandler := limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)
-	server, err := gserver.New(true, cfg, testhelper.NewDiscardingLogEntry(t), registry, cache, []*limithandler.LimiterMiddleware{limitHandler})
-	require.NoError(t, err)
-	listener, addr := testhelper.GetLocalhostListener(t)
-
-	txManager := transaction.NewManager(cfg, registry)
-	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
-	hookManager := hook.NewManager(cfg, locator, gittest.NewCommandFactory(t, cfg), txManager, gitlab.NewMockClient(
-		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
-	))
-	catfileCache := catfile.NewCache(cfg)
-	t.Cleanup(catfileCache.Stop)
-
-	housekeepingManager := housekeeping.NewManager(cfg.Prometheus, txManager)
-
-	connsPool := client.NewPool()
-	t.Cleanup(func() { testhelper.MustClose(t, connsPool) })
-
-	git2goExecutor := git2go.NewExecutor(cfg, gitCmdFactory, locator)
-
-	gitalypb.RegisterRepositoryServiceServer(server, NewServer(
-		cfg,
-		rubySrv,
-		locator,
-		txManager,
-		gitCmdFactory,
-		catfileCache,
-		connsPool,
-		git2goExecutor,
-		housekeepingManager,
-	))
-	gitalypb.RegisterHookServiceServer(server, hookservice.NewServer(
-		hookManager,
-		gitCmdFactory,
-		nil,
-	))
-	gitalypb.RegisterRemoteServiceServer(server, remote.NewServer(
-		locator,
-		gitCmdFactory,
-		catfileCache,
-		txManager,
-		connsPool,
-	))
-	gitalypb.RegisterSSHServiceServer(server, ssh.NewServer(
-		locator,
-		gitCmdFactory,
-		txManager,
-	))
-	gitalypb.RegisterRefServiceServer(server, ref.NewServer(
-		locator,
-		gitCmdFactory,
-		txManager,
-		catfileCache,
-	))
-	gitalypb.RegisterCommitServiceServer(server, commit.NewServer(
-		locator,
-		gitCmdFactory,
-		nil,
-		catfileCache,
-	))
-	errQ := make(chan error, 1)
-
-	// This creates a secondary GRPC server which isn't "secure". Reusing
-	// the one created above won't work as its internal socket would be
-	// protected by the same TLS certificate.
-
-	cfg.TLS.KeyPath = ""
-	testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
-	})
-
-	t.Cleanup(func() { require.NoError(t, <-errQ) })
-
-	t.Cleanup(server.Stop)
-	go func() { errQ <- server.Serve(listener) }()
-
-	return "tls://" + addr
 }
 
 func newSecureRepoClient(t testing.TB, addr, token string, pool *x509.CertPool) (gitalypb.RepositoryServiceClient, *grpc.ClientConn) {

@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
@@ -20,7 +18,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v15/streamio"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
@@ -78,26 +75,7 @@ func TestServer_FetchBundle_transaction(t *testing.T) {
 	testcfg.BuildGitalyHooks(t, cfg)
 
 	hookManager := &mockHookManager{}
-	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterRepositoryServiceServer(srv, NewServer(
-			deps.GetCfg(),
-			deps.GetRubyServer(),
-			deps.GetLocator(),
-			deps.GetTxManager(),
-			deps.GetGitCmdFactory(),
-			deps.GetCatfileCache(),
-			deps.GetConnsPool(),
-			deps.GetGit2goExecutor(),
-			deps.GetHousekeepingManager(),
-		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(
-			deps.GetHookManager(),
-			deps.GetGitCmdFactory(),
-			deps.GetPackObjectsCache(),
-		))
-	}, testserver.WithHookManager(hookManager), testserver.WithDisablePraefect())
-
-	client := newRepositoryClient(t, cfg, addr)
+	client, _ := runRepositoryService(t, cfg, nil, testserver.WithHookManager(hookManager), testserver.WithDisablePraefect())
 
 	tmp := testhelper.TempDir(t)
 	bundlePath := filepath.Join(tmp, "test.bundle")

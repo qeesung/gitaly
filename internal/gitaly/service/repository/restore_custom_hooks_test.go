@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
@@ -21,7 +20,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v15/streamio"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
@@ -38,22 +36,8 @@ func testSuccessfulRestoreCustomHooksRequest(t *testing.T, ctx context.Context) 
 	testcfg.BuildGitalyHooks(t, cfg)
 	txManager := transaction.NewTrackingManager()
 
-	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterRepositoryServiceServer(srv, NewServer(
-			deps.GetCfg(),
-			deps.GetRubyServer(),
-			deps.GetLocator(),
-			deps.GetTxManager(),
-			deps.GetGitCmdFactory(),
-			deps.GetCatfileCache(),
-			deps.GetConnsPool(),
-			deps.GetGit2goExecutor(),
-			deps.GetHousekeepingManager(),
-		))
-	}, testserver.WithTransactionManager(txManager))
+	client, addr := runRepositoryService(t, cfg, nil, testserver.WithTransactionManager(txManager))
 	cfg.SocketPath = addr
-
-	client := newRepositoryClient(t, cfg, addr)
 
 	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
 	require.NoError(t, err)

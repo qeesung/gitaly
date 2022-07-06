@@ -12,11 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/backchannel"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -92,19 +90,7 @@ func TestApplyGitattributesWithTransaction(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
 	transactionServer := &testTransactionServer{}
-	testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterRepositoryServiceServer(srv, NewServer(
-			deps.GetCfg(),
-			deps.GetRubyServer(),
-			deps.GetLocator(),
-			deps.GetTxManager(),
-			deps.GetGitCmdFactory(),
-			deps.GetCatfileCache(),
-			deps.GetConnsPool(),
-			deps.GetGit2goExecutor(),
-			deps.GetHousekeepingManager(),
-		))
-	})
+	runRepositoryService(t, cfg, nil)
 
 	// We're using internal listener in order to route around
 	// Praefect in our tests. Otherwise Praefect would replace our

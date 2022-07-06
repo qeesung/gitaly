@@ -21,11 +21,9 @@ func TestRepositoryExists(t *testing.T) {
 
 	require.NoError(t, os.RemoveAll(cfg.Storages[2].Path), "third storage needs to be invalid")
 
-	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil, testserver.WithDisablePraefect())
+	client, _ := runRepositoryService(t, cfg, nil, testserver.WithDisablePraefect())
 
 	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-
-	client := newRepositoryClient(t, cfg, serverSocketPath)
 
 	queries := []struct {
 		desc      string

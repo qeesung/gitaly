@@ -70,8 +70,7 @@ func generateTarFile(t *testing.T, path string) ([]byte, []string) {
 func createFromSnapshot(t *testing.T, ctx context.Context, req *gitalypb.CreateRepositoryFromSnapshotRequest, cfg config.Cfg) (*gitalypb.CreateRepositoryFromSnapshotResponse, error) {
 	t.Helper()
 
-	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil)
-	client := newRepositoryClient(t, cfg, serverSocketPath)
+	client, _ := runRepositoryService(t, cfg, nil)
 
 	return client.CreateRepositoryFromSnapshot(ctx, req)
 }
@@ -106,8 +105,8 @@ func TestCreateRepositoryFromSnapshot_success(t *testing.T) {
 		HttpHost:   host,
 	}
 
-	cfg.SocketPath = runRepositoryServerWithConfig(t, cfg, nil)
-	client := newRepositoryClient(t, cfg, cfg.SocketPath)
+	client, socketPath := runRepositoryService(t, cfg, nil)
+	cfg.SocketPath = socketPath
 
 	rsp, err := client.CreateRepositoryFromSnapshot(ctx, req)
 	require.NoError(t, err)

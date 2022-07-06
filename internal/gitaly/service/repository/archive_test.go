@@ -186,8 +186,7 @@ func TestGetArchive_includeLfsBlobs(t *testing.T) {
 		},
 	}))
 
-	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil)
-	client := newRepositoryClient(t, cfg, serverSocketPath)
+	client, serverSocketPath := runRepositoryService(t, cfg, nil)
 	cfg.SocketPath = serverSocketPath
 
 	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
@@ -473,10 +472,8 @@ func TestGetArchive_environment(t *testing.T) {
 
 	testcfg.BuildGitalyHooks(t, cfg)
 
-	serverSocketPath := runRepositoryServerWithConfig(t, cfg, nil, testserver.WithGitCommandFactory(gitCmdFactory))
+	client, serverSocketPath := runRepositoryService(t, cfg, nil, testserver.WithGitCommandFactory(gitCmdFactory))
 	cfg.SocketPath = serverSocketPath
-
-	client := newRepositoryClient(t, cfg, serverSocketPath)
 
 	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 

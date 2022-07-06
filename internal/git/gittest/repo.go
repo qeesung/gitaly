@@ -131,7 +131,7 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 		storage = opts.Storage
 	}
 
-	relativePath := newDiskHash(t)
+	relativePath := NewRepositoryName(t, true)
 	if opts.RelativePath != "" {
 		relativePath = opts.RelativePath
 	}
