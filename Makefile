@@ -56,6 +56,7 @@ PROTOC_GEN_GITALY_LINT      := ${TOOLS_DIR}/protoc-gen-gitaly-lint
 PROTOC_GEN_GITALY_PROTOLIST := ${TOOLS_DIR}/protoc-gen-gitaly-protolist
 GOTESTSUM                   := ${TOOLS_DIR}/gotestsum
 GOCOVER_COBERTURA           := ${TOOLS_DIR}/gocover-cobertura
+DELVE                       := ${TOOLS_DIR}/dlv
 
 # Tool options
 GOLANGCI_LINT_OPTIONS ?=
@@ -109,6 +110,7 @@ PROTOC_GEN_GO_GRPC_VERSION?= v1.2.0
 # compatibility matrix.
 GIT2GO_VERSION            ?= v33
 LIBGIT2_VERSION           ?= v1.3.0
+DELVE_VERSION             ?= v1.8.3
 
 # protoc target
 PROTOC_REPO_URL ?= https://github.com/protocolbuffers/protobuf
@@ -253,6 +255,17 @@ run_go_tests = PATH='${SOURCE_DIR}/internal/testhelper/testdata/home/bin:${PATH}
     TEST_TMP_DIR='${TEST_TMP_DIR}' \
     ${GOTESTSUM} --format ${TEST_FORMAT} --junitfile ${TEST_REPORT} --jsonfile ${TEST_FULL_OUTPUT} -- -ldflags '${GO_LDFLAGS}' -tags '${SERVER_BUILD_TAGS},${GIT2GO_BUILD_TAGS}' ${TEST_OPTIONS} ${TEST_PACKAGES}
 
+## Test options passed to `dlv test`.
+DEBUG_OPTIONS      ?= $(patsubst -%,-test.%,${TEST_OPTIONS})
+
+# debug_go_tests will execute Go tests from a single package in the delve debugger.
+# Its behaviour can be modified via the following variable:
+#
+# DEBUG_OPTIONS: any additional options, will default to TEST_OPTIONS if not set.
+debug_go_tests = PATH='${SOURCE_DIR}/internal/testhelper/testdata/home/bin:${PATH}' \
+    TEST_TMP_DIR='${TEST_TMP_DIR}' \
+    ${DELVE} test --build-flags="-ldflags '${GO_LDFLAGS}' -tags '${SERVER_BUILD_TAGS},${GIT2GO_BUILD_TAGS}'" ${TEST_PACKAGES} -- ${DEBUG_OPTIONS}
+
 unexport GOROOT
 export GOCACHE                   ?= ${BUILD_DIR}/cache
 export GOPROXY                   ?= https://proxy.golang.org
@@ -340,6 +353,9 @@ endif
 prepare-tests: libgit2 prepare-test-repos ${SOURCE_DIR}/.ruby-bundle ${GOTESTSUM}
 	${Q}mkdir -p "$(dir ${TEST_REPORT})"
 
+.PHONY: prepare-debug
+prepare-debug: ${DELVE}
+
 .PHONY: prepare-test-repos
 prepare-test-repos: ${TEST_REPO_MIRROR} ${TEST_REPO} ${TEST_REPO_GIT}
 
@@ -354,6 +370,11 @@ test-ruby: rspec
 ## Run Go tests.
 test-go: prepare-tests
 	${Q}$(call run_go_tests)
+
+.PHONY: debug-go-tests
+## Run Go tests in delve debugger.
+debug-test-go: prepare-tests prepare-debug
+	${Q}$(call debug_go_tests)
 
 .PHONY: test
 ## Run Go benchmarks.
@@ -677,6 +698,8 @@ ${PROTOC_GEN_GO}:     TOOL_PACKAGE = google.golang.org/protobuf/cmd/protoc-gen-g
 ${PROTOC_GEN_GO}:     TOOL_VERSION = ${PROTOC_GEN_GO_VERSION}
 ${PROTOC_GEN_GO_GRPC}:TOOL_PACKAGE = google.golang.org/grpc/cmd/protoc-gen-go-grpc
 ${PROTOC_GEN_GO_GRPC}:TOOL_VERSION = ${PROTOC_GEN_GO_GRPC_VERSION}
+${DELVE}:             TOOL_PACKAGE = github.com/go-delve/delve/cmd/dlv
+${DELVE}:             TOOL_VERSION = ${DELVE_VERSION}
 
 ${TEST_REPO_MIRROR}:
 	${GIT} clone --mirror ${GIT_QUIET} https://gitlab.com/gitlab-org/gitlab-test.git $@

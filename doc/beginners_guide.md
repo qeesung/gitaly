@@ -228,6 +228,17 @@ called on `testing.T`.
 [require]: https://github.com/stretchr/testify/tree/master/require
 [assert]: https://github.com/stretchr/testify/tree/master/assert
 
+##### Using Delve to debug a test
+
+The process to debug a test in your terminal using
+[Delve](https://github.com/go-delve/delve) is almost the same as
+[running a single test](#running-a-specific-test), just change the
+target to `debug-test-go`:
+
+```
+TEST_PACKAGES=./internal/gitaly/service/repository TEST_OPTIONS="-count=1 -run=TestRepositoryExists" make debug-test-go
+```
+
 ##### Useful snippets for creating a test
 
 ###### testhelper package
