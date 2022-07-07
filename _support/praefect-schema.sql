@@ -20,7 +20,7 @@ SET row_security = off;
 -- Name: praefect_database_schema; Type: DATABASE; Schema: -; Owner: -
 --
 
-CREATE DATABASE praefect_database_schema WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'en_US.utf8' LC_CTYPE = 'en_US.utf8';
+CREATE DATABASE praefect_database_schema WITH TEMPLATE = template0 ENCODING = 'UTF8' LOCALE = 'en_US.utf8';
 
 
 \connect praefect_database_schema
@@ -97,8 +97,6 @@ CREATE FUNCTION public.notify_on_change() RETURNS trigger
 
 
 SET default_tablespace = '';
-
-SET default_with_oids = false;
 
 --
 -- Name: node_status; Type: TABLE; Schema: public; Owner: -
