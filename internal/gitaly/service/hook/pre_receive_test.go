@@ -149,7 +149,7 @@ func TestPreReceiveHook_GitlabAPIAccess(t *testing.T) {
 			Protocol: protocol,
 		},
 		git.PreReceiveHook,
-		featureflag.RawFromContext(ctx),
+		featureflag.FromContext(ctx),
 	).Env()
 	require.NoError(t, err)
 
@@ -271,7 +271,7 @@ func TestPreReceive_APIErrors(t *testing.T) {
 					Protocol: "web",
 				},
 				git.PreReceiveHook,
-				featureflag.RawFromContext(ctx),
+				featureflag.FromContext(ctx),
 			).Env()
 			require.NoError(t, err)
 
@@ -345,7 +345,7 @@ exit %d
 			Protocol: "web",
 		},
 		git.PreReceiveHook,
-		featureflag.RawFromContext(ctx),
+		featureflag.FromContext(ctx),
 	).Env()
 	require.NoError(t, err)
 
@@ -478,7 +478,7 @@ func TestPreReceiveHook_Primary(t *testing.T) {
 					Protocol: "web",
 				},
 				git.PreReceiveHook,
-				featureflag.RawFromContext(ctx),
+				featureflag.FromContext(ctx),
 			).Env()
 			require.NoError(t, err)
 

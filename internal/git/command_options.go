@@ -285,14 +285,17 @@ func withInternalFetch(req repoScopedRequest, withSidechannel bool) func(ctx con
 			return helper.ErrInvalidArgumentf("empty Gitaly address")
 		}
 
-		featureFlagPairs := featureflag.AllFlags(ctx)
+		var flagsWithValue []string
+		for flag, value := range featureflag.FromContext(ctx) {
+			flagsWithValue = append(flagsWithValue, flag.FormatWithValue(value))
+		}
 
 		c.env = append(c.env,
 			fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 			fmt.Sprintf("GIT_SSH_COMMAND=%s %s", filepath.Join(cfg.BinDir, "gitaly-ssh"), "upload-pack"),
 			fmt.Sprintf("GITALY_ADDRESS=%s", storageInfo.Address),
 			fmt.Sprintf("GITALY_TOKEN=%s", storageInfo.Token),
-			fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(featureFlagPairs, ",")),
+			fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(flagsWithValue, ",")),
 			fmt.Sprintf("CORRELATION_ID=%s", correlation.ExtractFromContextOrGenerate(ctx)),
 			// please see https://github.com/git/git/commit/0da0e49ba12225684b75e86a4c9344ad121652cb for mote details
 			"GIT_SSH_VARIANT=simple",

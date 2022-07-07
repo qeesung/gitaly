@@ -360,7 +360,7 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 	// Praefect explicitly injects all unset feature flags, the key is thus differend depending
 	// on whether Praefect is in use or not. We thus manually inject all feature flags here such
 	// that they're forced to the same state.
-	for _, ff := range featureflag.All {
+	for _, ff := range featureflag.DefinedFlags() {
 		ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, ff, true)
 		ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, ff, true)
 	}

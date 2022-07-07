@@ -50,10 +50,10 @@ var (
 	disabledFeatureFlag = featureflag.FeatureFlag{Name: "disabled-feature-flag", OnByDefault: true}
 )
 
-func rawFeatureFlags(ctx context.Context) featureflag.Raw {
+func featureFlags(ctx context.Context) map[featureflag.FeatureFlag]bool {
 	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, enabledFeatureFlag, true)
 	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, disabledFeatureFlag, false)
-	return featureflag.RawFromContext(ctx)
+	return featureflag.FromContext(ctx)
 }
 
 // envForHooks generates a set of environment variables for gitaly hooks
@@ -62,7 +62,7 @@ func envForHooks(t testing.TB, ctx context.Context, cfg config.Cfg, repo *gitaly
 		UserID:   glHookValues.GLID,
 		Username: glHookValues.GLUsername,
 		Protocol: glHookValues.GLProtocol,
-	}, git.AllHooks, rawFeatureFlags(ctx)).Env()
+	}, git.AllHooks, featureFlags(ctx)).Env()
 	require.NoError(t, err)
 
 	env := append(command.AllowedEnvironment(os.Environ()), []string{
@@ -413,7 +413,7 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 					Protocol: glProtocol,
 				},
 				git.PostReceiveHook,
-				rawFeatureFlags(ctx),
+				featureFlags(ctx),
 			).Env()
 			require.NoError(t, err)
 

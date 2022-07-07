@@ -26,11 +26,13 @@ func StreamInterceptor(srv interface{}, stream grpc.ServerStream, _ *grpc.Stream
 // track adds the list of the feature flags into the logging context.
 // The list is sorted by feature flag name to produce consistent output.
 func track(ctx context.Context) {
-	flags := featureflag.AllFlags(ctx)
-	if len(flags) != 0 {
-		sort.Slice(flags, func(i, j int) bool {
-			return flags[i][:strings.Index(flags[i], featureflag.Delim)] < flags[j][:strings.Index(flags[j], featureflag.Delim)]
-		})
-		ctxlogrus.AddFields(ctx, logrus.Fields{"feature_flags": strings.Join(flags, " ")})
+	var flagsWithValue []string
+	for flag, value := range featureflag.FromContext(ctx) {
+		flagsWithValue = append(flagsWithValue, flag.FormatWithValue(value))
+	}
+	sort.Strings(flagsWithValue)
+
+	if len(flagsWithValue) != 0 {
+		ctxlogrus.AddFields(ctx, logrus.Fields{"feature_flags": strings.Join(flagsWithValue, " ")})
 	}
 }

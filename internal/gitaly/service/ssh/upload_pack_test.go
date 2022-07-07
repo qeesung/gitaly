@@ -56,10 +56,15 @@ func runClone(
 	payload, err := protojson.Marshal(request)
 	require.NoError(t, err)
 
+	var flagsWithValues []string
+	for flag, value := range featureflag.FromContext(ctx) {
+		flagsWithValues = append(flagsWithValues, flag.FormatWithValue(value))
+	}
+
 	env := []string{
 		fmt.Sprintf("GITALY_ADDRESS=%s", cfg.SocketPath),
 		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
-		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(featureflag.AllFlags(ctx), ",")),
+		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(flagsWithValues, ",")),
 		fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-pack`, filepath.Join(cfg.BinDir, "gitaly-ssh")),
 	}
 	if withSidechannel {

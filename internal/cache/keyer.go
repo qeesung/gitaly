@@ -274,15 +274,18 @@ func compositeKeyHashHex(ctx context.Context, genID string, req proto.Message) (
 
 	h := sha256.New()
 
-	ffs := featureflag.AllFlags(ctx)
-	sort.Strings(ffs)
+	var flagsWithValue []string
+	for flag, enabled := range featureflag.FromContext(ctx) {
+		flagsWithValue = append(flagsWithValue, flag.FormatWithValue(enabled))
+	}
+	sort.Strings(flagsWithValue)
 
 	for _, i := range []string{
 		version.GetVersion(),
 		method,
 		genID,
 		string(reqSum),
-		strings.Join(ffs, " "),
+		strings.Join(flagsWithValue, " "),
 	} {
 		_, err := h.Write(prefixLen(i))
 		if err != nil {

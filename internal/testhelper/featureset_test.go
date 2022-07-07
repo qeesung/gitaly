@@ -171,15 +171,12 @@ func TestNewFeatureSetsWithRubyFlags(t *testing.T) {
 }
 
 func TestFeatureSets_Run(t *testing.T) {
-	// This test depends on feature flags being default-enabled in the test
-	// context, which requires those flags to exist in the ff.All slice. So
-	// let's just append them here so we do not need to use a "real"
-	// feature flag, as that would require constant change when we remove
-	// old feature flags.
-	defer func(old []ff.FeatureFlag) {
-		ff.All = old
-	}(ff.All)
-	ff.All = append(ff.All, featureFlagA, featureFlagB)
+	// Define two default-enabled feature flags. Note that with `NewFeatureFlag()`, we
+	// automatically add them to the list of defined feature flags. While this is stateful and
+	// would theoretically also impact other tests, we don't really need to mind that given
+	// that we use test-specific names for the flags here.
+	featureFlagA := ff.NewFeatureFlag("global_feature_flag_a", "", "", true)
+	featureFlagB := ff.NewFeatureFlag("global_feature_flag_b", "", "", true)
 
 	var featureFlags [][2]bool
 	NewFeatureSets(featureFlagB, featureFlagA).Run(t, func(t *testing.T, ctx context.Context) {

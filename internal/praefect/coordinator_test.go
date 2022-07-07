@@ -2689,8 +2689,8 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 
 func TestStreamParametersContext(t *testing.T) {
 	// Because we're using NewFeatureFlag, they'll end up in the All array.
-	enabledFF := featureflag.NewFeatureFlag("default-enabled", "", "", true)
-	disabledFF := featureflag.NewFeatureFlag("default-disabled", "", "", false)
+	enabledFF := featureflag.NewFeatureFlag("default_enabled", "", "", true)
+	disabledFF := featureflag.NewFeatureFlag("default_disabled", "", "", false)
 
 	type expectedFlag struct {
 		flag    featureflag.FeatureFlag
@@ -2699,7 +2699,7 @@ func TestStreamParametersContext(t *testing.T) {
 
 	expectedFlags := func(overrides ...expectedFlag) []expectedFlag {
 		flagValues := map[featureflag.FeatureFlag]bool{}
-		for _, flag := range featureflag.All {
+		for _, flag := range featureflag.DefinedFlags() {
 			flagValues[flag] = flag.OnByDefault
 		}
 		for _, override := range overrides {
@@ -2803,10 +2803,6 @@ func TestStreamParametersContext(t *testing.T) {
 			),
 			expectedOutgoingMD: metadata.Join(
 				metadataForFlags(expectedFlags()),
-				metadata.Pairs(
-					enabledFF.MetadataKey(), "true",
-					disabledFF.MetadataKey(), "false",
-				),
 			),
 			expectedFlags: expectedFlags(),
 		},
@@ -2827,10 +2823,6 @@ func TestStreamParametersContext(t *testing.T) {
 					expectedFlag{flag: enabledFF, enabled: false},
 					expectedFlag{flag: disabledFF, enabled: true},
 				)),
-				metadata.Pairs(
-					enabledFF.MetadataKey(), "false",
-					disabledFF.MetadataKey(), "true",
-				),
 			),
 			expectedFlags: expectedFlags(
 				expectedFlag{flag: enabledFF, enabled: false},
@@ -2856,7 +2848,6 @@ func TestStreamParametersContext(t *testing.T) {
 					expectedFlag{flag: disabledFF, enabled: true},
 				)),
 				metadata.Pairs(
-					disabledFF.MetadataKey(), "true",
 					"incoming", "value",
 				),
 			),

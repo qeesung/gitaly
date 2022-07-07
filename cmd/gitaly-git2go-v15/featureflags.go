@@ -27,9 +27,16 @@ func (featureFlagsSubcommand) Flags() *flag.FlagSet {
 }
 
 func (featureFlagsSubcommand) Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
-	rawFlags := featureflag.RawFromContext(ctx)
+	var flags []git2go.FeatureFlag
+	for flag, value := range featureflag.FromContext(ctx) {
+		flags = append(flags, git2go.FeatureFlag{
+			Name:        flag.Name,
+			MetadataKey: flag.MetadataKey(),
+			Value:       value,
+		})
+	}
 
 	return encoder.Encode(git2go.FeatureFlags{
-		Raw: rawFlags,
+		Flags: flags,
 	})
 }

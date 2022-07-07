@@ -120,7 +120,7 @@ func TestReceivePackPushSuccess(t *testing.T) {
 	// when deserializing the HooksPayload. By setting all flags to `true` explicitly, we both
 	// verify that gitaly-ssh picks up feature flags correctly and fix the test to behave the
 	// same with and without Praefect.
-	for _, featureFlag := range featureflag.All {
+	for _, featureFlag := range featureflag.DefinedFlags() {
 		ctx = featureflag.ContextWithFeatureFlag(ctx, featureFlag, true)
 	}
 
@@ -152,10 +152,17 @@ func TestReceivePackPushSuccess(t *testing.T) {
 	// figuring out their actual contents. So let's just remove it, too.
 	payload.Transaction = nil
 
-	expectedFeatureFlags := featureflag.Raw{}
-	for _, feature := range featureflag.All {
-		expectedFeatureFlags[feature.MetadataKey()] = "true"
+	var expectedFeatureFlags []git.FeatureFlagWithValue
+	for _, feature := range featureflag.DefinedFlags() {
+		expectedFeatureFlags = append(expectedFeatureFlags, git.FeatureFlagWithValue{
+			Flag: feature, Enabled: true,
+		})
 	}
+
+	// Compare here without paying attention to the order given that flags aren't sorted and
+	// unset the struct member afterwards.
+	require.ElementsMatch(t, expectedFeatureFlags, payload.FeatureFlagsWithValue)
+	payload.FeatureFlagsWithValue = nil
 
 	require.Equal(t, git.HooksPayload{
 		RuntimeDir:          cfg.RuntimeDir,
@@ -167,7 +174,6 @@ func TestReceivePackPushSuccess(t *testing.T) {
 			Protocol: "ssh",
 		},
 		RequestedHooks: git.ReceivePackHooks,
-		FeatureFlags:   expectedFeatureFlags,
 	}, payload)
 }
 
@@ -668,11 +674,16 @@ func sshPushCommand(ctx context.Context, t *testing.T, cfg config.Cfg, cloneDeta
 	})
 	require.NoError(t, err)
 
+	var flagsWithValues []string
+	for flag, value := range featureflag.FromContext(ctx) {
+		flagsWithValues = append(flagsWithValues, flag.FormatWithValue(value))
+	}
+
 	cmd := gittest.NewCommand(t, cfg, "-C", cloneDetails.LocalRepoPath, "push", "-v", "git@localhost:test/test.git", "master")
 	cmd.Env = []string{
 		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 		fmt.Sprintf("GITALY_ADDRESS=%s", serverSocketPath),
-		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(featureflag.AllFlags(ctx), ",")),
+		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(flagsWithValues, ",")),
 		fmt.Sprintf("GIT_SSH_COMMAND=%s receive-pack", filepath.Join(cfg.BinDir, "gitaly-ssh")),
 	}
 

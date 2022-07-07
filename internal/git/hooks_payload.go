@@ -47,14 +47,23 @@ const (
 	ReceivePackHooks = ReferenceTransactionHook | UpdateHook | PreReceiveHook | PostReceiveHook
 )
 
+// FeatureFlagWithValue is used as part of the HooksPayload to pass on feature flags with their
+// values to gitaly-hooks.
+type FeatureFlagWithValue struct {
+	// Flag is the feature flag.
+	Flag featureflag.FeatureFlag `json:"flag"`
+	// Enabled indicates whether the flag is enabled or not.
+	Enabled bool `json:"enabled"`
+}
+
 // HooksPayload holds parameters required for all hooks.
 type HooksPayload struct {
 	// RequestedHooks is a bitfield of requested Hooks. Hooks which
 	// were not requested will not get executed.
 	RequestedHooks Hook `json:"requested_hooks"`
-	// FeatureFlags contains feature flags with their values. They are set
-	// into the outgoing context when calling HookService.
-	FeatureFlags featureflag.Raw `json:"feature_flags,omitempty"`
+	// FeatureFlagsWithValue contains feature flags with their values. They are set into the
+	// outgoing context when calling HookService.
+	FeatureFlagsWithValue []FeatureFlagWithValue `json:"feature_flags_with_value,omitempty"`
 
 	// Repo is the repository in which the hook is running.
 	Repo *gitalypb.Repository `json:"-"`
@@ -110,17 +119,25 @@ func NewHooksPayload(
 	tx *txinfo.Transaction,
 	userDetails *UserDetails,
 	requestedHooks Hook,
-	featureFlags featureflag.Raw,
+	featureFlagsWithValue map[featureflag.FeatureFlag]bool,
 ) HooksPayload {
+	flags := make([]FeatureFlagWithValue, 0, len(featureFlagsWithValue))
+	for flag, enabled := range featureFlagsWithValue {
+		flags = append(flags, FeatureFlagWithValue{
+			Flag:    flag,
+			Enabled: enabled,
+		})
+	}
+
 	return HooksPayload{
-		Repo:                repo,
-		RuntimeDir:          cfg.RuntimeDir,
-		InternalSocket:      cfg.InternalSocketPath(),
-		InternalSocketToken: cfg.Auth.Token,
-		Transaction:         tx,
-		UserDetails:         userDetails,
-		RequestedHooks:      requestedHooks,
-		FeatureFlags:        featureFlags,
+		Repo:                  repo,
+		RuntimeDir:            cfg.RuntimeDir,
+		InternalSocket:        cfg.InternalSocketPath(),
+		InternalSocketToken:   cfg.Auth.Token,
+		Transaction:           tx,
+		UserDetails:           userDetails,
+		RequestedHooks:        requestedHooks,
+		FeatureFlagsWithValue: flags,
 	}
 }
 

@@ -110,15 +110,24 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 
 	oldRev := "1e292f8fedd741b75372e19097c76d327140c312"
 
-	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.UserDetails{
-		UserID:   "1234",
-		Username: "Username",
-		Protocol: "web",
-	}, git.ReceivePackHooks, featureflag.RawFromContext(ctx)).Env()
-	require.NoError(t, err)
+	requirePayload := func(t *testing.T, env []string) {
+		require.Len(t, env, 1)
 
-	expectedEnv := []string{
-		payload,
+		expectedPayload := git.NewHooksPayload(cfg, repo, nil, &git.UserDetails{
+			UserID:   "1234",
+			Username: "Username",
+			Protocol: "web",
+		}, git.ReceivePackHooks, featureflag.FromContext(ctx))
+
+		actualPayload, err := git.HooksPayloadFromEnv(env)
+		require.NoError(t, err)
+
+		// Flags aren't sorted, so we just verify they contain the same elements.
+		require.ElementsMatch(t, expectedPayload.FeatureFlagsWithValue, actualPayload.FeatureFlagsWithValue)
+		expectedPayload.FeatureFlagsWithValue = nil
+		actualPayload.FeatureFlagsWithValue = nil
+
+		require.Equal(t, expectedPayload, actualPayload)
 	}
 
 	referenceTransactionCalls := 0
@@ -138,21 +147,21 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ZeroOID.String()), string(changes))
 				require.Empty(t, pushOptions)
-				require.Equal(t, env, expectedEnv)
+				requirePayload(t, env)
 				return nil
 			},
 			update: func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, ref, oldValue, newValue string, env []string, stdout, stderr io.Writer) error {
 				require.Equal(t, "refs/heads/master", ref)
 				require.Equal(t, oldRev, oldValue)
 				require.Equal(t, newValue, git.ZeroOID.String())
-				require.Equal(t, env, expectedEnv)
+				requirePayload(t, env)
 				return nil
 			},
 			postReceive: func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 				changes, err := io.ReadAll(stdin)
 				require.NoError(t, err)
 				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ZeroOID.String()), string(changes))
-				require.Equal(t, env, expectedEnv)
+				requirePayload(t, env)
 				require.Empty(t, pushOptions)
 				return nil
 			},
@@ -169,7 +178,7 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 				}
 				referenceTransactionCalls++
 
-				require.Equal(t, env, expectedEnv)
+				requirePayload(t, env)
 				return nil
 			},
 			expectedRefDeletion: true,

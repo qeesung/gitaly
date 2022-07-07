@@ -1,11 +1,73 @@
 package featureflag
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 )
+
+func TestFeatureFlag_FromMetadataKey(t *testing.T) {
+	defer func(old map[string]FeatureFlag) {
+		flagsByName = old
+	}(flagsByName)
+
+	defaultEnabled := FeatureFlag{
+		Name:        "default_enabled",
+		OnByDefault: true,
+	}
+	defaultDisabled := FeatureFlag{
+		Name:        "default_disabled",
+		OnByDefault: false,
+	}
+
+	flagsByName = map[string]FeatureFlag{
+		defaultEnabled.Name:  defaultEnabled,
+		defaultDisabled.Name: defaultDisabled,
+	}
+
+	for _, tc := range []struct {
+		desc         string
+		metadataKey  string
+		expectedErr  error
+		expectedFlag FeatureFlag
+	}{
+		{
+			desc:        "empty key",
+			metadataKey: "",
+			expectedErr: fmt.Errorf("not a feature flag: \"\""),
+		},
+		{
+			desc:        "invalid prefix",
+			metadataKey: "invalid-prefix",
+			expectedErr: fmt.Errorf("not a feature flag: \"invalid-prefix\""),
+		},
+		{
+			desc:         "default enabled flag",
+			metadataKey:  defaultEnabled.MetadataKey(),
+			expectedFlag: defaultEnabled,
+		},
+		{
+			desc:         "default disabled flag",
+			metadataKey:  defaultDisabled.MetadataKey(),
+			expectedFlag: defaultDisabled,
+		},
+		{
+			desc:        "undefined flag",
+			metadataKey: "gitaly-feature-not-defined",
+			expectedFlag: FeatureFlag{
+				Name: "not_defined",
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			flag, err := FromMetadataKey(tc.metadataKey)
+			require.Equal(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedFlag, flag)
+		})
+	}
+}
 
 func TestFeatureFlag_enabled(t *testing.T) {
 	for _, tc := range []struct {

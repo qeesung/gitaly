@@ -10,12 +10,18 @@ import (
 )
 
 const (
-	// Delim is a delimiter used between a feature flag name and its value.
-	Delim = ":"
-
-	// ffPrefix is the prefix used for Gitaly-scoped feature flags.
-	ffPrefix = "gitaly-feature-"
+	// explicitFeatureFlagKey is used by ContextWithExplicitFeatureFlags to mark a context as
+	// requiring all feature flags to have been explicitly defined.
+	explicitFeatureFlagKey = "require_explicit_feature_flag_checks"
 )
+
+// ContextWithExplicitFeatureFlags marks the context such that all feature flags which are checked
+// must have been explicitly set in that context. If a feature flag wasn't set to an explicit value,
+// then checking this feature flag will panic. This is not for use in production systems, but is
+// intended for tests to verify that we test each feature flag properly.
+func ContextWithExplicitFeatureFlags(ctx context.Context) context.Context {
+	return injectIntoIncomingAndOutgoingContext(ctx, explicitFeatureFlagKey, true)
+}
 
 // ContextWithFeatureFlag sets the feature flag in both the incoming and outgoing context.
 func ContextWithFeatureFlag(ctx context.Context, flag FeatureFlag, enabled bool) context.Context {
@@ -68,56 +74,44 @@ func incomingCtxWithFeatureFlag(ctx context.Context, key string, enabled bool) c
 	return metadata.NewIncomingContext(ctx, md)
 }
 
-// AllFlags returns all feature flags with their value that use the Gitaly metadata
-// prefix. Note: results will not be sorted.
-func AllFlags(ctx context.Context) []string {
-	featureFlagMap := RawFromContext(ctx)
-	featureFlagSlice := make([]string, 0, len(featureFlagMap))
-	for key, value := range featureFlagMap {
-		featureFlagSlice = append(featureFlagSlice,
-			fmt.Sprintf("%s%s%s", strings.TrimPrefix(key, ffPrefix), Delim, value),
-		)
+func injectIntoIncomingAndOutgoingContext(ctx context.Context, key string, enabled bool) context.Context {
+	incomingMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		incomingMD = metadata.New(map[string]string{})
 	}
 
-	return featureFlagSlice
+	incomingMD.Set(key, strconv.FormatBool(enabled))
+
+	ctx = metadata.NewIncomingContext(ctx, incomingMD)
+
+	return metadata.AppendToOutgoingContext(ctx, key, strconv.FormatBool(enabled))
 }
 
-// Raw contains feature flags and their values in their raw form with header prefix in place
-// and values unparsed.
-type Raw map[string]string
-
-// RawFromContext returns a map that contains all feature flags with their values. The feature
-// flags are in their raw format with the header prefix in place. If multiple values are set a
-// flag, the first occurrence is used.
-//
-// This is mostly intended for propagating the feature flags by other means than the metadata,
-// for example into the hooks through the environment.
-func RawFromContext(ctx context.Context) Raw {
+// FromContext returns the set of all feature flags defined in the context. This returns both
+// feature flags that are currently defined by Gitaly, but may also return some that aren't defined
+// by us in case they match the feature flag prefix but don't have a definition. This function also
+// returns the state of the feature flag *as defined in the context*. This value may be overridden.
+func FromContext(ctx context.Context) map[FeatureFlag]bool {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil
+		return map[FeatureFlag]bool{}
 	}
 
-	featureFlags := map[string]string{}
-	for key, values := range md {
-		if !strings.HasPrefix(key, ffPrefix) || len(values) == 0 {
+	flags := map[FeatureFlag]bool{}
+	for metadataName, values := range md {
+		if len(values) == 0 {
 			continue
 		}
 
-		featureFlags[key] = values[0]
+		flag, err := FromMetadataKey(metadataName)
+		if err != nil {
+			continue
+		}
+
+		flags[flag] = values[0] == "true"
 	}
 
-	return featureFlags
-}
-
-// OutgoingWithRaw returns a new context with raw flags appended into the outgoing
-// metadata.
-func OutgoingWithRaw(ctx context.Context, flags Raw) context.Context {
-	for key, value := range flags {
-		ctx = metadata.AppendToOutgoingContext(ctx, key, value)
-	}
-
-	return ctx
+	return flags
 }
 
 func rubyHeaderKey(flag string) string {

@@ -59,14 +59,12 @@ func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Re
 
 	var enabledFeatureFlags, disabledFeatureFlags []string
 
-	for ff, value := range featureflag.RawFromContext(ctx) {
+	for flag, value := range featureflag.FromContext(ctx) {
 		switch value {
-		case "true":
-			enabledFeatureFlags = append(enabledFeatureFlags, ff)
-		case "false":
-			disabledFeatureFlags = append(disabledFeatureFlags, ff)
-		default:
-			return nil, fmt.Errorf("invalid value for feature flag %q: %q", ff, value)
+		case true:
+			enabledFeatureFlags = append(enabledFeatureFlags, flag.MetadataKey())
+		case false:
+			disabledFeatureFlags = append(disabledFeatureFlags, flag.MetadataKey())
 		}
 	}
 

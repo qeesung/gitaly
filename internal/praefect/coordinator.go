@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
@@ -589,8 +588,6 @@ func (c *Coordinator) maintenanceStreamParameters(ctx context.Context, call grpc
 // streamParametersContexts converts the contexts with incoming metadata into a context that is
 // usable by peer Gitaly nodes.
 func streamParametersContext(ctx context.Context) context.Context {
-	outgoingCtx := metadata.IncomingToOutgoing(ctx)
-
 	// When upgrading Gitaly nodes where the upgrade contains feature flag default changes, then
 	// there will be a window where a subset of Gitaly nodes has a different understanding of
 	// the current default value. If the feature flag wasn't set explicitly on upgrade by
@@ -614,17 +611,20 @@ func streamParametersContext(ctx context.Context) context.Context {
 	// Praefect. But given that feature flags should be introduced with a default value of
 	// `false` to account for zero-dodwntime upgrades, the view would also be consistent in that
 	// case.
-	rawFeatureFlags := featureflag.RawFromContext(ctx)
-	if rawFeatureFlags == nil {
-		rawFeatureFlags = map[string]string{}
+
+	explicitlySetFlags := map[string]bool{}
+	for flag := range featureflag.FromContext(ctx) {
+		explicitlySetFlags[flag.Name] = true
 	}
 
-	for _, ff := range featureflag.All {
-		if _, ok := rawFeatureFlags[ff.MetadataKey()]; !ok {
-			rawFeatureFlags[ff.MetadataKey()] = strconv.FormatBool(ff.OnByDefault)
+	outgoingCtx := metadata.IncomingToOutgoing(ctx)
+	for _, flag := range featureflag.DefinedFlags() {
+		if !explicitlySetFlags[flag.Name] {
+			outgoingCtx = featureflag.OutgoingCtxWithFeatureFlag(
+				outgoingCtx, flag, flag.OnByDefault,
+			)
 		}
 	}
-	outgoingCtx = featureflag.OutgoingWithRaw(outgoingCtx, rawFeatureFlags)
 
 	return outgoingCtx
 }

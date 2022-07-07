@@ -27,7 +27,9 @@ func TestHooksPayload(t *testing.T) {
 	})
 
 	t.Run("roundtrip succeeds", func(t *testing.T) {
-		env, err := git.NewHooksPayload(cfg, repo, nil, nil, git.PreReceiveHook, featureflag.Raw{"flag-key": "flag-value"}).Env()
+		env, err := git.NewHooksPayload(cfg, repo, nil, nil, git.PreReceiveHook, map[featureflag.FeatureFlag]bool{
+			{Name: "flag_key"}: true,
+		}).Env()
 		require.NoError(t, err)
 
 		payload, err := git.HooksPayloadFromEnv([]string{
@@ -43,7 +45,12 @@ func TestHooksPayload(t *testing.T) {
 			RuntimeDir:     cfg.RuntimeDir,
 			InternalSocket: cfg.InternalSocketPath(),
 			RequestedHooks: git.PreReceiveHook,
-			FeatureFlags:   featureflag.Raw{"flag-key": "flag-value"},
+			FeatureFlagsWithValue: []git.FeatureFlagWithValue{
+				{
+					Flag:    featureflag.FeatureFlag{Name: "flag_key"},
+					Enabled: true,
+				},
+			},
 		}, payload)
 	})
 

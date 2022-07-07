@@ -45,7 +45,7 @@ func TestHookManager_stopCalled(t *testing.T) {
 			Protocol: "web",
 		},
 		git.ReferenceTransactionHook,
-		featureflag.RawFromContext(ctx),
+		featureflag.FromContext(ctx),
 	).Env()
 	require.NoError(t, err)
 

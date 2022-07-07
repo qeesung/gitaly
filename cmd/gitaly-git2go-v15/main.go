@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
@@ -17,7 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 	glog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/labkit/correlation"
 )
@@ -133,12 +131,8 @@ func main() {
 	subcmdLogger.Infof("starting %s command", subcmdFlags.Name())
 
 	ctx = ctxlogrus.ToContext(ctx, subcmdLogger)
-
-	featureFlags := make(featureflag.Raw)
-	enabledFeatureFlags.SetRaw(featureFlags, true)
-	disabledFeatureFlags.SetRaw(featureFlags, false)
-
-	ctx = metadata.OutgoingToIncoming(featureflag.OutgoingWithRaw(ctx, featureFlags))
+	ctx = enabledFeatureFlags.ToContext(ctx, true)
+	ctx = disabledFeatureFlags.ToContext(ctx, false)
 
 	if err := subcmd.Run(ctx, decoder, encoder); err != nil {
 		subcmdLogger.WithError(err).Errorf("%s command failed", subcmdFlags.Name())
@@ -148,10 +142,14 @@ func main() {
 	subcmdLogger.Infof("%s command finished", subcmdFlags.Name())
 }
 
-type featureFlagArg []string
+type featureFlagArg []featureflag.FeatureFlag
 
 func (v *featureFlagArg) String() string {
-	return strings.Join(*v, ",")
+	metadataKeys := make([]string, 0, len(*v))
+	for _, flag := range *v {
+		metadataKeys = append(metadataKeys, flag.MetadataKey())
+	}
+	return strings.Join(metadataKeys, ",")
 }
 
 func (v *featureFlagArg) Set(s string) error {
@@ -159,15 +157,22 @@ func (v *featureFlagArg) Set(s string) error {
 		return nil
 	}
 
-	for _, enabledFF := range strings.Split(s, ",") {
-		*v = append(*v, enabledFF)
+	for _, metadataKey := range strings.Split(s, ",") {
+		flag, err := featureflag.FromMetadataKey(metadataKey)
+		if err != nil {
+			return err
+		}
+
+		*v = append(*v, flag)
 	}
 
 	return nil
 }
 
-func (v featureFlagArg) SetRaw(raw featureflag.Raw, enabled bool) {
-	for _, ff := range v {
-		raw[ff] = strconv.FormatBool(enabled)
+func (v featureFlagArg) ToContext(ctx context.Context, enabled bool) context.Context {
+	for _, flag := range v {
+		ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, flag, enabled)
 	}
+
+	return ctx
 }

@@ -109,7 +109,7 @@ func TestHooksMissingStdin(t *testing.T) {
 					Protocol: "protocol",
 				},
 				git.PostReceiveHook,
-				featureflag.RawFromContext(ctx),
+				featureflag.FromContext(ctx),
 			).Env()
 			require.NoError(t, err)
 
@@ -237,7 +237,7 @@ To create a merge request for okay, visit:
 					Protocol: "protocol",
 				},
 				git.PostReceiveHook,
-				featureflag.RawFromContext(ctx),
+				featureflag.FromContext(ctx),
 			).Env()
 			require.NoError(t, err)
 

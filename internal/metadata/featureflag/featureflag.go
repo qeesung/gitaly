@@ -32,31 +32,22 @@ var (
 		[]string{"flag", "enabled"},
 	)
 
-	// All is the list of all registered feature flags.
-	All = []FeatureFlag{}
+	// flagsByName is the set of defined feature flags mapped by their respective name.
+	flagsByName = map[string]FeatureFlag{}
 )
 
-const explicitFeatureFlagKey = "require_explicit_feature_flag_checks"
+const (
+	// ffPrefix is the prefix used for Gitaly-scoped feature flags.
+	ffPrefix = "gitaly-feature-"
+)
 
-func injectIntoIncomingAndOutgoingContext(ctx context.Context, key string, enabled bool) context.Context {
-	incomingMD, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		incomingMD = metadata.New(map[string]string{})
+// DefinedFlags returns the set of feature flags that have been explicitly defined.
+func DefinedFlags() []FeatureFlag {
+	flags := make([]FeatureFlag, 0, len(flagsByName))
+	for _, flag := range flagsByName {
+		flags = append(flags, flag)
 	}
-
-	incomingMD.Set(key, strconv.FormatBool(enabled))
-
-	ctx = metadata.NewIncomingContext(ctx, incomingMD)
-
-	return metadata.AppendToOutgoingContext(ctx, key, strconv.FormatBool(enabled))
-}
-
-// ContextWithExplicitFeatureFlags marks the context such that all feature flags which are checked
-// must have been explicitly set in that context. If a feature flag wasn't set to an explicit value,
-// then checking this feature flag will panic. This is not for use in production systems, but is
-// intended for tests to verify that we test each feature flag properly.
-func ContextWithExplicitFeatureFlags(ctx context.Context) context.Context {
-	return injectIntoIncomingAndOutgoingContext(ctx, explicitFeatureFlagKey, true)
+	return flags
 }
 
 // FeatureFlag gates the implementation of new or changed functionality.
@@ -73,12 +64,54 @@ type FeatureFlag struct {
 // input that are not used for anything but only for the sake of linking to the feature flag rollout
 // issue in the Gitaly project.
 func NewFeatureFlag(name, version, rolloutIssueURL string, onByDefault bool) FeatureFlag {
+	if strings.ContainsAny(name, "-:") {
+		// It is critical that feature flags don't contain either a dash nor a colon:
+		//
+		// - We convert dashes to underscores when converting a feature flag's name to the
+		//   metadata key, and vice versa. The name wouldn't round-trip in case it had
+		//   underscores and must thus use dashes instead.
+		// - We use colons to separate feature flags and their values.
+		panic("Feature flags must not contain dashes or colons.")
+	}
+
 	featureFlag := FeatureFlag{
 		Name:        name,
 		OnByDefault: onByDefault,
 	}
-	All = append(All, featureFlag)
+
+	flagsByName[name] = featureFlag
+
 	return featureFlag
+}
+
+// FromMetadataKey parses the given gRPC metadata key into a Gitaly feature flag and performs the
+// necessary conversions. Returns an error in case the metadata does not refer to a feature flag.
+//
+// This function tries to look up the default value via our set of flag definitions. In case the
+// flag definition is unknown to Gitaly it assumes a default value of `false`.
+func FromMetadataKey(metadataKey string) (FeatureFlag, error) {
+	if !strings.HasPrefix(metadataKey, ffPrefix) {
+		return FeatureFlag{}, fmt.Errorf("not a feature flag: %q", metadataKey)
+	}
+
+	flagName := strings.TrimPrefix(metadataKey, ffPrefix)
+	flagName = strings.ReplaceAll(flagName, "-", "_")
+
+	flag, ok := flagsByName[flagName]
+	if !ok {
+		flag = FeatureFlag{
+			Name:        flagName,
+			OnByDefault: false,
+		}
+	}
+
+	return flag, nil
+}
+
+// FormatWithValue converts the feature flag into a string with the given state. Note that this
+// function uses the feature flag name and not the raw metadata key as used in gRPC metadata.
+func (ff FeatureFlag) FormatWithValue(enabled bool) string {
+	return fmt.Sprintf("%s:%v", ff.Name, enabled)
 }
 
 // IsEnabled checks if the feature flag is enabled for the passed context.

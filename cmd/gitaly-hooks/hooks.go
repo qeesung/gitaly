@@ -161,7 +161,10 @@ func executeHook(cmd hookCommand, args []string) error {
 
 	hookClient := gitalypb.NewHookServiceClient(conn)
 
-	ctx = featureflag.OutgoingWithRaw(ctx, payload.FeatureFlags)
+	for _, flag := range payload.FeatureFlagsWithValue {
+		ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, flag.Flag, flag.Enabled)
+	}
+
 	if err := cmd.exec(ctx, payload, hookClient, args); err != nil {
 		return err
 	}

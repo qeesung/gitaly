@@ -47,7 +47,7 @@ func TestUpdate_CustomHooks(t *testing.T) {
 			Protocol: "web",
 		},
 		git.UpdateHook,
-		featureflag.RawFromContext(ctx),
+		featureflag.FromContext(ctx),
 	).Env()
 	require.NoError(t, err)
 

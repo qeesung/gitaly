@@ -68,7 +68,7 @@ func TestPostReceivePack_successful(t *testing.T) {
 	// the context's feature flags we see here and the context's metadata as it would
 	// arrive on the proxied Gitaly. To fix this, we thus inject all feature flags
 	// explicitly here.
-	for _, ff := range featureflag.All {
+	for _, ff := range featureflag.DefinedFlags() {
 		ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, ff, true)
 		ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, ff, true)
 	}
@@ -105,6 +105,18 @@ func TestPostReceivePack_successful(t *testing.T) {
 	// figuring out their actual contents. So let's just remove it, too.
 	payload.Transaction = nil
 
+	var expectedFeatureFlags []git.FeatureFlagWithValue
+	for feature, enabled := range featureflag.FromContext(ctx) {
+		expectedFeatureFlags = append(expectedFeatureFlags, git.FeatureFlagWithValue{
+			Flag: feature, Enabled: enabled,
+		})
+	}
+
+	// Compare here without paying attention to the order given that flags aren't sorted and
+	// unset the struct member afterwards.
+	require.ElementsMatch(t, expectedFeatureFlags, payload.FeatureFlagsWithValue)
+	payload.FeatureFlagsWithValue = nil
+
 	require.Equal(t, git.HooksPayload{
 		RuntimeDir:          cfg.RuntimeDir,
 		InternalSocket:      cfg.InternalSocketPath(),
@@ -115,7 +127,6 @@ func TestPostReceivePack_successful(t *testing.T) {
 			Protocol: "http",
 		},
 		RequestedHooks: git.ReceivePackHooks,
-		FeatureFlags:   featureflag.RawFromContext(ctx),
 	}, payload)
 }
 

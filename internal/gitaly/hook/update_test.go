@@ -39,7 +39,7 @@ func TestUpdate_customHooks(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 
-	payload, err := git.NewHooksPayload(cfg, repo, nil, receiveHooksPayload, git.UpdateHook, featureflag.RawFromContext(ctx)).Env()
+	payload, err := git.NewHooksPayload(cfg, repo, nil, receiveHooksPayload, git.UpdateHook, featureflag.FromContext(ctx)).Env()
 	require.NoError(t, err)
 
 	primaryPayload, err := git.NewHooksPayload(
@@ -50,7 +50,7 @@ func TestUpdate_customHooks(t *testing.T) {
 		},
 		receiveHooksPayload,
 		git.UpdateHook,
-		featureflag.RawFromContext(ctx),
+		featureflag.FromContext(ctx),
 	).Env()
 	require.NoError(t, err)
 
@@ -62,7 +62,7 @@ func TestUpdate_customHooks(t *testing.T) {
 		},
 		receiveHooksPayload,
 		git.UpdateHook,
-		featureflag.RawFromContext(ctx),
+		featureflag.FromContext(ctx),
 	).Env()
 	require.NoError(t, err)
 
@@ -237,7 +237,7 @@ func TestUpdate_quarantine(t *testing.T) {
 					Protocol: "web",
 				},
 				git.PreReceiveHook,
-				featureflag.RawFromContext(ctx),
+				featureflag.FromContext(ctx),
 			).Env()
 			require.NoError(t, err)
 
