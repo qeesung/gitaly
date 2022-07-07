@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -115,6 +116,24 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 		gitEnvironment = append(gitEnvironment, fmt.Sprintf(
 			"PATH=%s:%s", filepath.Dir(gitExecEnv.BinaryPath), os.Getenv("PATH"),
 		))
+
+		// Go 1.18 has started to extract VCS information so that it can be embedded into
+		// the resulting binary and will thus execute Git in the Gitaly repository. In CI,
+		// the Gitaly repository is owned by a different user than the one that is executing
+		// tests though, which means that Git will refuse to open the repository because of
+		// CVE-2022-24765.
+		//
+		// Let's override this mechanism by labelling the Git repository as safe. While this
+		// does in theory make us vulnerable to this exploit, it is clear that any adversary
+		// would already have arbitrary code execution because we are executing code right
+		// now that would be controlled by the very same adversary.
+		_, currentFile, _, ok := runtime.Caller(0)
+		require.True(t, ok)
+		gitEnvironment = append(gitEnvironment,
+			"GIT_CONFIG_COUNT=1",
+			"GIT_CONFIG_KEY_0=safe.directory",
+			"GIT_CONFIG_VALUE_0="+filepath.Join(filepath.Dir(currentFile), "..", "..", ".."),
+		)
 
 		buildTags := []string{
 			"static", "system_libgit2", "gitaly_test",

@@ -245,6 +245,8 @@ test:nightly:
         TEST_TARGET: [ test, test-with-proxies, test-with-praefect ]
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - when: manual
+      allow_failure: true
 
 test:praefect_smoke:
   <<: *test_definition
