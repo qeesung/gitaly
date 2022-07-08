@@ -127,12 +127,18 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 		// does in theory make us vulnerable to this exploit, it is clear that any adversary
 		// would already have arbitrary code execution because we are executing code right
 		// now that would be controlled by the very same adversary.
+		//
+		// Note that we cannot pass `safe.directory` via command line arguments by design.
+		// Instead, we just override the system-level gitconfig to point to a temporary file
+		// that contains this setting.
 		_, currentFile, _, ok := runtime.Caller(0)
 		require.True(t, ok)
+		gitconfigPath := filepath.Join(testhelper.TempDir(t), "gitconfig")
+		require.NoError(t, os.WriteFile(gitconfigPath, []byte(
+			"[safe]\ndirectory = "+filepath.Join(filepath.Dir(currentFile), "..", "..", "..")+"\n"), 0o400),
+		)
 		gitEnvironment = append(gitEnvironment,
-			"GIT_CONFIG_COUNT=1",
-			"GIT_CONFIG_KEY_0=safe.directory",
-			"GIT_CONFIG_VALUE_0="+filepath.Join(filepath.Dir(currentFile), "..", "..", ".."),
+			"GIT_CONFIG_SYSTEM="+gitconfigPath,
 		)
 
 		buildTags := []string{
