@@ -14,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestGetTreeEntries_curlyBraces(t *testing.T) {
@@ -327,16 +328,29 @@ func TestGetTreeEntries_successful(t *testing.T) {
 		},
 	}
 
+	stripFlatPaths := func(entries []*gitalypb.TreeEntry) []*gitalypb.TreeEntry {
+		strippedEntries := make([]*gitalypb.TreeEntry, 0, len(entries))
+
+		for _, entry := range entries {
+			entry := proto.Clone(entry).(*gitalypb.TreeEntry)
+			entry.FlatPath = nil
+			strippedEntries = append(strippedEntries, entry)
+		}
+
+		return strippedEntries
+	}
+
 	testCases := []struct {
-		description string
-		revision    []byte
-		path        []byte
-		recursive   bool
-		sortBy      gitalypb.GetTreeEntriesRequest_SortBy
-		entries     []*gitalypb.TreeEntry
-		pageToken   string
-		pageLimit   int32
-		cursor      string
+		description   string
+		revision      []byte
+		path          []byte
+		recursive     bool
+		sortBy        gitalypb.GetTreeEntriesRequest_SortBy
+		entries       []*gitalypb.TreeEntry
+		pageToken     string
+		pageLimit     int32
+		cursor        string
+		skipFlatPaths bool
 	}{
 		{
 			description: "with root path",
@@ -345,10 +359,24 @@ func TestGetTreeEntries_successful(t *testing.T) {
 			entries:     rootEntries,
 		},
 		{
+			description:   "with root path and disabled flat paths",
+			revision:      []byte(commitID),
+			path:          []byte("."),
+			skipFlatPaths: true,
+			entries:       stripFlatPaths(rootEntries),
+		},
+		{
 			description: "with a folder",
 			revision:    []byte(commitID),
 			path:        []byte("files"),
 			entries:     filesDirEntries,
+		},
+		{
+			description:   "with a folder and disabled flat paths",
+			revision:      []byte(commitID),
+			path:          []byte("files"),
+			skipFlatPaths: true,
+			entries:       stripFlatPaths(filesDirEntries),
 		},
 		{
 			description: "with recursive",
@@ -451,11 +479,12 @@ func TestGetTreeEntries_successful(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
 			request := &gitalypb.GetTreeEntriesRequest{
-				Repository: repo,
-				Revision:   testCase.revision,
-				Path:       testCase.path,
-				Recursive:  testCase.recursive,
-				Sort:       testCase.sortBy,
+				Repository:    repo,
+				Revision:      testCase.revision,
+				Path:          testCase.path,
+				Recursive:     testCase.recursive,
+				Sort:          testCase.sortBy,
+				SkipFlatPaths: testCase.skipFlatPaths,
 			}
 
 			if testCase.pageToken != "" || testCase.pageLimit > 0 {
@@ -469,7 +498,7 @@ func TestGetTreeEntries_successful(t *testing.T) {
 
 			require.NoError(t, err)
 			fetchedEntries, cursor := getTreeEntriesFromTreeEntryClient(t, c, nil)
-			require.Equal(t, testCase.entries, fetchedEntries)
+			testhelper.ProtoEqual(t, testCase.entries, fetchedEntries)
 
 			if testCase.pageLimit > 0 && len(testCase.entries) < len(rootEntries) {
 				require.NotNil(t, cursor)

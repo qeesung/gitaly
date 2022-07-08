@@ -120,6 +120,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :recursive, :bool, 4
       optional :sort, :enum, 5, "gitaly.GetTreeEntriesRequest.SortBy"
       optional :pagination_params, :message, 6, "gitaly.PaginationParameter"
+      optional :skip_flat_paths, :bool, 7
     end
     add_enum "gitaly.GetTreeEntriesRequest.SortBy" do
       value :DEFAULT, 0

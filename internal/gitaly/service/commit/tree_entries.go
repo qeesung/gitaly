@@ -70,6 +70,7 @@ func (s *server) sendTreeEntries(
 	repo *localrepo.Repo,
 	revision, path string,
 	recursive bool,
+	skipFlatPaths bool,
 	sort gitalypb.GetTreeEntriesRequest_SortBy,
 	p *gitalypb.PaginationParameter,
 ) error {
@@ -187,7 +188,7 @@ func (s *server) sendTreeEntries(
 		treeSender.SetPaginationCursor(cursor)
 	}
 
-	if !recursive {
+	if !recursive && !skipFlatPaths {
 		// When we're not doing a recursive request, then we need to populate flat
 		// paths. A flat path of a tree entry refers to the first subtree of that
 		// entry which either has at least one blob or more than two subtrees. In
@@ -296,7 +297,7 @@ func (s *server) GetTreeEntries(in *gitalypb.GetTreeEntriesRequest, stream gital
 
 	revision := string(in.GetRevision())
 	path := string(in.GetPath())
-	return s.sendTreeEntries(stream, repo, revision, path, in.Recursive, in.GetSort(), in.GetPaginationParams())
+	return s.sendTreeEntries(stream, repo, revision, path, in.Recursive, in.SkipFlatPaths, in.GetSort(), in.GetPaginationParams())
 }
 
 func paginateTreeEntries(entries []*gitalypb.TreeEntry, p *gitalypb.PaginationParameter) ([]*gitalypb.TreeEntry, string, error) {

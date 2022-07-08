@@ -451,6 +451,8 @@ message GetTreeEntriesRequest {
   // The page token is the last commit OID that was sent. It's expected to be the
   // full object ID to guard against ambigious OIDs.
   PaginationParameter pagination_params = 6;
+  // SkipFlatPath is an option to skip the expensive operation of populating flat paths.
+  bool skip_flat_paths = 7;
 }
 
 // This comment is left unintentionally blank.
