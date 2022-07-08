@@ -38,11 +38,7 @@ func (s *server) CommitLanguages(ctx context.Context, req *gitalypb.CommitLangua
 		return nil, helper.ErrInternalf("looking up revision: %w", err)
 	}
 
-	repoPath, err := repo.Path()
-	if err != nil {
-		return nil, helper.ErrInternalf("repository path: %w", err)
-	}
-	stats, err := s.linguist.Stats(ctx, repoPath, commitID)
+	stats, err := s.linguist.Stats(ctx, repo, commitID, s.catfileCache)
 	if err != nil {
 		return nil, helper.ErrInternalf("language stats: %w", err)
 	}

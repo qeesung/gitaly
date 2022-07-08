@@ -99,7 +99,8 @@ service CommitService {
     };
   }
 
-  // This comment is left unintentionally blank.
+  // CommitLanguages detects the source code languages of the whole tree for a
+  // given commit. Returns an error in case no languages could be detected.
   rpc CommitLanguages(CommitLanguagesRequest) returns (CommitLanguagesResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -611,31 +612,35 @@ message FindCommitsResponse {
   repeated GitCommit commits = 1;
 }
 
-// This comment is left unintentionally blank.
+// CommitLanguagesRequest requests to detect the source code languages.
 message CommitLanguagesRequest {
-  // This comment is left unintentionally blank.
+  // Repository is the repository where to detect the languages in.
   Repository repository = 1 [(target_repository)=true];
-  // This comment is left unintentionally blank.
+  // Revision tells for which commit the languages should be detected. If it's
+  // omitted, the HEAD commit of the default branch is used.
   bytes revision = 2;
 }
 
-// This comment is left unintentionally blank.
+// CommitLanguagesResponse returns the language statistics.
 message CommitLanguagesResponse {
-  // This comment is left unintentionally blank.
+  // Language specifies the statistics for one language.
   message Language {
-    // This comment is left unintentionally blank.
+    // Name is the name of the detected language, for example: Ruby, Go, HTML
+    // A full list of language names can be found at:
+    // https://github.com/github/linguist/blob/master/lib/linguist/languages.yml
     string name = 1;
-    // This comment is left unintentionally blank.
+    // Share is the percentual share (value between 0 and 100) of this language
+    // in relation to other languages that exist in the given revision.
     float share = 2;
-    // This comment is left unintentionally blank.
+    // Color specifies the associated color for this language, for example #3fd5e0.
     string color = 3;
-    // This comment is left unintentionally blank.
+    // FileCount tells how many files with this language are found.
     uint32 file_count = 4;
-    // This comment is left unintentionally blank.
+    // Bytes is the total amount of bytes written in this language
     uint64 bytes = 5;
   }
 
-  // This comment is left unintentionally blank.
+  // Languages is a set of all the detected languages and their statistics.
   repeated Language languages = 1;
 }
 

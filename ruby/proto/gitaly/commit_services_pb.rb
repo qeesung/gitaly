@@ -43,7 +43,8 @@ module Gitaly
       rpc :FindAllCommits, ::Gitaly::FindAllCommitsRequest, stream(::Gitaly::FindAllCommitsResponse)
       # This comment is left unintentionally blank.
       rpc :FindCommits, ::Gitaly::FindCommitsRequest, stream(::Gitaly::FindCommitsResponse)
-      # This comment is left unintentionally blank.
+      # CommitLanguages detects the source code languages of the whole tree for a
+      # given commit. Returns an error in case no languages could be detected.
       rpc :CommitLanguages, ::Gitaly::CommitLanguagesRequest, ::Gitaly::CommitLanguagesResponse
       # This comment is left unintentionally blank.
       rpc :RawBlame, ::Gitaly::RawBlameRequest, stream(::Gitaly::RawBlameResponse)

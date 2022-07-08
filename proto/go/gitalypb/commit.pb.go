@@ -2453,15 +2453,16 @@ func (x *FindCommitsResponse) GetCommits() []*GitCommit {
 	return nil
 }
 
-// This comment is left unintentionally blank.
+// CommitLanguagesRequest requests to detect the source code languages.
 type CommitLanguagesRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// This comment is left unintentionally blank.
+	// Repository is the repository where to detect the languages in.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	// This comment is left unintentionally blank.
+	// Revision tells for which commit the languages should be detected. If it's
+	// omitted, the HEAD commit of the default branch is used.
 	Revision []byte `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 }
 
@@ -2511,13 +2512,13 @@ func (x *CommitLanguagesRequest) GetRevision() []byte {
 	return nil
 }
 
-// This comment is left unintentionally blank.
+// CommitLanguagesResponse returns the language statistics.
 type CommitLanguagesResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// This comment is left unintentionally blank.
+	// Languages is a set of all the detected languages and their statistics.
 	Languages []*CommitLanguagesResponse_Language `protobuf:"bytes,1,rep,name=languages,proto3" json:"languages,omitempty"`
 }
 
@@ -3763,21 +3764,24 @@ func (x *ListCommitsByRefNameResponse_CommitForRef) GetRefName() []byte {
 	return nil
 }
 
-// This comment is left unintentionally blank.
+// Language specifies the statistics for one language.
 type CommitLanguagesResponse_Language struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// This comment is left unintentionally blank.
+	// Name is the name of the detected language, for example: Ruby, Go, HTML
+	// A full list of language names can be found at:
+	// https://github.com/github/linguist/blob/master/lib/linguist/languages.yml
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// This comment is left unintentionally blank.
+	// Share is the percentual share (value between 0 and 100) of this language
+	// in relation to other languages that exist in the given revision.
 	Share float32 `protobuf:"fixed32,2,opt,name=share,proto3" json:"share,omitempty"`
-	// This comment is left unintentionally blank.
+	// Color specifies the associated color for this language, for example #3fd5e0.
 	Color string `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`
-	// This comment is left unintentionally blank.
+	// FileCount tells how many files with this language are found.
 	FileCount uint32 `protobuf:"varint,4,opt,name=file_count,json=fileCount,proto3" json:"file_count,omitempty"`
-	// This comment is left unintentionally blank.
+	// Bytes is the total amount of bytes written in this language
 	Bytes uint64 `protobuf:"varint,5,opt,name=bytes,proto3" json:"bytes,omitempty"`
 }
 

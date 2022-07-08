@@ -342,3 +342,23 @@ func TestSize(t *testing.T) {
 		})
 	}
 }
+
+func TestRepo_StorageTempDir(t *testing.T) {
+	cfg := testcfg.Build(t)
+	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
+	locator := config.NewLocator(cfg)
+
+	pbRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repo := New(locator, gitCmdFactory, catfileCache, pbRepo)
+
+	expected, err := locator.TempDir(cfg.Storages[0].Name)
+	require.NoError(t, err)
+	require.NoDirExists(t, expected)
+
+	tempPath, err := repo.StorageTempDir()
+	require.NoError(t, err)
+	require.DirExists(t, expected)
+	require.Equal(t, expected, tempPath)
+}

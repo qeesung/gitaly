@@ -205,3 +205,18 @@ func (repo *Repo) Size(ctx context.Context, opts ...RepoSizeOption) (int64, erro
 
 	return size, nil
 }
+
+// StorageTempDir returns the temporary dir for the storage where the repo is on.
+// When this directory does not exist yet, it's being created.
+func (repo *Repo) StorageTempDir() (string, error) {
+	tempPath, err := repo.locator.TempDir(repo.GetStorageName())
+	if err != nil {
+		return "", err
+	}
+
+	if err := os.MkdirAll(tempPath, 0o755); err != nil {
+		return "", err
+	}
+
+	return tempPath, nil
+}

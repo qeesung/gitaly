@@ -49,7 +49,8 @@ type CommitServiceClient interface {
 	FindAllCommits(ctx context.Context, in *FindAllCommitsRequest, opts ...grpc.CallOption) (CommitService_FindAllCommitsClient, error)
 	// This comment is left unintentionally blank.
 	FindCommits(ctx context.Context, in *FindCommitsRequest, opts ...grpc.CallOption) (CommitService_FindCommitsClient, error)
-	// This comment is left unintentionally blank.
+	// CommitLanguages detects the source code languages of the whole tree for a
+	// given commit. Returns an error in case no languages could be detected.
 	CommitLanguages(ctx context.Context, in *CommitLanguagesRequest, opts ...grpc.CallOption) (*CommitLanguagesResponse, error)
 	// This comment is left unintentionally blank.
 	RawBlame(ctx context.Context, in *RawBlameRequest, opts ...grpc.CallOption) (CommitService_RawBlameClient, error)
@@ -688,7 +689,8 @@ type CommitServiceServer interface {
 	FindAllCommits(*FindAllCommitsRequest, CommitService_FindAllCommitsServer) error
 	// This comment is left unintentionally blank.
 	FindCommits(*FindCommitsRequest, CommitService_FindCommitsServer) error
-	// This comment is left unintentionally blank.
+	// CommitLanguages detects the source code languages of the whole tree for a
+	// given commit. Returns an error in case no languages could be detected.
 	CommitLanguages(context.Context, *CommitLanguagesRequest) (*CommitLanguagesResponse, error)
 	// This comment is left unintentionally blank.
 	RawBlame(*RawBlameRequest, CommitService_RawBlameServer) error

@@ -1,10 +1,12 @@
 package commit
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -12,12 +14,16 @@ import (
 )
 
 func TestLanguages(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.GoLanguageStats).
+		Run(t, testLanguagesFeatured)
+}
+
+func testLanguagesFeatured(t *testing.T, ctx context.Context) {
 	t.Parallel()
 	cfg := testcfg.Build(t, testcfg.WithRealLinguist())
 
 	cfg.SocketPath = startTestServices(t, cfg)
 
-	ctx := testhelper.Context(t)
 	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
@@ -32,30 +38,25 @@ func TestLanguages(t *testing.T) {
 	resp, err := client.CommitLanguages(ctx, request)
 	require.NoError(t, err)
 
-	require.NotZero(t, len(resp.Languages), "number of languages in response")
-
 	expectedLanguages := []*gitalypb.CommitLanguagesResponse_Language{
-		{Name: "Ruby", Share: 66, Color: "#701516", FileCount: 4, Bytes: 2943},
-		{Name: "JavaScript", Share: 22, Color: "#f1e05a", FileCount: 1, Bytes: 1014},
-		{Name: "HTML", Share: 7, Color: "#e34c26", FileCount: 1, Bytes: 349},
-		{Name: "CoffeeScript", Share: 2, Color: "#244776", FileCount: 1, Bytes: 107},
-		// Modula-2 is a special case because Linguist has no color for it. This
-		// test case asserts that we invent a color for it (SHA256 of the name).
-		{Name: "Modula-2", Share: 2, Color: "#3fd5e0", FileCount: 1, Bytes: 95},
+		{Name: "Ruby", Share: 65.28394, Color: "#701516", Bytes: 2943},
+		{Name: "JavaScript", Share: 22.493345, Color: "#f1e05a", Bytes: 1014},
+		{Name: "HTML", Share: 7.741792, Color: "#e34c26", Bytes: 349},
+		{Name: "CoffeeScript", Share: 2.373558, Color: "#244776", Bytes: 107},
+		{Name: "Modula-2", Share: 2.1073646, Color: "#10253f", Bytes: 95},
 	}
 
-	require.Equal(t, len(expectedLanguages), len(resp.Languages))
-
-	for i, el := range expectedLanguages {
-		actualLanguage := resp.Languages[i]
-		requireLanguageEqual(t, el, actualLanguage)
-	}
+	testhelper.ProtoEqual(t, expectedLanguages, resp.Languages)
 }
 
 func TestFileCountIsZeroWhenFeatureIsDisabled(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.GoLanguageStats).
+		Run(t, testFileCountIsZeroWhenFeatureIsDisabled)
+}
+
+func testFileCountIsZeroWhenFeatureIsDisabled(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
 	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	request := &gitalypb.CommitLanguagesRequest{
@@ -74,19 +75,14 @@ func TestFileCountIsZeroWhenFeatureIsDisabled(t *testing.T) {
 	}
 }
 
-func requireLanguageEqual(t *testing.T, expected, actual *gitalypb.CommitLanguagesResponse_Language) {
-	t.Helper()
-
-	require.Equal(t, expected.Name, actual.Name)
-	require.Equal(t, expected.Color, actual.Color)
-	require.False(t, (expected.Share-actual.Share)*(expected.Share-actual.Share) >= 1.0, "shares do not match")
-	require.Equal(t, expected.Bytes, actual.Bytes)
+func TestLanguagesEmptyRevision(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.GoLanguageStats).
+		Run(t, testLanguagesEmptyRevisionFeatured)
 }
 
-func TestLanguagesEmptyRevision(t *testing.T) {
+func testLanguagesEmptyRevisionFeatured(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
 	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	request := &gitalypb.CommitLanguagesRequest{
@@ -107,9 +103,13 @@ func TestLanguagesEmptyRevision(t *testing.T) {
 }
 
 func TestInvalidCommitLanguagesRequestRevision(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.GoLanguageStats).
+		Run(t, testInvalidCommitLanguagesRequestRevisionFeatured)
+}
+
+func testInvalidCommitLanguagesRequestRevisionFeatured(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
 	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	_, err := client.CommitLanguages(ctx, &gitalypb.CommitLanguagesRequest{
@@ -120,9 +120,13 @@ func TestInvalidCommitLanguagesRequestRevision(t *testing.T) {
 }
 
 func TestAmbiguousRefCommitLanguagesRequestRevision(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.GoLanguageStats).
+		Run(t, testAmbiguousRefCommitLanguagesRequestRevisionFeatured)
+}
+
+func testAmbiguousRefCommitLanguagesRequestRevisionFeatured(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
 	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
 	// gitlab-test repo has both a branch and a tag named 'v1.1.0'
