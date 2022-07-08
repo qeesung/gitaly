@@ -14,7 +14,8 @@ type Config struct {
 	MemoryBytes int64 `toml:"memory_bytes"`
 	// CPUShares are the shares of CPU the parent cgroup is allowed to utilize. A value of 1024
 	// is full utilization of the CPU. 0 implies no CPU limit.
-	CPUShares uint64 `toml:"cpu_shares"`
+	CPUShares      uint64 `toml:"cpu_shares"`
+	MetricsEnabled bool   `toml:"metrics_enabled"`
 
 	// Deprecated: No longer supported after 15.0
 	Count  uint   `toml:"count"`

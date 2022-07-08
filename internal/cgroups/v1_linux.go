@@ -17,10 +17,10 @@ import (
 
 // CGroupV1Manager is the manager for cgroups v1
 type CGroupV1Manager struct {
-	cfg                         cgroupscfg.Config
-	hierarchy                   func() ([]cgroups.Subsystem, error)
-	memoryFailedTotal, cpuUsage *prometheus.GaugeVec
-	procs                       *prometheus.GaugeVec
+	cfg                                  cgroupscfg.Config
+	hierarchy                            func() ([]cgroups.Subsystem, error)
+	memoryReclaimAttemptsTotal, cpuUsage *prometheus.GaugeVec
+	procs                                *prometheus.GaugeVec
 }
 
 func newV1Manager(cfg cgroupscfg.Config) *CGroupV1Manager {
@@ -29,16 +29,16 @@ func newV1Manager(cfg cgroupscfg.Config) *CGroupV1Manager {
 		hierarchy: func() ([]cgroups.Subsystem, error) {
 			return defaultSubsystems(cfg.Mountpoint)
 		},
-		memoryFailedTotal: prometheus.NewGaugeVec(
+		memoryReclaimAttemptsTotal: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "gitaly_cgroup_memory_failed_total",
+				Name: "gitaly_cgroup_memory_reclaim_attempts_total",
 				Help: "Number of memory usage hits limits",
 			},
 			[]string{"path"},
 		),
 		cpuUsage: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "gitaly_cgroup_cpu_usage",
+				Name: "gitaly_cgroup_cpu_usage_total",
 				Help: "CPU Usage of Cgroup",
 			},
 			[]string{"path", "type"},
@@ -140,6 +140,10 @@ func (cg *CGroupV1Manager) addToCgroup(pid int, cgroupPath string) error {
 
 // Collect collects metrics from the cgroups controller
 func (cg *CGroupV1Manager) Collect(ch chan<- prometheus.Metric) {
+	if !cg.cfg.MetricsEnabled {
+		return
+	}
+
 	for i := 0; i < int(cg.cfg.Repositories.Count); i++ {
 		repoPath := cg.repoPath(i)
 		logger := log.Default().WithField("cgroup_path", repoPath)
@@ -155,7 +159,7 @@ func (cg *CGroupV1Manager) Collect(ch chan<- prometheus.Metric) {
 		if metrics, err := control.Stat(); err != nil {
 			logger.WithError(err).Warn("unable to get cgroup stats")
 		} else {
-			memoryMetric := cg.memoryFailedTotal.WithLabelValues(repoPath)
+			memoryMetric := cg.memoryReclaimAttemptsTotal.WithLabelValues(repoPath)
 			memoryMetric.Set(float64(metrics.Memory.Usage.Failcnt))
 			ch <- memoryMetric
 

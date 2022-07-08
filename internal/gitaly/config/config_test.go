@@ -1082,6 +1082,28 @@ func TestValidateCgroups(t *testing.T) {
 				},
 				validateErr: errors.New("cgroups.repositories: cpu shares cannot exceed parent"),
 			},
+			{
+				name: "metrics enabled",
+				rawCfg: `[cgroups]
+				mountpoint = "/sys/fs/cgroup"
+				hierarchy_root = "gitaly"
+				metrics_enabled = true
+				[cgroups.repositories]
+				count = 10
+				memory_bytes = 1024
+				cpu_shares = 512
+				`,
+				expect: cgroups.Config{
+					Mountpoint:     "/sys/fs/cgroup",
+					HierarchyRoot:  "gitaly",
+					MetricsEnabled: true,
+					Repositories: cgroups.Repositories{
+						Count:       10,
+						MemoryBytes: 1024,
+						CPUShares:   512,
+					},
+				},
+			},
 		}
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {

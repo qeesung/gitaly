@@ -193,29 +193,42 @@ func TestMetrics(t *testing.T) {
 
 	repoCgroupPath := filepath.Join(v1Manager1.currentProcessCgroup(), "repos-0")
 
-	expected := bytes.NewBufferString(fmt.Sprintf(`# HELP gitaly_cgroup_cpu_usage CPU Usage of Cgroup
-# TYPE gitaly_cgroup_cpu_usage gauge
-gitaly_cgroup_cpu_usage{path="%s",type="kernel"} 0
-gitaly_cgroup_cpu_usage{path="%s",type="user"} 0
-# HELP gitaly_cgroup_memory_failed_total Number of memory usage hits limits
-# TYPE gitaly_cgroup_memory_failed_total gauge
-gitaly_cgroup_memory_failed_total{path="%s"} 2
+	expected := bytes.NewBufferString(fmt.Sprintf(`# HELP gitaly_cgroup_cpu_usage_total CPU Usage of Cgroup
+# TYPE gitaly_cgroup_cpu_usage_total gauge
+gitaly_cgroup_cpu_usage_total{path="%s",type="kernel"} 0
+gitaly_cgroup_cpu_usage_total{path="%s",type="user"} 0
+# HELP gitaly_cgroup_memory_reclaim_attempts_total Number of memory usage hits limits
+# TYPE gitaly_cgroup_memory_reclaim_attempts_total gauge
+gitaly_cgroup_memory_reclaim_attempts_total{path="%s"} 2
 # HELP gitaly_cgroup_procs_total Total number of procs
 # TYPE gitaly_cgroup_procs_total gauge
 gitaly_cgroup_procs_total{path="%s",subsystem="cpu"} 1
 gitaly_cgroup_procs_total{path="%s",subsystem="memory"} 1
 `, repoCgroupPath, repoCgroupPath, repoCgroupPath, repoCgroupPath, repoCgroupPath))
-	assert.NoError(t, testutil.CollectAndCompare(
-		v1Manager1,
-		expected))
 
-	logEntry := hook.LastEntry()
-	assert.Contains(
-		t,
-		logEntry.Data["command.cgroup_path"],
-		repoCgroupPath,
-		"log field includes a cgroup path that is a subdirectory of the current process' cgroup path",
-	)
+	for _, metricsEnabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("metrics enabled: %v", metricsEnabled), func(t *testing.T) {
+			v1Manager1.cfg.MetricsEnabled = metricsEnabled
+
+			if metricsEnabled {
+				assert.NoError(t, testutil.CollectAndCompare(
+					v1Manager1,
+					expected))
+			} else {
+				assert.NoError(t, testutil.CollectAndCompare(
+					v1Manager1,
+					bytes.NewBufferString("")))
+			}
+
+			logEntry := hook.LastEntry()
+			assert.Contains(
+				t,
+				logEntry.Data["command.cgroup_path"],
+				repoCgroupPath,
+				"log field includes a cgroup path that is a subdirectory of the current process' cgroup path",
+			)
+		})
+	}
 }
 
 func readCgroupFile(t *testing.T, path string) []byte {
