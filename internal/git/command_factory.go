@@ -520,6 +520,34 @@ func (cf *ExecCommandFactory) globalConfiguration(ctx context.Context) ([]Global
 		// mechanism to replace malicious commits with seemingly benign ones. We thus globally
 		// disable this mechanism.
 		ConfigPair{Key: "core.useReplaceRefs", Value: "false"},
+
+		// Commit-graphs are used as an optimization to speed up reading commits and to be
+		// able to perform certain commit-related queries faster. One property that these
+		// graphs are storing is the generation number of a commit, where there are two
+		// different types of generation numbers:
+		//
+		//     - Topological level: a commit with no parents has a level of 1. A commit with
+		//       at least one parent has a level one more than the largest topological level
+		//       of its parents.
+		//
+		//     - Corrected committer date: a commit with no parents has a corrected commit
+		//       date equal to its committer date. A commit with at least one parent has a
+		//       corrected committer date equal to the maximum between either its own
+		//       committer date or the largest corrected committer date across its parents
+		//       plus 1.
+		//
+		// By default, newer Git versions store both generation numbers for commits, where
+		// the corrected committer date allows for some more optimizations. But due to a bug
+		// in Git v2.35.0 and earlier, the corrected committer date wasn't ever read.
+		//
+		// This bug was fixed in Git v2.36.0, together with a few other bugs in this area.
+		// But unfortunately, a new bug was introduced: when upgrading a commit-graph
+		// written by Git v2.35.0 or newer with Git v2.36.0 and later with `--changed-paths`
+		// enabled then the resulting commit-graph may be corrupt.
+		//
+		// Let's disable reading and writing corrected committer dates for now until the fix
+		// to this issue is upstream.
+		ConfigPair{Key: "commitGraph.generationVersion", Value: "1"},
 	}
 
 	// Git v2.36.0 introduced new fine-grained configuration for what data should be fsynced and
