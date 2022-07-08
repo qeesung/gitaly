@@ -33,7 +33,7 @@ func TestGitCommandProxy(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	testhelper.ModifyEnvironment(t, "http_proxy", ts.URL)
+	t.Setenv("http_proxy", ts.URL)
 
 	ctx := testhelper.Context(t)
 
@@ -146,8 +146,8 @@ func TestExecCommandFactory_NewWithDir(t *testing.T) {
 }
 
 func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
-	testhelper.ModifyEnvironment(t, "GITALY_TESTING_GIT_BINARY", "")
-	testhelper.ModifyEnvironment(t, "GITALY_TESTING_BUNDLED_GIT_PATH", "")
+	testhelper.Unsetenv(t, "GITALY_TESTING_GIT_BINARY")
+	testhelper.Unsetenv(t, "GITALY_TESTING_BUNDLED_GIT_PATH")
 
 	ctx := testhelper.Context(t)
 
@@ -198,7 +198,7 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 	})
 
 	t.Run("set using GITALY_TESTING_GIT_BINARY", func(t *testing.T) {
-		testhelper.ModifyEnvironment(t, "GITALY_TESTING_GIT_BINARY", "/path/to/env_git")
+		t.Setenv("GITALY_TESTING_GIT_BINARY", "/path/to/env_git")
 
 		assertExecEnv(t, config.Cfg{
 			Git: config.Git{
@@ -234,7 +234,7 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 		bundledGitExecutable := filepath.Join(bundledGitDir, "gitaly-git"+suffix)
 		bundledGitRemoteExecutable := filepath.Join(bundledGitDir, "gitaly-git-remote-http"+suffix)
 
-		testhelper.ModifyEnvironment(t, "GITALY_TESTING_BUNDLED_GIT_PATH", bundledGitDir)
+		t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", bundledGitDir)
 
 		t.Run("missing bin_dir", func(t *testing.T) {
 			_, _, err := git.NewExecCommandFactory(config.Cfg{Git: config.Git{}}, git.WithSkipHooks())
@@ -321,7 +321,7 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 	})
 
 	t.Run("doesn't exist in the system", func(t *testing.T) {
-		testhelper.ModifyEnvironment(t, "PATH", "")
+		testhelper.Unsetenv(t, "PATH")
 
 		_, _, err := git.NewExecCommandFactory(config.Cfg{}, git.WithSkipHooks())
 		require.EqualError(t, err, "setting up Git execution environment: could not set up any Git execution environments")

@@ -1,208 +1,288 @@
 package env_test
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
 func TestGetBool(t *testing.T) {
+	const envvar = "TEST_BOOL"
+
 	for _, tc := range []struct {
-		value         string
+		desc          string
+		setup         func(t *testing.T)
 		fallback      bool
-		expected      bool
-		expectedErrIs error
+		expectedValue bool
+		expectedErr   error
 	}{
 		{
-			value:    "true",
-			expected: true,
+			desc:          "explicitly true",
+			setup:         setupEnv(envvar, "true"),
+			expectedValue: true,
 		},
 		{
-			value:    "false",
-			expected: false,
+			desc:          "explicitly false",
+			setup:         setupEnv(envvar, "false"),
+			expectedValue: false,
 		},
 		{
-			value:    "1",
-			expected: true,
+			desc:          "explicitly 1",
+			setup:         setupEnv(envvar, "1"),
+			expectedValue: true,
 		},
 		{
-			value:    "0",
-			expected: false,
+			desc:          "explicitly 0",
+			setup:         setupEnv(envvar, "0"),
+			expectedValue: false,
 		},
 		{
-			value:    "",
-			expected: false,
+			desc: "missing value",
+			setup: func(t *testing.T) {
+				testhelper.Unsetenv(t, envvar)
+			},
+			expectedValue: false,
 		},
 		{
-			value:    "",
-			fallback: true,
-			expected: true,
-		},
-		{
-			value:         "bad",
-			expected:      false,
-			expectedErrIs: strconv.ErrSyntax,
-		},
-		{
-			value:         "bad",
+			desc: "missing value with fallback",
+			setup: func(t *testing.T) {
+				testhelper.Unsetenv(t, envvar)
+			},
 			fallback:      true,
-			expected:      true,
-			expectedErrIs: strconv.ErrSyntax,
+			expectedValue: true,
+		},
+		{
+			desc:          "empty value",
+			setup:         setupEnv(envvar, ""),
+			expectedValue: false,
+		},
+		{
+			desc:          "empty value with fallback",
+			setup:         setupEnv(envvar, ""),
+			fallback:      true,
+			expectedValue: true,
+		},
+		{
+			desc:          "invalid value",
+			setup:         setupEnv(envvar, "bad"),
+			expectedValue: false,
+			expectedErr: fmt.Errorf("get bool TEST_BOOL: %w", &strconv.NumError{
+				Func: "ParseBool",
+				Num:  "bad",
+				Err:  strconv.ErrSyntax,
+			}),
+		},
+		{
+			desc:          "invalid value with fallback",
+			setup:         setupEnv(envvar, "bad"),
+			fallback:      true,
+			expectedValue: true,
+			expectedErr: fmt.Errorf("get bool TEST_BOOL: %w", &strconv.NumError{
+				Func: "ParseBool",
+				Num:  "bad",
+				Err:  strconv.ErrSyntax,
+			}),
 		},
 	} {
-		t.Run(fmt.Sprintf("value=%s,fallback=%t", tc.value, tc.fallback), func(t *testing.T) {
-			testhelper.ModifyEnvironment(t, "TEST_BOOL", tc.value)
+		t.Run(tc.desc, func(t *testing.T) {
+			tc.setup(t)
 
-			result, err := env.GetBool("TEST_BOOL", tc.fallback)
-
-			if tc.expectedErrIs != nil {
-				assert.Error(t, err)
-				assert.True(t, errors.Is(err, tc.expectedErrIs), err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.Equal(t, tc.expected, result)
+			value, err := env.GetBool(envvar, tc.fallback)
+			require.Equal(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedValue, value)
 		})
 	}
 }
 
 func TestGetInt(t *testing.T) {
+	const envvar = "TEST_INT"
+
 	for _, tc := range []struct {
-		value         string
+		desc          string
+		setup         func(t *testing.T)
 		fallback      int
-		expected      int
-		expectedErrIs error
+		expectedValue int
+		expectedErr   error
 	}{
 		{
-			value:    "3",
-			expected: 3,
+			desc:          "valid number",
+			setup:         setupEnv(envvar, "3"),
+			expectedValue: 3,
 		},
 		{
-			value:    "",
-			expected: 0,
+			desc: "unset value",
+			setup: func(t *testing.T) {
+				testhelper.Unsetenv(t, envvar)
+			},
+			expectedValue: 0,
 		},
 		{
-			value:    "",
-			fallback: 3,
-			expected: 3,
-		},
-		{
-			value:         "bad",
-			expected:      0,
-			expectedErrIs: strconv.ErrSyntax,
-		},
-		{
-			value:         "bad",
+			desc: "unset value with fallback",
+			setup: func(t *testing.T) {
+				testhelper.Unsetenv(t, envvar)
+			},
 			fallback:      3,
-			expected:      3,
-			expectedErrIs: strconv.ErrSyntax,
+			expectedValue: 3,
+		},
+		{
+			desc:          "empty value",
+			setup:         setupEnv(envvar, ""),
+			expectedValue: 0,
+		},
+		{
+			desc:          "empty value with fallback",
+			setup:         setupEnv(envvar, ""),
+			fallback:      3,
+			expectedValue: 3,
+		},
+		{
+			desc:          "invalid value",
+			setup:         setupEnv(envvar, "bad"),
+			expectedValue: 0,
+			expectedErr: fmt.Errorf("get int TEST_INT: %w", &strconv.NumError{
+				Func: "Atoi",
+				Num:  "bad",
+				Err:  strconv.ErrSyntax,
+			}),
+		},
+		{
+			desc:          "invalid value with fallback",
+			setup:         setupEnv(envvar, "bad"),
+			fallback:      3,
+			expectedValue: 3,
+			expectedErr: fmt.Errorf("get int TEST_INT: %w", &strconv.NumError{
+				Func: "Atoi",
+				Num:  "bad",
+				Err:  strconv.ErrSyntax,
+			}),
 		},
 	} {
-		t.Run(fmt.Sprintf("value=%s,fallback=%d", tc.value, tc.fallback), func(t *testing.T) {
-			testhelper.ModifyEnvironment(t, "TEST_INT", tc.value)
+		t.Run(tc.desc, func(t *testing.T) {
+			tc.setup(t)
 
-			result, err := env.GetInt("TEST_INT", tc.fallback)
-
-			if tc.expectedErrIs != nil {
-				assert.Error(t, err)
-				assert.True(t, errors.Is(err, tc.expectedErrIs), err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.Equal(t, tc.expected, result)
+			value, err := env.GetInt(envvar, tc.fallback)
+			require.Equal(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedValue, value)
 		})
 	}
 }
 
 func TestGetDuration(t *testing.T) {
+	const envvar = "TEST_DURATION"
+
 	for _, tc := range []struct {
-		value       string
-		fallback    time.Duration
-		expected    time.Duration
-		expectedErr string
+		desc          string
+		setup         func(t *testing.T)
+		fallback      time.Duration
+		expectedValue time.Duration
+		expectedErr   error
 	}{
 		{
-			value:    "3m",
-			fallback: 0,
-			expected: 3 * time.Minute,
+			desc:          "valid duration",
+			setup:         setupEnv(envvar, "3m"),
+			fallback:      0,
+			expectedValue: 3 * time.Minute,
 		},
 		{
-			value:    "",
-			expected: 0,
+			desc: "unset value",
+			setup: func(t *testing.T) {
+				testhelper.Unsetenv(t, envvar)
+			},
+			expectedValue: 0,
 		},
 		{
-			value:    "",
-			fallback: 3,
-			expected: 3,
+			desc: "unset value with fallback",
+			setup: func(t *testing.T) {
+				testhelper.Unsetenv(t, envvar)
+			},
+			fallback:      3,
+			expectedValue: 3,
 		},
 		{
-			value:       "bad",
-			expected:    0,
-			expectedErr: `get duration TEST_DURATION: time: invalid duration "bad"`,
+			desc:          "empty value",
+			setup:         setupEnv(envvar, ""),
+			expectedValue: 0,
 		},
 		{
-			value:       "bad",
-			fallback:    3,
-			expected:    3,
-			expectedErr: `get duration TEST_DURATION: time: invalid duration "bad"`,
+			desc:          "empty value with fallback",
+			setup:         setupEnv(envvar, ""),
+			fallback:      3,
+			expectedValue: 3,
+		},
+		{
+			desc:          "invalid value",
+			setup:         setupEnv(envvar, "bad"),
+			expectedValue: 0,
+			expectedErr:   fmt.Errorf("get duration TEST_DURATION: %w", fmt.Errorf("time: invalid duration \"bad\"")),
+		},
+		{
+			desc:          "invalid value with fallback",
+			setup:         setupEnv(envvar, "bad"),
+			fallback:      3,
+			expectedValue: 3,
+			expectedErr:   fmt.Errorf("get duration TEST_DURATION: %w", fmt.Errorf("time: invalid duration \"bad\"")),
 		},
 	} {
-		t.Run(fmt.Sprintf("value=%s,fallback=%d", tc.value, tc.fallback), func(t *testing.T) {
-			testhelper.ModifyEnvironment(t, "TEST_DURATION", tc.value)
+		t.Run(tc.desc, func(t *testing.T) {
+			tc.setup(t)
 
-			result, err := env.GetDuration("TEST_DURATION", tc.fallback)
-
-			if tc.expectedErr != "" {
-				assert.Error(t, err)
-				assert.EqualError(t, err, tc.expectedErr)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.Equal(t, tc.expected, result)
+			value, err := env.GetDuration(envvar, tc.fallback)
+			require.Equal(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedValue, value)
 		})
 	}
 }
 
 func TestGetString(t *testing.T) {
+	const envvar = "TEST_STRING"
+
 	for _, tc := range []struct {
-		value    string
-		fallback string
-		expected string
+		desc          string
+		setup         func(t *testing.T)
+		fallback      string
+		expectedValue string
 	}{
 		{
-			value:    "Hello",
-			expected: "Hello",
+			desc:          "simple string",
+			setup:         setupEnv(envvar, "Hello"),
+			expectedValue: "Hello",
 		},
 		{
-			value:    "hello ",
-			expected: "hello",
+			desc:          "string with trailing whitespace",
+			setup:         setupEnv(envvar, "hello "),
+			expectedValue: "hello",
 		},
 		{
-			fallback: "fallback value",
-			expected: "fallback value",
+			desc: "unset value",
+			setup: func(t *testing.T) {
+				testhelper.Unsetenv(t, envvar)
+			},
+			fallback:      "fallback value",
+			expectedValue: "fallback value",
 		},
 		{
-			value:    " ",
-			fallback: "fallback value",
-			expected: "",
+			desc:          "empty value",
+			setup:         setupEnv(envvar, ""),
+			fallback:      "fallback value",
+			expectedValue: "fallback value",
+		},
+		{
+			desc:          "whitespace only",
+			setup:         setupEnv(envvar, " "),
+			fallback:      "fallback value",
+			expectedValue: "",
 		},
 	} {
-		t.Run(fmt.Sprintf("value=%s,fallback=%s", tc.value, tc.fallback), func(t *testing.T) {
-			testhelper.ModifyEnvironment(t, "TEST_STRING", tc.value)
+		t.Run(tc.desc, func(t *testing.T) {
+			tc.setup(t)
 
-			result := env.GetString("TEST_STRING", tc.fallback)
-
-			assert.Equal(t, tc.expected, result)
+			value := env.GetString(envvar, tc.fallback)
+			require.Equal(t, tc.expectedValue, value)
 		})
 	}
 }
@@ -260,5 +340,11 @@ func TestExtractKey(t *testing.T) {
 			value := env.ExtractValue(tc.environment, tc.key)
 			require.Equal(t, tc.expectedValue, value)
 		})
+	}
+}
+
+func setupEnv(key, value string) func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Setenv(key, value)
 	}
 }

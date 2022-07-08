@@ -128,8 +128,9 @@ func TestDial(t *testing.T) {
 			}
 
 			if tt.envSSLCertFile != "" {
-				testhelper.ModifyEnvironment(t, gitalyx509.SSLCertFile, tt.envSSLCertFile)
+				t.Setenv(gitalyx509.SSLCertFile, tt.envSSLCertFile)
 			}
+
 			ctx := testhelper.Context(t)
 
 			conn, err := Dial(tt.rawAddress, tt.dialOpts)
@@ -216,8 +217,9 @@ func TestDialSidechannel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.envSSLCertFile != "" {
-				testhelper.ModifyEnvironment(t, gitalyx509.SSLCertFile, tt.envSSLCertFile)
+				t.Setenv(gitalyx509.SSLCertFile, tt.envSSLCertFile)
 			}
+
 			ctx := testhelper.Context(t)
 
 			conn, err := DialSidechannel(ctx, tt.rawAddress, registry, tt.dialOpts)

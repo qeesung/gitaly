@@ -179,7 +179,7 @@ func TestNewConfigFromEnv(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			for key, value := range tc.envvars {
-				testhelper.ModifyEnvironment(t, key, value)
+				t.Setenv(key, value)
 			}
 
 			config, err := NewConfigFromEnv()

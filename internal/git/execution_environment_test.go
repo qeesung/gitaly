@@ -16,7 +16,7 @@ import (
 func TestDistributedGitEnvironmentConstructor(t *testing.T) {
 	constructor := git.DistributedGitEnvironmentConstructor{}
 
-	testhelper.ModifyEnvironment(t, "GITALY_TESTING_GIT_BINARY", "")
+	testhelper.Unsetenv(t, "GITALY_TESTING_GIT_BINARY")
 
 	t.Run("empty configuration fails", func(t *testing.T) {
 		_, err := constructor.Construct(config.Cfg{})
@@ -37,7 +37,7 @@ func TestDistributedGitEnvironmentConstructor(t *testing.T) {
 	})
 
 	t.Run("empty configuration with environment override", func(t *testing.T) {
-		testhelper.ModifyEnvironment(t, "GITALY_TESTING_GIT_BINARY", "/foo/bar")
+		t.Setenv("GITALY_TESTING_GIT_BINARY", "/foo/bar")
 
 		execEnv, err := constructor.Construct(config.Cfg{})
 		require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestDistributedGitEnvironmentConstructor(t *testing.T) {
 	})
 
 	t.Run("configuration overrides environment variable", func(t *testing.T) {
-		testhelper.ModifyEnvironment(t, "GITALY_TESTING_GIT_BINARY", "envvar")
+		t.Setenv("GITALY_TESTING_GIT_BINARY", "envvar")
 
 		execEnv, err := constructor.Construct(config.Cfg{
 			Git: config.Git{
@@ -64,7 +64,7 @@ func TestDistributedGitEnvironmentConstructor(t *testing.T) {
 }
 
 func TestBundledGitEnvironmentConstructor(t *testing.T) {
-	testhelper.ModifyEnvironment(t, "GITALY_TESTING_BUNDLED_GIT_PATH", "")
+	testhelper.Unsetenv(t, "GITALY_TESTING_BUNDLED_GIT_PATH")
 
 	constructor := git.BundledGitEnvironmentConstructor{}
 
@@ -147,13 +147,13 @@ func TestBundledGitEnvironmentConstructor(t *testing.T) {
 	})
 
 	t.Run("bundled Git path without binary directory fails", func(t *testing.T) {
-		testhelper.ModifyEnvironment(t, "GITALY_TESTING_BUNDLED_GIT_PATH", "/does/not/exist")
+		t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", "/does/not/exist")
 		_, err := constructor.Construct(config.Cfg{})
 		require.Equal(t, errors.New("cannot use bundled binaries without bin path being set"), err)
 	})
 
 	t.Run("nonexistent bundled Git path via environment fails", func(t *testing.T) {
-		testhelper.ModifyEnvironment(t, "GITALY_TESTING_BUNDLED_GIT_PATH", "/does/not/exist")
+		t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", "/does/not/exist")
 		_, err := constructor.Construct(config.Cfg{
 			BinDir: testhelper.TempDir(t),
 		})
@@ -163,7 +163,7 @@ func TestBundledGitEnvironmentConstructor(t *testing.T) {
 
 	t.Run("incomplete bundled Git environment fails", func(t *testing.T) {
 		bundledGitPath := seedDirWithExecutables(t, "gitaly-git", "gitaly-git-remote-http")
-		testhelper.ModifyEnvironment(t, "GITALY_TESTING_BUNDLED_GIT_PATH", bundledGitPath)
+		t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", bundledGitPath)
 
 		_, err := constructor.Construct(config.Cfg{
 			BinDir: testhelper.TempDir(t),
@@ -174,7 +174,7 @@ func TestBundledGitEnvironmentConstructor(t *testing.T) {
 
 	t.Run("complete bundled Git environment populates binary directory", func(t *testing.T) {
 		bundledGitPath := seedDirWithExecutables(t, "gitaly-git", "gitaly-git-remote-http", "gitaly-git-http-backend")
-		testhelper.ModifyEnvironment(t, "GITALY_TESTING_BUNDLED_GIT_PATH", bundledGitPath)
+		t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", bundledGitPath)
 
 		execEnv, err := constructor.Construct(config.Cfg{
 			BinDir: testhelper.TempDir(t),
@@ -230,7 +230,7 @@ func TestFallbackGitEnvironmentConstructor(t *testing.T) {
 	constructor := git.FallbackGitEnvironmentConstructor{}
 
 	t.Run("failing lookup of executable causes failure", func(t *testing.T) {
-		testhelper.ModifyEnvironment(t, "PATH", "/does/not/exist")
+		t.Setenv("PATH", "/does/not/exist")
 
 		_, err := constructor.Construct(config.Cfg{})
 		require.Equal(t, fmt.Errorf("%w: no git executable found in PATH", git.ErrNotConfigured), err)
@@ -241,7 +241,7 @@ func TestFallbackGitEnvironmentConstructor(t *testing.T) {
 		gitPath := filepath.Join(tempDir, "git")
 		require.NoError(t, os.WriteFile(gitPath, nil, 0o755))
 
-		testhelper.ModifyEnvironment(t, "PATH", "/does/not/exist:"+tempDir)
+		t.Setenv("PATH", "/does/not/exist:"+tempDir)
 
 		execEnv, err := constructor.Construct(config.Cfg{})
 		require.NoError(t, err)

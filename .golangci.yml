@@ -59,9 +59,8 @@ linters-settings:
       - ^context.Background$
       - ^context.TODO$
       # Tests should not set the bare environment functions, but instead use
-      # `testhelper.ModifyEnvironment()`. This function has sanity checks to
-      # verify we don't use `t.Parallel()` when setting envvars by using the
-      # `t.Setenv()` helper.
+      # `t.Setenv()` or `testhelper.Unsetenv()`. These functions have sanity
+      # checks to verify we don't use `t.Parallel()` when setting envvars.
       - ^os.Setenv$
       - ^os.Unsetenv$
   stylecheck:

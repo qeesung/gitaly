@@ -535,7 +535,7 @@ func TestNewClockSyncCheck(t *testing.T) {
 				return true, nil
 			},
 			setup: func(t *testing.T) {
-				testhelper.ModifyEnvironment(t, "NTP_HOST", "custom")
+				t.Setenv("NTP_HOST", "custom")
 			},
 		},
 	} {

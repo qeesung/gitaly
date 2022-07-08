@@ -602,8 +602,9 @@ func TestResolveSink(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			for k, v := range tc.envs {
-				testhelper.ModifyEnvironment(t, k, v)
+				t.Setenv(k, v)
 			}
+
 			sink, err := ResolveSink(ctx, tc.path)
 			if tc.errMsg != "" {
 				require.EqualError(t, err, tc.errMsg)
