@@ -29,7 +29,7 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/rubenv/sql-migrate v0.0.0-20191213152630-06338513c237
 	github.com/sirupsen/logrus v1.8.1
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.8.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	gitlab.com/gitlab-org/gitlab-shell v1.9.8-0.20210720163109-50da611814d2
 	gitlab.com/gitlab-org/labkit v1.15.0
