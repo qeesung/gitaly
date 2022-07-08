@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/beevik/ntp v0.3.0
 	github.com/cloudflare/tableflip v1.2.2
-	github.com/containerd/cgroups v0.0.0-20201118023556-2819c83ced99
+	github.com/containerd/cgroups v1.0.4
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/git-lfs/git-lfs/v3 v3.2.0
 	github.com/go-enry/go-enry/v2 v2.8.2
