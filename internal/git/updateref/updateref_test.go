@@ -122,9 +122,14 @@ func TestUpdater_prepareLocksTransaction(t *testing.T) {
 
 func TestUpdater_concurrentLocking(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
 	cfg, protoRepo, _ := testcfg.BuildWithRepo(t)
+	ctx := testhelper.Context(t)
+
+	if !gitSupportsStatusFlushing(t, ctx, cfg) {
+		t.Skip("git does not support flushing yet, which is known to be flaky")
+	}
+
 	repo := localrepo.NewTestRepo(t, cfg, protoRepo, git.WithSkipHooks())
 
 	commit, logErr := repo.ReadCommit(ctx, "refs/heads/master")
@@ -139,22 +144,11 @@ func TestUpdater_concurrentLocking(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, secondUpdater.Update("refs/heads/master", "", commit.Id))
 
-	// With flushing, we're able to detect concurrent locking at prepare time already instead of
-	// at commit time.
-	if gitSupportsStatusFlushing(t, ctx, cfg) {
-		err := secondUpdater.Prepare()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "fatal: prepare: cannot lock ref 'refs/heads/master'")
+	err = secondUpdater.Prepare()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "fatal: prepare: cannot lock ref 'refs/heads/master'")
 
-		require.NoError(t, firstUpdater.Commit())
-	} else {
-		require.NoError(t, secondUpdater.Prepare())
-		require.NoError(t, firstUpdater.Commit())
-
-		err := secondUpdater.Commit()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "fatal: prepare: cannot lock ref 'refs/heads/master'")
-	}
+	require.NoError(t, firstUpdater.Commit())
 }
 
 func TestBulkOperation(t *testing.T) {
