@@ -72,8 +72,7 @@ func TestSetFullPath(t *testing.T) {
 
 		require.Nil(t, response)
 
-		expectedErr := fmt.Sprintf("rpc error: code = NotFound desc = setting config: rpc "+
-			"error: code = NotFound desc = GetRepoPath: not a git repository: %q", repoPath)
+		expectedErr := fmt.Sprintf("rpc error: code = NotFound desc = setting config: GetRepoPath: not a git repository: %q", repoPath)
 		if testhelper.IsPraefectEnabled() {
 			expectedErr = `rpc error: code = NotFound desc = mutator call: route repository mutator: get repository id: repository "default"/"/path/to/repo.git" not found`
 		}
@@ -176,8 +175,7 @@ func TestFullPath(t *testing.T) {
 		})
 		require.Nil(t, response)
 
-		expectedErr := fmt.Sprintf("rpc error: code = NotFound desc = fetch config: rpc "+
-			"error: code = NotFound desc = GetRepoPath: not a git repository: %q", repoPath)
+		expectedErr := fmt.Sprintf("rpc error: code = NotFound desc = fetch config: GetRepoPath: not a git repository: %q", repoPath)
 		if testhelper.IsPraefectEnabled() {
 			expectedErr = `rpc error: code = NotFound desc = accessor call: route repository accessor: consistent storages: repository "default"/"/path/to/repo.git" not found`
 		}

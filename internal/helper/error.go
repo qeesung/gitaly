@@ -108,11 +108,47 @@ func ErrAbortedf(format string, a ...interface{}) error {
 	return formatError(codes.Aborted, format, a...)
 }
 
+// grpcErrorMessageWrapper is used to wrap a gRPC `status.Status`-style error such that it behaves
+// like a `status.Status`, except that it generates a readable error message.
+type grpcErrorMessageWrapper struct {
+	*status.Status
+}
+
+func (e grpcErrorMessageWrapper) GRPCStatus() *status.Status {
+	return e.Status
+}
+
+func (e grpcErrorMessageWrapper) Error() string {
+	return e.Message()
+}
+
+func (e grpcErrorMessageWrapper) Unwrap() error {
+	return e.Status.Err()
+}
+
 // formatError will create a new error from the given format string. If the error string contains a
 // %w verb and its corresponding error has a gRPC error code, then the returned error will keep this
 // gRPC error code instead of using the one provided as an argument.
 func formatError(code codes.Code, format string, a ...interface{}) error {
-	err := fmt.Errorf(format, a...)
+	args := make([]interface{}, 0, len(a))
+	for _, a := range a {
+		err, ok := a.(error)
+		if !ok {
+			args = append(args, a)
+			continue
+		}
+
+		status, ok := status.FromError(err)
+		if !ok {
+			args = append(args, a)
+			continue
+		}
+
+		// Wrap gRPC status errors so that the resulting error message stays readable.
+		args = append(args, grpcErrorMessageWrapper{status})
+	}
+
+	err := fmt.Errorf(format, args...)
 
 	nestedCode := GrpcCode(errors.Unwrap(err))
 	if nestedCode != codes.OK && nestedCode != codes.Unknown {

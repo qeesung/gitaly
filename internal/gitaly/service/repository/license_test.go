@@ -26,7 +26,7 @@ func testSuccessfulFindLicenseRequest(t *testing.T, cfg config.Cfg, client gital
 			{
 				desc:                  "repository does not exist",
 				nonExistentRepository: true,
-				errorContains:         "rpc error: code = NotFound desc = GetRepoPath: not a git repository",
+				errorContains:         "GetRepoPath: not a git repository",
 			},
 			{
 				desc: "empty if no license file in repo",
