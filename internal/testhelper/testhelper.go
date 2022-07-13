@@ -175,7 +175,7 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.RunCommandsInCGroup, true)
 	// Randomly inject the Git flag so that we have coverage of tests with both old and new Git
 	// version by pure chance.
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2361Gl1, rnd.Int()%2 == 0)
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2371Gl1, rnd.Int()%2 == 0)
 	// PraefectGeneratedReplicaPaths affects many tests as it changes the repository creation logic.
 	// Randomly enable the flag to exercise both paths to some extent.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.PraefectGeneratedReplicaPaths, rnd.Int()%2 == 0)
