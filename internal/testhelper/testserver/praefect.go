@@ -1,11 +1,14 @@
 package testserver
 
 import (
+	"bytes"
+	"context"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/require"
@@ -76,7 +79,9 @@ func StartPraefect(t testing.TB, cfg config.Config) PraefectServer {
 	})
 
 	cmd := exec.Command(binaryPath, "-config", configFilePath)
-	cmd.Stderr = os.Stderr
+	// Logs are written to stderr, we can ignore stdout.
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	cmd.Stdout = os.Stdout
 
 	require.NoError(t, cmd.Start())
@@ -90,7 +95,23 @@ func StartPraefect(t testing.TB, cfg config.Config) PraefectServer {
 	}
 	t.Cleanup(praefectServer.Shutdown)
 
-	waitHealthy(t, praefectServer.Address(), cfg.Auth.Token)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	// Ensure this runs even if context ends in waitHealthy.
+	defer func() {
+		select {
+		case <-ctx.Done():
+			switch ctx.Err() {
+			case context.DeadlineExceeded:
+				// Capture Praefect logs when waitHealthy takes too long.
+				t.Errorf("Failed to connect to Praefect:\n%v", stderr.String())
+			}
+		default:
+		}
+	}()
+
+	waitHealthy(ctx, t, praefectServer.Address(), cfg.Auth.Token)
 
 	return praefectServer
 }

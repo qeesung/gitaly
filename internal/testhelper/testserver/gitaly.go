@@ -1,6 +1,7 @@
 package testserver
 
 import (
+	"context"
 	"net"
 	"os"
 	"testing"
@@ -82,7 +83,7 @@ func runPraefectProxy(t testing.TB, gitalyCfg config.Cfg, gitalyAddr string) Pra
 		Replication: praefectconfig.DefaultReplicationConfig(),
 		Logging: gitalylog.Config{
 			Format: "json",
-			Level:  "panic",
+			Level:  "info",
 		},
 		VirtualStorages: []*praefectconfig.VirtualStorage{
 			{
@@ -119,17 +120,14 @@ func (gs GitalyServer) Address() string {
 	return gs.address
 }
 
-// waitHealthy waits until the server hosted at address becomes healthy. Times out after a fixed
-// amount of time.
-func waitHealthy(t testing.TB, addr string, authToken string) {
+// waitHealthy waits until the server hosted at address becomes healthy.
+func waitHealthy(ctx context.Context, t testing.TB, addr string, authToken string) {
 	grpcOpts := []grpc.DialOption{
 		grpc.WithBlock(),
 	}
 	if authToken != "" {
 		grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(authToken)))
 	}
-
-	ctx := testhelper.Context(t)
 
 	conn, err := client.DialContext(ctx, addr, grpcOpts)
 	require.NoError(t, err)
@@ -178,7 +176,8 @@ func runGitaly(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, regi
 			assert.NoError(t, internalServer.Serve(internalListener), "failure to serve internal gRPC")
 		}()
 
-		waitHealthy(t, "unix://"+internalListener.Addr().String(), cfg.Auth.Token)
+		ctx := testhelper.Context(t)
+		waitHealthy(ctx, t, "unix://"+internalListener.Addr().String(), cfg.Auth.Token)
 	}
 
 	externalServer, err := serverFactory.CreateExternal(cfg.TLS.CertPath != "" && cfg.TLS.KeyPath != "")
@@ -212,7 +211,8 @@ func runGitaly(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, regi
 		assert.NoError(t, externalServer.Serve(listener), "failure to serve external gRPC")
 	}()
 
-	waitHealthy(t, addr, cfg.Auth.Token)
+	ctx := testhelper.Context(t)
+	waitHealthy(ctx, t, addr, cfg.Auth.Token)
 
 	return externalServer, addr, gsd.disablePraefect
 }
