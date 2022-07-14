@@ -116,8 +116,7 @@ func optimizeRepoAtPath(ctx context.Context, l logrus.FieldLogger, s config.Stor
 		"start_time":    start.UTC(),
 	})
 
-	ctx, cancel := context.WithTimeout(ctxlogrus.ToContext(ctx, logEntry), 5*time.Minute)
-	defer cancel()
+	ctx = ctxlogrus.ToContext(ctx, logEntry)
 
 	err = o.OptimizeRepository(ctx, repo)
 	logEntry = logEntry.WithField("time_ms", time.Since(start).Milliseconds())

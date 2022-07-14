@@ -5,9 +5,7 @@ import (
 	"math/rand"
 	"path/filepath"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
@@ -109,40 +107,4 @@ func TestOptimizeReposRandomly(t *testing.T) {
 			require.Equal(t, len(tc.expected)+1, tickerCount)
 		})
 	}
-}
-
-type mockOptimizerCancel struct {
-	t         *testing.T
-	startedAt time.Time
-}
-
-func (m mockOptimizerCancel) OptimizeRepository(ctx context.Context, _ repo.GitRepo) error {
-	timeline, ok := ctx.Deadline()
-	if assert.True(m.t, ok) {
-		assert.True(m.t, timeline.After(m.startedAt), m.startedAt)
-		future := m.startedAt.Add(10 * time.Minute)
-		assert.True(m.t, timeline.Before(future), future)
-	}
-	return nil
-}
-
-func TestOptimizeReposRandomly_cancellationOverride(t *testing.T) {
-	cfgBuilder := testcfg.NewGitalyCfgBuilder()
-	cfg := cfgBuilder.Build(t)
-
-	gittest.InitRepo(t, cfg, cfg.Storages[0])
-	ctx := testhelper.Context(t)
-
-	// The timeout should be overwritten by the default 5 min timeout.
-	//nolint:forbidigo // We're explicitly testing deadline override.
-	ctx, cancel := context.WithTimeout(ctx, 72*time.Hour)
-	defer cancel()
-
-	ticker := helper.NewManualTicker()
-	ticker.Tick()
-
-	mo := &mockOptimizerCancel{t: t, startedAt: time.Now()}
-	walker := OptimizeReposRandomly(cfg.Storages, mo, ticker, rand.New(rand.NewSource(1)))
-
-	require.NoError(t, walker(ctx, testhelper.NewDiscardingLogEntry(t), []string{cfg.Storages[0].Name}))
 }
