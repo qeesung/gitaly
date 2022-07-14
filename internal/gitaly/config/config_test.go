@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/auth"
@@ -601,9 +603,9 @@ dir = '%s'`, gitlabShellDir))
 	}, cfg.Hooks)
 }
 
-func TestValidateInternalSocketDir(t *testing.T) {
+func TestSetupRuntimeDirectory_validateInternalSocket(t *testing.T) {
 	verifyPathDoesNotExist := func(t *testing.T, runtimeDir string, actualErr error) {
-		require.Equal(t, fmt.Errorf("internal_socket_dir: path doesn't exist: %q", filepath.Join(runtimeDir, "sock.d")), actualErr)
+		require.EqualError(t, actualErr, fmt.Sprintf("creating runtime directory: mkdir %s/gitaly-%d: no such file or directory", runtimeDir, os.Getpid()))
 	}
 
 	testCases := []struct {
@@ -612,34 +614,11 @@ func TestValidateInternalSocketDir(t *testing.T) {
 		verify func(t *testing.T, runtimeDir string, actualErr error)
 	}{
 		{
-			desc: "unconfigured runtime directory",
-			setup: func(t *testing.T) string {
-				return ""
-			},
-			verify: verifyPathDoesNotExist,
-		},
-		{
 			desc: "non existing directory",
 			setup: func(t *testing.T) string {
 				return "/path/does/not/exist"
 			},
 			verify: verifyPathDoesNotExist,
-		},
-		{
-			desc: "runtime directory missing sock.d",
-			setup: func(t *testing.T) string {
-				runtimeDir := testhelper.TempDir(t)
-				return runtimeDir
-			},
-			verify: verifyPathDoesNotExist,
-		},
-		{
-			desc: "runtime directory with valid sock.d",
-			setup: func(t *testing.T) string {
-				runtimeDir := testhelper.TempDir(t)
-				require.NoError(t, os.Mkdir(filepath.Join(runtimeDir, "sock.d"), os.ModePerm))
-				return runtimeDir
-			},
 		},
 		{
 			desc: "symlinked runtime directory",
@@ -690,11 +669,11 @@ func TestValidateInternalSocketDir(t *testing.T) {
 				RuntimeDir: runtimeDir,
 			}
 
-			actualErr := cfg.validateInternalSocketDir()
+			_, actualErr := SetupRuntimeDirectory(cfg, os.Getpid())
 			if tc.verify == nil {
 				require.NoError(t, actualErr)
 			} else {
-				tc.verify(t, runtimeDir, actualErr)
+				tc.verify(t, cfg.RuntimeDir, actualErr)
 			}
 		})
 	}
@@ -1238,15 +1217,15 @@ func TestValidateBinDir(t *testing.T) {
 	}
 }
 
-func TestCfg_RuntimeDir(t *testing.T) {
+func TestSetupRuntimeDirectory(t *testing.T) {
 	t.Run("defaults", func(t *testing.T) {
 		t.Run("empty runtime directory", func(t *testing.T) {
 			cfg := Cfg{}
-			require.NoError(t, cfg.setDefaults())
+			runtimeDir, err := SetupRuntimeDirectory(cfg, os.Getpid())
+			require.NoError(t, err)
 
-			require.Equal(t, os.TempDir(), filepath.Dir(cfg.RuntimeDir))
-			require.True(t, strings.HasPrefix(filepath.Base(cfg.RuntimeDir), "gitaly-"))
-			require.DirExists(t, cfg.RuntimeDir)
+			require.DirExists(t, runtimeDir)
+			require.True(t, strings.HasPrefix(runtimeDir, filepath.Join(os.TempDir(), "gitaly-")))
 		})
 
 		t.Run("non-existent runtime directory", func(t *testing.T) {
@@ -1254,7 +1233,8 @@ func TestCfg_RuntimeDir(t *testing.T) {
 				RuntimeDir: "/does/not/exist",
 			}
 
-			require.EqualError(t, cfg.setDefaults(), fmt.Sprintf("creating runtime directory: mkdir /does/not/exist/gitaly-%d: no such file or directory", os.Getpid()))
+			_, err := SetupRuntimeDirectory(cfg, os.Getpid())
+			require.EqualError(t, err, fmt.Sprintf("creating runtime directory: mkdir /does/not/exist/gitaly-%d: no such file or directory", os.Getpid()))
 		})
 
 		t.Run("existent runtime directory", func(t *testing.T) {
@@ -1262,9 +1242,12 @@ func TestCfg_RuntimeDir(t *testing.T) {
 			cfg := Cfg{
 				RuntimeDir: dir,
 			}
-			require.NoError(t, cfg.setDefaults())
-			require.Equal(t, filepath.Join(dir, fmt.Sprintf("gitaly-%d", os.Getpid())), cfg.RuntimeDir)
-			require.DirExists(t, cfg.RuntimeDir)
+
+			runtimeDir, err := SetupRuntimeDirectory(cfg, os.Getpid())
+			require.NoError(t, err)
+
+			require.Equal(t, filepath.Join(dir, fmt.Sprintf("gitaly-%d", os.Getpid())), runtimeDir)
+			require.DirExists(t, runtimeDir)
 		})
 	})
 
@@ -1283,9 +1266,8 @@ func TestCfg_RuntimeDir(t *testing.T) {
 				runtimeDir: dirPath,
 			},
 			{
-				desc:        "unset",
-				runtimeDir:  "",
-				expectedErr: fmt.Errorf("runtime_dir: is not set"),
+				desc:       "unset",
+				runtimeDir: "",
 			},
 			{
 				desc:        "path doesn't exist",
@@ -1302,6 +1284,85 @@ func TestCfg_RuntimeDir(t *testing.T) {
 				err := (&Cfg{RuntimeDir: tc.runtimeDir}).validateRuntimeDir()
 				require.Equal(t, tc.expectedErr, err)
 			})
+		}
+	})
+}
+
+func TestPruneRuntimeDirectories(t *testing.T) {
+	t.Run("no runtime directories", func(t *testing.T) {
+		require.NoError(t, PruneRuntimeDirectories(testhelper.NewDiscardingLogEntry(t), testhelper.TempDir(t)))
+	})
+
+	t.Run("unset runtime directory", func(t *testing.T) {
+		require.EqualError(t, PruneRuntimeDirectories(testhelper.NewDiscardingLogEntry(t), ""), "list runtime directory: open : no such file or directory")
+	})
+
+	t.Run("non-existent runtime directory", func(t *testing.T) {
+		require.EqualError(t, PruneRuntimeDirectories(testhelper.NewDiscardingLogEntry(t), "/path/does/not/exist"), "list runtime directory: open /path/does/not/exist: no such file or directory")
+	})
+
+	t.Run("invalid, stale and active runtime directories", func(t *testing.T) {
+		baseDir := testhelper.TempDir(t)
+		cfg := Cfg{RuntimeDir: baseDir}
+
+		// Setup a runtime directory for our process, it can't be stale as long as
+		// we are running.
+		ownRuntimeDir, err := SetupRuntimeDirectory(cfg, os.Getpid())
+		require.NoError(t, err)
+
+		expectedLogs := map[string]string{}
+
+		// Setup runtime directories for processes that have finished.
+		var prunableDirs []string
+		for i := 0; i < 2; i++ {
+			cmd := exec.Command("cat")
+			require.NoError(t, cmd.Run())
+
+			staleRuntimeDir, err := SetupRuntimeDirectory(cfg, cmd.Process.Pid)
+			require.NoError(t, err)
+
+			prunableDirs = append(prunableDirs, staleRuntimeDir)
+			expectedLogs[staleRuntimeDir] = "removing leftover runtime directory"
+		}
+
+		// Create an unexpected file in the runtime directory
+		unexpectedFilePath := filepath.Join(baseDir, "unexpected-file")
+		require.NoError(t, os.WriteFile(unexpectedFilePath, []byte(""), os.ModePerm))
+		expectedLogs[unexpectedFilePath] = "runtime directory contains an unexpected file"
+
+		nonPrunableDirs := []string{ownRuntimeDir}
+
+		// Setup some unexpected directories in the runtime directory
+		for _, dirName := range []string{
+			"nohyphen",
+			"too-many-hyphens",
+			"invalidprefix-3",
+			"gitaly-invalidpid",
+		} {
+			dirPath := filepath.Join(baseDir, dirName)
+			require.NoError(t, os.Mkdir(dirPath, os.ModePerm))
+			expectedLogs[dirPath] = "runtime directory contains an unexpected directory"
+			nonPrunableDirs = append(nonPrunableDirs, dirPath)
+		}
+
+		logger, hook := test.NewNullLogger()
+		require.NoError(t, PruneRuntimeDirectories(logger, cfg.RuntimeDir))
+
+		actualLogs := map[string]string{}
+		for _, entry := range hook.Entries {
+			actualLogs[entry.Data["path"].(string)] = entry.Message
+		}
+
+		require.Equal(t, expectedLogs, actualLogs)
+
+		require.FileExists(t, unexpectedFilePath)
+
+		for _, nonPrunableEntry := range nonPrunableDirs {
+			require.DirExists(t, nonPrunableEntry, nonPrunableEntry)
+		}
+
+		for _, prunableEntry := range prunableDirs {
+			require.NoDirExists(t, prunableEntry, prunableEntry)
 		}
 	})
 }

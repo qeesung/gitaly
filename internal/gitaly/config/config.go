@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -206,7 +207,6 @@ func (cfg *Cfg) Validate() error {
 		cfg.ConfigureRuby,
 		cfg.validateBinDir,
 		cfg.validateRuntimeDir,
-		cfg.validateInternalSocketDir,
 		cfg.validateMaintenance,
 		cfg.validateCgroups,
 		cfg.configurePackObjectsCache,
@@ -230,54 +230,6 @@ func (cfg *Cfg) setDefaults() error {
 
 	if cfg.Hooks.CustomHooksDir == "" {
 		cfg.Hooks.CustomHooksDir = filepath.Join(cfg.GitlabShell.Dir, "hooks")
-	}
-
-	if cfg.RuntimeDir == "" {
-		// If there is no runtime directory configured we just use a temporary runtime
-		// directory. This may not always be an ideal choice given that it's typically
-		// created at `/tmp`, which may get periodically pruned if `noatime` is set.
-		runtimeDir, err := os.MkdirTemp("", "gitaly-")
-		if err != nil {
-			return fmt.Errorf("creating temporary runtime directory: %w", err)
-		}
-
-		cfg.RuntimeDir = runtimeDir
-	} else {
-		// Otherwise, we use the configured runtime directory. Note that we don't use the
-		// runtime directory directly, but instead create a subdirectory within it which is
-		// based on the process's PID. While we could use `MkdirTemp()` instead and don't
-		// bother with preexisting directories, the benefit of using the PID here is that we
-		// can determine whether the directory may still be in use by checking whether the
-		// PID exists. Furthermore, it allows easier debugging in case one wants to inspect
-		// the runtime directory of a running Gitaly node.
-
-		runtimeDir := filepath.Join(cfg.RuntimeDir, fmt.Sprintf("gitaly-%d", os.Getpid()))
-
-		if _, err := os.Stat(runtimeDir); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("statting runtime directory: %w", err)
-		} else if err != nil {
-			// If the directory exists already then it must be from an old invocation of
-			// Gitaly. Because we use the PID as path component we know that the old
-			// instance cannot exist anymore though, so it's safe to remove this
-			// directory now.
-			if err := os.RemoveAll(runtimeDir); err != nil {
-				return fmt.Errorf("removing old runtime directory: %w", err)
-			}
-		}
-
-		if err := os.Mkdir(runtimeDir, 0o700); err != nil {
-			return fmt.Errorf("creating runtime directory: %w", err)
-		}
-
-		cfg.RuntimeDir = runtimeDir
-	}
-
-	// The socket path must be short-ish because listen(2) fails on long
-	// socket paths. We hope/expect that os.MkdirTemp creates a directory
-	// that is not too deep. We need a directory, not a tempfile, because we
-	// will later want to set its permissions to 0700
-	if err := os.Mkdir(cfg.InternalSocketDir(), 0o700); err != nil {
-		return fmt.Errorf("create internal socket directory: %w", err)
 	}
 
 	if reflect.DeepEqual(cfg.DailyMaintenance, DailyJob{}) {
@@ -420,8 +372,8 @@ func (cfg *Cfg) validateBinDir() error {
 }
 
 func (cfg *Cfg) validateRuntimeDir() error {
-	if len(cfg.RuntimeDir) == 0 {
-		return fmt.Errorf("runtime_dir: is not set")
+	if cfg.RuntimeDir == "" {
+		return nil
 	}
 
 	if err := validateIsDirectory(cfg.RuntimeDir, "runtime_dir"); err != nil {
@@ -473,45 +425,6 @@ func (cfg *Cfg) validateToken() error {
 
 	log.Warn("Authentication is enabled but not enforced because transitioning=true. Gitaly will accept unauthenticated requests.")
 	return nil
-}
-
-func (cfg *Cfg) validateInternalSocketDir() error {
-	if err := validateIsDirectory(cfg.InternalSocketDir(), "internal_socket_dir"); err != nil {
-		return err
-	}
-
-	if err := trySocketCreation(cfg.InternalSocketDir()); err != nil {
-		return fmt.Errorf("failed creating internal test socket: %w", err)
-	}
-
-	return nil
-}
-
-func trySocketCreation(dir string) error {
-	// To validate the socket can actually be created, we open and close a socket.
-	// Any error will be assumed persistent for when the gitaly-ruby sockets are created
-	// and thus fatal at boot time.
-	//
-	// There are two kinds of internal sockets we create: the internal server socket
-	// called "intern", and then the Ruby worker sockets called "ruby.$N", with "$N"
-	// being the number of the Ruby worker. Given that we typically wouldn't spawn
-	// hundreds of Ruby workers, the maximum internal socket path name would thus be 7
-	// characters long.
-	socketPath := filepath.Join(dir, "tsocket")
-	defer func() { _ = os.Remove(socketPath) }()
-
-	// Attempt to create an actual socket and not just a file to catch socket path length problems
-	l, err := net.Listen("unix", socketPath)
-	if err != nil {
-		var errno syscall.Errno
-		if errors.As(err, &errno) && errno == syscall.EINVAL {
-			return fmt.Errorf("%w: your socket path is likely too long, please change Gitaly's runtime directory", errno)
-		}
-
-		return fmt.Errorf("socket could not be created in %s: %w", dir, err)
-	}
-
-	return l.Close()
 }
 
 // defaultMaintenanceWindow specifies a 10 minute job that runs daily at +1200
@@ -603,4 +516,162 @@ func (cfg *Cfg) configurePackObjectsCache() error {
 	}
 
 	return nil
+}
+
+// PruneRuntimeDirectories removes leftover runtime directories that belonged to processes that
+// no longer exist. The removals are logged prior to being executed. Unexpected directory entries
+// are logged but not removed
+func PruneRuntimeDirectories(log log.FieldLogger, runtimeDir string) error {
+	entries, err := os.ReadDir(runtimeDir)
+	if err != nil {
+		return fmt.Errorf("list runtime directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if err := func() error {
+			log := log.WithField("path", filepath.Join(runtimeDir, entry.Name()))
+			if !entry.IsDir() {
+				// There should be no files, only the runtime directories.
+				log.Error("runtime directory contains an unexpected file")
+				return nil
+			}
+
+			components := strings.Split(entry.Name(), "-")
+			if len(components) != 2 || components[0] != "gitaly" {
+				// This directory does not match the runtime directory naming format
+				// of `gitaly-<process id>.
+				log.Error("runtime directory contains an unexpected directory")
+				return nil
+			}
+
+			processID, err := strconv.ParseInt(components[1], 10, 64)
+			if err != nil {
+				// This is not a runtime directory as the section after the hyphen is not a process id.
+				log.Error("runtime directory contains an unexpected directory")
+				return nil
+			}
+
+			process, err := os.FindProcess(int(processID))
+			if err != nil {
+				return fmt.Errorf("find process: %w", err)
+			}
+			defer func() {
+				if err := process.Release(); err != nil {
+					log.WithError(err).Error("failed releasing process")
+				}
+			}()
+
+			if err := process.Signal(syscall.Signal(0)); err != nil {
+				if !errors.Is(err, os.ErrProcessDone) {
+					return fmt.Errorf("signal: %w", err)
+				}
+
+				log.Info("removing leftover runtime directory")
+
+				if err := os.RemoveAll(filepath.Join(runtimeDir, entry.Name())); err != nil {
+					return fmt.Errorf("remove leftover runtime directory: %w", err)
+				}
+			}
+
+			return nil
+		}(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SetupRuntimeDirectory creates a new runtime directory. Runtime directory contains internal
+// runtime data generated by Gitaly such as the internal sockets. If cfg.RuntimeDir is set,
+// it's used as the parent directory for the runtime directory. Runtime directory owner process
+// can be identified by the suffix process ID suffixed in the directory name. If a directory already
+// exists for this process' ID, it's removed and recreated. If cfg.RuntimeDir is not set, a temporary
+// directory is used instead. A directory is created for the internal socket as well since it is
+// expected to be present in the runtime directory. SetupRuntimeDirectory returns the absolute path
+// to the created runtime directory.
+func SetupRuntimeDirectory(cfg Cfg, processID int) (string, error) {
+	var runtimeDir string
+	if cfg.RuntimeDir == "" {
+		// If there is no parent directory provided, we just use a temporary directory
+		// as the runtime directory. This may not always be an ideal choice given that
+		// it's typically created at `/tmp`, which may get periodically pruned if `noatime`
+		// is set.
+		var err error
+		runtimeDir, err = os.MkdirTemp("", "gitaly-")
+		if err != nil {
+			return "", fmt.Errorf("creating temporary runtime directory: %w", err)
+		}
+	} else {
+		// Otherwise, we use the configured runtime directory. Note that we don't use the
+		// runtime directory directly, but instead create a subdirectory within it which is
+		// based on the process's PID. While we could use `MkdirTemp()` instead and don't
+		// bother with preexisting directories, the benefit of using the PID here is that we
+		// can determine whether the directory may still be in use by checking whether the
+		// PID exists. Furthermore, it allows easier debugging in case one wants to inspect
+		// the runtime directory of a running Gitaly node.
+
+		runtimeDir = filepath.Join(cfg.RuntimeDir, fmt.Sprintf("gitaly-%d", processID))
+
+		if _, err := os.Stat(runtimeDir); err != nil && !os.IsNotExist(err) {
+			return "", fmt.Errorf("statting runtime directory: %w", err)
+		} else if err != nil {
+			// If the directory exists already then it must be from an old invocation of
+			// Gitaly. Because we use the PID as path component we know that the old
+			// instance cannot exist anymore though, so it's safe to remove this
+			// directory now.
+			if err := os.RemoveAll(runtimeDir); err != nil {
+				return "", fmt.Errorf("removing old runtime directory: %w", err)
+			}
+		}
+
+		if err := os.Mkdir(runtimeDir, 0o700); err != nil {
+			return "", fmt.Errorf("creating runtime directory: %w", err)
+		}
+	}
+
+	// Set the runtime dir in the config as the internal socket helpers
+	// rely on it.
+	cfg.RuntimeDir = runtimeDir
+
+	// The socket path must be short-ish because listen(2) fails on long
+	// socket paths. We hope/expect that os.MkdirTemp creates a directory
+	// that is not too deep. We need a directory, not a tempfile, because we
+	// will later want to set its permissions to 0700
+	if err := os.Mkdir(cfg.InternalSocketDir(), 0o700); err != nil {
+		return "", fmt.Errorf("create internal socket directory: %w", err)
+	}
+
+	if err := trySocketCreation(cfg.InternalSocketDir()); err != nil {
+		return "", fmt.Errorf("failed creating internal test socket: %w", err)
+	}
+
+	return runtimeDir, nil
+}
+
+func trySocketCreation(dir string) error {
+	// To validate the socket can actually be created, we open and close a socket.
+	// Any error will be assumed persistent for when the gitaly-ruby sockets are created
+	// and thus fatal at boot time.
+	//
+	// There are two kinds of internal sockets we create: the internal server socket
+	// called "intern", and then the Ruby worker sockets called "ruby.$N", with "$N"
+	// being the number of the Ruby worker. Given that we typically wouldn't spawn
+	// hundreds of Ruby workers, the maximum internal socket path name would thus be 7
+	// characters long.
+	socketPath := filepath.Join(dir, "tsocket")
+	defer func() { _ = os.Remove(socketPath) }()
+
+	// Attempt to create an actual socket and not just a file to catch socket path length problems
+	l, err := net.Listen("unix", socketPath)
+	if err != nil {
+		var errno syscall.Errno
+		if errors.As(err, &errno) && errno == syscall.EINVAL {
+			return fmt.Errorf("%w: your socket path is likely too long, please change Gitaly's runtime directory", errno)
+		}
+
+		return fmt.Errorf("socket could not be created in %s: %w", dir, err)
+	}
+
+	return l.Close()
 }
