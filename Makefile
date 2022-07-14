@@ -109,7 +109,7 @@ PROTOC_GEN_GO_GRPC_VERSION?= v1.2.0
 # https://github.com/libgit2/git2go/#which-go-version-to-use for a
 # compatibility matrix.
 GIT2GO_VERSION            ?= v33
-LIBGIT2_VERSION           ?= v1.3.0
+LIBGIT2_VERSION           ?= v1.3.2
 DELVE_VERSION             ?= v1.8.3
 
 # protoc target
