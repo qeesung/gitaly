@@ -2,12 +2,14 @@ package hook
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
@@ -16,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	hookPkg "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/streamcache"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
@@ -24,16 +27,18 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func runTestsWithRuntimeDir(t *testing.T, testFunc func(*testing.T, string)) {
+func runTestsWithRuntimeDir(t *testing.T, testFunc func(*testing.T, context.Context, string)) func(*testing.T, context.Context) {
 	t.Helper()
 
-	t.Run("no runtime dir", func(t *testing.T) {
-		testFunc(t, "")
-	})
+	return func(t *testing.T, ctx context.Context) {
+		t.Run("no runtime dir", func(t *testing.T) {
+			testFunc(t, ctx, "")
+		})
 
-	t.Run("with runtime dir", func(t *testing.T) {
-		testFunc(t, testhelper.TempDir(t))
-	})
+		t.Run("with runtime dir", func(t *testing.T) {
+			testFunc(t, ctx, testhelper.TempDir(t))
+		})
+	}
 }
 
 func cfgWithCache(t *testing.T) config.Cfg {
@@ -73,14 +78,18 @@ func TestParsePackObjectsArgs(t *testing.T) {
 
 func TestServer_PackObjectsHook_separateContext(t *testing.T) {
 	t.Parallel()
-	runTestsWithRuntimeDir(t, testServerPackObjectsHookSeparateContextWithRuntimeDir)
+	testhelper.NewFeatureSets(featureflag.PackObjectsMetrics).Run(
+		t,
+		runTestsWithRuntimeDir(t, testServerPackObjectsHookSeparateContextWithRuntimeDir),
+	)
 }
 
-func testServerPackObjectsHookSeparateContextWithRuntimeDir(t *testing.T, runtimeDir string) {
+func testServerPackObjectsHookSeparateContextWithRuntimeDir(t *testing.T, ctx context.Context, runtimeDir string) {
 	cfg := cfgWithCache(t)
 	cfg.SocketPath = runHooksServer(t, cfg, nil)
 
-	ctx1 := testhelper.Context(t)
+	ctx1, cancel := context.WithCancel(ctx)
+	defer cancel()
 	repo, repoPath := gittest.CreateRepository(ctx1, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
@@ -137,7 +146,8 @@ func testServerPackObjectsHookSeparateContextWithRuntimeDir(t *testing.T, runtim
 	client2, conn2 := newHooksClient(t, cfg.SocketPath)
 	defer conn2.Close()
 
-	ctx2 := testhelper.Context(t)
+	ctx2, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	var stdout2 []byte
 	ctx2, wt2, err := hookPkg.SetupSidechannel(
@@ -186,10 +196,13 @@ func testServerPackObjectsHookSeparateContextWithRuntimeDir(t *testing.T, runtim
 
 func TestServer_PackObjectsHook_usesCache(t *testing.T) {
 	t.Parallel()
-	runTestsWithRuntimeDir(t, testServerPackObjectsHookUsesCache)
+	testhelper.NewFeatureSets(featureflag.PackObjectsMetrics).Run(
+		t,
+		runTestsWithRuntimeDir(t, testServerPackObjectsHookUsesCache),
+	)
 }
 
-func testServerPackObjectsHookUsesCache(t *testing.T, runtimeDir string) {
+func testServerPackObjectsHookUsesCache(t *testing.T, ctx context.Context, runtimeDir string) {
 	cfg := cfgWithCache(t)
 
 	tlc := &streamcache.TestLoggingCache{}
@@ -198,7 +211,6 @@ func testServerPackObjectsHookUsesCache(t *testing.T, runtimeDir string) {
 		s.packObjectsCache = tlc
 	}})
 
-	ctx := testhelper.Context(t)
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
@@ -268,10 +280,14 @@ func testServerPackObjectsHookUsesCache(t *testing.T, runtimeDir string) {
 
 func TestServer_PackObjectsHookWithSidechannel(t *testing.T) {
 	t.Parallel()
-	runTestsWithRuntimeDir(t, testServerPackObjectsHookWithSidechannelWithRuntimeDir)
+
+	testhelper.NewFeatureSets(featureflag.PackObjectsMetrics).Run(
+		t,
+		runTestsWithRuntimeDir(t, testServerPackObjectsHookWithSidechannelWithRuntimeDir),
+	)
 }
 
-func testServerPackObjectsHookWithSidechannelWithRuntimeDir(t *testing.T, runtimeDir string) {
+func testServerPackObjectsHookWithSidechannelWithRuntimeDir(t *testing.T, ctx context.Context, runtimeDir string) {
 	testCases := []struct {
 		desc  string
 		stdin string
@@ -292,10 +308,17 @@ func testServerPackObjectsHookWithSidechannelWithRuntimeDir(t *testing.T, runtim
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			cfg := cfgWithCache(t)
-			ctx := testhelper.Context(t)
 
 			logger, hook := test.NewNullLogger()
-			cfg.SocketPath = runHooksServer(t, cfg, nil, testserver.WithLogger(logger))
+			concurrencyTracker := hookPkg.NewConcurrencyTracker()
+
+			cfg.SocketPath = runHooksServer(
+				t,
+				cfg,
+				nil,
+				testserver.WithLogger(logger),
+				testserver.WithConcurrencyTracker(concurrencyTracker),
+			)
 			repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 				Seed: gittest.SeedGitLabTest,
 			})
@@ -384,6 +407,74 @@ func testServerPackObjectsHookWithSidechannelWithRuntimeDir(t *testing.T, runtim
 				require.True(t, strings.HasPrefix(total, "Total "))
 				require.False(t, strings.Contains(total, "\n"))
 			})
+
+			if featureflag.PackObjectsMetrics.IsEnabled(ctx) {
+				expectedMetrics := `# HELP gitaly_pack_objects_concurrent_processes Number of concurrent processes
+# TYPE gitaly_pack_objects_concurrent_processes histogram
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="0"} 0
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="5"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="10"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="15"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="20"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="25"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="30"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="35"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="40"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="45"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="50"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="55"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="60"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="65"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="70"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="75"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="80"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="85"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="90"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="95"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="+Inf"} 1
+gitaly_pack_objects_concurrent_processes_sum{segment="repository"} 1
+gitaly_pack_objects_concurrent_processes_count{segment="repository"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="0"} 0
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="5"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="10"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="15"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="20"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="25"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="30"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="35"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="40"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="45"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="50"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="55"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="60"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="65"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="70"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="75"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="80"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="85"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="90"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="95"} 1
+gitaly_pack_objects_concurrent_processes_bucket{segment="user_id",le="+Inf"} 1
+gitaly_pack_objects_concurrent_processes_sum{segment="user_id"} 1
+gitaly_pack_objects_concurrent_processes_count{segment="user_id"} 1
+# HELP gitaly_pack_objects_process_active_callers Number of unique callers that have an active pack objects processes
+# TYPE gitaly_pack_objects_process_active_callers gauge
+gitaly_pack_objects_process_active_callers{segment="repository"} 0
+gitaly_pack_objects_process_active_callers{segment="user_id"} 0
+# HELP gitaly_pack_objects_process_active_callers_total Total unique callers that have initiated a pack objects processes
+# TYPE gitaly_pack_objects_process_active_callers_total counter
+gitaly_pack_objects_process_active_callers_total{segment="repository"} 1
+gitaly_pack_objects_process_active_callers_total{segment="user_id"} 1
+`
+				require.NoError(t, testutil.CollectAndCompare(
+					concurrencyTracker,
+					bytes.NewBufferString(expectedMetrics),
+				))
+			} else {
+				require.Equal(t, 0, testutil.CollectAndCount(
+					concurrencyTracker,
+				))
+			}
 		})
 	}
 }
@@ -430,12 +521,15 @@ func TestServer_PackObjectsHookWithSidechannel_invalidArgument(t *testing.T) {
 
 func TestServer_PackObjectsHookWithSidechannel_Canceled(t *testing.T) {
 	t.Parallel()
-	runTestsWithRuntimeDir(t, testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir)
+
+	testhelper.NewFeatureSets(featureflag.PackObjectsMetrics).Run(
+		t,
+		runTestsWithRuntimeDir(t, testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir),
+	)
 }
 
-func testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir(t *testing.T, runtimeDir string) {
+func testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir(t *testing.T, ctx context.Context, runtimeDir string) {
 	cfg := cfgWithCache(t)
-	ctx := testhelper.Context(t)
 
 	ctx, wt, err := hookPkg.SetupSidechannel(
 		ctx,

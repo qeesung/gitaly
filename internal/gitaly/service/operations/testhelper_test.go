@@ -102,7 +102,7 @@ func runOperationServiceServer(t testing.TB, cfg config.Cfg, options ...testserv
 		)
 
 		gitalypb.RegisterOperationServiceServer(srv, operationServer)
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
 		gitalypb.RegisterRepositoryServiceServer(srv, repository.NewServer(
 			deps.GetCfg(),
 			nil,

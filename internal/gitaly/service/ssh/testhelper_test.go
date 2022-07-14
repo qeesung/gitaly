@@ -29,7 +29,13 @@ func runSSHServerWithOptions(t *testing.T, cfg config.Cfg, opts []ServerOpt, ser
 			deps.GetGitCmdFactory(),
 			deps.GetTxManager(),
 			opts...))
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
+		gitalypb.RegisterHookServiceServer(srv,
+			hookservice.NewServer(
+				deps.GetHookManager(),
+				deps.GetGitCmdFactory(),
+				deps.GetPackObjectsCache(),
+				deps.GetPackObjectsConcurrencyTracker(),
+			))
 		gitalypb.RegisterRepositoryServiceServer(srv, repository.NewServer(
 			cfg,
 			deps.GetRubyServer(),

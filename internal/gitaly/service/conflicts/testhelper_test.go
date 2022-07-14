@@ -69,7 +69,7 @@ func runConflictsServer(t testing.TB, cfg config.Cfg, hookManager hook.Manager) 
 			deps.GetGitCmdFactory(),
 			deps.GetTxManager(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
 		gitalypb.RegisterCommitServiceServer(srv, commit.NewServer(
 			deps.GetLocator(),
 			deps.GetGitCmdFactory(),
