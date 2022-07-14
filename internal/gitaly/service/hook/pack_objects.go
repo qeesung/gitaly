@@ -22,10 +22,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/stream"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -43,8 +43,8 @@ var (
 	})
 )
 
-func (s *server) packObjectsHook(ctx context.Context, repo *gitalypb.Repository, reqHash proto.Message, args *packObjectsArgs, stdinReader io.Reader, output io.Writer) error {
-	data, err := protojson.Marshal(reqHash)
+func (s *server) packObjectsHook(ctx context.Context, req *gitalypb.PackObjectsHookWithSidechannelRequest, args *packObjectsArgs, stdinReader io.Reader, output io.Writer) error {
+	data, err := protojson.Marshal(req)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (s *server) packObjectsHook(ctx context.Context, repo *gitalypb.Repository,
 	key := hex.EncodeToString(h.Sum(nil))
 
 	r, created, err := s.packObjectsCache.FindOrCreate(key, func(w io.Writer) error {
-		return s.runPackObjects(ctx, w, repo, args, stdin, key)
+		return s.runPackObjects(ctx, w, req, args, stdin, key)
 	})
 	if err != nil {
 		return err
@@ -105,7 +105,14 @@ func (s *server) packObjectsHook(ctx context.Context, repo *gitalypb.Repository,
 	return r.Wait(ctx)
 }
 
-func (s *server) runPackObjects(ctx context.Context, w io.Writer, repo *gitalypb.Repository, args *packObjectsArgs, stdin io.ReadCloser, key string) error {
+func (s *server) runPackObjects(
+	ctx context.Context,
+	w io.Writer,
+	req *gitalypb.PackObjectsHookWithSidechannelRequest,
+	args *packObjectsArgs,
+	stdin io.ReadCloser,
+	key string,
+) error {
 	// We want to keep the context for logging, but we want to block all its
 	// cancelation signals (deadline, cancel etc.). This is because of
 	// the following scenario. Imagine client1 calls PackObjectsHook and
@@ -123,6 +130,22 @@ func (s *server) runPackObjects(ctx context.Context, w io.Writer, repo *gitalypb
 	defer cancel()
 
 	defer stdin.Close()
+
+	repo := req.GetRepository()
+
+	if featureflag.PackObjectsMetrics.IsEnabled(ctx) && s.concurrencyTracker != nil {
+		finishRepoLog := s.concurrencyTracker.LogConcurrency(ctx, "repository", repo.GetRelativePath())
+		defer finishRepoLog()
+
+		userID := req.GetGlId()
+
+		if userID == "" {
+			userID = "none"
+		}
+
+		finishUserLog := s.concurrencyTracker.LogConcurrency(ctx, "user_id", userID)
+		defer finishUserLog()
+	}
 
 	counter := &helper.CountingWriter{W: w}
 	sw := pktline.NewSidebandWriter(counter)
@@ -285,7 +308,7 @@ func (s *server) PackObjectsHookWithSidechannel(ctx context.Context, req *gitaly
 	}
 	defer c.Close()
 
-	if err := s.packObjectsHook(ctx, req.Repository, req, args, c, c); err != nil {
+	if err := s.packObjectsHook(ctx, req, args, c, c); err != nil {
 		if errors.Is(err, syscall.EPIPE) {
 			// EPIPE is the error we get if we try to write to c after the client has
 			// closed its side of the connection. By convention, we label server side

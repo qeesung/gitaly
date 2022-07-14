@@ -269,6 +269,8 @@ func run(cfg config.Cfg) error {
 	defer rubySrv.Stop()
 
 	streamCache := streamcache.New(cfg.PackObjectsCache, glog.Default())
+	concurrencyTracker := hook.NewConcurrencyTracker()
+	prometheus.MustRegister(concurrencyTracker)
 
 	for _, c := range []starter.Config{
 		{Name: starter.Unix, Addr: cfg.SocketPath, HandoverOnUpgrade: true},
@@ -294,20 +296,21 @@ func run(cfg config.Cfg) error {
 		}
 
 		setup.RegisterAll(srv, &service.Dependencies{
-			Cfg:                 cfg,
-			RubyServer:          rubySrv,
-			GitalyHookManager:   hookManager,
-			TransactionManager:  transactionManager,
-			StorageLocator:      locator,
-			ClientPool:          conns,
-			GitCmdFactory:       gitCmdFactory,
-			Linguist:            ling,
-			CatfileCache:        catfileCache,
-			DiskCache:           diskCache,
-			PackObjectsCache:    streamCache,
-			Git2goExecutor:      git2goExecutor,
-			UpdaterWithHooks:    updaterWithHooks,
-			HousekeepingManager: housekeepingManager,
+			Cfg:                           cfg,
+			RubyServer:                    rubySrv,
+			GitalyHookManager:             hookManager,
+			TransactionManager:            transactionManager,
+			StorageLocator:                locator,
+			ClientPool:                    conns,
+			GitCmdFactory:                 gitCmdFactory,
+			Linguist:                      ling,
+			CatfileCache:                  catfileCache,
+			DiskCache:                     diskCache,
+			PackObjectsCache:              streamCache,
+			PackObjectsConcurrencyTracker: concurrencyTracker,
+			Git2goExecutor:                git2goExecutor,
+			UpdaterWithHooks:              updaterWithHooks,
+			HousekeepingManager:           housekeepingManager,
 		})
 		b.RegisterStarter(starter.New(c, srv))
 	}

@@ -122,7 +122,7 @@ func runRepositoryService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Serv
 			deps.GetGit2goExecutor(),
 			deps.GetHousekeepingManager(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
 		gitalypb.RegisterRemoteServiceServer(srv, remote.NewServer(
 			deps.GetLocator(),
 			deps.GetGitCmdFactory(),

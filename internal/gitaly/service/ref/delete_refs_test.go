@@ -106,7 +106,7 @@ func TestDeleteRefs_transaction(t *testing.T) {
 			deps.GetGit2goExecutor(),
 			deps.GetHousekeepingManager(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
 	}, testserver.WithTransactionManager(txManager))
 	cfg.SocketPath = addr
 

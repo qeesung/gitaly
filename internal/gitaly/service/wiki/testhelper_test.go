@@ -76,8 +76,7 @@ func setupWikiService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server) 
 		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(
 			deps.GetHookManager(),
 			deps.GetGitCmdFactory(),
-			deps.GetPackObjectsCache(),
-		))
+			deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
 		gitalypb.RegisterWikiServiceServer(srv, NewServer(deps.GetRubyServer(), deps.GetLocator()))
 		gitalypb.RegisterRepositoryServiceServer(srv, repository.NewServer(
 			cfg,

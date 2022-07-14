@@ -262,7 +262,7 @@ func TestUserCreateTagWithTransaction(t *testing.T) {
 			deps.GetCatfileCache(),
 			deps.GetUpdaterWithHooks(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
+		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
 	})
 	ctx := testhelper.Context(t)
 

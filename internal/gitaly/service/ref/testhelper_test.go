@@ -65,7 +65,7 @@ func runRefServiceServer(t testing.TB, cfg config.Cfg) string {
 			deps.GetTxManager(),
 			deps.GetCatfileCache(),
 		))
-		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache()))
+		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
 		gitalypb.RegisterRepositoryServiceServer(srv, repository.NewServer(
 			deps.GetCfg(),
 			deps.GetRubyServer(),

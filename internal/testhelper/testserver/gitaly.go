@@ -226,23 +226,24 @@ func registerHealthServerIfNotRegistered(srv *grpc.Server) {
 }
 
 type gitalyServerDeps struct {
-	disablePraefect     bool
-	logger              *logrus.Logger
-	conns               *client.Pool
-	locator             storage.Locator
-	txMgr               transaction.Manager
-	hookMgr             hook.Manager
-	gitlabClient        gitlab.Client
-	gitCmdFactory       git.CommandFactory
-	linguist            *linguist.Instance
-	backchannelReg      *backchannel.Registry
-	catfileCache        catfile.Cache
-	diskCache           cache.Cache
-	packObjectsCache    streamcache.Cache
-	limitHandler        *limithandler.LimiterMiddleware
-	git2goExecutor      *git2go.Executor
-	updaterWithHooks    *updateref.UpdaterWithHooks
-	housekeepingManager housekeeping.Manager
+	disablePraefect               bool
+	logger                        *logrus.Logger
+	conns                         *client.Pool
+	locator                       storage.Locator
+	txMgr                         transaction.Manager
+	hookMgr                       hook.Manager
+	gitlabClient                  gitlab.Client
+	gitCmdFactory                 git.CommandFactory
+	linguist                      *linguist.Instance
+	backchannelReg                *backchannel.Registry
+	catfileCache                  catfile.Cache
+	diskCache                     cache.Cache
+	packObjectsCache              streamcache.Cache
+	packObjectsConcurrencyTracker *hook.ConcurrencyTracker
+	limitHandler                  *limithandler.LimiterMiddleware
+	git2goExecutor                *git2go.Executor
+	updaterWithHooks              *updateref.UpdaterWithHooks
+	housekeepingManager           housekeeping.Manager
 }
 
 func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server) *service.Dependencies {
@@ -301,6 +302,10 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 		t.Cleanup(gsd.packObjectsCache.Stop)
 	}
 
+	if gsd.packObjectsConcurrencyTracker == nil {
+		gsd.packObjectsConcurrencyTracker = hook.NewConcurrencyTracker()
+	}
+
 	if gsd.limitHandler == nil {
 		gsd.limitHandler = limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)
 	}
@@ -318,23 +323,24 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 	}
 
 	return &service.Dependencies{
-		Cfg:                 cfg,
-		RubyServer:          rubyServer,
-		ClientPool:          gsd.conns,
-		StorageLocator:      gsd.locator,
-		TransactionManager:  gsd.txMgr,
-		GitalyHookManager:   gsd.hookMgr,
-		GitCmdFactory:       gsd.gitCmdFactory,
-		Linguist:            gsd.linguist,
-		BackchannelRegistry: gsd.backchannelReg,
-		GitlabClient:        gsd.gitlabClient,
-		CatfileCache:        gsd.catfileCache,
-		DiskCache:           gsd.diskCache,
-		PackObjectsCache:    gsd.packObjectsCache,
-		LimitHandler:        gsd.limitHandler,
-		Git2goExecutor:      gsd.git2goExecutor,
-		UpdaterWithHooks:    gsd.updaterWithHooks,
-		HousekeepingManager: gsd.housekeepingManager,
+		Cfg:                           cfg,
+		RubyServer:                    rubyServer,
+		ClientPool:                    gsd.conns,
+		StorageLocator:                gsd.locator,
+		TransactionManager:            gsd.txMgr,
+		GitalyHookManager:             gsd.hookMgr,
+		GitCmdFactory:                 gsd.gitCmdFactory,
+		Linguist:                      gsd.linguist,
+		BackchannelRegistry:           gsd.backchannelReg,
+		GitlabClient:                  gsd.gitlabClient,
+		CatfileCache:                  gsd.catfileCache,
+		DiskCache:                     gsd.diskCache,
+		PackObjectsCache:              gsd.packObjectsCache,
+		PackObjectsConcurrencyTracker: gsd.packObjectsConcurrencyTracker,
+		LimitHandler:                  gsd.limitHandler,
+		Git2goExecutor:                gsd.git2goExecutor,
+		UpdaterWithHooks:              gsd.updaterWithHooks,
+		HousekeepingManager:           gsd.housekeepingManager,
 	}
 }
 
@@ -410,6 +416,15 @@ func WithBackchannelRegistry(backchannelReg *backchannel.Registry) GitalyServerO
 func WithDiskCache(diskCache cache.Cache) GitalyServerOpt {
 	return func(deps gitalyServerDeps) gitalyServerDeps {
 		deps.diskCache = diskCache
+		return deps
+	}
+}
+
+// WithConcurrencyTracker sets the PackObjectsConcurrencyTracker that will be
+// used for gitaly services initialization.
+func WithConcurrencyTracker(tracker *hook.ConcurrencyTracker) GitalyServerOpt {
+	return func(deps gitalyServerDeps) gitalyServerDeps {
+		deps.packObjectsConcurrencyTracker = tracker
 		return deps
 	}
 }
