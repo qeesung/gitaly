@@ -2,6 +2,7 @@ package commit
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
@@ -273,21 +273,21 @@ func parseStat(line string) (*gitalypb.CommitStatInfo, error) {
 
 	matched := statsPattern.FindStringSubmatch(line)
 	if len(matched) != 6 {
-		return nil, fmt.Errorf("expected match 6 sub exp, got %d", len(matched))
+		return nil, fmt.Errorf("unexpected stats format: %q", line)
 	}
 
 	fileStr, addStr, delStr := matched[1], matched[3], matched[5]
 
 	file64, err := strconv.ParseInt(fileStr, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("parse stat:%v", err)
+		return nil, fmt.Errorf("parsing file count: %w", err)
 	}
 	statInfo.ChangedFiles = int32(file64)
 
 	if len(addStr) > 0 {
 		add64, err := strconv.ParseInt(addStr, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("parse stat:%v", err)
+			return nil, fmt.Errorf("parsing additions: %w", err)
 		}
 
 		statInfo.Additions = int32(add64)
@@ -296,7 +296,7 @@ func parseStat(line string) (*gitalypb.CommitStatInfo, error) {
 	if len(delStr) > 0 {
 		del64, err := strconv.ParseInt(delStr, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("parse stat:%v", err)
+			return nil, fmt.Errorf("parsing deletions: %w", err)
 		}
 
 		statInfo.Deletions = int32(del64)
@@ -305,29 +305,31 @@ func parseStat(line string) (*gitalypb.CommitStatInfo, error) {
 	return statInfo, nil
 }
 
-func splitStat(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	// Skip leading `\x01`.
-	var start, width int
-	for start < len(data) {
-		var r rune
-		r, width = utf8.DecodeRune(data[start:])
-		if r != '\x01' {
-			break
-		}
-		start += width
-	}
-	// Scan until `\x01`, marking end of commit.
-	for i := start; i < len(data); i += width {
-		var r rune
-		r, width = utf8.DecodeRune(data[i:])
-		if r == '\x01' {
-			return i + width, data[start:i], nil
-		}
+func splitStat(data []byte, atEOF bool) (int, []byte, error) {
+	// If there is no more data to be read then we are fine.
+	if atEOF && len(data) == 0 {
+		return 0, nil, io.EOF
 	}
 
-	if atEOF && len(data) > start {
-		return len(data), data[start:], nil
+	// Commits are separated by `\x01` bytes, so we require each commit to start with it. If
+	// that is not the case we return an error.
+	if !bytes.HasPrefix(data, []byte{'\x01'}) {
+		return 0, nil, fmt.Errorf("expected \\x01 prefix: %q", string(data))
 	}
-	// Request more data.
-	return start, nil, nil
+
+	// Skip the prefix. We only want to return the actual commit's data to the caller.
+	data = data[1:]
+
+	// We scan until the next `\x01` byte. If there is none, we're either at EOF (in which case
+	// we just return remaining bytes) or we don't have sufficient data.
+	index := bytes.IndexByte(data, '\x01')
+	if index < 0 {
+		if atEOF {
+			return len(data) + 1, data, nil
+		}
+
+		return 0, nil, nil
+	}
+
+	return index + 1, data[:index], nil
 }

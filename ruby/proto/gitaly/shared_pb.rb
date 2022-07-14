@@ -20,9 +20,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :value, :bytes, 2
     end
     add_message "gitaly.CommitStatInfo" do
-      optional :additions, :int32, 11
-      optional :deletions, :int32, 12
-      optional :changed_files, :int32, 13
+      optional :additions, :int32, 1
+      optional :deletions, :int32, 2
+      optional :changed_files, :int32, 3
     end
     add_message "gitaly.GitCommit" do
       optional :id, :string, 1

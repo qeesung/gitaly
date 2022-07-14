@@ -775,7 +775,7 @@ func TestFindCommits_withStats(t *testing.T) {
 	}
 }
 
-func BenchmarkCommitStatsN(b *testing.B) {
+func BenchmarkCommitStats(b *testing.B) {
 	ctx := testhelper.Context(b)
 	_, repo, _, client := setupCommitServiceWithRepo(ctx, b)
 	request := &gitalypb.FindCommitsRequest{
@@ -786,59 +786,57 @@ func BenchmarkCommitStatsN(b *testing.B) {
 		Trailers:   true,
 	}
 
-	b.Run("without stat(N+1 query)", func(b *testing.B) {
-		b.ReportAllocs()
+	b.Run("without include_shortstat(N+1 query)", func(b *testing.B) {
+		benchmarkCommitStatsN(b, ctx, request, repo, client)
+	})
 
-		for i := 0; i < b.N; i++ {
-			stream, err := client.FindCommits(ctx, request)
-			require.NoError(b, err)
-
-			for {
-				response, err := stream.Recv()
-				if err == io.EOF {
-					break
-				}
-				require.NoError(b, err)
-
-				for _, commit := range response.Commits {
-					_, err = client.CommitStats(ctx, &gitalypb.CommitStatsRequest{
-						Repository: repo,
-						Revision:   []byte(commit.GetId()),
-					})
-					require.NoError(b, err)
-				}
-			}
-		}
+	b.Run("with include_shortstat", func(b *testing.B) {
+		benchmarkFindCommitsWithStat(b, ctx, request, client)
 	})
 }
 
-func BenchmarkFindCommitsWithStat(b *testing.B) {
-	ctx := testhelper.Context(b)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, b)
+func benchmarkCommitStatsN(b *testing.B, ctx context.Context, request *gitalypb.FindCommitsRequest,
+	repo *gitalypb.Repository, client gitalypb.CommitServiceClient,
+) {
+	b.ReportAllocs()
 
-	request := &gitalypb.FindCommitsRequest{
-		Repository:       repo,
-		Limit:            100,
-		SkipMerges:       true,
-		All:              true,
-		Trailers:         true,
-		IncludeShortstat: true,
-	}
+	for i := 0; i < b.N; i++ {
+		stream, err := client.FindCommits(ctx, request)
+		require.NoError(b, err)
 
-	b.Run("with stat", func(b *testing.B) {
-		b.ReportAllocs()
-
-		for i := 0; i < b.N; i++ {
-			stream, err := client.FindCommits(ctx, request)
+		for {
+			response, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
 			require.NoError(b, err)
 
-			for {
-				_, err := stream.Recv()
-				if err == io.EOF {
-					break
-				}
+			for _, commit := range response.Commits {
+				_, err = client.CommitStats(ctx, &gitalypb.CommitStatsRequest{
+					Repository: repo,
+					Revision:   []byte(commit.GetId()),
+				})
 				require.NoError(b, err)
 			}
 		}
-	})
+	}
+}
+
+func benchmarkFindCommitsWithStat(b *testing.B, ctx context.Context, request *gitalypb.FindCommitsRequest,
+	client gitalypb.CommitServiceClient,
+) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		stream, err := client.FindCommits(ctx, request)
+		require.NoError(b, err)
+
+		for {
+			_, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			require.NoError(b, err)
+		}
+	}
 }

@@ -75,11 +75,11 @@ message CommitTrailer {
 // CommitStatInfo includes the number of changed lines and files in the commit.
 message CommitStatInfo {
   // additions is the number of line additions in the commit.
-  int32 additions = 11;
+  int32 additions = 1;
   // deletions is the number of lines deleted in the commit.
-  int32 deletions = 12;
+  int32 deletions = 2;
   // changed_files is the number of files changed in the commit.
-  int32 changed_files = 13;
+  int32 changed_files = 3;
 }
 
 // Corresponds to Gitlab::Git::Commit
