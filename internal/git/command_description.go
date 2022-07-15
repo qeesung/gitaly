@@ -85,7 +85,7 @@ var commandDescriptions = map[string]commandDescription{
 	"fetch": {
 		flags: 0,
 
-		opts: append([]GlobalOption{
+		opts: append(append([]GlobalOption{
 			// We've observed performance issues when fetching into big repositories
 			// part of an object pool. The root cause of this seems to be the
 			// connectivity check, which by default will also include references of any
@@ -119,7 +119,7 @@ var commandDescriptions = map[string]commandDescription{
 			// of time though because we never populate submodules at all. We thus
 			// disable recursion into submodules.
 			ConfigPair{Key: "fetch.recurseSubmodules", Value: "no"},
-		}, fsckConfiguration("fetch")...),
+		}, fsckConfiguration("fetch")...), packConfiguration()...),
 	},
 	"for-each-ref": {
 		flags: scNoRefUpdates,
@@ -215,7 +215,7 @@ var commandDescriptions = map[string]commandDescription{
 	},
 	"receive-pack": {
 		flags: 0,
-		opts: append(append([]GlobalOption{
+		opts: append(append(append([]GlobalOption{
 			// In case the repository belongs to an object pool, we want to prevent
 			// Git from including the pool's refs in the ref advertisement. We do
 			// this by rigging core.alternateRefsCommand to produce no output.
@@ -226,7 +226,7 @@ var commandDescriptions = map[string]commandDescription{
 			// Make git-receive-pack(1) advertise the push options
 			// capability to clients.
 			ConfigPair{Key: "receive.advertisePushOptions", Value: "true"},
-		}, hiddenReceivePackRefPrefixes()...), fsckConfiguration("receive")...),
+		}, hiddenReceivePackRefPrefixes()...), fsckConfiguration("receive")...), packConfiguration()...),
 	},
 	"remote": {
 		// While git-remote(1)'s `add` subcommand does support `--end-of-options`,

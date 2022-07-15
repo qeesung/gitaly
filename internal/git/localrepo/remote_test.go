@@ -184,6 +184,32 @@ func TestRepo_FetchRemote(t *testing.T) {
 		require.Contains(t, err.Error(), "fatal: 'doesnotexist' does not appear to be a git repository")
 		require.IsType(t, err, ErrFetchFailed{})
 	})
+
+	t.Run("generates reverse index", func(t *testing.T) {
+		repo, repoPath := initBareWithRemote(t, "origin")
+
+		// The repository has no objects yet, so there shouldn't be any packfile either.
+		packfiles, err := filepath.Glob(filepath.Join(repoPath, "objects", "pack", "*.pack"))
+		require.NoError(t, err)
+		require.Empty(t, packfiles)
+
+		// Same goes for reverse indices, naturally.
+		reverseIndices, err := filepath.Glob(filepath.Join(repoPath, "objects", "pack", "*.rev"))
+		require.NoError(t, err)
+		require.Empty(t, reverseIndices)
+
+		require.NoError(t, repo.FetchRemote(ctx, "origin", FetchOpts{}))
+
+		// After the fetch we should end up with a single packfile.
+		packfiles, err = filepath.Glob(filepath.Join(repoPath, "objects", "pack", "*.pack"))
+		require.NoError(t, err)
+		require.Len(t, packfiles, 1)
+
+		// And furthermore, that packfile should have a reverse index.
+		reverseIndices, err = filepath.Glob(filepath.Join(repoPath, "objects", "pack", "*.rev"))
+		require.NoError(t, err)
+		require.Len(t, reverseIndices, 1)
+	})
 }
 
 // captureGitSSHCommand creates a new intercepting command factory which captures the

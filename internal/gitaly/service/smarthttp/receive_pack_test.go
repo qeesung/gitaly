@@ -226,6 +226,63 @@ func TestPostReceivePack_protocolV2(t *testing.T) {
 	gittest.Exec(t, cfg, "-C", repoPath, "show", newCommitID.String())
 }
 
+func TestPostReceivePack_packfiles(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg := testcfg.Build(t)
+	cfg.SocketPath = startSmartHTTPServer(t, cfg).Address()
+	testcfg.BuildGitalyHooks(t, cfg)
+
+	client, conn := newSmartHTTPClient(t, cfg.SocketPath, cfg.Auth.Token)
+	defer conn.Close()
+
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
+
+	stream, err := client.PostReceivePack(ctx)
+	require.NoError(t, err)
+
+	// Verify the before-state of the repository. It should have a single packfile, ...
+	packfiles, err := filepath.Glob(filepath.Join(repoPath, "objects", "pack", "*.pack"))
+	require.NoError(t, err)
+	require.Len(t, packfiles, 1)
+
+	// ... but no reverse index. `gittest.CreateRepository()` uses `CreateRepositoryFromURL()`
+	// with a file path that doesn't use `file://` as prefix. As a result, Git uses the local
+	// transport and just copies objects over without generating a reverse index. This is thus
+	// expected as we don't want to perform a "real" clone, which would be a lot more expensive.
+	reverseIndices, err := filepath.Glob(filepath.Join(repoPath, "objects", "pack", "*.rev"))
+	require.NoError(t, err)
+	require.Empty(t, reverseIndices)
+
+	_, _, request := createPushRequest(t, cfg)
+	performPush(t, stream, &gitalypb.PostReceivePackRequest{
+		Repository:   repo,
+		GlId:         "user-123",
+		GlRepository: "project-123",
+		GitProtocol:  git.ProtocolV2,
+		// By default, Git would unpack the received packfile if it has less than
+		// 100 objects. Decrease this limit so that we indeed end up with another
+		// new packfile even though we only push a small set of objects.
+		GitConfigOptions: []string{
+			"receive.unpackLimit=0",
+		},
+	}, request)
+
+	// We now should have two packfiles, ...
+	packfiles, err = filepath.Glob(filepath.Join(repoPath, "objects", "pack", "*.pack"))
+	require.NoError(t, err)
+	require.Len(t, packfiles, 2)
+
+	// ... and one reverse index for the newly added packfile.
+	reverseIndices, err = filepath.Glob(filepath.Join(repoPath, "objects", "pack", "*.rev"))
+	require.NoError(t, err)
+	require.Len(t, reverseIndices, 1)
+}
+
 func TestPostReceivePack_rejectViaGitConfigOptions(t *testing.T) {
 	t.Parallel()
 
