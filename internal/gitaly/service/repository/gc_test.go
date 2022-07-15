@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -267,36 +268,72 @@ func TestGarbageCollectDeletesFileLocks(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, repoPath, client := setupRepositoryService(ctx, t)
+	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
-	req := &gitalypb.GarbageCollectRequest{Repository: repo}
-
-	for _, tc := range []string{
-		"config.lock",
-		"HEAD.lock",
-		"objects/info/commit-graphs/commit-graph-chain.lock",
+	for _, tc := range []struct {
+		desc                string
+		lockfile            string
+		expectedErrContains string
+	}{
+		{
+			desc:     "locked gitconfig",
+			lockfile: "config.lock",
+		},
+		{
+			desc:     "locked HEAD",
+			lockfile: "HEAD.lock",
+		},
+		{
+			desc:     "locked commit-graph",
+			lockfile: "objects/info/commit-graphs/commit-graph-chain.lock",
+			// Writing commit-graphs fails if there is another, concurrent process that
+			// has locked the commit-graph chain.
+			expectedErrContains: "Another git process seems to be running in this repository",
+		},
 	} {
-		lockPath := filepath.Join(repoPath, tc)
-		// No file on the lock path
-		//nolint:staticcheck
-		_, err := client.GarbageCollect(ctx, req)
-		assert.NoError(t, err)
+		t.Run(tc.desc, func(t *testing.T) {
+			// Create a lockfile and run GarbageCollect. Because the lock has been
+			// freshly created GarbageCollect shouldn't remove the not-yet-stale
+			// lockfile.
+			t.Run("with recent lockfile", func(t *testing.T) {
+				repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					Seed: gittest.SeedGitLabTest,
+				})
 
-		// Fresh lock should remain
-		mustCreateFileWithTimes(t, lockPath, freshTime)
-		//nolint:staticcheck
-		_, err = client.GarbageCollect(ctx, req)
+				lockPath := filepath.Join(repoPath, tc.lockfile)
+				mustCreateFileWithTimes(t, lockPath, freshTime)
 
-		assert.NoError(t, err)
+				//nolint:staticcheck
+				_, err := client.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{
+					Repository: repo,
+				})
+				if tc.expectedErrContains == "" {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+					require.Contains(t, err.Error(), tc.expectedErrContains)
+				}
+				require.FileExists(t, lockPath)
+			})
 
-		assert.FileExists(t, lockPath)
+			// Redo the same test, but this time we create the lockfile so that it is
+			// considered stale. GarbageCollect should know to remove it.
+			t.Run("with stale lockfile", func(t *testing.T) {
+				repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					Seed: gittest.SeedGitLabTest,
+				})
 
-		// Old lock should be removed
-		mustCreateFileWithTimes(t, lockPath, oldTime)
-		//nolint:staticcheck
-		_, err = client.GarbageCollect(ctx, req)
-		assert.NoError(t, err)
-		require.NoFileExists(t, lockPath)
+				lockPath := filepath.Join(repoPath, tc.lockfile)
+				mustCreateFileWithTimes(t, lockPath, oldTime)
+
+				//nolint:staticcheck
+				_, err := client.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{
+					Repository: repo,
+				})
+				require.NoError(t, err)
+				require.NoFileExists(t, lockPath)
+			})
+		})
 	}
 }
 
@@ -502,4 +539,44 @@ func TestGarbageCollectDeltaIslands(t *testing.T) {
 		_, err := client.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{Repository: repo})
 		return err
 	})
+}
+
+func TestGarbageCollect_commitGraphsWithPrunedObjects(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	cfg, client := setupRepositoryServiceWithoutRepo(t)
+
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg)
+
+	// Write a first commit-graph that contains the root commit, only.
+	rootCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+	gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--split", "--changed-paths")
+
+	// Write a second, incremental commit-graph that contains a commit we're about to
+	// make unreachable and then prune.
+	unreachableCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(rootCommitID), gittest.WithBranch("main"))
+	gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--split=no-merge", "--changed-paths")
+
+	// Reset the "main" branch back to the initial root commit ID and prune the now
+	// unreachable second commit.
+	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/main", rootCommitID.String())
+	gittest.Exec(t, cfg, "-C", repoPath, "prune", "--expire", "now")
+
+	// The commit-graph chain now refers to the pruned commit, and git-commit-graph(1)
+	// should complain about that.
+	var stderr bytes.Buffer
+	verifyCmd := gittest.NewCommand(t, cfg, "-C", repoPath, "commit-graph", "verify")
+	verifyCmd.Stderr = &stderr
+	require.EqualError(t, verifyCmd.Run(), "exit status 1")
+	require.Equal(t, stderr.String(), fmt.Sprintf("error: Could not read %[1]s\nfailed to parse commit %[1]s from object database for commit-graph\n", unreachableCommitID))
+
+	// Given that GarbageCollect is an RPC that prunes objects it should know to fix up commit
+	// graphs...
+	//nolint:staticcheck
+	_, err := client.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{Repository: repoProto})
+	require.NoError(t, err)
+
+	// ... and it does.
+	gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "verify")
 }

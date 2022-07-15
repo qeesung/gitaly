@@ -118,12 +118,12 @@ func TestRepackIncrementalFailure(t *testing.T) {
 		{
 			desc: "invalid storage name",
 			repo: &gitalypb.Repository{StorageName: "foo"},
-			err:  status.Error(codes.InvalidArgument, gitalyOrPraefect(`GetStorageByName: no such storage: "foo"`, "repo scoped: invalid Repository")),
+			err:  status.Error(codes.InvalidArgument, gitalyOrPraefect(`repacking objects: GetStorageByName: no such storage: "foo"`, "repo scoped: invalid Repository")),
 		},
 		{
 			desc: "no storage name",
 			repo: &gitalypb.Repository{RelativePath: "bar"},
-			err:  status.Error(codes.InvalidArgument, gitalyOrPraefect(`GetStorageByName: no such storage: ""`, "repo scoped: invalid Repository")),
+			err:  status.Error(codes.InvalidArgument, gitalyOrPraefect(`repacking objects: GetStorageByName: no such storage: ""`, "repo scoped: invalid Repository")),
 		},
 		{
 			desc: "non-existing repo",
@@ -131,7 +131,7 @@ func TestRepackIncrementalFailure(t *testing.T) {
 			err: status.Error(
 				codes.NotFound,
 				gitalyOrPraefect(
-					fmt.Sprintf(`GetRepoPath: not a git repository: "%s/bar"`, cfg.Storages[0].Path),
+					fmt.Sprintf(`repacking objects: GetRepoPath: not a git repository: "%s/bar"`, cfg.Storages[0].Path),
 					praefectErr,
 				),
 			),
@@ -263,12 +263,12 @@ func TestRepackFullFailure(t *testing.T) {
 		{
 			desc: "invalid storage name",
 			repo: &gitalypb.Repository{StorageName: "foo"},
-			err:  status.Error(codes.InvalidArgument, gitalyOrPraefect(`GetStorageByName: no such storage: "foo"`, "repo scoped: invalid Repository")),
+			err:  status.Error(codes.InvalidArgument, gitalyOrPraefect(`repacking objects: GetStorageByName: no such storage: "foo"`, "repo scoped: invalid Repository")),
 		},
 		{
 			desc: "no storage name",
 			repo: &gitalypb.Repository{RelativePath: "bar"},
-			err:  status.Error(codes.InvalidArgument, gitalyOrPraefect(`GetStorageByName: no such storage: ""`, "repo scoped: invalid Repository")),
+			err:  status.Error(codes.InvalidArgument, gitalyOrPraefect(`repacking objects: GetStorageByName: no such storage: ""`, "repo scoped: invalid Repository")),
 		},
 		{
 			desc: "non-existing repo",
@@ -276,7 +276,7 @@ func TestRepackFullFailure(t *testing.T) {
 			err: status.Error(
 				codes.NotFound,
 				gitalyOrPraefect(
-					fmt.Sprintf(`GetRepoPath: not a git repository: "%s/bar"`, cfg.Storages[0].Path),
+					fmt.Sprintf(`repacking objects: GetRepoPath: not a git repository: "%s/bar"`, cfg.Storages[0].Path),
 					praefectErr,
 				),
 			),

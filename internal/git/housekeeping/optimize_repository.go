@@ -85,7 +85,6 @@ func optimizeRepository(ctx context.Context, m *RepositoryManager, repo *localre
 			optimizations["written_bitmap"] = "success"
 		}
 	}
-
 	timer.ObserveDuration()
 
 	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("prune"))
@@ -106,8 +105,22 @@ func optimizeRepository(ctx context.Context, m *RepositoryManager, repo *localre
 	} else if didPackRefs {
 		optimizations["packed_refs"] = "success"
 	}
-
 	timer.ObserveDuration()
+
+	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("commit-graph"))
+	if didWriteCommitGraph, writeCommitGraphCfg, err := writeCommitGraphIfNeeded(ctx, repo, didRepack, didPrune); err != nil {
+		optimizations["written_commit_graph_full"] = "failure"
+		optimizations["written_commit_graph_incremental"] = "failure"
+		return fmt.Errorf("could not write commit-graph: %w", err)
+	} else if didWriteCommitGraph {
+		if writeCommitGraphCfg.ReplaceChain {
+			optimizations["written_commit_graph_full"] = "success"
+		} else {
+			optimizations["written_commit_graph_incremental"] = "success"
+		}
+	}
+	timer.ObserveDuration()
+
 	totalStatus = "success"
 
 	return nil
@@ -183,26 +196,6 @@ func needsRepacking(repo *localrepo.Repo) (bool, RepackObjectsConfig, error) {
 		return true, RepackObjectsConfig{
 			FullRepack:  true,
 			WriteBitmap: true,
-		}, nil
-	}
-
-	missingBloomFilters, err := stats.IsMissingBloomFilters(repoPath)
-	if err != nil {
-		return false, RepackObjectsConfig{}, fmt.Errorf("checking for bloom filters: %w", err)
-	}
-
-	// Bloom filters are part of the commit-graph and allow us to efficiently determine which
-	// paths have been modified in a given commit without having to look into the object
-	// database. In the past we didn't compute bloom filters at all, so we want to rewrite the
-	// whole commit-graph to generate them.
-	//
-	// Note that we'll eventually want to move out commit-graph generation from repacking. When
-	// that happens we should update the commit-graph either if it's missing, when bloom filters
-	// are missing or when packfiles have been updated.
-	if missingBloomFilters {
-		return true, RepackObjectsConfig{
-			FullRepack:  true,
-			WriteBitmap: !hasAlternate,
 		}, nil
 	}
 
@@ -365,6 +358,79 @@ func estimateLooseObjectCount(repo *localrepo.Repo, cutoffDate time.Time) (int64
 	return looseObjects * 256, nil
 }
 
+// writeCommitGraphIfNeeded writes the commit-graph if required.
+func writeCommitGraphIfNeeded(ctx context.Context, repo *localrepo.Repo, didRepack, didPrune bool) (bool, WriteCommitGraphConfig, error) {
+	needed, cfg, err := needsWriteCommitGraph(ctx, repo, didRepack, didPrune)
+	if err != nil {
+		return false, WriteCommitGraphConfig{}, fmt.Errorf("determining whether repo needs commit-graph update: %w", err)
+	}
+	if !needed {
+		return false, WriteCommitGraphConfig{}, nil
+	}
+
+	if err := WriteCommitGraph(ctx, repo, cfg); err != nil {
+		return true, cfg, fmt.Errorf("writing commit-graph: %w", err)
+	}
+
+	return true, cfg, nil
+}
+
+// needsWriteCommitGraph determines whether we need to write the commit-graph.
+func needsWriteCommitGraph(ctx context.Context, repo *localrepo.Repo, didRepack, didPrune bool) (bool, WriteCommitGraphConfig, error) {
+	looseRefs, packedRefsSize, err := countLooseAndPackedRefs(ctx, repo)
+	if err != nil {
+		return false, WriteCommitGraphConfig{}, fmt.Errorf("counting refs: %w", err)
+	}
+
+	// If the repository doesn't have any references at all then there is no point in writing
+	// commit-graphs given that it would only contain reachable objects, of which there are
+	// none.
+	if looseRefs == 0 && packedRefsSize == 0 {
+		return false, WriteCommitGraphConfig{}, nil
+	}
+
+	// When we have pruned objects in the repository then it may happen that the commit-graph
+	// still refers to commits that have now been deleted. While this wouldn't typically cause
+	// any issues during runtime, it may cause errors when explicitly asking for any commit that
+	// does exist in the commit-graph, only. Furthermore, it causes git-fsck(1) to report that
+	// the commit-graph is inconsistent.
+	//
+	// To fix this case we will replace the complete commit-chain when we have pruned objects
+	// from the repository.
+	if didPrune {
+		return true, WriteCommitGraphConfig{
+			ReplaceChain: true,
+		}, nil
+	}
+
+	// When we repacked the repository then chances are high that we have accumulated quite some
+	// objects since the last time we wrote a commit-graph.
+	if didRepack {
+		return true, WriteCommitGraphConfig{}, nil
+	}
+
+	repoPath, err := repo.Path()
+	if err != nil {
+		return false, WriteCommitGraphConfig{}, fmt.Errorf("getting repository path: %w", err)
+	}
+
+	// Bloom filters are part of the commit-graph and allow us to efficiently determine which
+	// paths have been modified in a given commit without having to look into the object
+	// database. In the past we didn't compute bloom filters at all, so we want to rewrite the
+	// whole commit-graph to generate them.
+	missingBloomFilters, err := stats.IsMissingBloomFilters(repoPath)
+	if err != nil {
+		return false, WriteCommitGraphConfig{}, fmt.Errorf("checking for bloom filters: %w", err)
+	}
+	if missingBloomFilters {
+		return true, WriteCommitGraphConfig{
+			ReplaceChain: true,
+		}, nil
+	}
+
+	return false, WriteCommitGraphConfig{}, nil
+}
+
 // pruneIfNeeded removes objects from the repository which are either unreachable or which are
 // already part of a packfile. We use a grace period of two weeks.
 func pruneIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
@@ -412,10 +478,12 @@ func pruneIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
 	return true, nil
 }
 
-func packRefsIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
+// countLooseAndPackedRefs counts the number of loose references that exist in the repository and
+// returns the size of the packed-refs file.
+func countLooseAndPackedRefs(ctx context.Context, repo *localrepo.Repo) (int64, int64, error) {
 	repoPath, err := repo.Path()
 	if err != nil {
-		return false, fmt.Errorf("getting repository path: %w", err)
+		return 0, 0, fmt.Errorf("getting repository path: %w", err)
 	}
 	refsPath := filepath.Join(repoPath, "refs")
 
@@ -431,21 +499,30 @@ func packRefsIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
 
 		return nil
 	}); err != nil {
-		return false, fmt.Errorf("counting loose refs: %w", err)
-	}
-
-	// If there aren't any loose refs then there is nothing we need to do.
-	if looseRefs == 0 {
-		return false, nil
+		return 0, 0, fmt.Errorf("counting loose refs: %w", err)
 	}
 
 	packedRefsSize := int64(0)
 	if stat, err := os.Stat(filepath.Join(repoPath, "packed-refs")); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return false, fmt.Errorf("getting packed-refs size: %w", err)
+			return 0, 0, fmt.Errorf("getting packed-refs size: %w", err)
 		}
 	} else {
 		packedRefsSize = stat.Size()
+	}
+
+	return looseRefs, packedRefsSize, nil
+}
+
+func packRefsIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
+	looseRefs, packedRefsSize, err := countLooseAndPackedRefs(ctx, repo)
+	if err != nil {
+		return false, fmt.Errorf("counting refs: %w", err)
+	}
+
+	// If there aren't any loose refs then there is nothing we need to do.
+	if looseRefs == 0 {
+		return false, nil
 	}
 
 	// Packing loose references into the packed-refs file scales with the number of references

@@ -132,4 +132,32 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, "fatal: Needed a single revision\n", string(output))
 	})
+
+	t.Run("repository with commit-graph", func(t *testing.T) {
+		repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+
+		// Write two commits into the repository and create a commit-graph. The second
+		// commit will become unreachable and will be pruned, but will be contained in the
+		// commit-graph.
+		rootCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents())
+		unreachableCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(rootCommitID), gittest.WithBranch("main"))
+		gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--split", "--changed-paths")
+
+		// Reset the "main" branch back to the initial root commit ID and prune the now
+		// unreachable second commit.
+		gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/main", rootCommitID.String())
+
+		// Modify the modification time of the unreachable commit ID so that it will be
+		// pruned.
+		setObjectTime(t, repoPath, unreachableCommitID, time.Now().Add(-30*time.Minute))
+
+		_, err := client.PruneUnreachableObjects(ctx, &gitalypb.PruneUnreachableObjectsRequest{
+			Repository: repo,
+		})
+		require.NoError(t, err)
+
+		// The commit-graph chain should have been rewritten by PruneUnreachableObjects so
+		// that it doesn't refer to the pruned commit anymore.
+		gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "verify")
+	})
 }

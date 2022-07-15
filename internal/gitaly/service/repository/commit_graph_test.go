@@ -142,12 +142,12 @@ func TestWriteCommitGraph_validationChecks(t *testing.T) {
 		{
 			desc:   "invalid storage",
 			req:    &gitalypb.WriteCommitGraphRequest{Repository: &gitalypb.Repository{StorageName: "invalid"}},
-			expErr: status.Error(codes.InvalidArgument, `GetStorageByName: no such storage: "invalid"`),
+			expErr: status.Error(codes.InvalidArgument, `getting commit-graph config: GetStorageByName: no such storage: "invalid"`),
 		},
 		{
 			desc:   "not existing repository",
 			req:    &gitalypb.WriteCommitGraphRequest{Repository: &gitalypb.Repository{StorageName: repo.StorageName, RelativePath: "invalid"}},
-			expErr: status.Error(codes.NotFound, fmt.Sprintf(`GetRepoPath: not a git repository: "%s/invalid"`, cfg.Storages[0].Path)),
+			expErr: status.Error(codes.NotFound, fmt.Sprintf(`getting commit-graph config: GetRepoPath: not a git repository: "%s/invalid"`, cfg.Storages[0].Path)),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

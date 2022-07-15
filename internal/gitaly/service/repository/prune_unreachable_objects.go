@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -36,6 +37,14 @@ func (s *server) PruneUnreachableObjects(
 		},
 	}); err != nil {
 		return nil, helper.ErrInternalf("pruning objects: %w", err)
+	}
+
+	// Rewrite the commit-graph so that it doesn't contain references to pruned commits
+	// anymore.
+	if err := housekeeping.WriteCommitGraph(ctx, repo, housekeeping.WriteCommitGraphConfig{
+		ReplaceChain: true,
+	}); err != nil {
+		return nil, helper.ErrInternalf("rewriting commit-graph: %w", err)
 	}
 
 	stats.LogObjectsInfo(ctx, repo)
