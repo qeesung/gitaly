@@ -18,7 +18,6 @@ func TestConfigFromEnvironment(t *testing.T) {
 			Password:    "correcthorsebatterystaple",
 			CAFile:      "/ca/file",
 			CAPath:      "/ca/path",
-			SelfSigned:  true,
 		},
 		SecretFile: "/secret/path",
 	}
@@ -157,7 +156,6 @@ func TestConfig_Environment(t *testing.T) {
 				Password:    "correcthorsebatterystaple",
 				CAFile:      "/ca/file",
 				CAPath:      "/ca/path",
-				SelfSigned:  true,
 			},
 			SecretFile: "/secret/path",
 		},
@@ -169,5 +167,5 @@ func TestConfig_Environment(t *testing.T) {
 
 	env, err := cfg.Environment()
 	require.NoError(t, err)
-	require.Equal(t, `GITALY_LFS_SMUDGE_CONFIG={"gl_repository":"repo","gitlab":{"url":"https://example.com","relative_url_root":"gitlab","http_settings":{"read_timeout":1,"user":"user","password":"correcthorsebatterystaple","ca_file":"/ca/file","ca_path":"/ca/path","self_signed_cert":true},"secret_file":"/secret/path"},"tls":{"cert_path":"/cert/path","key_path":"/key/path"},"driver_type":0}`, env)
+	require.Equal(t, `GITALY_LFS_SMUDGE_CONFIG={"gl_repository":"repo","gitlab":{"url":"https://example.com","relative_url_root":"gitlab","http_settings":{"read_timeout":1,"user":"user","password":"correcthorsebatterystaple","ca_file":"/ca/file","ca_path":"/ca/path"},"secret_file":"/secret/path"},"tls":{"cert_path":"/cert/path","key_path":"/key/path"},"driver_type":0}`, env)
 }

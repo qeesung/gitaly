@@ -18,7 +18,7 @@ import (
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/prometheus/metrics"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/version"
-	"gitlab.com/gitlab-org/gitlab-shell/client"
+	"gitlab.com/gitlab-org/gitlab-shell/v14/client"
 )
 
 var glIDRegex = regexp.MustCompile(`\A[0-9]+\z`)
@@ -52,7 +52,6 @@ func NewHTTPClient(
 		gitlabCfg.RelativeURLRoot,
 		gitlabCfg.HTTPSettings.CAFile,
 		gitlabCfg.HTTPSettings.CAPath,
-		gitlabCfg.HTTPSettings.SelfSigned,
 		uint64(gitlabCfg.HTTPSettings.ReadTimeout),
 		opts,
 	)
