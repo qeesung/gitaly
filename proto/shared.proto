@@ -72,6 +72,16 @@ message CommitTrailer {
   bytes value = 2;
 }
 
+// CommitStatInfo includes the number of changed lines and files in the commit.
+message CommitStatInfo {
+  // additions is the number of line additions in the commit.
+  int32 additions = 1;
+  // deletions is the number of lines deleted in the commit.
+  int32 deletions = 2;
+  // changed_files is the number of files changed in the commit.
+  int32 changed_files = 3;
+}
+
 // Corresponds to Gitlab::Git::Commit
 message GitCommit {
   // This comment is left unintentionally blank.
@@ -101,6 +111,9 @@ message GitCommit {
   // sizes are limited. If a trailer exceeds these size limits, it and any
   // trailers that follow it are not included.
   repeated CommitTrailer trailers = 10;
+  // The stats include additions, deletions and changed_files,
+  // they are only set when `include_shortstat == true`.
+  CommitStatInfo  short_stats = 11;
 }
 
 // This comment is left unintentionally blank.

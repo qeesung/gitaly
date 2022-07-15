@@ -604,6 +604,9 @@ message FindCommitsRequest {
   GlobalOptions global_options = 15;
   // This comment is left unintentionally blank.
   bool trailers = 16;
+  // include_shortstat determines whether to include the number of lines and files
+  // changed in the commits. Populates the `short_stats` field.
+  bool include_shortstat = 17;
 }
 
 // A single 'page' of the result set

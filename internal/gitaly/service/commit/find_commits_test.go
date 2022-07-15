@@ -612,3 +612,231 @@ func getCommits(ctx context.Context, t *testing.T, request *gitalypb.FindCommits
 	require.Equal(t, io.EOF, err)
 	return commits
 }
+
+func TestFindCommits_withStats(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
+
+	type commitInfo struct {
+		id         string
+		shortStats *gitalypb.CommitStatInfo
+	}
+
+	testCases := []struct {
+		desc        string
+		request     *gitalypb.FindCommitsRequest
+		commitStats []commitInfo
+	}{
+		{
+			desc: "no merges",
+			request: &gitalypb.FindCommitsRequest{
+				Repository:       repo,
+				Limit:            10,
+				SkipMerges:       true,
+				IncludeShortstat: true,
+				Trailers:         true,
+			},
+			commitStats: []commitInfo{
+				{
+					id: "c1c67abbaf91f624347bb3ae96eabe3a1b742478",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    0,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id: "c84ff944ff4529a70788a5e9003c2b7feae29047",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    0,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id: "55bc176024cfa3baaceb71db584c7e5df900ea65",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    1,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id: "4a24d82dbca5c11c61556f3b35ca472b7463187e",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    12,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id: "498214de67004b1da3d820901307bed2a68a8ef6",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    1,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id: "38008cb17ce1466d8fec2dfa6f6ab8dcfe5cf49e",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    1,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id: "c347ca2e140aa667b968e51ed0ffe055501fe4f4",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    6,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id: "d59c60028b053793cecfb4022de34602e1a9218e",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    0,
+						Deletions:    6,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id: "a5391128b0ef5d21df5dd23d98557f4ef12fae20",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    6,
+						Deletions:    0,
+						ChangedFiles: 2,
+					},
+				},
+				{
+					id: "54fcc214b94e78d7a41a9a8fe6d87a5e59500e51",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    1,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+			},
+		},
+		{
+			desc: "with merges",
+			request: &gitalypb.FindCommitsRequest{
+				Repository:       repo,
+				Limit:            5,
+				IncludeShortstat: true,
+				Trailers:         true,
+			},
+			commitStats: []commitInfo{
+				{
+					id:         "1e292f8fedd741b75372e19097c76d327140c312",
+					shortStats: nil,
+				},
+				{
+					id: "c1c67abbaf91f624347bb3ae96eabe3a1b742478",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    0,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id:         "7975be0116940bf2ad4321f79d02a55c5f7779aa",
+					shortStats: nil,
+				},
+				{
+					id: "c84ff944ff4529a70788a5e9003c2b7feae29047",
+					shortStats: &gitalypb.CommitStatInfo{
+						Additions:    0,
+						Deletions:    0,
+						ChangedFiles: 1,
+					},
+				},
+				{
+					id:         "60ecb67744cb56576c30214ff52294f8ce2def98",
+					shortStats: nil,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			commits := getCommits(ctx, t, tc.request, client)
+			assert.Equal(t, len(tc.commitStats), len(commits))
+
+			for i, commit := range commits {
+				assert.Equal(t, tc.commitStats[i].id, commit.Id)
+				assert.Equal(t, tc.commitStats[i].shortStats, commit.ShortStats)
+			}
+		})
+	}
+}
+
+func BenchmarkCommitStats(b *testing.B) {
+	ctx := testhelper.Context(b)
+	_, repo, _, client := setupCommitServiceWithRepo(ctx, b)
+	request := &gitalypb.FindCommitsRequest{
+		Repository: repo,
+		Limit:      100,
+		SkipMerges: true,
+		All:        true,
+		Trailers:   true,
+	}
+
+	b.Run("without include_shortstat(N+1 query)", func(b *testing.B) {
+		benchmarkCommitStatsN(b, ctx, request, repo, client)
+	})
+
+	b.Run("with include_shortstat", func(b *testing.B) {
+		benchmarkFindCommitsWithStat(b, ctx, request, client)
+	})
+}
+
+func benchmarkCommitStatsN(b *testing.B, ctx context.Context, request *gitalypb.FindCommitsRequest,
+	repo *gitalypb.Repository, client gitalypb.CommitServiceClient,
+) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		stream, err := client.FindCommits(ctx, request)
+		require.NoError(b, err)
+
+		for {
+			response, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			require.NoError(b, err)
+
+			for _, commit := range response.Commits {
+				_, err = client.CommitStats(ctx, &gitalypb.CommitStatsRequest{
+					Repository: repo,
+					Revision:   []byte(commit.GetId()),
+				})
+				require.NoError(b, err)
+			}
+		}
+	}
+}
+
+func benchmarkFindCommitsWithStat(b *testing.B, ctx context.Context, request *gitalypb.FindCommitsRequest,
+	client gitalypb.CommitServiceClient,
+) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		stream, err := client.FindCommits(ctx, request)
+		require.NoError(b, err)
+
+		for {
+			_, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			require.NoError(b, err)
+		}
+	}
+}
