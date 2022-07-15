@@ -215,25 +215,36 @@ func needsRepacking(repo *localrepo.Repo) (bool, RepackObjectsConfig, error) {
 	// relative though: for small repositories it's fine to do full repacks regularly, but for
 	// large repositories we need to be more careful. We thus use a heuristic of "repository
 	// largeness": we take the biggest packfile that exists, and then the maximum allowed number
-	// of packfiles is `log(largestpackfile_size_in_mb) / log(1.3)`. This gives the following
-	// allowed number of packfiles:
+	// of packfiles is `log(largestpackfile_size_in_mb) / log(1.3)` for normal repositories and
+	// `log(largestpackfile_size_in_mb) / log(10.0)` for pools. This gives the following allowed
+	// number of packfiles:
 	//
-	// - No packfile: 5 packfile. This is a special case.
-	// - 10MB packfile: 8 packfiles.
-	// - 100MB packfile: 17 packfiles.
-	// - 500MB packfile: 23 packfiles.
-	// - 1GB packfile: 26 packfiles.
-	// - 5GB packfile: 32 packfiles.
-	// - 10GB packfile: 35 packfiles.
-	// - 100GB packfile: 43 packfiles.
+	// -------------------------------------------------------------------------------------
+	// | largest packfile size | allowed packfiles for repos | allowed packfiles for pools |
+	// -------------------------------------------------------------------------------------
+	// | none or <10MB         | 5                           | 2                           |
+	// | 10MB                  | 8                           | 2                           |
+	// | 100MB                 | 17                          | 2                           |
+	// | 500MB                 | 23                          | 2                           |
+	// | 1GB                   | 26                          | 3                           |
+	// | 5GB                   | 32                          | 3                           |
+	// | 10GB                  | 35                          | 4                           |
+	// | 100GB                 | 43                          | 5                           |
+	// -------------------------------------------------------------------------------------
 	//
 	// The goal is to have a comparatively quick ramp-up of allowed packfiles as the repository
 	// size grows, but then slow down such that we're effectively capped and don't end up with
-	// an excessive amount of packfiles.
+	// an excessive amount of packfiles. On the other hand, pool repositories are potentially
+	// reused as basis for many forks and should thus be packed much more aggressively.
 	//
 	// This is a heuristic and thus imperfect by necessity. We may tune it as we gain experience
 	// with the way it behaves.
-	if int64(math.Max(5, math.Log(float64(largestPackfileSize))/math.Log(1.3))) < packfileCount {
+	lowerLimit, log := 5.0, 1.3
+	if IsPoolRepository(repo) {
+		lowerLimit, log = 2.0, 10.0
+	}
+
+	if int64(math.Max(lowerLimit, math.Log(float64(largestPackfileSize))/math.Log(log))) <= packfileCount {
 		return true, RepackObjectsConfig{
 			FullRepack:  true,
 			WriteBitmap: !hasAlternate,
@@ -359,7 +370,7 @@ func estimateLooseObjectCount(repo *localrepo.Repo, cutoffDate time.Time) (int64
 func pruneIfNeeded(ctx context.Context, repo *localrepo.Repo) (bool, error) {
 	// Pool repositories must never prune any objects, or otherwise we may corrupt members of
 	// that pool if they still refer to that object.
-	if IsPoolPath(repo.GetRelativePath()) {
+	if IsPoolRepository(repo) {
 		return false, nil
 	}
 

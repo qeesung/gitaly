@@ -371,3 +371,37 @@ func AddWorktreeArgs(repoPath, worktreeName string) []string {
 func AddWorktree(t testing.TB, cfg config.Cfg, repoPath string, worktreeName string) {
 	Exec(t, cfg, AddWorktreeArgs(repoPath, worktreeName)...)
 }
+
+// FixGitLabTestRepoForCommitGraphs fixes the "gitlab-test.git" repository so that it can be used in
+// the context of commit-graphs. The test repository contains the commit ba3343b (Weird commit date,
+// 292278994-08-17). As you can already see, this commit has a commit year of 292278994, which is
+// not exactly a realistic commit date to have in normal repositories. Unfortunately, this commit
+// date causes commit-graphs to become corrupt with the following error that's likely caused by
+// an overflow:
+//
+//     commit date for commit ba3343bc4fa403a8dfbfcab7fc1a8c29ee34bd69 in commit-graph is 15668040695 != 9223372036854775
+//
+// This is not a new error, but something that has existed for quite a while already in Git. And
+// while the bug can also be easily hit in Gitaly because we do write commit-graphs in pool
+// repositories, until now we haven't because we never exercised this.
+//
+// Unfortunately, we're between a rock and a hard place: this error will be hit when running
+// git-fsck(1) to find dangling objects, which we do to rescue objects. git-fsck(1) will by default
+// verify the commit-graphs to be consistent even  with `--connectivity-only`, which causes the
+// error. But while we could in theory just disable the usage of commit-graphs by passing
+// `core.commitGraph=0`, the end result would be that the connectivity check itself may become a lot
+// slower.
+//
+// So for now we just bail on this whole topic: it's not a new bug and we can't do much about it
+// given it could regress performance. The pool members would be broken in the same way, even though
+// less visibly so because we don't git-fsck(1) in "normal" RPCs. But to make our tests work we
+// delete the reference for this specific commit so that it doesn't cause our tests to break.
+//
+// You can easily test whether this bug still exists via the following commands:
+//
+//     $ git clone _build/testrepos/gitlab-test.git
+//     $ git -C gitlab-test commit-graph write
+//     $ git -C gitlab-test commit-graph verify
+func FixGitLabTestRepoForCommitGraphs(tb testing.TB, cfg config.Cfg, repoPath string) {
+	Exec(tb, cfg, "-C", repoPath, "update-ref", "-d", "refs/heads/spooky-stuff", "ba3343bc4fa403a8dfbfcab7fc1a8c29ee34bd69")
+}

@@ -51,4 +51,17 @@ func TestRepackObjects(t *testing.T) {
 		require.NoFileExists(t, filepath.Join(repoPath, "info", "refs"))
 		require.NoFileExists(t, filepath.Join(repoPath, "objects", "info", "packs"))
 	})
+
+	testRepoAndPool(t, "delta islands", func(t *testing.T, relativePath string) {
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+			WithRelativePath: relativePath,
+		})
+		repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+		gittest.TestDeltaIslands(t, cfg, repoPath, IsPoolRepository(repoProto), func() error {
+			return RepackObjects(ctx, repo, RepackObjectsConfig{
+				FullRepack: true,
+			})
+		})
+	})
 }

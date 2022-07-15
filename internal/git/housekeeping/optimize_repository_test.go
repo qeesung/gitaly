@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,15 +25,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
-type infiniteReader struct{}
-
-func (r infiniteReader) Read(b []byte) (int, error) {
-	for i := range b {
-		b[i] = '\000'
-	}
-	return len(b), nil
-}
-
 func TestNeedsRepacking(t *testing.T) {
 	t.Parallel()
 
@@ -42,22 +32,26 @@ func TestNeedsRepacking(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc           string
-		setup          func(t *testing.T) *gitalypb.Repository
+		setup          func(t *testing.T, relativePath string) *gitalypb.Repository
 		expectedErr    error
 		expectedNeeded bool
 		expectedConfig RepackObjectsConfig
 	}{
 		{
 			desc: "empty repo does nothing",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+					WithRelativePath: relativePath,
+				})
 				return repoProto
 			},
 		},
 		{
 			desc: "missing bitmap",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
 				return repoProto
 			},
 			expectedNeeded: true,
@@ -68,8 +62,10 @@ func TestNeedsRepacking(t *testing.T) {
 		},
 		{
 			desc: "missing bitmap with alternate",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
 
 				// Create the alternates file. If it exists, then we shouldn't try
 				// to generate a bitmap.
@@ -85,8 +81,10 @@ func TestNeedsRepacking(t *testing.T) {
 		},
 		{
 			desc: "missing commit-graph",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
 
 				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-Ad", "--write-bitmap-index")
 
@@ -100,8 +98,10 @@ func TestNeedsRepacking(t *testing.T) {
 		},
 		{
 			desc: "commit-graph without bloom filters",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
 
 				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-Ad", "--write-bitmap-index")
 				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write")
@@ -116,8 +116,10 @@ func TestNeedsRepacking(t *testing.T) {
 		},
 		{
 			desc: "no repack needed",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
 
 				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-Ad", "--write-bitmap-index")
 				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--changed-paths", "--split")
@@ -131,54 +133,66 @@ func TestNeedsRepacking(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
-			repoProto := tc.setup(t)
-			repo := localrepo.NewTestRepo(t, cfg, repoProto)
+			testRepoAndPool(t, tc.desc, func(t *testing.T, relativePath string) {
+				repoProto := tc.setup(t, relativePath)
+				repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-			repackNeeded, repackCfg, err := needsRepacking(repo)
-			require.Equal(t, tc.expectedErr, err)
-			require.Equal(t, tc.expectedNeeded, repackNeeded)
-			require.Equal(t, tc.expectedConfig, repackCfg)
+				repackNeeded, repackCfg, err := needsRepacking(repo)
+				require.Equal(t, tc.expectedErr, err)
+				require.Equal(t, tc.expectedNeeded, repackNeeded)
+				require.Equal(t, tc.expectedConfig, repackCfg)
+			})
 		})
 	}
 
 	const megaByte = 1024 * 1024
 
 	for _, tc := range []struct {
-		packfileSize      int64
-		requiredPackfiles int
+		packfileSize             int64
+		requiredPackfiles        int
+		requiredPackfilesForPool int
 	}{
 		{
-			packfileSize:      1,
-			requiredPackfiles: 5,
+			packfileSize:             1,
+			requiredPackfiles:        5,
+			requiredPackfilesForPool: 2,
 		},
 		{
-			packfileSize:      5 * megaByte,
-			requiredPackfiles: 6,
+			packfileSize:             5 * megaByte,
+			requiredPackfiles:        6,
+			requiredPackfilesForPool: 2,
 		},
 		{
-			packfileSize:      10 * megaByte,
-			requiredPackfiles: 8,
+			packfileSize:             10 * megaByte,
+			requiredPackfiles:        8,
+			requiredPackfilesForPool: 2,
 		},
 		{
-			packfileSize:      50 * megaByte,
-			requiredPackfiles: 14,
+			packfileSize:             50 * megaByte,
+			requiredPackfiles:        14,
+			requiredPackfilesForPool: 2,
 		},
 		{
-			packfileSize:      100 * megaByte,
-			requiredPackfiles: 17,
+			packfileSize:             100 * megaByte,
+			requiredPackfiles:        17,
+			requiredPackfilesForPool: 2,
 		},
 		{
-			packfileSize:      500 * megaByte,
-			requiredPackfiles: 23,
+			packfileSize:             500 * megaByte,
+			requiredPackfiles:        23,
+			requiredPackfilesForPool: 2,
 		},
 		{
-			packfileSize:      1000 * megaByte,
-			requiredPackfiles: 26,
+			packfileSize:             1001 * megaByte,
+			requiredPackfiles:        26,
+			requiredPackfilesForPool: 3,
 		},
 		// Let's not go any further than this, we're thrashing the temporary directory.
 	} {
-		t.Run(fmt.Sprintf("packfile with %d bytes", tc.packfileSize), func(t *testing.T) {
-			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		testRepoAndPool(t, fmt.Sprintf("packfile with %d bytes", tc.packfileSize), func(t *testing.T, relativePath string) {
+			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+				WithRelativePath: relativePath,
+			})
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 			packDir := filepath.Join(repoPath, "objects", "pack")
 
@@ -193,16 +207,19 @@ func TestNeedsRepacking(t *testing.T) {
 
 			// We first create a single big packfile which is used to determine the
 			// boundary of when we repack.
-			bigPackfile, err := os.OpenFile(filepath.Join(packDir, "big.pack"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
-			require.NoError(t, err)
-			defer testhelper.MustClose(t, bigPackfile)
-			_, err = io.Copy(bigPackfile, io.LimitReader(infiniteReader{}, tc.packfileSize))
-			require.NoError(t, err)
+			bigPackPath := filepath.Join(packDir, "big.pack")
+			require.NoError(t, os.WriteFile(bigPackPath, nil, 0o644))
+			require.NoError(t, os.Truncate(bigPackPath, tc.packfileSize))
+
+			requiredPackfiles := tc.requiredPackfiles
+			if IsPoolRepository(repoProto) {
+				requiredPackfiles = tc.requiredPackfilesForPool
+			}
 
 			// And then we create one less packfile than we need to hit the boundary.
 			// This is done to assert that we indeed don't repack before hitting the
 			// boundary.
-			for i := 0; i < tc.requiredPackfiles-1; i++ {
+			for i := 0; i < requiredPackfiles-2; i++ {
 				additionalPackfile, err := os.Create(filepath.Join(packDir, fmt.Sprintf("%d.pack", i)))
 				require.NoError(t, err)
 				testhelper.MustClose(t, additionalPackfile)
@@ -284,8 +301,10 @@ func TestNeedsRepacking(t *testing.T) {
 			expectedRepack: true,
 		},
 	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		testRepoAndPool(t, tc.desc, func(t *testing.T, relativePath string) {
+			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+				WithRelativePath: relativePath,
+			})
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 			// Emulate the existence of a bitmap and a commit-graph with bloom filters.
@@ -360,8 +379,10 @@ func TestPackRefsIfNeeded(t *testing.T) {
 			requiredRefs:   99,
 		},
 	} {
-		t.Run(fmt.Sprintf("packed-refs with %d bytes", tc.packedRefsSize), func(t *testing.T) {
-			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		testRepoAndPool(t, fmt.Sprintf("packed-refs with %d bytes", tc.packedRefsSize), func(t *testing.T, relativePath string) {
+			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+				WithRelativePath: relativePath,
+			})
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 			// Write an empty commit such that we can create valid refs.
@@ -495,15 +516,18 @@ func TestOptimizeRepository(t *testing.T) {
 	txManager := transaction.NewManager(cfg, backchannel.NewRegistry())
 
 	for _, tc := range []struct {
-		desc            string
-		setup           func(t *testing.T) *gitalypb.Repository
-		expectedErr     error
-		expectedMetrics string
+		desc                   string
+		setup                  func(t *testing.T, relativePath string) *gitalypb.Repository
+		expectedErr            error
+		expectedMetrics        string
+		expectedMetricsForPool string
 	}{
 		{
 			desc: "empty repository does nothing",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+					WithRelativePath: relativePath,
+				})
 				return repo
 			},
 			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
@@ -513,8 +537,10 @@ gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 		},
 		{
 			desc: "repository without bitmap repacks objects",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
 				return repo
 			},
 			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
@@ -526,9 +552,11 @@ gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 		},
 		{
 			desc: "repository without commit-graph repacks objects",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "--write-bitmap-index")
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
+				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "-d", "--write-bitmap-index")
 				return repo
 			},
 			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
@@ -539,10 +567,37 @@ gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 `,
 		},
 		{
-			desc: "well-packed repository does not optimize",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			desc: "repository with multiple packfiles packs only for object pool",
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
+
+				// Note: git-repack(1) without "-d" will _not_ delete the old
+				// packfile and thus end up with two packfiles.
 				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "--write-bitmap-index")
+				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--split", "--changed-paths")
+
+				return repo
+			},
+			expectedMetrics: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
+			expectedMetricsForPool: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="packed_objects_full", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="written_bitmap", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
+		},
+		{
+			desc: "well-packed repository does not optimize",
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
+				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "-d", "--write-bitmap-index")
 				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--split", "--changed-paths")
 				return repo
 			},
@@ -553,9 +608,11 @@ gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 		},
 		{
 			desc: "recent loose objects don't get pruned",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "--write-bitmap-index")
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
+				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "-d", "--write-bitmap-index")
 				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--split", "--changed-paths")
 
 				// The repack won't repack the following objects because they're
@@ -583,9 +640,11 @@ gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 		},
 		{
 			desc: "old loose objects get pruned",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "--write-bitmap-index")
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+					RelativePath: relativePath,
+				})
+				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "-d", "--write-bitmap-index")
 				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--split", "--changed-paths")
 
 				// The repack won't repack the following objects because they're
@@ -608,11 +667,19 @@ gitaly_housekeeping_tasks_total{housekeeping_task="packed_objects_incremental", 
 gitaly_housekeeping_tasks_total{housekeeping_task="pruned_objects",status="success"} 1
 gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 `,
+			// Object pools never prune objects.
+			expectedMetricsForPool: `# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository
+# TYPE gitaly_housekeeping_tasks_total counter
+gitaly_housekeeping_tasks_total{housekeeping_task="packed_objects_incremental", status="success"} 1
+gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
+`,
 		},
 		{
 			desc: "loose refs get packed",
-			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+			setup: func(t *testing.T, relativePath string) *gitalypb.Repository {
+				repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+					WithRelativePath: relativePath,
+				})
 
 				for i := 0; i < 16; i++ {
 					gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch(fmt.Sprintf("branch-%d", i)))
@@ -630,10 +697,10 @@ gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 `,
 		},
 	} {
-		t.Run(tc.desc, func(t *testing.T) {
+		testRepoAndPool(t, tc.desc, func(t *testing.T, relativePath string) {
 			ctx := testhelper.Context(t)
 
-			repoProto := tc.setup(t)
+			repoProto := tc.setup(t, relativePath)
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 			manager := NewManager(cfg.Prometheus, txManager)
@@ -641,9 +708,14 @@ gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 			err := manager.OptimizeRepository(ctx, repo)
 			require.Equal(t, tc.expectedErr, err)
 
-			assert.NoError(t, testutil.CollectAndCompare(
+			expectedMetrics := tc.expectedMetrics
+			if IsPoolRepository(repoProto) && tc.expectedMetricsForPool != "" {
+				expectedMetrics = tc.expectedMetricsForPool
+			}
+
+			require.NoError(t, testutil.CollectAndCompare(
 				manager.tasksTotal,
-				bytes.NewBufferString(tc.expectedMetrics),
+				bytes.NewBufferString(expectedMetrics),
 				"gitaly_housekeeping_tasks_total",
 			))
 		})
@@ -776,8 +848,10 @@ func TestPruneIfNeeded(t *testing.T) {
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	t.Run("empty repo does not prune", func(t *testing.T) {
-		repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	testRepoAndPool(t, "empty repo does not prune", func(t *testing.T, relativePath string) {
+		repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+			WithRelativePath: relativePath,
+		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		didPrune, err := pruneIfNeeded(ctx, repo)
@@ -785,8 +859,10 @@ func TestPruneIfNeeded(t *testing.T) {
 		require.False(t, didPrune)
 	})
 
-	t.Run("repo with single object does not prune", func(t *testing.T) {
-		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	testRepoAndPool(t, "repo with single object does not prune", func(t *testing.T, relativePath string) {
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+			WithRelativePath: relativePath,
+		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		gittest.WriteBlob(t, cfg, repoPath, []byte("something"))
@@ -796,8 +872,10 @@ func TestPruneIfNeeded(t *testing.T) {
 		require.False(t, didPrune)
 	})
 
-	t.Run("repo with single 17-prefixed objects does not prune", func(t *testing.T) {
-		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	testRepoAndPool(t, "repo with single 17-prefixed objects does not prune", func(t *testing.T, relativePath string) {
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+			WithRelativePath: relativePath,
+		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("32"))
@@ -808,8 +886,10 @@ func TestPruneIfNeeded(t *testing.T) {
 		require.False(t, didPrune)
 	})
 
-	t.Run("repo with four 17-prefixed objects does not prune", func(t *testing.T) {
-		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	testRepoAndPool(t, "repo with four 17-prefixed objects does not prune", func(t *testing.T, relativePath string) {
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+			WithRelativePath: relativePath,
+		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		for _, contents := range []string{"32", "119", "334", "782"} {
@@ -822,8 +902,10 @@ func TestPruneIfNeeded(t *testing.T) {
 		require.False(t, didPrune)
 	})
 
-	t.Run("repo with five 17-prefixed objects does prune after grace period", func(t *testing.T) {
-		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	testRepoAndPool(t, "repo with five 17-prefixed objects does prune after grace period", func(t *testing.T, relativePath string) {
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+			WithRelativePath: relativePath,
+		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		objectPath := func(oid git.ObjectID) string {
@@ -864,15 +946,24 @@ func TestPruneIfNeeded(t *testing.T) {
 		// and thus we would still want to prune here.
 		didPrune, err = pruneIfNeeded(ctx, repo)
 		require.NoError(t, err)
-		require.True(t, didPrune)
 
-		// But this time the objects shouldn't exist anymore because they were older than
-		// the grace period.
-		for _, blob := range blobs {
-			require.NoFileExists(t, objectPath(blob))
+		if IsPoolRepository(repoProto) {
+			// Object pools mustn't ever prune objects.
+			require.False(t, didPrune)
+			for _, blob := range append(blobs, recentBlob) {
+				require.FileExists(t, objectPath(blob))
+			}
+		} else {
+			require.True(t, didPrune)
+
+			// But this time the objects shouldn't exist anymore because they were older than
+			// the grace period.
+			for _, blob := range blobs {
+				require.NoFileExists(t, objectPath(blob))
+			}
+
+			// The recent blob should continue to exist though.
+			require.FileExists(t, objectPath(recentBlob))
 		}
-
-		// The recent blob should continue to exist though.
-		require.FileExists(t, objectPath(recentBlob))
 	})
 }

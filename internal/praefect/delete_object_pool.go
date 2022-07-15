@@ -29,7 +29,7 @@ func DeleteObjectPoolHandler(rs datastore.RepositoryStore, conns Connections) gr
 				return nil, err
 			}
 
-			if !housekeeping.IsRailsPoolPath(repo.GetRelativePath()) {
+			if !housekeeping.IsRailsPoolRepository(repo) {
 				return nil, helper.ErrInvalidArgument(objectpool.ErrInvalidPoolDir)
 			}
 

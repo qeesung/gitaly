@@ -5,6 +5,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/stats"
 )
 
@@ -47,7 +48,7 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 			// details.
 			git.Flag{Name: "-n"},
 		}, options...),
-	}, git.WithConfig(GetRepackGitConfig(ctx, cfg.WriteBitmap)...)); err != nil {
+	}, git.WithConfig(GetRepackGitConfig(ctx, repo, cfg.WriteBitmap)...)); err != nil {
 		return err
 	}
 
@@ -61,12 +62,23 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 }
 
 // GetRepackGitConfig returns configuration suitable for Git commands which write new packfiles.
-func GetRepackGitConfig(ctx context.Context, bitmap bool) []git.ConfigPair {
+func GetRepackGitConfig(ctx context.Context, repo repository.GitRepo, bitmap bool) []git.ConfigPair {
 	config := []git.ConfigPair{
-		{Key: "pack.island", Value: "r(e)fs/heads"},
-		{Key: "pack.island", Value: "r(e)fs/tags"},
-		{Key: "pack.islandCore", Value: "e"},
 		{Key: "repack.useDeltaIslands", Value: "true"},
+	}
+
+	if IsPoolRepository(repo) {
+		config = append(config,
+			git.ConfigPair{Key: "pack.island", Value: git.ObjectPoolRefNamespace + "/he(a)ds"},
+			git.ConfigPair{Key: "pack.island", Value: git.ObjectPoolRefNamespace + "/t(a)gs"},
+			git.ConfigPair{Key: "pack.islandCore", Value: "a"},
+		)
+	} else {
+		config = append(config,
+			git.ConfigPair{Key: "pack.island", Value: "r(e)fs/heads"},
+			git.ConfigPair{Key: "pack.island", Value: "r(e)fs/tags"},
+			git.ConfigPair{Key: "pack.islandCore", Value: "e"},
+		)
 	}
 
 	if bitmap {

@@ -18,31 +18,29 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 )
-
-const sourceRefNamespace = "refs/remotes/origin"
 
 // FetchFromOrigin initializes the pool and fetches the objects from its origin repository
 func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *localrepo.Repo) error {
 	if err := o.Init(ctx); err != nil {
-		return err
+		return fmt.Errorf("initializing object pool: %w", err)
 	}
 
 	originPath, err := origin.Path()
 	if err != nil {
-		return err
+		return fmt.Errorf("computing origin repo's path: %w", err)
 	}
 
 	if err := o.housekeepingManager.CleanStaleData(ctx, o.Repo); err != nil {
-		return err
+		return fmt.Errorf("cleaning stale data: %w", err)
 	}
 
 	if err := o.logStats(ctx, "before fetch"); err != nil {
-		return err
+		return fmt.Errorf("computing stats before fetch: %w", err)
 	}
 
-	refSpec := fmt.Sprintf("+refs/*:%s/*", sourceRefNamespace)
+	refSpec := fmt.Sprintf("+refs/*:%s/*", git.ObjectPoolRefNamespace)
 	var stderr bytes.Buffer
 	if err := o.Repo.ExecAndWait(ctx,
 		git.SubCmd{
@@ -64,26 +62,36 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *localrepo.Repo
 		git.WithRefTxHook(o.Repo),
 		git.WithStderr(&stderr),
 	); err != nil {
-		return helper.ErrInternalf("fetch into object pool: %w, stderr: %q", err,
+		return fmt.Errorf("fetch into object pool: %w, stderr: %q", err,
 			stderr.String())
 	}
 
 	if err := o.rescueDanglingObjects(ctx); err != nil {
-		return err
+		return fmt.Errorf("rescuing dangling objects: %w", err)
 	}
 
 	if err := o.logStats(ctx, "after fetch"); err != nil {
-		return err
+		return fmt.Errorf("computing stats after fetch: %w", err)
 	}
 
-	if err := o.Repo.ExecAndWait(ctx, git.SubCmd{
-		Name:  "pack-refs",
-		Flags: []git.Option{git.Flag{Name: "--all"}},
-	}); err != nil {
-		return err
+	if featureflag.FetchIntoObjectPoolOptimizeRepository.IsEnabled(ctx) {
+		if err := o.housekeepingManager.OptimizeRepository(ctx, o.Repo); err != nil {
+			return fmt.Errorf("optimizing pool repo: %w", err)
+		}
+	} else {
+		if err := o.Repo.ExecAndWait(ctx, git.SubCmd{
+			Name:  "pack-refs",
+			Flags: []git.Option{git.Flag{Name: "--all"}},
+		}); err != nil {
+			return fmt.Errorf("packing pool refs: %w", err)
+		}
+
+		if err := o.repackPool(ctx, o); err != nil {
+			return fmt.Errorf("repacking pool: %w", err)
+		}
 	}
 
-	return o.repackPool(ctx, o)
+	return nil
 }
 
 const danglingObjectNamespace = "refs/dangling/"
@@ -140,8 +148,8 @@ func (o *ObjectPool) rescueDanglingObjects(ctx context.Context) error {
 
 func (o *ObjectPool) repackPool(ctx context.Context, pool repository.GitRepo) error {
 	config := []git.ConfigPair{
-		{Key: "pack.island", Value: sourceRefNamespace + "/he(a)ds"},
-		{Key: "pack.island", Value: sourceRefNamespace + "/t(a)gs"},
+		{Key: "pack.island", Value: git.ObjectPoolRefNamespace + "/he(a)ds"},
+		{Key: "pack.island", Value: git.ObjectPoolRefNamespace + "/t(a)gs"},
 		{Key: "pack.islandCore", Value: "a"},
 		{Key: "pack.writeBitmapHashCache", Value: "true"},
 	}

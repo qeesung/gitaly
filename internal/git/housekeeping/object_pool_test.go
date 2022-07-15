@@ -6,42 +6,57 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/praefectutil"
+	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
-func TestIsPoolPath(t *testing.T) {
+func TestIsPoolRepository(t *testing.T) {
 	for _, tc := range []struct {
-		desc         string
-		relativePath string
-		isPoolPath   bool
+		desc       string
+		repo       *gitalypb.Repository
+		isPoolPath bool
 	}{
 		{
-			desc:         "rails pool directory",
-			relativePath: gittest.NewObjectPoolName(t),
-			isPoolPath:   true,
+			desc: "rails pool directory",
+			repo: &gitalypb.Repository{
+				RelativePath: gittest.NewObjectPoolName(t),
+			},
+			isPoolPath: true,
 		},
 		{
-			desc:         "praefect pool path",
-			relativePath: praefectutil.DerivePoolPath(1),
-			isPoolPath:   true,
+			desc: "praefect pool path",
+			repo: &gitalypb.Repository{
+				RelativePath: praefectutil.DerivePoolPath(1),
+			},
+			isPoolPath: true,
 		},
 		{
-			desc:         "praefect replica path",
-			relativePath: praefectutil.DeriveReplicaPath(1),
+			desc: "praefect replica path",
+			repo: &gitalypb.Repository{
+				RelativePath: praefectutil.DeriveReplicaPath(1),
+			},
 		},
 		{
-			desc: "empty string",
+			desc: "missing repository",
 		},
 		{
-			desc:         "rails path first to subdirs dont match full hash",
-			relativePath: "@pools/aa/bb/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.git",
+			desc: "empty repository",
+			repo: &gitalypb.Repository{},
 		},
 		{
-			desc:         "normal repos dont match",
-			relativePath: "@hashed/" + gittest.NewRepositoryName(t, true),
+			desc: "rails path first to subdirs dont match full hash",
+			repo: &gitalypb.Repository{
+				RelativePath: "@pools/aa/bb/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.git",
+			},
+		},
+		{
+			desc: "normal repos dont match",
+			repo: &gitalypb.Repository{
+				RelativePath: "@hashed/" + gittest.NewRepositoryName(t, true),
+			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			require.Equal(t, tc.isPoolPath, IsPoolPath(tc.relativePath))
+			require.Equal(t, tc.isPoolPath, IsPoolRepository(tc.repo))
 		})
 	}
 }

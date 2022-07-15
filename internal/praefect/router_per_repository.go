@@ -10,6 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/praefectutil"
+	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
 )
 
@@ -313,7 +314,10 @@ func (r *PerRepositoryRouter) RouteRepositoryCreation(ctx context.Context, virtu
 	replicaPath := relativePath
 	if featureflag.PraefectGeneratedReplicaPaths.IsEnabled(ctx) {
 		replicaPath = praefectutil.DeriveReplicaPath(id)
-		if housekeeping.IsRailsPoolPath(relativePath) {
+		if housekeeping.IsRailsPoolRepository(&gitalypb.Repository{
+			StorageName:  virtualStorage,
+			RelativePath: relativePath,
+		}) {
 			replicaPath = praefectutil.DerivePoolPath(id)
 		}
 	}

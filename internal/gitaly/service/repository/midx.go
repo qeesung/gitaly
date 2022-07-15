@@ -186,7 +186,7 @@ func (s *server) midxRepack(ctx context.Context, repo repository.GitRepo) error 
 				git.ValueFlag{Name: "--batch-size", Value: strconv.FormatInt(batchSize, 10)},
 			},
 		},
-		git.WithConfig(housekeeping.GetRepackGitConfig(ctx, false)...),
+		git.WithConfig(housekeeping.GetRepackGitConfig(ctx, repo, false)...),
 	)
 	if err != nil {
 		return err

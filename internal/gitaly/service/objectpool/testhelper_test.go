@@ -61,6 +61,14 @@ func setup(ctx context.Context, t *testing.T, opts ...testserver.GitalyServerOpt
 		Seed: gittest.SeedGitLabTest,
 	})
 
+	// For the time being we need to fix up the repository to make it work in the context of
+	// commit-graphs. Because initializing the pool from the repository will just copy over
+	// objects 1:1 we also need to repack the repository, or otherwise it would still have a
+	// reference to the deleted commit. And because we make sure to keep alive dangling objects
+	// via keep-around references we'd thus make the broken commit reachable again.
+	gittest.FixGitLabTestRepoForCommitGraphs(t, cfg, repoPath)
+	gittest.Exec(t, cfg, "-C", repoPath, "repack", "-a", "-d")
+
 	return cfg, repo, repoPath, locator, clientWithConn{ObjectPoolServiceClient: gitalypb.NewObjectPoolServiceClient(conn), conn: conn}
 }
 

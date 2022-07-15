@@ -1,9 +1,11 @@
 package objectpool
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -13,11 +15,17 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
-func TestFetchFromOriginDangling(t *testing.T) {
-	ctx := testhelper.Context(t)
+func TestFetchFromOrigin_dangling(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolOptimizeRepository).Run(t, testFetchFromOriginDangling)
+}
+
+func testFetchFromOriginDangling(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg, pool, repoProto := setupObjectPool(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -86,8 +94,13 @@ func TestFetchFromOriginDangling(t *testing.T) {
 	require.NoFileExists(t, filepath.Join(pool.FullPath(), "objects", "info", "packs"))
 }
 
-func TestFetchFromOriginFsck(t *testing.T) {
-	ctx := testhelper.Context(t)
+func TestFetchFromOrigin_fsck(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolOptimizeRepository).Run(t, testFetchFromOriginFsck)
+}
+
+func testFetchFromOriginFsck(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg, pool, repoProto := setupObjectPool(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -110,31 +123,44 @@ func TestFetchFromOriginFsck(t *testing.T) {
 	require.Contains(t, err.Error(), "duplicateEntries: contains duplicate file entries")
 }
 
-func TestFetchFromOriginDeltaIslands(t *testing.T) {
-	ctx := testhelper.Context(t)
+func TestFetchFromOrigin_deltaIslands(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolOptimizeRepository).Run(t, testFetchFromOriginDeltaIslands)
+}
+
+func testFetchFromOriginDeltaIslands(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg, pool, repoProto := setupObjectPool(t, ctx)
+
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
-	repoPath := filepath.Join(cfg.Storages[0].Path, repo.GetRelativePath())
+	repoPath, err := repo.Path()
+	require.NoError(t, err)
 
 	require.NoError(t, pool.FetchFromOrigin(ctx, repo), "seed pool")
 	require.NoError(t, pool.Link(ctx, repo))
 
-	gittest.TestDeltaIslands(t, cfg, repoPath, func() error {
-		// This should create a new packfile with good delta chains in the pool
-		if err := pool.FetchFromOrigin(ctx, repo); err != nil {
-			return err
-		}
+	gittest.TestDeltaIslands(t, cfg, pool.FullPath(), true, func() error {
+		// The first fetch has already fetched all objects into the pool repository, so
+		// there is nothing new to fetch anymore. Consequentially, FetchFromOrigin doesn't
+		// alter the object database and thus OptimizeRepository would notice that nothing
+		// needs to be optimized.
+		//
+		// We thus write a new commit into the pool member's repository so that we end up
+		// with two packfiles after the fetch.
+		gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("changed-ref"))
 
-		// Make sure the old packfile, with bad delta chains, is deleted from the source repo
-		gittest.Exec(t, cfg, "-C", repoPath, "repack", "-ald")
-
-		return nil
+		return pool.FetchFromOrigin(ctx, repo)
 	})
 }
 
-func TestFetchFromOriginBitmapHashCache(t *testing.T) {
-	ctx := testhelper.Context(t)
+func TestFetchFromOrigin_bitmapHashCache(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolOptimizeRepository).Run(t, testFetchFromOriginBitmapHashCache)
+}
+
+func testFetchFromOriginBitmapHashCache(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg, pool, repoProto := setupObjectPool(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -158,8 +184,13 @@ func TestFetchFromOriginBitmapHashCache(t *testing.T) {
 	gittest.TestBitmapHasHashcache(t, bitmap)
 }
 
-func TestFetchFromOriginRefUpdates(t *testing.T) {
-	ctx := testhelper.Context(t)
+func TestFetchFromOrigin_refUpdates(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolOptimizeRepository).Run(t, testFetchFromOriginRefUpdates)
+}
+
+func testFetchFromOriginRefUpdates(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg, pool, repoProto := setupObjectPool(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -184,11 +215,19 @@ func TestFetchFromOriginRefUpdates(t *testing.T) {
 		"tags/v1.1.0": "646ece5cfed840eca0a4feb21bcd6a81bb19bda3",
 	}
 
-	for ref, newOid := range newRefs {
-		require.NotEqual(t, newOid, oldRefs[ref], "sanity check of new refs")
+	// Create a bunch of additional references. This is to trigger OptimizeRepository to indeed
+	// repack the loose references as we expect it to in this test. It's debatable whether we
+	// should test this at all here given that this is business of the housekeeping package. But
+	// it's easy enough to do, so it doesn't hurt.
+	for i := 0; i < 32; i++ {
+		newRefs[fmt.Sprintf("heads/branch-%d", i)] = gittest.WriteCommit(t, cfg, repoPath,
+			gittest.WithParents(),
+			gittest.WithMessage(strconv.Itoa(i)),
+		).String()
 	}
 
 	for ref, oid := range newRefs {
+		require.NotEqual(t, oid, oldRefs[ref], "sanity check of new refs")
 		gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/"+ref, oid)
 		require.Equal(t, oid, resolveRef(t, cfg, repoPath, "refs/"+ref), "look up %q in source after update", ref)
 	}
@@ -204,7 +243,12 @@ func TestFetchFromOriginRefUpdates(t *testing.T) {
 }
 
 func TestFetchFromOrigin_refs(t *testing.T) {
-	ctx := testhelper.Context(t)
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolOptimizeRepository).Run(t, testFetchFromOriginRefs)
+}
+
+func testFetchFromOriginRefs(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg, pool, _ := setupObjectPool(t, ctx)
 	poolPath := pool.FullPath()

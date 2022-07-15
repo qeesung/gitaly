@@ -6,14 +6,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 )
 
 // poolPathPrefix is the prefix directory where Praefect places object pools.
 const poolPathPrefix = "@cluster/pools/"
 
-// IsPoolPath returns whether the relative path indicates this is a Praefect generated object pool path.
-func IsPoolPath(relativePath string) bool {
-	return strings.HasPrefix(relativePath, poolPathPrefix)
+// IsPoolRepository returns whether the repository is a Praefect generated object pool repository.
+func IsPoolRepository(repo repository.GitRepo) bool {
+	return strings.HasPrefix(repo.GetRelativePath(), poolPathPrefix)
 }
 
 // DeriveReplicaPath derives a repository's disk storage path from its repository ID. The repository ID

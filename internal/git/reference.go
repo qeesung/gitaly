@@ -19,6 +19,10 @@ var InternalRefPrefixes = [...]string{
 	"refs/tmp/",
 }
 
+// ObjectPoolRefNamespace is the namespace used for the references of the primary pool member part
+// of an object pool.
+const ObjectPoolRefNamespace = "refs/remotes/origin"
+
 // Revision represents anything that resolves to either a commit, multiple
 // commits or to an object different than a commit. This could be e.g.
 // "master", "master^{commit}", an object hash or similar. See gitrevisions(1)

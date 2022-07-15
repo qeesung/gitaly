@@ -1,6 +1,7 @@
 package objectpool
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -29,7 +31,13 @@ import (
 )
 
 func TestFetchIntoObjectPool_Success(t *testing.T) {
-	ctx := testhelper.Context(t)
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolOptimizeRepository).Run(t, testFetchIntoObjectPoolSuccess)
+}
+
+func testFetchIntoObjectPoolSuccess(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, repo, repoPath, locator, client := setup(ctx, t)
 
 	repoCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(t.Name()))
@@ -57,12 +65,21 @@ func TestFetchIntoObjectPool_Success(t *testing.T) {
 	// No problems
 	gittest.Exec(t, cfg, "-C", pool.FullPath(), "fsck")
 
-	packFiles, err := filepath.Glob(filepath.Join(pool.FullPath(), "objects", "pack", "pack-*.pack"))
-	require.NoError(t, err)
-	require.Len(t, packFiles, 1, "ensure commits got packed")
+	// Verify that the newly written commit exists in the repository now.
+	gittest.Exec(t, cfg, "-C", pool.FullPath(), "rev-parse", "--verify", repoCommit.String())
 
-	packContents := gittest.Exec(t, cfg, "-C", pool.FullPath(), "verify-pack", "-v", packFiles[0])
-	require.Contains(t, string(packContents), repoCommit)
+	if featureflag.FetchIntoObjectPoolOptimizeRepository.IsDisabled(ctx) {
+		// We used to verify here how objects have been packed. This doesn't make a lot of
+		// sense anymore in the new world though, where we rely on the housekeeping package
+		// to do repository maintenance for us. We thus only check for this when the feature
+		// flag is disabled.
+		packFiles, err := filepath.Glob(filepath.Join(pool.FullPath(), "objects", "pack", "pack-*.pack"))
+		require.NoError(t, err)
+		require.Len(t, packFiles, 1, "ensure commits got packed")
+
+		packContents := gittest.Exec(t, cfg, "-C", pool.FullPath(), "verify-pack", "-v", packFiles[0])
+		require.Contains(t, string(packContents), repoCommit.String())
+	}
 
 	_, err = client.FetchIntoObjectPool(ctx, req)
 	require.NoError(t, err, "calling FetchIntoObjectPool twice should be OK")
@@ -124,8 +141,14 @@ func TestFetchIntoObjectPool_hooks(t *testing.T) {
 }
 
 func TestFetchIntoObjectPool_CollectLogStatistics(t *testing.T) {
-	cfg := testcfg.Build(t)
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolOptimizeRepository).Run(t, testFetchIntoObjectPoolCollectLogStatistics)
+}
 
+func testFetchIntoObjectPoolCollectLogStatistics(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyHooks(t, cfg)
 
 	locator := config.NewLocator(cfg)
@@ -133,7 +156,6 @@ func TestFetchIntoObjectPool_CollectLogStatistics(t *testing.T) {
 	logger, hook := test.NewNullLogger()
 	cfg.SocketPath = runObjectPoolServer(t, cfg, locator, logger)
 
-	ctx := testhelper.Context(t)
 	ctx = ctxlogrus.ToContext(ctx, log.WithField("test", "logging"))
 	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,

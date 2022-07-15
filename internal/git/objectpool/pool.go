@@ -57,10 +57,6 @@ func NewObjectPool(
 		return nil, err
 	}
 
-	if !housekeeping.IsPoolPath(relativePath) {
-		return nil, ErrInvalidPoolDir
-	}
-
 	pool := &ObjectPool{
 		gitCmdFactory:       gitCmdFactory,
 		txManager:           txManager,
@@ -70,6 +66,10 @@ func NewObjectPool(
 		relativePath:        relativePath,
 	}
 	pool.Repo = localrepo.New(locator, gitCmdFactory, catfileCache, pool)
+
+	if !housekeeping.IsPoolRepository(pool) {
+		return nil, ErrInvalidPoolDir
+	}
 
 	return pool, nil
 }

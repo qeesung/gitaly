@@ -1,56 +1,60 @@
 package gittest
 
 import (
-	"crypto/rand"
-	"io"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 )
 
-// TestDeltaIslands is based on the tests in
-// https://github.com/git/git/blob/master/t/t5320-delta-islands.sh .
-func TestDeltaIslands(t *testing.T, cfg config.Cfg, repoPath string, repack func() error) {
+// TestDeltaIslands checks whether functions that repack objects in a repository correctly set up
+// delta islands. Based on https://github.com/git/git/blob/master/t/t5320-delta-islands.sh.
+func TestDeltaIslands(t *testing.T, cfg config.Cfg, repoPath string, isPoolRepo bool, repack func() error) {
 	t.Helper()
 
 	// Create blobs that we expect Git to use delta compression on.
-	blob1, err := io.ReadAll(io.LimitReader(rand.Reader, 100000))
-	require.NoError(t, err)
+	blob1 := strings.Repeat("X", 100000)
+	blob2 := blob1 + "\nblob 2"
+	// Create another, third blob that is longer than the second blob. Git prefers the largest
+	// blob as delta base, which means that it should in theory pick this blob. But we will make
+	// it reachable via a reference that is not part of the delta island, and thus it should not
+	// be used as delta base.
+	badBlob := blob2 + "\nbad blob"
 
-	blob2 := append(blob1, "\nblob 2"...)
+	refsPrefix := "refs"
+	if isPoolRepo {
+		// Pool repositories use different references for their delta islands, so we need to
+		// adapt accordingly.
+		refsPrefix = git.ObjectPoolRefNamespace
+	}
 
-	// Assume Git prefers the largest blob as the delta base.
-	badBlob := append(blob2, "\nbad blob"...)
+	// Make the first two blobs reachable via references that are part of the delta island.
+	blob1ID := commitBlob(t, cfg, repoPath, refsPrefix+"/heads/branch1", blob1)
+	blob2ID := commitBlob(t, cfg, repoPath, refsPrefix+"/tags/tag2", blob2)
 
-	blob1ID := commitBlob(t, cfg, repoPath, "refs/heads/branch1", blob1)
-	blob2ID := commitBlob(t, cfg, repoPath, "refs/tags/tag2", blob2)
+	// The bad blob will only be reachable via a reference that is not covered by a delta
+	// island. Because of that it should be excluded from delta chains in the main island.
+	badBlobID := commitBlob(t, cfg, repoPath, refsPrefix+"/bad/ref3", badBlob)
 
-	// The bad blob will only be reachable via a non-standard ref. Because of
-	// that it should be excluded from delta chains in the main island.
-	badBlobID := commitBlob(t, cfg, repoPath, "refs/bad/ref3", badBlob)
-
-	// So far we have create blobs and commits but they will be in loose
-	// object files; we want them to be delta compressed. Run repack to make
-	// that happen.
+	// Repack all objects into a single pack so that we can verify that delta chains are built
+	// by Git as expected. Most notably, we don't use the delta islands here yet and thus the
+	// delta base for both blob1 and blob2 should be the bad blob.
 	Exec(t, cfg, "-C", repoPath, "repack", "-ad")
+	require.Equal(t, badBlobID, deltaBase(t, cfg, repoPath, blob1ID), "expect blob 1 delta base to be bad blob after test setup")
+	require.Equal(t, badBlobID, deltaBase(t, cfg, repoPath, blob2ID), "expect blob 2 delta base to be bad blob after test setup")
 
-	assert.Equal(t, badBlobID, deltaBase(t, cfg, repoPath, blob1ID), "expect blob 1 delta base to be bad blob after test setup")
-	assert.Equal(t, badBlobID, deltaBase(t, cfg, repoPath, blob2ID), "expect blob 2 delta base to be bad blob after test setup")
-
+	// Now we run the repacking function provided to us by the caller. We expect it to use delta
+	// chains, and thus neither of the two blobs should use the bad blob as delta base.
 	require.NoError(t, repack(), "repack after delta island setup")
-
-	assert.Equal(t, blob2ID, deltaBase(t, cfg, repoPath, blob1ID), "blob 1 delta base should be blob 2 after repack")
-
-	// blob2 is the bigger of the two so it should be the delta base
-	assert.Equal(t, git.ZeroOID.String(), deltaBase(t, cfg, repoPath, blob2ID), "blob 2 should not be delta compressed after repack")
+	require.Equal(t, blob2ID, deltaBase(t, cfg, repoPath, blob1ID), "blob 1 delta base should be blob 2 after repack")
+	require.Equal(t, git.ZeroOID.String(), deltaBase(t, cfg, repoPath, blob2ID), "blob 2 should not be delta compressed after repack")
 }
 
-func commitBlob(t *testing.T, cfg config.Cfg, repoPath, ref string, content []byte) string {
-	blobID := WriteBlob(t, cfg, repoPath, content)
+func commitBlob(t *testing.T, cfg config.Cfg, repoPath, ref string, content string) string {
+	blobID := WriteBlob(t, cfg, repoPath, []byte(content))
 
 	// No parent, that means this will be an initial commit. Not very
 	// realistic but it doesn't matter for delta compression.
@@ -71,7 +75,5 @@ func deltaBase(t *testing.T, cfg config.Cfg, repoPath string, blobID string) str
 		"-C", repoPath, "cat-file", "--batch-check=%(deltabase)",
 	)
 
-	return chompToString(catfileOut)
+	return text.ChompBytes(catfileOut)
 }
-
-func chompToString(s []byte) string { return strings.TrimSuffix(string(s), "\n") }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
 func TestDeriveReplicaPath(t *testing.T) {
@@ -17,28 +18,45 @@ func TestDerivePoolPath(t *testing.T) {
 	require.Equal(t, "@cluster/pools/d4/73/2", DerivePoolPath(2))
 }
 
-func TestIsPoolPath(t *testing.T) {
+func TestIsPoolRepository(t *testing.T) {
 	for _, tc := range []struct {
-		desc         string
-		relativePath string
-		isPoolPath   bool
+		desc       string
+		repo       *gitalypb.Repository
+		isPoolPath bool
 	}{
 		{
-			desc:         "praefect pool path",
-			relativePath: DerivePoolPath(1),
-			isPoolPath:   true,
+			desc:       "missing repository",
+			isPoolPath: false,
 		},
 		{
-			desc:         "praefect replica path",
-			relativePath: DeriveReplicaPath(1),
+			desc: "empty string",
+			repo: &gitalypb.Repository{
+				RelativePath: "",
+			},
+			isPoolPath: false,
 		},
 		{
-			desc:         "rails pool path",
-			relativePath: gittest.NewObjectPoolName(t),
+			desc: "praefect pool path",
+			repo: &gitalypb.Repository{
+				RelativePath: DerivePoolPath(1),
+			},
+			isPoolPath: true,
+		},
+		{
+			desc: "praefect replica path",
+			repo: &gitalypb.Repository{
+				RelativePath: DeriveReplicaPath(1),
+			},
+		},
+		{
+			desc: "rails pool path",
+			repo: &gitalypb.Repository{
+				RelativePath: gittest.NewObjectPoolName(t),
+			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			require.Equal(t, tc.isPoolPath, IsPoolPath(tc.relativePath))
+			require.Equal(t, tc.isPoolPath, IsPoolRepository(tc.repo))
 		})
 	}
 }
