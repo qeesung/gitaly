@@ -275,11 +275,9 @@ func setupHookDirectories(cfg config.Cfg, factoryCfg execCommandFactoryConfig) (
 		return hookDirectories{}, nil, fmt.Errorf("creating temporary hooks directory: %w", err)
 	}
 
-	gitalyHooksPath := filepath.Join(cfg.BinDir, "gitaly-hooks")
-
 	// And now we symlink all required hooks to the wrapper script.
 	for _, hook := range []string{"pre-receive", "post-receive", "update", "reference-transaction"} {
-		if err := os.Symlink(gitalyHooksPath, filepath.Join(tempHooksPath, hook)); err != nil {
+		if err := os.Symlink(cfg.BinaryPath("gitaly-hooks"), filepath.Join(tempHooksPath, hook)); err != nil {
 			return hookDirectories{}, nil, fmt.Errorf("creating symlink for %s hook: %w", hook, err)
 		}
 	}

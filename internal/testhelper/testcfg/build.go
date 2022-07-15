@@ -21,33 +21,39 @@ var buildOnceByName sync.Map
 
 // BuildGitalyGit2Go builds the gitaly-git2go command and installs it into the binary directory.
 func BuildGitalyGit2Go(t testing.TB, cfg config.Cfg) string {
-	return BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-git2go-v15"))
+	return buildGitalyCommand(t, cfg, "gitaly-git2go-v15")
 }
 
 // BuildGitalyWrapper builds the gitaly-wrapper command and installs it into the binary directory.
 func BuildGitalyWrapper(t *testing.T, cfg config.Cfg) string {
-	return BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-wrapper"))
+	return buildGitalyCommand(t, cfg, "gitaly-wrapper")
 }
 
 // BuildGitalyLFSSmudge builds the gitaly-lfs-smudge command and installs it into the binary
 // directory.
 func BuildGitalyLFSSmudge(t *testing.T, cfg config.Cfg) string {
-	return BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-lfs-smudge"))
+	return buildGitalyCommand(t, cfg, "gitaly-lfs-smudge")
 }
 
 // BuildGitalyHooks builds the gitaly-hooks command and installs it into the binary directory.
 func BuildGitalyHooks(t testing.TB, cfg config.Cfg) string {
-	return BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-hooks"))
+	return buildGitalyCommand(t, cfg, "gitaly-hooks")
 }
 
 // BuildGitalySSH builds the gitaly-ssh command and installs it into the binary directory.
 func BuildGitalySSH(t testing.TB, cfg config.Cfg) string {
-	return BuildBinary(t, cfg.BinDir, gitalyCommandPath("gitaly-ssh"))
+	return buildGitalyCommand(t, cfg, "gitaly-ssh")
 }
 
 // BuildPraefect builds the praefect command and installs it into the binary directory.
 func BuildPraefect(t testing.TB, cfg config.Cfg) string {
-	return BuildBinary(t, cfg.BinDir, gitalyCommandPath("praefect"))
+	return buildGitalyCommand(t, cfg, "praefect")
+}
+
+// buildGitalyCommand builds an executable and places it in the correct directory depending
+// whether it is packed in the production build or not.
+func buildGitalyCommand(t testing.TB, cfg config.Cfg, executableName string) string {
+	return BuildBinary(t, filepath.Dir(cfg.BinaryPath(executableName)), gitalyCommandPath(executableName))
 }
 
 var (

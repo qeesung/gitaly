@@ -281,6 +281,31 @@ func validateIsDirectory(path, name string) error {
 	return nil
 }
 
+// packedBinaries are the binaries that are packed in the main Gitaly binary. This should always match
+// the actual list in <root>/packed_binaries.go so the binaries are correctly located.
+//
+// Resolving the names automatically from the packed binaries is not possible at the moment due to how
+// the packed binaries themselves depend on this config package. If this config package inspected the
+// packed binaries, there would be a cyclic dependency. Anything that the packed binaries import must
+// not depend on <root>/packed_binaries.go.
+var packedBinaries = map[string]struct{}{
+	"gitaly-hooks":      {},
+	"gitaly-ssh":        {},
+	"gitaly-git2go-v15": {},
+	"gitaly-lfs-smudge": {},
+}
+
+// BinaryPath returns the path to a given binary. BinaryPath does not do any validation, it simply joins the binaryName
+// with the correct base directory depending on whether the binary is a packed binary or not.
+func (cfg *Cfg) BinaryPath(binaryName string) string {
+	baseDirectory := cfg.BinDir
+	if _, ok := packedBinaries[binaryName]; ok {
+		baseDirectory = cfg.RuntimeDir
+	}
+
+	return filepath.Join(baseDirectory, binaryName)
+}
+
 func (cfg *Cfg) validateStorages() error {
 	if len(cfg.Storages) == 0 {
 		return fmt.Errorf("no storage configurations found. Are you using the right format? https://gitlab.com/gitlab-org/gitaly/issues/397")

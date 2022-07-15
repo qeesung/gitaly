@@ -241,10 +241,12 @@ TEST_REPO_MIRROR  := ${TEST_REPO_DIR}/gitlab-test-mirror.git
 TEST_REPO_GIT     := ${TEST_REPO_DIR}/gitlab-git-test.git
 BENCHMARK_REPO    := ${TEST_REPO_DIR}/benchmark.git
 
-# All executables provided by Gitaly
-GITALY_EXECUTABLES    = $(addprefix ${BUILD_DIR}/bin/,$(notdir $(shell find ${SOURCE_DIR}/cmd -mindepth 1 -maxdepth 1 -type d -print)) gitaly-git2go-v14)
+# All executables provided by Gitaly.
+GITALY_EXECUTABLES        = $(addprefix ${BUILD_DIR}/bin/,$(notdir $(shell find ${SOURCE_DIR}/cmd -mindepth 1 -maxdepth 1 -type d -print)) gitaly-git2go-v14)
+# All executables packed inside the Gitaly binary.
+GITALY_PACKED_EXECUTABLES = $(filter %gitaly-hooks %gitaly-git2go-v15 %gitaly-ssh %gitaly-lfs-smudge, ${GITALY_EXECUTABLES})
 # Find all Go source files.
-find_go_sources       = $(shell find ${SOURCE_DIR} -type d \( -name ruby -o -name vendor -o -name testdata -o -name '_*' -o -path '*/proto/go/gitalypb' \) -prune -o -type f -name '*.go' -not -name '*.pb.go' -print | sort -u)
+find_go_sources           = $(shell find ${SOURCE_DIR} -type d \( -name ruby -o -name vendor -o -name testdata -o -name '_*' -o -path '*/proto/go/gitalypb' \) -prune -o -type f -name '*.go' -not -name '*.pb.go' -print | sort -u)
 
 # run_go_tests will execute Go tests with all required parameters. Its
 # behaviour can be modified via the following variables:
@@ -351,6 +353,9 @@ endif
 
 .PHONY: prepare-tests
 prepare-tests: libgit2 prepare-test-repos ${SOURCE_DIR}/.ruby-bundle ${GOTESTSUM}
+ifndef UNPRIVILEGED_CI_SKIP
+prepare-tests: ${GITALY_PACKED_EXECUTABLES}
+endif
 	${Q}mkdir -p "$(dir ${TEST_REPORT})"
 
 .PHONY: prepare-debug
@@ -403,10 +408,10 @@ rspec: prepare-tests
 	${Q}cd ${GITALY_RUBY_DIR} && PATH='${SOURCE_DIR}/internal/testhelper/testdata/home/bin:${PATH}' bundle exec rspec
 
 # This is a workaround for our unprivileged CI builds. We manually execute the
-# build target as privileged user, but then run the rspec target unprivileged.
+# build target as privileged user, but then run other targets unprivileged.
 # We thus cannot rebuild binaries there given that we have no permissions to
 # write into the build directory.
-ifndef SKIP_RSPEC_BUILD
+ifndef UNPRIVILEGED_CI_SKIP
 rspec: build
 endif
 
@@ -422,7 +427,7 @@ check-mod-tidy:
 
 .PHONY: lint
 ## Run Go linter.
-lint: ${GOLANGCI_LINT} libgit2
+lint: ${GOLANGCI_LINT} libgit2 ${GITALY_PACKED_EXECUTABLES}
 	${Q}${GOLANGCI_LINT} run --build-tags "${SERVER_BUILD_TAGS},${GIT2GO_BUILD_TAGS}" --out-format tab --config ${GOLANGCI_LINT_CONFIG} ${GOLANGCI_LINT_OPTIONS}
 
 .PHONY: format
@@ -529,7 +534,7 @@ ${SOURCE_DIR}/.ruby-bundle: ${GITALY_RUBY_DIR}/Gemfile.lock ${GITALY_RUBY_DIR}/G
 ${SOURCE_DIR}/NOTICE: ${BUILD_DIR}/NOTICE
 	${Q}mv $< $@
 
-${BUILD_DIR}/NOTICE: ${GO_LICENSES} clean-ruby-vendor-go
+${BUILD_DIR}/NOTICE: ${GO_LICENSES} clean-ruby-vendor-go ${GITALY_PACKED_EXECUTABLES}
 	${Q}rm -rf ${BUILD_DIR}/licenses
 	${Q}GOOS=linux GOFLAGS="-tags=${SERVER_BUILD_TAGS},${GIT2GO_BUILD_TAGS}" ${GO_LICENSES} save ${SOURCE_DIR}/... --save_path=${BUILD_DIR}/licenses
 	${Q}go run ${SOURCE_DIR}/tools/noticegen/noticegen.go -source ${BUILD_DIR}/licenses -template ${SOURCE_DIR}/tools/noticegen/notice.template > ${BUILD_DIR}/NOTICE
@@ -584,6 +589,7 @@ ${BUILD_DIR}/bin/%: ${BUILD_DIR}/intermediate/% | ${BUILD_DIR}/bin
 	fi
 
 ${BUILD_DIR}/intermediate/gitaly:            GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
+${BUILD_DIR}/intermediate/gitaly:            ${GITALY_PACKED_EXECUTABLES}
 ${BUILD_DIR}/intermediate/praefect:          GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
 ${BUILD_DIR}/intermediate/gitaly-git2go-v15: GO_BUILD_TAGS = ${GIT2GO_BUILD_TAGS}
 ${BUILD_DIR}/intermediate/gitaly-git2go-v15: libgit2

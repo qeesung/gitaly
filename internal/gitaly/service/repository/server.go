@@ -23,7 +23,6 @@ type server struct {
 	txManager           transaction.Manager
 	gitCmdFactory       git.CommandFactory
 	cfg                 config.Cfg
-	binDir              string
 	loggingCfg          config.Logging
 	catfileCache        catfile.Cache
 	git2goExecutor      *git2go.Executor
@@ -49,7 +48,6 @@ func NewServer(
 		gitCmdFactory:       gitCmdFactory,
 		conns:               connsPool,
 		cfg:                 cfg,
-		binDir:              cfg.BinDir,
 		loggingCfg:          cfg.Logging,
 		catfileCache:        catfileCache,
 		git2goExecutor:      git2goExecutor,

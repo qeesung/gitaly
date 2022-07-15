@@ -3,7 +3,6 @@ package ssh
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -136,7 +135,7 @@ func TestUploadArchiveSuccess(t *testing.T) {
 			fmt.Sprintf("GITALY_ADDRESS=%s", cfg.SocketPath),
 			fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 			fmt.Sprintf("PATH=%s", ".:"+os.Getenv("PATH")),
-			fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-archive`, filepath.Join(cfg.BinDir, "gitaly-ssh")),
+			fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-archive`, cfg.BinaryPath("gitaly-ssh")),
 		},
 	}, "archive", "master", "--remote=git@localhost:test/test.git")
 }

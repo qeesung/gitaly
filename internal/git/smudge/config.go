@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
@@ -100,12 +99,12 @@ func (c Config) GitConfiguration(cfg config.Cfg) (git.ConfigPair, error) {
 	case DriverTypeFilter:
 		return git.ConfigPair{
 			Key:   "filter.lfs.smudge",
-			Value: filepath.Join(cfg.BinDir, "gitaly-lfs-smudge"),
+			Value: cfg.BinaryPath("gitaly-lfs-smudge"),
 		}, nil
 	case DriverTypeProcess:
 		return git.ConfigPair{
 			Key:   "filter.lfs.process",
-			Value: filepath.Join(cfg.BinDir, "gitaly-lfs-smudge"),
+			Value: cfg.BinaryPath("gitaly-lfs-smudge"),
 		}, nil
 	default:
 		return git.ConfigPair{}, fmt.Errorf("unknown driver type: %v", c.DriverType)

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
@@ -19,7 +18,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	glog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/version"
 	"gitlab.com/gitlab-org/labkit/correlation"
 )
 
@@ -28,7 +26,7 @@ var (
 	ErrInvalidArgument = errors.New("invalid parameters")
 
 	// BinaryName is a binary name with version suffix .
-	BinaryName = "gitaly-git2go-" + version.GetModuleVersion()
+	BinaryName = "gitaly-git2go-v15"
 )
 
 // Executor executes gitaly-git2go.
@@ -43,7 +41,7 @@ type Executor struct {
 // configuration.
 func NewExecutor(cfg config.Cfg, gitCmdFactory git.CommandFactory, locator storage.Locator) *Executor {
 	return &Executor{
-		binaryPath:    filepath.Join(cfg.BinDir, BinaryName),
+		binaryPath:    cfg.BinaryPath(BinaryName),
 		gitCmdFactory: gitCmdFactory,
 		locator:       locator,
 		logFormat:     cfg.Logging.Format,

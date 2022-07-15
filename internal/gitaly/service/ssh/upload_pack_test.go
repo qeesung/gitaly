@@ -65,7 +65,7 @@ func runClone(
 		fmt.Sprintf("GITALY_ADDRESS=%s", cfg.SocketPath),
 		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(flagsWithValues, ",")),
-		fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-pack`, filepath.Join(cfg.BinDir, "gitaly-ssh")),
+		fmt.Sprintf(`GIT_SSH_COMMAND=%s upload-pack`, cfg.BinaryPath("gitaly-ssh")),
 	}
 	if withSidechannel {
 		env = append(env, "GITALY_USE_SIDECHANNEL=1")
@@ -622,7 +622,7 @@ func TestUploadPack_packObjectsHook(t *testing.T) {
 	// custom script which replaces the hook binary. It doesn't do anything
 	// special, but writes an error message and errors out and should thus
 	// cause the clone to fail with this error message.
-	testhelper.WriteExecutable(t, filepath.Join(filterDir, "gitaly-hooks"), []byte(fmt.Sprintf(
+	testhelper.WriteExecutable(t, cfg.BinaryPath("gitaly-hooks"), []byte(fmt.Sprintf(
 		`#!/bin/bash
 		set -eo pipefail
 		echo 'I was invoked' >'%s'
@@ -685,7 +685,7 @@ func testUploadPackWithoutSideband(t *testing.T, opts ...testcfg.Option) {
 	// Those simultaneous writes to both stdout and stderr created a race as we could've invoked
 	// two concurrent `SendMsg`s on the gRPC stream. And given that `SendMsg` is not thread-safe
 	// a deadlock would result.
-	uploadPack := exec.Command(filepath.Join(cfg.BinDir, "gitaly-ssh"), "upload-pack", "dontcare", "dontcare")
+	uploadPack := exec.Command(cfg.BinaryPath("gitaly-ssh"), "upload-pack", "dontcare", "dontcare")
 	uploadPack.Env = []string{
 		fmt.Sprintf("GITALY_ADDRESS=%s", cfg.SocketPath),
 		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),

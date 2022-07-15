@@ -287,7 +287,7 @@ func testServerPostUploadPackUsesPackObjectsHook(t *testing.T, ctx context.Conte
 	// out. In the best case we'd have just printed the error to stderr and
 	// check the return error message. But it's unfortunately not
 	// transferred back.
-	testhelper.WriteExecutable(t, filepath.Join(cfg.BinDir, "gitaly-hooks"), []byte(hookScript))
+	testhelper.WriteExecutable(t, cfg.BinaryPath("gitaly-hooks"), []byte(hookScript))
 
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
 

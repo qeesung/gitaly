@@ -420,7 +420,7 @@ func listenGitalySSHCalls(t *testing.T, conf config.Cfg) func() gitalySSHParams 
 	t.Helper()
 
 	require.NotEmpty(t, conf.BinDir)
-	initialPath := filepath.Join(conf.BinDir, "gitaly-ssh")
+	initialPath := conf.BinaryPath("gitaly-ssh")
 	updatedPath := initialPath + "-actual"
 	require.NoError(t, os.Rename(initialPath, updatedPath))
 

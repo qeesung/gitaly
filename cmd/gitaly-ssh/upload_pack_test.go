@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -85,7 +84,7 @@ func TestVisibilityOfHiddenRefs(t *testing.T) {
 				fmt.Sprintf("GITALY_ADDRESS=unix:%s", socketPath),
 				fmt.Sprintf("GITALY_WD=%s", wd),
 				fmt.Sprintf("PATH=.:%s", os.Getenv("PATH")),
-				fmt.Sprintf("GIT_SSH_COMMAND=%s upload-pack", filepath.Join(cfg.BinDir, "gitaly-ssh")),
+				fmt.Sprintf("GIT_SSH_COMMAND=%s upload-pack", cfg.BinaryPath("gitaly-ssh")),
 			}
 
 			stdout := &bytes.Buffer{}

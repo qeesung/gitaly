@@ -161,8 +161,6 @@ func testHooksPrePostReceive(t *testing.T, cfg config.Cfg, repo *gitalypb.Reposi
 	cfg.Gitlab.HTTPSettings.User = gitlabUser
 	cfg.Gitlab.HTTPSettings.Password = gitlabPassword
 
-	gitalyHooksPath := filepath.Join(cfg.BinDir, "gitaly-hooks")
-
 	gitlabClient, err := gitlab.NewHTTPClient(logger, cfg.Gitlab, cfg.TLS, prometheus.Config{})
 	require.NoError(t, err)
 
@@ -180,7 +178,7 @@ func testHooksPrePostReceive(t *testing.T, cfg config.Cfg, repo *gitalypb.Reposi
 			var stderr, stdout bytes.Buffer
 			stdin := bytes.NewBuffer([]byte(changes))
 			require.NoError(t, err)
-			cmd := exec.Command(gitalyHooksPath)
+			cmd := exec.Command(cfg.BinaryPath("gitaly-hooks"))
 			cmd.Args = []string{hookName}
 			cmd.Stderr = &stderr
 			cmd.Stdout = &stdout
@@ -278,7 +276,7 @@ func testHooksUpdate(t *testing.T, ctx context.Context, cfg config.Cfg, glValues
 
 	refval, oldval, newval := "refval", strings.Repeat("a", 40), strings.Repeat("b", 40)
 
-	cmd := exec.Command(filepath.Join(cfg.BinDir, "gitaly-hooks"))
+	cmd := exec.Command(cfg.BinaryPath("gitaly-hooks"))
 	cmd.Args = []string{"update", refval, oldval, newval}
 	cmd.Env = envForHooks(t, ctx, cfg, repo, glValues, proxyValues{})
 	cmd.Dir = repoPath
@@ -522,7 +520,7 @@ func TestCheckOK(t *testing.T) {
 
 	configPath := writeTemporaryGitalyConfigFile(t, cfg)
 
-	cmd := exec.Command(filepath.Join(cfg.BinDir, "gitaly-hooks"), "check", configPath)
+	cmd := exec.Command(cfg.BinaryPath("gitaly-hooks"), "check", configPath)
 
 	var stderr, stdout bytes.Buffer
 	cmd.Stderr = &stderr
@@ -568,7 +566,7 @@ func TestCheckBadCreds(t *testing.T) {
 
 	configPath := writeTemporaryGitalyConfigFile(t, cfg)
 
-	cmd := exec.Command(filepath.Join(cfg.BinDir, "gitaly-hooks"), "check", configPath)
+	cmd := exec.Command(cfg.BinaryPath("gitaly-hooks"), "check", configPath)
 
 	var stderr, stdout bytes.Buffer
 	cmd.Stderr = &stderr
@@ -652,7 +650,7 @@ func TestGitalyHooksPackObjects(t *testing.T) {
 	baseArgs := []string{
 		"clone",
 		"-u",
-		"git -c uploadpack.allowFilter -c uploadpack.packObjectsHook=" + cfg.BinDir + "/gitaly-hooks upload-pack",
+		"git -c uploadpack.allowFilter -c uploadpack.packObjectsHook=" + cfg.BinaryPath("gitaly-hooks") + " upload-pack",
 		"--quiet",
 		"--no-local",
 		"--bare",
@@ -702,7 +700,7 @@ func TestRequestedHooks(t *testing.T) {
 				payload, err := git.NewHooksPayload(cfg, &gitalypb.Repository{}, nil, nil, git.AllHooks&^hook, nil).Env()
 				require.NoError(t, err)
 
-				cmd := exec.Command(filepath.Join(cfg.BinDir, "gitaly-hooks"))
+				cmd := exec.Command(cfg.BinaryPath("gitaly-hooks"))
 				cmd.Args = hookArgs
 				cmd.Env = []string{payload}
 				require.NoError(t, cmd.Run())
@@ -716,7 +714,7 @@ func TestRequestedHooks(t *testing.T) {
 				payload, err := git.NewHooksPayload(cfg, &gitalypb.Repository{}, nil, nil, hook, nil).Env()
 				require.NoError(t, err)
 
-				cmd := exec.Command(filepath.Join(cfg.BinDir, "gitaly-hooks"))
+				cmd := exec.Command(cfg.BinaryPath("gitaly-hooks"))
 				cmd.Args = hookArgs
 				cmd.Env = []string{payload}
 

@@ -122,7 +122,7 @@ func TestConnectivity(t *testing.T) {
 				fmt.Sprintf("GITALY_ADDRESS=%s", addr),
 				fmt.Sprintf("GITALY_WD=%s", cwd),
 				fmt.Sprintf("PATH=.:%s", os.Getenv("PATH")),
-				fmt.Sprintf("GIT_SSH_COMMAND=%s upload-pack", filepath.Join(cfg.BinDir, "gitaly-ssh")),
+				fmt.Sprintf("GIT_SSH_COMMAND=%s upload-pack", cfg.BinaryPath("gitaly-ssh")),
 				fmt.Sprintf("SSL_CERT_FILE=%s", certFile),
 			}
 			if testcase.proxy {

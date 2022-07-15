@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -466,7 +465,7 @@ func TestWithInternalFetch(t *testing.T) {
 			require.NoError(t, option(ctx, cfg, gitCmdFactory, &commandCfg))
 
 			require.Subset(t, commandCfg.env, []string{
-				fmt.Sprintf("GIT_SSH_COMMAND=%s upload-pack", filepath.Join(cfg.BinDir, "gitaly-ssh")),
+				fmt.Sprintf("GIT_SSH_COMMAND=%s upload-pack", cfg.BinaryPath("gitaly-ssh")),
 				fmt.Sprintf("GITALY_PAYLOAD=%s", tc.expectedPayload),
 				"CORRELATION_ID=correlation-id-1",
 				"GIT_SSH_VARIANT=simple",

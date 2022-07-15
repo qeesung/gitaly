@@ -20,6 +20,17 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
+func TestBinaryPath(t *testing.T) {
+	cfg := Cfg{
+		BinDir:     "bindir",
+		RuntimeDir: "runtime",
+	}
+
+	require.Equal(t, "runtime/gitaly-hooks", cfg.BinaryPath("gitaly-hooks"))
+	require.Equal(t, "bindir/gitaly-debug", cfg.BinaryPath("gitaly-debug"))
+	require.Equal(t, "bindir", cfg.BinaryPath(""))
+}
+
 func TestLoadBrokenConfig(t *testing.T) {
 	tmpFile := strings.NewReader(`path = "/tmp"\nname="foo"`)
 	_, err := Load(tmpFile)

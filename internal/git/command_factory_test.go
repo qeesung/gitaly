@@ -347,7 +347,7 @@ func TestExecCommandFactoryHooksPath(t *testing.T) {
 			for _, hook := range []string{"update", "pre-receive", "post-receive", "reference-transaction"} {
 				target, err := os.Readlink(filepath.Join(hooksPath, hook))
 				require.NoError(t, err)
-				require.Equal(t, filepath.Join(cfg.BinDir, "gitaly-hooks"), target)
+				require.Equal(t, cfg.BinaryPath("gitaly-hooks"), target)
 			}
 		})
 

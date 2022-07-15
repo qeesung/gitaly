@@ -684,7 +684,7 @@ func sshPushCommand(ctx context.Context, t *testing.T, cfg config.Cfg, cloneDeta
 		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 		fmt.Sprintf("GITALY_ADDRESS=%s", serverSocketPath),
 		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(flagsWithValues, ",")),
-		fmt.Sprintf("GIT_SSH_COMMAND=%s receive-pack", filepath.Join(cfg.BinDir, "gitaly-ssh")),
+		fmt.Sprintf("GIT_SSH_COMMAND=%s receive-pack", cfg.BinaryPath("gitaly-ssh")),
 	}
 
 	return cmd

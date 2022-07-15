@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -292,7 +291,7 @@ func withInternalFetch(req repoScopedRequest, withSidechannel bool) func(ctx con
 
 		c.env = append(c.env,
 			fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
-			fmt.Sprintf("GIT_SSH_COMMAND=%s %s", filepath.Join(cfg.BinDir, "gitaly-ssh"), "upload-pack"),
+			fmt.Sprintf("GIT_SSH_COMMAND=%s %s", cfg.BinaryPath("gitaly-ssh"), "upload-pack"),
 			fmt.Sprintf("GITALY_ADDRESS=%s", storageInfo.Address),
 			fmt.Sprintf("GITALY_TOKEN=%s", storageInfo.Token),
 			fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(flagsWithValue, ",")),
