@@ -24,7 +24,7 @@ type MigrationStatusRow struct {
 // specified in conf. This is a diagnostic for the Praefect Postgres
 // rollout. https://gitlab.com/gitlab-org/gitaly/issues/1755
 func CheckPostgresVersion(db *sql.DB) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var serverVersion int

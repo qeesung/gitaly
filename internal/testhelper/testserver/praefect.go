@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -86,11 +87,20 @@ func StartPraefect(t testing.TB, cfg config.Config) PraefectServer {
 
 	require.NoError(t, cmd.Start())
 
+	var waitErr error
+	var waitOnce sync.Once
+	wait := func() error {
+		waitOnce.Do(func() {
+			waitErr = cmd.Wait()
+		})
+		return waitErr
+	}
+
 	praefectServer := PraefectServer{
 		address: "unix://" + praefectServerSocket.Addr().String(),
 		shutdown: func() {
 			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
+			_ = wait()
 		},
 	}
 	t.Cleanup(praefectServer.Shutdown)
@@ -98,14 +108,28 @@ func StartPraefect(t testing.TB, cfg config.Config) PraefectServer {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
+	processExitedCh := make(chan error, 1)
+	go func() {
+		processExitedCh <- wait()
+		cancel()
+	}()
+
 	// Ensure this runs even if context ends in waitHealthy.
 	defer func() {
+		// Check if the process has exited. This must not happen given that we need it to be
+		// up in order to connect to it.
+		select {
+		case <-processExitedCh:
+			require.FailNowf(t, "Praefect has died", "%s", stderr.String())
+		default:
+		}
+
 		select {
 		case <-ctx.Done():
 			switch ctx.Err() {
 			case context.DeadlineExceeded:
 				// Capture Praefect logs when waitHealthy takes too long.
-				t.Errorf("Failed to connect to Praefect:\n%v", stderr.String())
+				require.FailNowf(t, "Connecting to Praefect exceeded deadline", "%s", stderr.String())
 			}
 		default:
 		}
