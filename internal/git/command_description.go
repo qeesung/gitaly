@@ -299,12 +299,12 @@ var commandDescriptions = map[string]commandDescription{
 	},
 	"upload-pack": {
 		flags: scNoRefUpdates,
-		opts: append([]GlobalOption{
+		opts: append(append([]GlobalOption{
 			ConfigPair{Key: "uploadpack.allowFilter", Value: "true"},
 			// Enables the capability to request individual SHA1's from the
 			// remote repo.
 			ConfigPair{Key: "uploadpack.allowAnySHA1InWant", Value: "true"},
-		}, packConfiguration()...),
+		}, hiddenUploadPackRefPrefixes()...), packConfiguration()...),
 	},
 	"version": {
 		flags: scNoRefUpdates,
@@ -408,6 +408,16 @@ func hiddenReceivePackRefPrefixes() []GlobalOption {
 
 	for _, ns := range InternalRefPrefixes {
 		cps = append(cps, ConfigPair{Key: "receive.hideRefs", Value: ns})
+	}
+
+	return cps
+}
+
+func hiddenUploadPackRefPrefixes() []GlobalOption {
+	var cps []GlobalOption
+
+	for _, ns := range InternalRefPrefixes {
+		cps = append(cps, ConfigPair{Key: "uploadpack.hideRefs", Value: ns})
 	}
 
 	return cps
