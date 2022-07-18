@@ -202,7 +202,11 @@ func TestContextCancelAbortsRefChanges(t *testing.T) {
 func TestUpdater_cancel(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, updater := setupUpdater(t, ctx)
+	cfg, repo, updater := setupUpdater(t, ctx)
+
+	if !gitSupportsStatusFlushing(t, ctx, cfg) {
+		t.Skip("git does not support flushing yet, which is known to be flaky")
+	}
 
 	require.NoError(t, updater.Delete(git.ReferenceName("refs/heads/master")))
 	require.NoError(t, updater.Prepare())
