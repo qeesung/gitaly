@@ -1,5 +1,4 @@
 //go:build static && system_libgit2 && gitaly_test
-// +build static,system_libgit2,gitaly_test
 
 package main
 

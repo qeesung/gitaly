@@ -1,5 +1,4 @@
-//go:build linux
-// +build linux
+//go:build linux && !gitaly_test_sha256
 
 package streamcache
 

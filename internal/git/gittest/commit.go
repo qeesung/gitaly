@@ -150,7 +150,7 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 		tree = writeCommitConfig.treeID.String()
 	} else if len(parents) == 0 {
 		// If there are no parents, then we set the root tree to the empty tree.
-		tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+		tree = EmptyTreeOID.String()
 	} else {
 		tree = parents[0].String() + "^{tree}"
 	}
@@ -210,7 +210,7 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 		Stdin: stdin,
 		Env:   env,
 	}, commitArgs...)
-	oid, err := git.NewObjectIDFromHex(text.ChompBytes(stdout))
+	oid, err := NewObjectIDFromHex(text.ChompBytes(stdout))
 	require.NoError(t, err)
 
 	if writeCommitConfig.branch != "" {

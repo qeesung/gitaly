@@ -1,3 +1,5 @@
+//go:build !gitaly_test_sha256
+
 /*
    Adapted from https://github.com/containerd/cgroups/blob/f1d9380fd3c028194db9582825512fdf3f39ab2a/mock_test.go
 

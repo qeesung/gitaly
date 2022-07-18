@@ -1,3 +1,5 @@
+//go:build !gitaly_test_sha256
+
 package glsql_test
 
 import (

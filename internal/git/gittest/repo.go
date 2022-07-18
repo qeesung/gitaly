@@ -258,8 +258,10 @@ func InitRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...Init
 	repoPath := filepath.Join(storage.Path, relativePath)
 
 	args := []string{"init", "--bare"}
+	args = append(args, initRepoExtraArgs...)
+	args = append(args, repoPath)
 
-	Exec(t, cfg, append(args, repoPath)...)
+	Exec(t, cfg, args...)
 
 	repo := InitRepoDir(t, storage.Path, relativePath)
 	repo.StorageName = storage.Name

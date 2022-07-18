@@ -91,6 +91,11 @@ ifdef FIPS_MODE
     export GITALY_TESTING_ENABLE_FIPS := YesPlease
 endif
 
+ifdef GITALY_TESTING_ENABLE_SHA256
+    SERVER_BUILD_TAGS := ${SERVER_BUILD_TAGS},gitaly_test_sha256
+    GIT2GO_BUILD_TAGS := ${GIT2GO_BUILD_TAGS},gitaly_test_sha256
+endif
+
 # Dependency versions
 GOLANGCI_LINT_VERSION     ?= v1.46.2
 PROTOLINT_VERSION         ?= v0.38.1

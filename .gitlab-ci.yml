@@ -256,6 +256,13 @@ test:praefect_smoke:
     - ./_build/bin/praefect -config config.praefect.toml sql-ping
     - ./_build/bin/praefect -config config.praefect.toml sql-migrate
 
+test:sha256:
+  <<: *test_definition
+  parallel:
+    matrix:
+      - TEST_TARGET: [ test, test-with-praefect ]
+        GITALY_TESTING_ENABLE_SHA256: "YesPlease"
+
 test:fips:
   <<: *test_definition
   tags:
