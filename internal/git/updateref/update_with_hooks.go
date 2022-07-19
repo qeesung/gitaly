@@ -15,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -157,17 +156,17 @@ func (u *UpdaterWithHooks) UpdateReference(
 	if tx, err := txinfo.TransactionFromContext(ctx); err == nil {
 		transaction = &tx
 	} else if !errors.Is(err, txinfo.ErrTransactionNotFound) {
-		return err
+		return fmt.Errorf("getting transaction: %w", err)
 	}
 
 	if reference == "" {
-		return helper.ErrInternalf("UpdateReference: got no reference")
+		return fmt.Errorf("reference cannot be empty")
 	}
 	if err := git.ValidateObjectID(oldrev.String()); err != nil {
-		return helper.ErrInternalf("UpdateReference: got invalid old value: %w", err)
+		return fmt.Errorf("validating old value: %w", err)
 	}
 	if err := git.ValidateObjectID(newrev.String()); err != nil {
-		return helper.ErrInternalf("UpdateReference: got invalid new value: %w", err)
+		return fmt.Errorf("validating new value: %w", err)
 	}
 
 	changes := fmt.Sprintf("%s %s %s\n", oldrev, newrev, reference)
@@ -190,12 +189,12 @@ func (u *UpdaterWithHooks) UpdateReference(
 
 	hooksPayload, err := git.NewHooksPayload(u.cfg, quarantinedRepo, transaction, &receiveHooksPayload, git.ReceivePackHooks, featureflag.FromContext(ctx)).Env()
 	if err != nil {
-		return err
+		return fmt.Errorf("constructing hooks payload: %w", err)
 	}
 
 	var stdout, stderr bytes.Buffer
 	if err := u.hookManager.PreReceiveHook(ctx, quarantinedRepo, pushOptions, []string{hooksPayload}, strings.NewReader(changes), &stdout, &stderr); err != nil {
-		return wrapHookError(err, git.PreReceiveHook, stdout.String(), stderr.String())
+		return fmt.Errorf("running pre-receive hooks: %w", wrapHookError(err, git.PreReceiveHook, stdout.String(), stderr.String()))
 	}
 
 	// Now that Rails has told us that the change is okay via the pre-receive hook, we can
@@ -212,12 +211,12 @@ func (u *UpdaterWithHooks) UpdateReference(
 		// real repository anyway.
 		hooksPayload, err = git.NewHooksPayload(u.cfg, repo, transaction, &receiveHooksPayload, git.ReceivePackHooks, featureflag.FromContext(ctx)).Env()
 		if err != nil {
-			return err
+			return fmt.Errorf("constructing quarantined hooks payload: %w", err)
 		}
 	}
 
 	if err := u.hookManager.UpdateHook(ctx, quarantinedRepo, reference.String(), oldrev.String(), newrev.String(), []string{hooksPayload}, &stdout, &stderr); err != nil {
-		return wrapHookError(err, git.UpdateHook, stdout.String(), stderr.String())
+		return fmt.Errorf("running update hooks: %w", wrapHookError(err, git.UpdateHook, stdout.String(), stderr.String()))
 	}
 
 	// We are already manually invoking the reference-transaction hook, so there is no need to
@@ -269,7 +268,7 @@ func (u *UpdaterWithHooks) UpdateReference(
 	}
 
 	if err := u.hookManager.PostReceiveHook(ctx, repo, pushOptions, []string{hooksPayload}, strings.NewReader(changes), &stdout, &stderr); err != nil {
-		return wrapHookError(err, git.PostReceiveHook, stdout.String(), stderr.String())
+		return fmt.Errorf("running post-receive hooks: %w", wrapHookError(err, git.PostReceiveHook, stdout.String(), stderr.String()))
 	}
 
 	return nil

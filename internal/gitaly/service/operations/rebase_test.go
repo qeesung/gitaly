@@ -552,7 +552,7 @@ func testUserRebaseConfirmablePreReceiveError(t *testing.T, ctx context.Context)
 
 			if featureflag.UserRebaseConfirmableImprovedErrorHandling.IsEnabled(ctx) {
 				testhelper.RequireGrpcError(t, errWithDetails(t,
-					helper.ErrPermissionDeniedf(`access check: "failure\n"`),
+					helper.ErrPermissionDeniedf(`access check: "running %s hooks: failure\n"`, hookName),
 					&gitalypb.UserRebaseConfirmableError{
 						Error: &gitalypb.UserRebaseConfirmableError_AccessCheck{
 							AccessCheck: &gitalypb.AccessCheckError{

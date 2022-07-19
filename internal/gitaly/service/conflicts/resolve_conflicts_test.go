@@ -891,7 +891,7 @@ func TestResolveConflictsQuarantine(t *testing.T) {
 	}))
 
 	response, err := stream.CloseAndRecv()
-	require.EqualError(t, err, `rpc error: code = Unknown desc = af339cb882d1e3cf8d6751651e58bbaff0265d6e
+	require.EqualError(t, err, `rpc error: code = Unknown desc = running pre-receive hooks: af339cb882d1e3cf8d6751651e58bbaff0265d6e
 tree 89fad81bbfa38070b90ca8f4c404625bf0999013
 parent 29449b1d52cd77fd060a083a1de691bbaf12d8af
 parent 26dac52be85c92742b2c0c19eb7303de9feccb63

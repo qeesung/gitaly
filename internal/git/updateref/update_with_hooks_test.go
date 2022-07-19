@@ -48,46 +48,46 @@ func TestUpdaterWithHooks_UpdateReference_invalidParameters(t *testing.T) {
 		desc           string
 		ref            git.ReferenceName
 		newRev, oldRev git.ObjectID
-		expectedErr    string
+		expectedErr    error
 	}{
 		{
 			desc:        "missing reference",
 			oldRev:      revA,
 			newRev:      revB,
-			expectedErr: "got no reference",
+			expectedErr: fmt.Errorf("reference cannot be empty"),
 		},
 		{
 			desc:        "missing old rev",
 			ref:         "refs/heads/master",
 			newRev:      revB,
-			expectedErr: "got invalid old value",
+			expectedErr: fmt.Errorf("validating old value: %w", fmt.Errorf("%w: %q", git.ErrInvalidObjectID, "")),
 		},
 		{
 			desc:        "missing new rev",
 			ref:         "refs/heads/master",
 			oldRev:      revB,
-			expectedErr: "got invalid new value",
+			expectedErr: fmt.Errorf("validating new value: %w", fmt.Errorf("%w: %q", git.ErrInvalidObjectID, "")),
 		},
 		{
 			desc:        "invalid old rev",
 			ref:         "refs/heads/master",
 			newRev:      revA,
 			oldRev:      "foobar",
-			expectedErr: "got invalid old value",
+			expectedErr: fmt.Errorf("validating old value: %w", fmt.Errorf("%w: %q", git.ErrInvalidObjectID, "foobar")),
 		},
 		{
 			desc:        "invalid new rev",
 			ref:         "refs/heads/master",
 			newRev:      "foobar",
 			oldRev:      revB,
-			expectedErr: "got invalid new value",
+			expectedErr: fmt.Errorf("validating new value: %w", fmt.Errorf("%w: %q", git.ErrInvalidObjectID, "foobar")),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			err := updater.UpdateReference(ctx, repo, user, nil, tc.ref, tc.newRev, tc.oldRev)
-			require.Contains(t, err.Error(), tc.expectedErr)
+			require.Equal(t, tc.expectedErr, err)
 		})
 	}
 }

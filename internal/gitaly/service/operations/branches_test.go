@@ -458,7 +458,7 @@ func TestUserDeleteBranch_allowed(t *testing.T) {
 				return false, "something something", nil
 			},
 			expectedErr: errWithDetails(t,
-				helper.ErrPermissionDeniedf("deletion denied by access checks: GitLab: something something"),
+				helper.ErrPermissionDeniedf("deletion denied by access checks: running pre-receive hooks: GitLab: something something"),
 				&gitalypb.UserDeleteBranchError{
 					Error: &gitalypb.UserDeleteBranchError_AccessCheck{
 						AccessCheck: &gitalypb.AccessCheckError{
@@ -479,7 +479,7 @@ func TestUserDeleteBranch_allowed(t *testing.T) {
 				return false, "something something", fmt.Errorf("something else")
 			},
 			expectedErr: errWithDetails(t,
-				helper.ErrPermissionDeniedf("deletion denied by access checks: GitLab: something else"),
+				helper.ErrPermissionDeniedf("deletion denied by access checks: running pre-receive hooks: GitLab: something else"),
 				&gitalypb.UserDeleteBranchError{
 					Error: &gitalypb.UserDeleteBranchError_AccessCheck{
 						AccessCheck: &gitalypb.AccessCheckError{
@@ -726,7 +726,7 @@ func TestUserDeleteBranch_hookFailure(t *testing.T) {
 
 			response, err := client.UserDeleteBranch(ctx, request)
 			testhelper.RequireGrpcError(t, errWithDetails(t,
-				helper.ErrPermissionDeniedf("deletion denied by custom hooks: %s\n", "GL_ID=user-123"),
+				helper.ErrPermissionDeniedf("deletion denied by custom hooks: running %s hooks: %s\n", tc.hookName, "GL_ID=user-123"),
 				&gitalypb.UserDeleteBranchError{
 					Error: &gitalypb.UserDeleteBranchError_CustomHook{
 						CustomHook: &gitalypb.CustomHookError{
@@ -841,7 +841,7 @@ func TestBranchHookOutput(t *testing.T) {
 
 				deleteResponse, err := client.UserDeleteBranch(ctx, deleteRequest)
 				testhelper.RequireGrpcError(t, errWithDetails(t,
-					helper.ErrPermissionDeniedf("deletion denied by custom hooks: %s", expectedError),
+					helper.ErrPermissionDeniedf("deletion denied by custom hooks: running %s hooks: %s", hookTestCase.hookName, expectedError),
 					&gitalypb.UserDeleteBranchError{
 						Error: &gitalypb.UserDeleteBranchError_CustomHook{
 							CustomHook: &gitalypb.CustomHookError{
