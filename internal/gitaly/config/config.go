@@ -586,7 +586,9 @@ func PruneRuntimeDirectories(log log.FieldLogger, runtimeDir string) error {
 			}()
 
 			if err := process.Signal(syscall.Signal(0)); err != nil {
-				if !errors.Is(err, os.ErrProcessDone) {
+				// Either the process does not exist, or the pid has been re-used by for a
+				// process owned by another user and is not a Gitaly process.
+				if !errors.Is(err, os.ErrProcessDone) && !errors.Is(err, syscall.EPERM) {
 					return fmt.Errorf("signal: %w", err)
 				}
 

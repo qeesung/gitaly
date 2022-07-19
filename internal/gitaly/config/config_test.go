@@ -1338,6 +1338,12 @@ func TestPruneRuntimeDirectories(t *testing.T) {
 			expectedLogs[staleRuntimeDir] = "removing leftover runtime directory"
 		}
 
+		// Setup runtime directory with pid of process not owned by git user
+		rootRuntimeDir, err := SetupRuntimeDirectory(cfg, 1)
+		require.NoError(t, err)
+		expectedLogs[rootRuntimeDir] = "removing leftover runtime directory"
+		prunableDirs = append(prunableDirs, rootRuntimeDir)
+
 		// Create an unexpected file in the runtime directory
 		unexpectedFilePath := filepath.Join(baseDir, "unexpected-file")
 		require.NoError(t, os.WriteFile(unexpectedFilePath, []byte(""), os.ModePerm))
