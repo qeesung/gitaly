@@ -230,7 +230,7 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 			expectedErr: "reference-transaction failure",
 		},
 		{
-			desc: "post-receive error",
+			desc: "post-receive error is ignored",
 			preReceive: func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 				return nil
 			},
@@ -245,7 +245,6 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 				require.NoError(t, err)
 				return errors.New("ignored")
 			},
-			expectedErr:         "post-receive failure",
 			expectedRefDeletion: true,
 		},
 	}

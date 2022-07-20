@@ -440,25 +440,26 @@ func TestUserMergeBranch_failingHooks(t *testing.T) {
 	hookContent := []byte("#!/bin/sh\necho 'stdout' && echo 'stderr' >&2\nexit 1")
 
 	for _, tc := range []struct {
-		hookName     string
-		hookType     gitalypb.CustomHookError_HookType
-		shouldUpdate bool
+		hookName   string
+		hookType   gitalypb.CustomHookError_HookType
+		shouldFail bool
 	}{
 		{
-			hookName:     "pre-receive",
-			hookType:     gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
-			shouldUpdate: false,
+			hookName:   "pre-receive",
+			hookType:   gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
+			shouldFail: true,
 		},
 		{
-			hookName:     "update",
-			hookType:     gitalypb.CustomHookError_HOOK_TYPE_UPDATE,
-			shouldUpdate: false,
+			hookName:   "update",
+			hookType:   gitalypb.CustomHookError_HOOK_TYPE_UPDATE,
+			shouldFail: true,
 		},
 		{
 			hookName: "post-receive",
 			hookType: gitalypb.CustomHookError_HOOK_TYPE_POSTRECEIVE,
-			// The post-receive hook runs after references have been updated.
-			shouldUpdate: true,
+			// The post-receive hook runs after references have been updated and any
+			// failures of it are ignored.
+			shouldFail: false,
 		},
 	} {
 		t.Run(tc.hookName, func(t *testing.T) {
@@ -485,22 +486,31 @@ func TestUserMergeBranch_failingHooks(t *testing.T) {
 			require.NoError(t, mergeBidi.CloseSend(), "close send")
 
 			secondResponse, err := mergeBidi.Recv()
-			testhelper.RequireGrpcError(t, errWithDetails(t,
-				helper.ErrPermissionDeniedf("stderr\n"),
-				&gitalypb.UserMergeBranchError{
-					Error: &gitalypb.UserMergeBranchError_CustomHook{
-						CustomHook: &gitalypb.CustomHookError{
-							HookType: tc.hookType,
-							Stdout:   []byte("stdout\n"),
-							Stderr:   []byte("stderr\n"),
+			if tc.shouldFail {
+				testhelper.RequireGrpcError(t, errWithDetails(t,
+					helper.ErrPermissionDeniedf("stderr\n"),
+					&gitalypb.UserMergeBranchError{
+						Error: &gitalypb.UserMergeBranchError_CustomHook{
+							CustomHook: &gitalypb.CustomHookError{
+								HookType: tc.hookType,
+								Stdout:   []byte("stdout\n"),
+								Stderr:   []byte("stderr\n"),
+							},
 						},
 					},
-				},
-			), err)
-			require.Nil(t, secondResponse)
+				), err)
+				require.Nil(t, secondResponse)
+			} else {
+				testhelper.ProtoEqual(t, &gitalypb.UserMergeBranchResponse{
+					BranchUpdate: &gitalypb.OperationBranchUpdate{
+						CommitId: firstResponse.CommitId,
+					},
+				}, secondResponse)
+				require.NoError(t, err)
+			}
 
 			currentBranchHead := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", mergeBranchName)
-			if tc.shouldUpdate {
+			if !tc.shouldFail {
 				require.Equal(t, firstResponse.CommitId, text.ChompBytes(currentBranchHead), "branch head updated")
 			} else {
 				require.Equal(t, mergeBranchHeadBefore, text.ChompBytes(currentBranchHead), "branch head updated")

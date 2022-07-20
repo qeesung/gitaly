@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
@@ -268,7 +269,23 @@ func (u *UpdaterWithHooks) UpdateReference(
 	}
 
 	if err := u.hookManager.PostReceiveHook(ctx, repo, pushOptions, []string{hooksPayload}, strings.NewReader(changes), &stdout, &stderr); err != nil {
-		return fmt.Errorf("running post-receive hooks: %w", wrapHookError(err, git.PostReceiveHook, stdout.String(), stderr.String()))
+		// CustomHook errors are returned in case a custom hook has returned an error code.
+		// The post-receive hook has special semantics though. Quoting githooks(5):
+		//
+		//    This hook does not affect the outcome of git receive-pack, as it is called
+		//    after the real work is done.
+		//
+		// This means that even if the hook returns an error, then that error should not
+		// impact whatever git-receive-pack(1) has been doing. And given that we emulate
+		// behaviour of this command here, we need to behave the same.
+		var customHookErr hook.CustomHookError
+		if errors.As(err, &customHookErr) {
+			// Only log the error when we've got a custom-hook error, but otherwise
+			// ignore it and continue with whatever we have been doing.
+			ctxlogrus.Extract(ctx).WithError(err).Error("custom post-receive hook returned an error")
+		} else {
+			return fmt.Errorf("running post-receive hooks: %w", wrapHookError(err, git.PostReceiveHook, stdout.String(), stderr.String()))
+		}
 	}
 
 	return nil
