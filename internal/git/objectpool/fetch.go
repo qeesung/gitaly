@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -234,7 +233,7 @@ func (o *ObjectPool) logStats(ctx context.Context, when string) error {
 
 func sizeDir(ctx context.Context, dir string) (int64, error) {
 	// du -k reports size in KB
-	cmd, err := command.New(ctx, exec.Command("du", "-sk", dir))
+	cmd, err := command.New(ctx, []string{"du", "-sk", dir})
 	if err != nil {
 		return 0, err
 	}

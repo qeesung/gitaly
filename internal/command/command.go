@@ -136,8 +136,9 @@ type Command struct {
 	context      context.Context
 	startTime    time.Time
 
-	waitError error
-	waitOnce  sync.Once
+	waitError       error
+	waitOnce        sync.Once
+	processExitedCh chan struct{}
 
 	finalizer func(*Command)
 
@@ -149,14 +150,19 @@ type Command struct {
 	cmdGitVersion string
 }
 
-// New creates a Command from an exec.Cmd. On success, the Command contains a running subprocess.
-// When ctx is canceled the embedded process will be terminated and reaped automatically.
-func New(ctx context.Context, cmd *exec.Cmd, opts ...Option) (*Command, error) {
+// New creates a Command from the given executable name and arguments On success, the Command
+// contains a running subprocess. When ctx is canceled the embedded process will be terminated and
+// reaped automatically.
+func New(ctx context.Context, nameAndArgs []string, opts ...Option) (*Command, error) {
 	if ctx.Done() == nil {
 		panic(contextWithoutDonePanic("command spawned with context without Done() channel"))
 	}
 
-	if err := checkNullArgv(cmd); err != nil {
+	if len(nameAndArgs) == 0 {
+		panic("command spawned without name")
+	}
+
+	if err := checkNullArgv(nameAndArgs); err != nil {
 		return nil, err
 	}
 
@@ -167,8 +173,8 @@ func New(ctx context.Context, cmd *exec.Cmd, opts ...Option) (*Command, error) {
 
 	span, ctx := opentracing.StartSpanFromContext(
 		ctx,
-		cmd.Path,
-		opentracing.Tag{Key: "args", Value: strings.Join(cmd.Args, " ")},
+		nameAndArgs[0],
+		opentracing.Tag{Key: "args", Value: strings.Join(nameAndArgs[1:], " ")},
 	)
 
 	spawnStartTime := time.Now()
@@ -177,7 +183,7 @@ func New(ctx context.Context, cmd *exec.Cmd, opts ...Option) (*Command, error) {
 		return nil, err
 	}
 	service, method := methodFromContext(ctx)
-	cmdName := path.Base(cmd.Path)
+	cmdName := path.Base(nameAndArgs[0])
 	spawnTokenAcquiringSeconds.
 		WithLabelValues(service, method, cmdName, cfg.gitVersion).
 		Add(getSpawnTokenAcquiringSeconds(spawnStartTime))
@@ -188,21 +194,26 @@ func New(ctx context.Context, cmd *exec.Cmd, opts ...Option) (*Command, error) {
 	defer func() {
 		ctxlogrus.Extract(ctx).WithFields(logrus.Fields{
 			"pid":  logPid,
-			"path": cmd.Path,
-			"args": cmd.Args,
+			"path": nameAndArgs[0],
+			"args": nameAndArgs[1:],
 		}).Debug("spawn")
 	}()
 
+	cmd := exec.Command(nameAndArgs[0], nameAndArgs[1:]...)
+
 	command := &Command{
-		cmd:           cmd,
-		startTime:     time.Now(),
-		context:       ctx,
-		span:          span,
-		finalizer:     cfg.finalizer,
-		metricsCmd:    cfg.commandName,
-		metricsSubCmd: cfg.subcommandName,
-		cmdGitVersion: cfg.gitVersion,
+		cmd:             cmd,
+		startTime:       time.Now(),
+		context:         ctx,
+		span:            span,
+		finalizer:       cfg.finalizer,
+		metricsCmd:      cfg.commandName,
+		metricsSubCmd:   cfg.subcommandName,
+		cmdGitVersion:   cfg.gitVersion,
+		processExitedCh: make(chan struct{}),
 	}
+
+	cmd.Dir = cfg.dir
 
 	// Export allowed environment variables as set in the Gitaly process.
 	cmd.Env = AllowedEnvironment(os.Environ())
@@ -268,17 +279,24 @@ func New(ctx context.Context, cmd *exec.Cmd, opts ...Option) (*Command, error) {
 	// We thus defer spawning the Goroutine.
 	defer func() {
 		go func() {
-			<-ctx.Done()
+			select {
+			case <-ctx.Done():
+				// If the context has been cancelled and we didn't explicitly reap
+				// the child process then we need to manually kill it and release
+				// all associated resources.
+				if cmd.Process.Pid > 0 {
+					//nolint:errcheck // TODO: do we want to report errors?
+					// Send SIGTERM to the process group of cmd
+					syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+				}
 
-			if process := cmd.Process; process != nil && process.Pid > 0 {
-				//nolint:errcheck // TODO: do we want to report errors?
-				// Send SIGTERM to the process group of cmd
-				syscall.Kill(-process.Pid, syscall.SIGTERM)
+				// We do not care for any potential error code, but just want to
+				// make sure that the subprocess gets properly killed and processed.
+				_ = command.Wait()
+			case <-command.processExitedCh:
+				// Otherwise, if the process has exited via a call to `wait()`
+				// already then there is nothing we need to do.
 			}
-
-			// We do not care for any potential error code, but just want to make sure that the
-			// subprocess gets properly killed and processed.
-			_ = command.Wait()
 		}()
 	}()
 
@@ -326,6 +344,8 @@ func (c *Command) Wait() error {
 
 // This function should never be called directly, use Wait().
 func (c *Command) wait() {
+	defer close(c.processExitedCh)
+
 	if c.writer != nil {
 		// Prevent the command from blocking on waiting for stdin to be closed
 		c.writer.Close()
@@ -533,12 +553,11 @@ func methodFromContext(ctx context.Context) (service string, method string) {
 	return "", ""
 }
 
-// Command arguments will be passed to the exec syscall as
-// null-terminated C strings. That means the arguments themselves may not
-// contain a null byte. The go stdlib checks for null bytes but it
+// Command arguments will be passed to the exec syscall as null-terminated C strings. That means the
+// arguments themselves may not contain a null byte. The go stdlib checks for null bytes but it
 // returns a cryptic error. This function returns a more explicit error.
-func checkNullArgv(cmd *exec.Cmd) error {
-	for _, arg := range cmd.Args {
+func checkNullArgv(args []string) error {
+	for _, arg := range args {
 		if strings.IndexByte(arg, 0) > -1 {
 			// Use %q so that the null byte gets printed as \x00
 			return fmt.Errorf("detected null byte in command argument %q", arg)

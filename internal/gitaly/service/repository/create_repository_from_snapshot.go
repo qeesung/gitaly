@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"os/exec"
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
@@ -67,7 +66,7 @@ func untar(ctx context.Context, path string, in *gitalypb.CreateRepositoryFromSn
 		return status.Errorf(codes.Internal, "HTTP server: %v", rsp.Status)
 	}
 
-	cmd, err := command.New(ctx, exec.Command("tar", "-C", path, "-xvf", "-"), command.WithStdin(rsp.Body))
+	cmd, err := command.New(ctx, []string{"tar", "-C", path, "-xvf", "-"}, command.WithStdin(rsp.Body))
 	if err != nil {
 		return err
 	}

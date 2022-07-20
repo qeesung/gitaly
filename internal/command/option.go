@@ -10,6 +10,7 @@ type config struct {
 	stdin       io.Reader
 	stdout      io.Writer
 	stderr      io.Writer
+	dir         string
 	environment []string
 
 	finalizer func(*Command)
@@ -53,6 +54,13 @@ func WithStdout(stdout io.Writer) Option {
 func WithStderr(stderr io.Writer) Option {
 	return func(cfg *config) {
 		cfg.stderr = stderr
+	}
+}
+
+// WithDir will set up the command to be ran in the specific directory.
+func WithDir(dir string) Option {
+	return func(cfg *config) {
+		cfg.dir = dir
 	}
 }
 

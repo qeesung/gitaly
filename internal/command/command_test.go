@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -33,7 +32,7 @@ func TestNew_environment(t *testing.T) {
 	extraVar := "FOOBAR=123456"
 
 	var buf bytes.Buffer
-	cmd, err := New(ctx, exec.Command("/usr/bin/env"), WithStdout(&buf), WithEnvironment([]string{extraVar}))
+	cmd, err := New(ctx, []string{"/usr/bin/env"}, WithStdout(&buf), WithEnvironment([]string{extraVar}))
 
 	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
@@ -121,7 +120,7 @@ func TestNew_exportedEnvironment(t *testing.T) {
 			t.Setenv(tc.key, tc.value)
 
 			var buf bytes.Buffer
-			cmd, err := New(ctx, exec.Command("/usr/bin/env"), WithStdout(&buf))
+			cmd, err := New(ctx, []string{"/usr/bin/env"}, WithStdout(&buf))
 			require.NoError(t, err)
 			require.NoError(t, cmd.Wait())
 
@@ -138,7 +137,7 @@ func TestNew_unexportedEnv(t *testing.T) {
 	t.Setenv(unexportedEnvKey, unexportedEnvVal)
 
 	var buf bytes.Buffer
-	cmd, err := New(ctx, exec.Command("/usr/bin/env"), WithStdout(&buf))
+	cmd, err := New(ctx, []string{"/usr/bin/env"}, WithStdout(&buf))
 	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
 
@@ -149,7 +148,7 @@ func TestNew_rejectContextWithoutDone(t *testing.T) {
 	t.Parallel()
 
 	require.PanicsWithValue(t, contextWithoutDonePanic("command spawned with context without Done() channel"), func() {
-		_, err := New(testhelper.ContextWithoutCancel(), exec.Command("true"))
+		_, err := New(testhelper.ContextWithoutCancel(), []string{"true"})
 		require.NoError(t, err)
 	})
 }
@@ -172,7 +171,7 @@ func TestNew_spawnTimeout(t *testing.T) {
 
 	errCh := make(chan error)
 	go func() {
-		_, err := New(ctx, exec.Command("true"))
+		_, err := New(ctx, []string{"true"})
 		errCh <- err
 	}()
 
@@ -194,11 +193,11 @@ func TestCommand_Wait_contextCancellationKillsCommand(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
-	cmd, err := New(ctx, exec.CommandContext(ctx, "sleep", "1h"))
+	cmd, err := New(ctx, []string{"sleep", "1h"})
 	require.NoError(t, err)
 
 	// Cancel the command early.
-	go cancel()
+	cancel()
 
 	err = cmd.Wait()
 	require.Error(t, err)
@@ -215,7 +214,7 @@ func TestNew_setupStdin(t *testing.T) {
 	stdin := "Test value"
 
 	var buf bytes.Buffer
-	cmd, err := New(ctx, exec.Command("cat"), WithSetupStdin(), WithStdout(&buf))
+	cmd, err := New(ctx, []string{"cat"}, WithSetupStdin(), WithStdout(&buf))
 	require.NoError(t, err)
 
 	_, err = fmt.Fprintf(cmd, "%s", stdin)
@@ -230,7 +229,7 @@ func TestCommand_read(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 
-	cmd, err := New(ctx, exec.Command("echo", "test value"))
+	cmd, err := New(ctx, []string{"echo", "test value"})
 	require.NoError(t, err)
 
 	output, err := io.ReadAll(cmd)
@@ -245,7 +244,7 @@ func TestNew_nulByteInArgument(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 
-	cmd, err := New(ctx, exec.Command("sh", "-c", "hello\x00world"))
+	cmd, err := New(ctx, []string{"sh", "-c", "hello\x00world"})
 	require.Equal(t, fmt.Errorf("detected null byte in command argument %q", "hello\x00world"), err)
 	require.Nil(t, cmd)
 }
@@ -255,7 +254,7 @@ func TestNew_missingBinary(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 
-	cmd, err := New(ctx, exec.Command("command-non-existent"))
+	cmd, err := New(ctx, []string{"command-non-existent"})
 	require.EqualError(t, err, "starting process [command-non-existent]: exec: \"command-non-existent\": executable file not found in $PATH")
 	require.Nil(t, cmd)
 }
@@ -276,7 +275,7 @@ func TestCommand_stderrLogging(t *testing.T) {
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
 	var stdout bytes.Buffer
-	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
+	cmd, err := New(ctx, []string{binaryPath}, WithStdout(&stdout))
 	require.NoError(t, err)
 
 	require.EqualError(t, cmd.Wait(), "exit status 1")
@@ -300,7 +299,7 @@ func TestCommand_stderrLoggingTruncation(t *testing.T) {
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
 	var stdout bytes.Buffer
-	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
+	cmd, err := New(ctx, []string{binaryPath}, WithStdout(&stdout))
 	require.NoError(t, err)
 
 	require.Error(t, cmd.Wait())
@@ -321,7 +320,7 @@ func TestCommand_stderrLoggingWithNulBytes(t *testing.T) {
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
 	var stdout bytes.Buffer
-	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
+	cmd, err := New(ctx, []string{binaryPath}, WithStdout(&stdout))
 	require.NoError(t, err)
 
 	require.Error(t, cmd.Wait())
@@ -344,7 +343,7 @@ func TestCommand_stderrLoggingLongLine(t *testing.T) {
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
 	var stdout bytes.Buffer
-	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
+	cmd, err := New(ctx, []string{binaryPath}, WithStdout(&stdout))
 	require.NoError(t, err)
 
 	require.Error(t, cmd.Wait())
@@ -391,7 +390,7 @@ func TestCommand_stderrLoggingMaxBytes(t *testing.T) {
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
 	var stdout bytes.Buffer
-	cmd, err := New(ctx, exec.Command(binaryPath), WithStdout(&stdout))
+	cmd, err := New(ctx, []string{binaryPath}, WithStdout(&stdout))
 	require.NoError(t, err)
 	require.Error(t, cmd.Wait())
 
@@ -413,7 +412,7 @@ func TestCommand_logMessage(t *testing.T) {
 
 	ctx := ctxlogrus.ToContext(testhelper.Context(t), logrus.NewEntry(logger))
 
-	cmd, err := New(ctx, exec.Command("echo", "hello world"),
+	cmd, err := New(ctx, []string{"echo", "hello world"},
 		WithCgroup(mockCgroupManager("/sys/fs/cgroup/1"), nil),
 	)
 	require.NoError(t, err)
@@ -443,7 +442,7 @@ func TestNew_commandSpawnTokenMetrics(t *testing.T) {
 	tags.Set("grpc.request.fullMethod", "/test.Service/TestRPC")
 	ctx = grpcmwtags.SetInContext(ctx, tags)
 
-	cmd, err := New(ctx, exec.Command("echo", "goodbye, cruel world."))
+	cmd, err := New(ctx, []string{"echo", "goodbye, cruel world."})
 
 	require.NoError(t, err)
 	require.NoError(t, cmd.Wait())
@@ -459,4 +458,57 @@ gitaly_command_spawn_token_acquiring_seconds_total{cmd="echo",git_version="",grp
 			bytes.NewBufferString(expectedMetrics),
 		),
 	)
+}
+
+func TestCommand_withFinalizer(t *testing.T) {
+	t.Parallel()
+
+	t.Run("context cancellation runs finalizer", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(testhelper.Context(t))
+
+		finalizerCh := make(chan struct{})
+		_, err := New(ctx, []string{"echo"}, WithFinalizer(func(*Command) {
+			close(finalizerCh)
+		}))
+		require.NoError(t, err)
+
+		cancel()
+
+		<-finalizerCh
+	})
+
+	t.Run("Wait runs finalizer", func(t *testing.T) {
+		ctx := testhelper.Context(t)
+
+		finalizerCh := make(chan struct{})
+		cmd, err := New(ctx, []string{"echo"}, WithFinalizer(func(*Command) {
+			close(finalizerCh)
+		}))
+		require.NoError(t, err)
+
+		require.NoError(t, cmd.Wait())
+
+		<-finalizerCh
+	})
+
+	t.Run("process exit does not run finalizer", func(t *testing.T) {
+		ctx := testhelper.Context(t)
+
+		finalizerCh := make(chan struct{})
+		_, err := New(ctx, []string{"echo"}, WithFinalizer(func(*Command) {
+			close(finalizerCh)
+		}))
+		require.NoError(t, err)
+
+		select {
+		case <-finalizerCh:
+			// Command finalizers should only be running when we have either explicitly
+			// called `Wait()` on the command, or when the context has been cancelled.
+			// Otherwise we may run into the case where finalizers have already been ran
+			// on the exited process even though we may still be busy handling the
+			// output of that command, which may result in weird races.
+			require.FailNow(t, "finalizer should not have been ran")
+		case <-time.After(50 * time.Millisecond):
+		}
+	})
 }

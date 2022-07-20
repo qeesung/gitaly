@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -66,9 +65,8 @@ func (m *GitLabHookManager) newCustomHooksExecutor(repo *gitalypb.Repository, ho
 		}
 
 		for _, hookFile := range hookFiles {
-			cmd := exec.Command(hookFile, args...)
-			cmd.Dir = repoPath
-			c, err := command.New(ctx, cmd,
+			c, err := command.New(ctx, append([]string{hookFile}, args...),
+				command.WithDir(repoPath),
 				command.WithStdin(bytes.NewReader(stdinBytes)),
 				command.WithStdout(stdout),
 				command.WithStderr(stderr),

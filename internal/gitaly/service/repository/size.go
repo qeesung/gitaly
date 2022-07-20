@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os/exec"
 	"strconv"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
@@ -67,7 +66,7 @@ func (s *server) GetObjectDirectorySize(ctx context.Context, in *gitalypb.GetObj
 }
 
 func getPathSize(ctx context.Context, path string) int64 {
-	cmd, err := command.New(ctx, exec.Command("du", "-sk", path))
+	cmd, err := command.New(ctx, []string{"du", "-sk", path})
 	if err != nil {
 		ctxlogrus.Extract(ctx).WithError(err).Warn("ignoring du command error")
 		return 0

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
@@ -24,18 +23,18 @@ import (
 )
 
 type archiveParams struct {
-	writer      io.Writer
-	in          *gitalypb.GetArchiveRequest
-	compressCmd *exec.Cmd
-	format      string
-	archivePath string
-	exclude     []string
-	loggingDir  string
+	writer       io.Writer
+	in           *gitalypb.GetArchiveRequest
+	compressArgs []string
+	format       string
+	archivePath  string
+	exclude      []string
+	loggingDir   string
 }
 
 func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.RepositoryService_GetArchiveServer) error {
 	ctx := stream.Context()
-	compressCmd, format := parseArchiveFormat(in.GetFormat())
+	compressArgs, format := parseArchiveFormat(in.GetFormat())
 	repo := s.localrepo(in.GetRepository())
 
 	repoRoot, err := repo.Path()
@@ -83,24 +82,24 @@ func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.Repo
 	ctxlogrus.Extract(ctx).WithField("request_hash", requestHash(in)).Info("request details")
 
 	return s.handleArchive(ctx, archiveParams{
-		writer:      writer,
-		in:          in,
-		compressCmd: compressCmd,
-		format:      format,
-		archivePath: path,
-		exclude:     exclude,
-		loggingDir:  s.loggingCfg.Dir,
+		writer:       writer,
+		in:           in,
+		compressArgs: compressArgs,
+		format:       format,
+		archivePath:  path,
+		exclude:      exclude,
+		loggingDir:   s.loggingCfg.Dir,
 	})
 }
 
-func parseArchiveFormat(format gitalypb.GetArchiveRequest_Format) (*exec.Cmd, string) {
+func parseArchiveFormat(format gitalypb.GetArchiveRequest_Format) ([]string, string) {
 	switch format {
 	case gitalypb.GetArchiveRequest_TAR:
 		return nil, "tar"
 	case gitalypb.GetArchiveRequest_TAR_GZ:
-		return exec.Command("gzip", "-c", "-n"), "tar"
+		return []string{"gzip", "-c", "-n"}, "tar"
 	case gitalypb.GetArchiveRequest_TAR_BZ2:
-		return exec.Command("bzip2", "-c"), "tar"
+		return []string{"bzip2", "-c"}, "tar"
 	case gitalypb.GetArchiveRequest_ZIP:
 		return nil, "zip"
 	}
@@ -229,8 +228,8 @@ func (s *server) handleArchive(ctx context.Context, p archiveParams) error {
 		return err
 	}
 
-	if p.compressCmd != nil {
-		command, err := command.New(ctx, p.compressCmd,
+	if len(p.compressArgs) > 0 {
+		command, err := command.New(ctx, p.compressArgs,
 			command.WithStdin(archiveCommand), command.WithStdout(p.writer),
 		)
 		if err != nil {

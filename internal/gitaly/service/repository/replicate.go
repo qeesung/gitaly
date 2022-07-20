@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -188,8 +187,9 @@ func (s *server) extractSnapshot(ctx context.Context, source, target *gitalypb.R
 	}
 
 	stderr := &bytes.Buffer{}
-	cmd, err := command.New(ctx, exec.Command("tar", "-C", targetPath, "-xvf", "-"),
-		command.WithStdin(snapshotReader), command.WithStderr(stderr),
+	cmd, err := command.New(ctx, []string{"tar", "-C", targetPath, "-xvf", "-"},
+		command.WithStdin(snapshotReader),
+		command.WithStderr(stderr),
 	)
 	if err != nil {
 		return fmt.Errorf("create tar command: %w", err)
