@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -184,8 +183,7 @@ func TestGitalyLFSSmudge(t *testing.T) {
 			env, logFile := tc.setup(t)
 
 			var stdout, stderr bytes.Buffer
-			cmd, err := command.New(ctx,
-				exec.Command(binary),
+			cmd, err := command.New(ctx, []string{binary},
 				command.WithStdin(tc.stdin),
 				command.WithStdout(&stdout),
 				command.WithStderr(&stderr),

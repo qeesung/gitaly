@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os/exec"
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
@@ -84,7 +83,7 @@ func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Re
 	}, args...)
 
 	var stdout bytes.Buffer
-	cmd, err := command.New(ctx, exec.Command(b.binaryPath, args...),
+	cmd, err := command.New(ctx, append([]string{b.binaryPath}, args...),
 		command.WithStdin(stdin),
 		command.WithStdout(&stdout),
 		command.WithStderr(log),

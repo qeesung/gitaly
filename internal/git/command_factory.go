@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -338,7 +337,7 @@ func (cf *ExecCommandFactory) GitVersion(ctx context.Context) (Version, error) {
 	// Furthermore, note that we're not using `newCommand()` but instead hand-craft the command.
 	// This is required to avoid a cyclic dependency when we need to check the version in
 	// `newCommand()` itself.
-	cmd, err := command.New(ctx, exec.Command(execEnv.BinaryPath, "version"), command.WithEnvironment(execEnv.EnvironmentVariables))
+	cmd, err := command.New(ctx, []string{execEnv.BinaryPath, "version"}, command.WithEnvironment(execEnv.EnvironmentVariables))
 	if err != nil {
 		return Version{}, fmt.Errorf("spawning version command: %w", err)
 	}
@@ -391,16 +390,14 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo repository.Gi
 
 	env = append(env, execEnv.EnvironmentVariables...)
 
-	execCommand := exec.Command(execEnv.BinaryPath, args...)
-	execCommand.Dir = dir
-
 	cmdGitVersion, err := cf.GitVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting Git version: %w", err)
 	}
 
-	command, err := command.New(ctx, execCommand, append(
+	command, err := command.New(ctx, append([]string{execEnv.BinaryPath}, args...), append(
 		config.commandOpts,
+		command.WithDir(dir),
 		command.WithEnvironment(env),
 		command.WithCommandName("git", sc.Subcommand()),
 		command.WithCgroup(cf.cgroupsManager, repo),

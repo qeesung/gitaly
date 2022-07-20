@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -82,8 +81,7 @@ func TestAddCommand(t *testing.T) {
 	require.NoError(t, v1Manager1.Setup())
 	ctx := testhelper.Context(t)
 
-	cmd1 := exec.Command("ls", "-hal", ".")
-	cmd2, err := command.New(ctx, cmd1)
+	cmd2, err := command.New(ctx, []string{"ls", "-hal", "."})
 	require.NoError(t, err)
 	require.NoError(t, cmd2.Wait())
 
@@ -179,11 +177,11 @@ func TestMetrics(t *testing.T) {
 	logger.SetLevel(logrus.DebugLevel)
 	ctx = ctxlogrus.ToContext(ctx, logrus.NewEntry(logger))
 
-	cmd, err := command.New(ctx, exec.Command("ls", "-hal", "."), command.WithCgroup(v1Manager1, repo))
+	cmd, err := command.New(ctx, []string{"ls", "-hal", "."}, command.WithCgroup(v1Manager1, repo))
 	require.NoError(t, err)
-	gitCmd1, err := command.New(ctx, exec.Command("ls", "-hal", "."), command.WithCgroup(v1Manager1, repo))
+	gitCmd1, err := command.New(ctx, []string{"ls", "-hal", "."}, command.WithCgroup(v1Manager1, repo))
 	require.NoError(t, err)
-	gitCmd2, err := command.New(ctx, exec.Command("ls", "-hal", "."), command.WithCgroup(v1Manager1, repo))
+	gitCmd2, err := command.New(ctx, []string{"ls", "-hal", "."}, command.WithCgroup(v1Manager1, repo))
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, gitCmd2.Wait())

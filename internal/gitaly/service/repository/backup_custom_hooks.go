@@ -2,7 +2,6 @@ package repository
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
@@ -29,7 +28,7 @@ func (s *server) BackupCustomHooks(in *gitalypb.BackupCustomHooksRequest, stream
 	}
 
 	ctx := stream.Context()
-	tar := exec.Command("tar", "-c", "-f", "-", "-C", repoPath, customHooksDir)
+	tar := []string{"tar", "-c", "-f", "-", "-C", repoPath, customHooksDir}
 	cmd, err := command.New(ctx, tar, command.WithStdout(writer))
 	if err != nil {
 		return status.Errorf(codes.Internal, "%v", err)
