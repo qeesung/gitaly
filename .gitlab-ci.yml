@@ -9,6 +9,8 @@ default:
     - gitlab-org
 
 variables:
+  FF_USE_FASTZIP: "true"
+  FF_NETWORK_PER_BUILD: "true"
   SAST_DISABLE_DIND: "true"
   SAST_DEFAULT_ANALYZERS: "gosec"
   DEBIAN_VERSION: "bullseye"
@@ -234,7 +236,6 @@ test:pgbouncer:
     PGPORT_PGBOUNCER: 6432
     # We need to enable per-build networking such that the PgBouncer service
     # can reach Postgres.
-    FF_NETWORK_PER_BUILD: "true"
     TEST_TARGET: "test-with-praefect"
 
 test:nightly:
