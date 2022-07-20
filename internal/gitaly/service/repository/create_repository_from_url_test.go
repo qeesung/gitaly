@@ -262,7 +262,7 @@ func TestServer_CloneFromURLCommand_withMirror(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
-	repositoryFullPath := "full/path/to/repository"
+	repositoryFullPath := filepath.Join(testhelper.TempDir(t), "full/path/to/repository")
 	url := "https://www.example.com/secretrepo.git"
 
 	cfg := testcfg.Build(t)
@@ -273,6 +273,7 @@ func TestServer_CloneFromURLCommand_withMirror(t *testing.T) {
 	args := cmd.Args()
 	require.Contains(t, args, "--mirror")
 	require.NotContains(t, args, "--bare")
+	require.Error(t, cmd.Wait())
 }
 
 func gitServerWithBasicAuth(ctx context.Context, t testing.TB, gitCmdFactory git.CommandFactory, user, pass, repoPath string) (int, func() error) {
