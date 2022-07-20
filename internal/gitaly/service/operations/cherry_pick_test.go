@@ -646,7 +646,7 @@ func testServerUserCherryPickQuarantine(t *testing.T, ctx context.Context) {
 	}
 
 	hookOutput := testhelper.MustReadFile(t, outputPath)
-	oid, err := git.NewObjectIDFromHex(text.ChompBytes(hookOutput))
+	oid, err := git.ObjectHashSHA1.FromHex(text.ChompBytes(hookOutput))
 	require.NoError(t, err)
 	exists, err := repo.HasRevision(ctx, oid.Revision()+"^{commit}")
 	require.NoError(t, err)

@@ -50,7 +50,7 @@ func TestGetRawChanges(t *testing.T) {
 			},
 		},
 		{
-			oldRev: git.ZeroOID.String(),
+			oldRev: git.ObjectHashSHA1.ZeroOID.String(),
 			newRev: "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
 			changes: []*gitalypb.GetRawChangesResponse_RawChange{
 				{

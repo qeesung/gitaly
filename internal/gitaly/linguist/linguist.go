@@ -192,7 +192,7 @@ func (inst *Instance) enryStats(ctx context.Context, repo *localrepo.Repo, commi
 
 		skipDeleted := func(result *gitpipe.RevisionResult) bool {
 			// Skip files that are deleted.
-			if result.OID.IsZeroOID() {
+			if git.ObjectHashSHA1.IsZeroOID(result.OID) {
 				// It's a little bit of a hack to use this skip
 				// function, but for every file that's deleted,
 				// remove the stats.

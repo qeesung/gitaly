@@ -52,7 +52,7 @@ func (rr *Repo) ResolveRevision(ctx context.Context, revision git.Revision) (git
 		return "", git.ErrReferenceNotFound
 	}
 
-	oid, err := git.NewObjectIDFromHex(oidHex)
+	oid, err := git.ObjectHashSHA1.FromHex(oidHex)
 	if err != nil {
 		return "", err
 	}

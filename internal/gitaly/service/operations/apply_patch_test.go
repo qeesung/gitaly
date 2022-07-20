@@ -305,7 +305,7 @@ To restore the original branch and stop patching, run "git am --abort".
 			}
 
 			if baseCommit != "" {
-				require.NoError(t, repo.UpdateRef(ctx, tc.baseReference, baseCommit, git.ZeroOID))
+				require.NoError(t, repo.UpdateRef(ctx, tc.baseReference, baseCommit, git.ObjectHashSHA1.ZeroOID))
 			}
 
 			if tc.extraBranches != nil {
@@ -319,7 +319,7 @@ To restore the original branch and stop patching, run "git am --abort".
 
 				for _, extraBranch := range tc.extraBranches {
 					require.NoError(t, repo.UpdateRef(ctx,
-						git.NewReferenceNameFromBranchName(extraBranch), emptyCommit, git.ZeroOID),
+						git.NewReferenceNameFromBranchName(extraBranch), emptyCommit, git.ObjectHashSHA1.ZeroOID),
 					)
 				}
 			}

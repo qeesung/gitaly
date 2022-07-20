@@ -57,7 +57,7 @@ func (repo *Repo) ResolveRevision(ctx context.Context, revision git.Revision) (g
 	}
 
 	hex := strings.TrimSpace(stdout.String())
-	oid, err := git.NewObjectIDFromHex(hex)
+	oid, err := git.ObjectHashSHA1.FromHex(hex)
 	if err != nil {
 		return "", fmt.Errorf("unsupported object hash %q: %w", hex, err)
 	}

@@ -64,7 +64,7 @@ func (s *server) applyGitattributes(ctx context.Context, repo *localrepo.Repo, o
 
 		// We use the zero OID as placeholder to vote on removal of the
 		// gitattributes file.
-		if err := s.vote(ctx, git.ZeroOID, voting.Prepared); err != nil {
+		if err := s.vote(ctx, git.ObjectHashSHA1.ZeroOID, voting.Prepared); err != nil {
 			return fmt.Errorf("preimage vote: %w", err)
 		}
 
@@ -72,7 +72,7 @@ func (s *server) applyGitattributes(ctx context.Context, repo *localrepo.Repo, o
 			return err
 		}
 
-		if err := s.vote(ctx, git.ZeroOID, voting.Committed); err != nil {
+		if err := s.vote(ctx, git.ObjectHashSHA1.ZeroOID, voting.Committed); err != nil {
 			return fmt.Errorf("postimage vote: %w", err)
 		}
 

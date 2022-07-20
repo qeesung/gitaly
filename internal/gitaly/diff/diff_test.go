@@ -49,7 +49,7 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "4cc7061661b8f52891bc1b39feb4d856b21a1067",
 			FromPath:  []byte("big.txt"),
 			ToPath:    []byte("big.txt"),
@@ -60,7 +60,7 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "3be11c69355948412925fa5e073d76d58ff3afd2",
 			FromPath:  []byte("file-00.txt"),
 			ToPath:    []byte("file-00.txt"),
@@ -268,7 +268,7 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "4cc7061661b8f52891bc1b39feb4d856b21a1067",
 			FromPath:  []byte("big.txt"),
 			ToPath:    []byte("big.txt"),
@@ -280,7 +280,7 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "3be11c69355948412925fa5e073d76d58ff3afd2",
 			FromPath:  []byte("file-00.txt"),
 			ToPath:    []byte("file-00.txt"),
@@ -331,7 +331,7 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "4cc7061661b8f52891bc1b39feb4d856b21a1067",
 			FromPath:  []byte("big.txt"),
 			ToPath:    []byte("big.txt"),
@@ -344,7 +344,7 @@ index 0000000000000000000000000000000000000000..3be11c69355948412925fa5e073d76d5
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "3be11c69355948412925fa5e073d76d58ff3afd2",
 			FromPath:  []byte("file-00.txt"),
 			ToPath:    []byte("file-00.txt"),
@@ -394,7 +394,7 @@ index 0000000000000000000000000000000000000000..b6507e5b5ce18077e3ec8aaa2291404e
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "b6507e5b5ce18077e3ec8aaa2291404e5051d45d",
 			FromPath:  []byte("expand-collapse/file-0.txt"),
 			ToPath:    []byte("expand-collapse/file-0.txt"),
@@ -406,7 +406,7 @@ index 0000000000000000000000000000000000000000..b6507e5b5ce18077e3ec8aaa2291404e
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "b6507e5b5ce18077e3ec8aaa2291404e5051d45d",
 			FromPath:  []byte("expand-collapse/file-1.txt"),
 			ToPath:    []byte("expand-collapse/file-1.txt"),
@@ -418,7 +418,7 @@ index 0000000000000000000000000000000000000000..b6507e5b5ce18077e3ec8aaa2291404e
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "b6507e5b5ce18077e3ec8aaa2291404e5051d45d",
 			FromPath:  []byte("expand-collapse/file-2.txt"),
 			ToPath:    []byte("expand-collapse/file-2.txt"),
@@ -452,7 +452,7 @@ index 0000000000000000000000000000000000000000..c3ae147b03a2d1fd89b25198b3fc5302
 		{
 			OldMode:   0,
 			NewMode:   0o100644,
-			FromID:    git.ZeroOID.String(),
+			FromID:    git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:      "c3ae147b03a2d1fd89b25198b3fc53028c5b0d53",
 			FromPath:  []byte("file-0"),
 			ToPath:    []byte("file-0"),

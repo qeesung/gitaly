@@ -55,7 +55,7 @@ func RequireTree(t testing.TB, cfg config.Cfg, repoPath, treeish string, expecte
 
 			path := string(tabSplit[1])
 
-			objectID, err := git.NewObjectIDFromHex(string(spaceSplit[2]))
+			objectID, err := DefaultObjectHash.FromHex(string(spaceSplit[2]))
 			require.NoError(t, err)
 
 			actualEntries = append(actualEntries, TreeEntry{
@@ -107,7 +107,7 @@ func WriteTree(t testing.TB, cfg config.Cfg, repoPath string, entries []TreeEntr
 	stdout := ExecOpts(t, cfg, ExecConfig{Stdin: &tree},
 		"-C", repoPath, "mktree", "-z", "--missing",
 	)
-	treeOID, err := git.NewObjectIDFromHex(text.ChompBytes(stdout))
+	treeOID, err := DefaultObjectHash.FromHex(text.ChompBytes(stdout))
 	require.NoError(t, err)
 
 	return treeOID

@@ -262,7 +262,7 @@ func TestUpdater_capturesStderr(t *testing.T) {
 
 	ref := "refs/heads/a"
 	newValue := strings.Repeat("1", 40)
-	oldValue := git.ZeroOID.String()
+	oldValue := git.ObjectHashSHA1.ZeroOID.String()
 
 	require.NoError(t, updater.Update(git.ReferenceName(ref), newValue, oldValue))
 

@@ -103,7 +103,7 @@ func TestFormatTag(t *testing.T) {
 		// internal/gitaly/service/operations/tags_test.go
 		{
 			desc:       "basic signature",
-			objectID:   git.ZeroOID,
+			objectID:   git.ObjectHashSHA1.ZeroOID,
 			objectType: "commit",
 			tagName:    []byte("my-tag"),
 			author: &gitalypb.User{
@@ -114,7 +114,7 @@ func TestFormatTag(t *testing.T) {
 		},
 		{
 			desc:       "basic signature",
-			objectID:   git.ZeroOID,
+			objectID:   git.ObjectHashSHA1.ZeroOID,
 			objectType: "commit",
 			tagName:    []byte("my-tag\ninjection"),
 			tagBody:    []byte(""),
@@ -126,7 +126,7 @@ func TestFormatTag(t *testing.T) {
 		},
 		{
 			desc:       "signature with fixed time",
-			objectID:   git.ZeroOID,
+			objectID:   git.ObjectHashSHA1.ZeroOID,
 			objectType: "commit",
 			tagName:    []byte("my-tag"),
 			tagBody:    []byte(""),
@@ -243,8 +243,8 @@ func TestRepo_ReadObject(t *testing.T) {
 	}{
 		{
 			desc:  "invalid object",
-			oid:   git.ZeroOID,
-			error: InvalidObjectError(git.ZeroOID.String()),
+			oid:   git.ObjectHashSHA1.ZeroOID,
+			error: InvalidObjectError(git.ObjectHashSHA1.ZeroOID.String()),
 		},
 		{
 			desc: "valid object",
@@ -275,12 +275,12 @@ func TestRepo_ReadCommit(t *testing.T) {
 	}{
 		{
 			desc:        "invalid commit",
-			revision:    git.ZeroOID.Revision(),
+			revision:    git.ObjectHashSHA1.ZeroOID.Revision(),
 			expectedErr: ErrObjectNotFound,
 		},
 		{
 			desc:        "invalid commit with trailers",
-			revision:    git.ZeroOID.Revision(),
+			revision:    git.ObjectHashSHA1.ZeroOID.Revision(),
 			expectedErr: ErrObjectNotFound,
 			opts:        []ReadCommitOpt{WithTrailers()},
 		},
@@ -424,18 +424,18 @@ func TestRepo_IsAncestor(t *testing.T) {
 		},
 		{
 			desc:   "parent is not valid commit",
-			parent: git.ZeroOID.Revision(),
+			parent: git.ObjectHashSHA1.ZeroOID.Revision(),
 			child:  "HEAD",
 			errorMatcher: func(t testing.TB, err error) {
-				require.Equal(t, InvalidCommitError(git.ZeroOID), err)
+				require.Equal(t, InvalidCommitError(git.ObjectHashSHA1.ZeroOID), err)
 			},
 		},
 		{
 			desc:   "child is not valid commit",
 			parent: "HEAD",
-			child:  git.ZeroOID.Revision(),
+			child:  git.ObjectHashSHA1.ZeroOID.Revision(),
 			errorMatcher: func(t testing.TB, err error) {
-				require.Equal(t, InvalidCommitError(git.ZeroOID), err)
+				require.Equal(t, InvalidCommitError(git.ObjectHashSHA1.ZeroOID), err)
 			},
 		},
 		{

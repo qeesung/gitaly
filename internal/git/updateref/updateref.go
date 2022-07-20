@@ -105,13 +105,13 @@ func (u *Updater) Update(reference git.ReferenceName, newvalue, oldvalue string)
 
 // Create commands the reference to be created with the given object ID. The ref must not exist.
 func (u *Updater) Create(reference git.ReferenceName, value string) error {
-	return u.Update(reference, value, git.ZeroOID.String())
+	return u.Update(reference, value, git.ObjectHashSHA1.ZeroOID.String())
 }
 
 // Delete commands the reference to be removed from the repository. This command will ignore any old
 // state of the reference and just force-remove it.
 func (u *Updater) Delete(reference git.ReferenceName) error {
-	return u.Update(reference, git.ZeroOID.String(), "")
+	return u.Update(reference, git.ObjectHashSHA1.ZeroOID.String(), "")
 }
 
 // Prepare prepares the reference transaction by locking all references and determining their

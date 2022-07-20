@@ -65,7 +65,7 @@ func (c *Checksum) Bytes() []byte {
 // String returns the checksum as a hex encoded string.
 func (c *Checksum) String() string {
 	if c.IsZero() {
-		return ZeroOID.String()
+		return ObjectHashSHA1.ZeroOID.String()
 	}
 	return hex.EncodeToString(c.Bytes())
 }

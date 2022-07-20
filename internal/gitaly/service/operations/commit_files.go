@@ -161,7 +161,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 			return fmt.Errorf("resolve parent commit: %w", err)
 		}
 	} else {
-		parentCommitOID, err = git.NewObjectIDFromHex(header.StartSha)
+		parentCommitOID, err = git.ObjectHashSHA1.FromHex(header.StartSha)
 		if err != nil {
 			return helper.ErrInvalidArgumentf("cannot resolve parent commit: %w", err)
 		}
@@ -310,7 +310,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 
 	oldRevision := parentCommitOID
 	if targetBranchCommit == "" {
-		oldRevision = git.ZeroOID
+		oldRevision = git.ObjectHashSHA1.ZeroOID
 	} else if header.Force {
 		oldRevision = targetBranchCommit
 	}
@@ -326,7 +326,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 	return stream.SendAndClose(&gitalypb.UserCommitFilesResponse{BranchUpdate: &gitalypb.OperationBranchUpdate{
 		CommitId:      commitID.String(),
 		RepoCreated:   !hasBranches,
-		BranchCreated: oldRevision.IsZeroOID(),
+		BranchCreated: git.ObjectHashSHA1.IsZeroOID(oldRevision),
 	}})
 }
 
@@ -434,7 +434,7 @@ func validateUserCommitFilesHeader(header *gitalypb.UserCommitFilesRequestHeader
 
 	startSha := header.GetStartSha()
 	if len(startSha) > 0 {
-		err := git.ValidateObjectID(startSha)
+		err := git.ObjectHashSHA1.ValidateHex(startSha)
 		if err != nil {
 			return err
 		}

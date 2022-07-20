@@ -50,7 +50,7 @@ func TestDeltaIslands(t *testing.T, cfg config.Cfg, repoPath string, isPoolRepo 
 	// chains, and thus neither of the two blobs should use the bad blob as delta base.
 	require.NoError(t, repack(), "repack after delta island setup")
 	require.Equal(t, blob2ID, deltaBase(t, cfg, repoPath, blob1ID), "blob 1 delta base should be blob 2 after repack")
-	require.Equal(t, git.ZeroOID.String(), deltaBase(t, cfg, repoPath, blob2ID), "blob 2 should not be delta compressed after repack")
+	require.Equal(t, git.ObjectHashSHA1.ZeroOID.String(), deltaBase(t, cfg, repoPath, blob2ID), "blob 2 should not be delta compressed after repack")
 }
 
 func commitBlob(t *testing.T, cfg config.Cfg, repoPath, ref string, content string) string {

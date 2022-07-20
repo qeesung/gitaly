@@ -432,7 +432,7 @@ func TestReceivePackTransactional(t *testing.T) {
 			commands: []command{
 				{
 					ref:    "refs/heads/other",
-					oldOID: git.ZeroOID.String(),
+					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
 					newOID: masterOID,
 				},
 			},
@@ -447,11 +447,11 @@ func TestReceivePackTransactional(t *testing.T) {
 				{
 					ref:    "refs/heads/other",
 					oldOID: masterOID,
-					newOID: git.ZeroOID.String(),
+					newOID: git.ObjectHashSHA1.ZeroOID.String(),
 				},
 			},
 			expectedRefs: map[string]string{
-				"refs/heads/other": git.ZeroOID.String(),
+				"refs/heads/other": git.ObjectHashSHA1.ZeroOID.String(),
 			},
 			expectedVotes: 3,
 		},
@@ -461,12 +461,12 @@ func TestReceivePackTransactional(t *testing.T) {
 			commands: []command{
 				{
 					ref:    "refs/heads/a",
-					oldOID: git.ZeroOID.String(),
+					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
 					newOID: masterOID,
 				},
 				{
 					ref:    "refs/heads/b",
-					oldOID: git.ZeroOID.String(),
+					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
 					newOID: masterOID,
 				},
 			},
@@ -482,7 +482,7 @@ func TestReceivePackTransactional(t *testing.T) {
 			commands: []command{
 				{
 					ref:    "refs/heads/a",
-					oldOID: git.ZeroOID.String(),
+					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
 					newOID: masterParentOID,
 				},
 			},
@@ -497,13 +497,13 @@ func TestReceivePackTransactional(t *testing.T) {
 			commands: []command{
 				{
 					ref:    "refs/heads/a",
-					oldOID: git.ZeroOID.String(),
+					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
 					newOID: masterParentOID,
 				},
 				{
 					ref:    "refs/heads/b",
 					oldOID: masterOID,
-					newOID: git.ZeroOID.String(),
+					newOID: git.ObjectHashSHA1.ZeroOID.String(),
 				},
 			},
 			expectedRefs: map[string]string{
@@ -551,7 +551,7 @@ func TestReceivePackTransactional(t *testing.T) {
 			for expectedRef, expectedOID := range tc.expectedRefs {
 				actualOID, err := repo.ResolveRevision(ctx, git.Revision(expectedRef))
 
-				if expectedOID == git.ZeroOID.String() {
+				if expectedOID == git.ObjectHashSHA1.ZeroOID.String() {
 					require.Equal(t, git.ErrReferenceNotFound, err)
 				} else {
 					require.NoError(t, err)

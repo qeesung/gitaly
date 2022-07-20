@@ -43,7 +43,7 @@ func (s *server) CalculateChecksum(ctx context.Context, in *gitalypb.CalculateCh
 
 	if err := cmd.Wait(); checksum.IsZero() || err != nil {
 		if s.isValidRepo(ctx, repo) {
-			return &gitalypb.CalculateChecksumResponse{Checksum: git.ZeroOID.String()}, nil
+			return &gitalypb.CalculateChecksumResponse{Checksum: git.ObjectHashSHA1.ZeroOID.String()}, nil
 		}
 
 		return nil, status.Errorf(codes.DataLoss, "CalculateChecksum: not a git repository '%s'", repoPath)

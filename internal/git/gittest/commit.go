@@ -150,7 +150,7 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 		tree = writeCommitConfig.treeID.String()
 	} else if len(parents) == 0 {
 		// If there are no parents, then we set the root tree to the empty tree.
-		tree = EmptyTreeOID.String()
+		tree = DefaultObjectHash.EmptyTreeOID.String()
 	} else {
 		tree = parents[0].String() + "^{tree}"
 	}
@@ -210,7 +210,7 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 		Stdin: stdin,
 		Env:   env,
 	}, commitArgs...)
-	oid, err := NewObjectIDFromHex(text.ChompBytes(stdout))
+	oid, err := DefaultObjectHash.FromHex(text.ChompBytes(stdout))
 	require.NoError(t, err)
 
 	if writeCommitConfig.branch != "" {

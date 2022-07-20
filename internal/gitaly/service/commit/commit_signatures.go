@@ -138,7 +138,7 @@ func validateGetCommitSignaturesRequest(request *gitalypb.GetCommitSignaturesReq
 
 	// Do not support shorthand or invalid commit SHAs
 	for _, commitID := range request.CommitIds {
-		if err := git.ValidateObjectID(commitID); err != nil {
+		if err := git.ObjectHashSHA1.ValidateHex(commitID); err != nil {
 			return err
 		}
 	}

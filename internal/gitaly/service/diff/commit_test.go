@@ -36,7 +36,7 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 		},
 		{
 			FromID:   "bdea48ee65c869eb0b86b1283069d76cce0a7254",
-			ToID:     git.ZeroOID.String(),
+			ToID:     git.ObjectHashSHA1.ZeroOID.String(),
 			OldMode:  0o100644,
 			NewMode:  0,
 			FromPath: []byte("gitaly/deleted-file"),
@@ -55,7 +55,7 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 			Patch:    testhelper.MustReadFile(t, "testdata/file-with-multiple-chunks-chunks.txt"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "389c7a36a6e133268b0d36b00e7ffc0f3a5b6651",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -65,7 +65,7 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 			Patch:    testhelper.MustReadFile(t, "testdata/file-with-pluses-chunks.txt"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "bc2ef601a538d69ef99d5bdafa605e63f902e8e4",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -95,7 +95,7 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 		},
 		{
 			FromID:   "43d24af4e22580f36b1ca52647c1aff75a766a33",
-			ToID:     git.ZeroOID.String(),
+			ToID:     git.ObjectHashSHA1.ZeroOID.String(),
 			OldMode:  0o100644,
 			NewMode:  0,
 			FromPath: []byte("gitaly/named-file-with-mods"),
@@ -104,7 +104,7 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 			Patch:    testhelper.MustReadFile(t, "testdata/named-file-with-mods-chunks.txt"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "b464dff7a75ccc92fbd920fd9ae66a84b9d2bf94",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -123,7 +123,7 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 			Binary:   false,
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "3856c00e9450a51a62096327167fc43d3be62eef",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -133,7 +133,7 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 			Patch:    testhelper.MustReadFile(t, "testdata/renamed-file-with-mods-chunks.txt"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "a135e3e0d4af177a902ca57dcc4c7fc6f30858b1",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -143,7 +143,7 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 			Patch:    testhelper.MustReadFile(t, "testdata/tab-newline-file-chunks.txt"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
 			OldMode:  0,
 			NewMode:  0o100755,
@@ -152,7 +152,7 @@ func TestSuccessfulCommitDiffRequest(t *testing.T) {
 			Binary:   false,
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "b1e67221afe8461efd244b487afca22d46b95eb8",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -237,7 +237,7 @@ func TestSuccessfulCommitDiffRequestWithPaths(t *testing.T) {
 		},
 		{
 			FromID:   "43d24af4e22580f36b1ca52647c1aff75a766a33",
-			ToID:     git.ZeroOID.String(),
+			ToID:     git.ObjectHashSHA1.ZeroOID.String(),
 			OldMode:  0o100644,
 			NewMode:  0,
 			FromPath: []byte("gitaly/named-file-with-mods"),
@@ -267,7 +267,7 @@ func TestSuccessfulCommitDiffRequestWithTypeChangeDiff(t *testing.T) {
 	expectedDiffs := []diff.Diff{
 		{
 			FromID:   "349cd0f6b1aba8538861d95783cbce6d49d747f8",
-			ToID:     git.ZeroOID.String(),
+			ToID:     git.ObjectHashSHA1.ZeroOID.String(),
 			OldMode:  0o120000,
 			NewMode:  0,
 			FromPath: []byte("gitaly/symlink-to-be-regular"),
@@ -276,7 +276,7 @@ func TestSuccessfulCommitDiffRequestWithTypeChangeDiff(t *testing.T) {
 			Patch:    testhelper.MustReadFile(t, "testdata/symlink-to-be-regular-deleted-chunks.txt"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "f9e5cc857610185e6feeb494a26bf27551a4f02b",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -349,7 +349,7 @@ func TestSuccessfulCommitDiffRequestWithIgnoreWhitespaceChange(t *testing.T) {
 		},
 		{
 			FromID:   "43d24af4e22580f36b1ca52647c1aff75a766a33",
-			ToID:     git.ZeroOID.String(),
+			ToID:     git.ObjectHashSHA1.ZeroOID.String(),
 			OldMode:  0o100644,
 			NewMode:  0,
 			FromPath: []byte("gitaly/named-file-with-mods"),
@@ -849,7 +849,7 @@ func TestSuccessfulCommitDeltaRequest(t *testing.T) {
 		},
 		{
 			FromID:   "bdea48ee65c869eb0b86b1283069d76cce0a7254",
-			ToID:     git.ZeroOID.String(),
+			ToID:     git.ObjectHashSHA1.ZeroOID.String(),
 			OldMode:  0o100644,
 			NewMode:  0,
 			FromPath: []byte("gitaly/deleted-file"),
@@ -864,7 +864,7 @@ func TestSuccessfulCommitDeltaRequest(t *testing.T) {
 			ToPath:   []byte("gitaly/file-with-multiple-chunks"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "bc2ef601a538d69ef99d5bdafa605e63f902e8e4",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -889,14 +889,14 @@ func TestSuccessfulCommitDeltaRequest(t *testing.T) {
 		},
 		{
 			FromID:   "43d24af4e22580f36b1ca52647c1aff75a766a33",
-			ToID:     git.ZeroOID.String(),
+			ToID:     git.ObjectHashSHA1.ZeroOID.String(),
 			OldMode:  0o100644,
 			NewMode:  0,
 			FromPath: []byte("gitaly/named-file-with-mods"),
 			ToPath:   []byte("gitaly/named-file-with-mods"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "b464dff7a75ccc92fbd920fd9ae66a84b9d2bf94",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -912,7 +912,7 @@ func TestSuccessfulCommitDeltaRequest(t *testing.T) {
 			ToPath:   []byte("gitaly/renamed-file"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "3856c00e9450a51a62096327167fc43d3be62eef",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -920,7 +920,7 @@ func TestSuccessfulCommitDeltaRequest(t *testing.T) {
 			ToPath:   []byte("gitaly/renamed-file-with-mods"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "a135e3e0d4af177a902ca57dcc4c7fc6f30858b1",
 			OldMode:  0,
 			NewMode:  0o100644,
@@ -928,7 +928,7 @@ func TestSuccessfulCommitDeltaRequest(t *testing.T) {
 			ToPath:   []byte("gitaly/tab\tnewline\n file"),
 		},
 		{
-			FromID:   git.ZeroOID.String(),
+			FromID:   git.ObjectHashSHA1.ZeroOID.String(),
 			ToID:     "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
 			OldMode:  0,
 			NewMode:  0o100755,
@@ -987,7 +987,7 @@ func TestSuccessfulCommitDeltaRequestWithPaths(t *testing.T) {
 		},
 		{
 			FromID:   "43d24af4e22580f36b1ca52647c1aff75a766a33",
-			ToID:     git.ZeroOID.String(),
+			ToID:     git.ObjectHashSHA1.ZeroOID.String(),
 			OldMode:  0o100644,
 			NewMode:  0,
 			FromPath: []byte("gitaly/named-file-with-mods"),

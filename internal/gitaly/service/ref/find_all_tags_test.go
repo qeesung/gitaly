@@ -249,7 +249,7 @@ func TestFindAllTags_simpleNestedTags(t *testing.T) {
 					Body:     []byte("message"),
 					BodySize: 7,
 					Subject:  []byte("message"),
-					TreeId:   git.EmptyTreeOID.String(),
+					TreeId:   git.ObjectHashSHA1.EmptyTreeOID.String(),
 					Author: &gitalypb.CommitAuthor{
 						Name:     []byte("Scrooge McDuck"),
 						Email:    []byte("scrooge@mcduck.com"),
@@ -288,10 +288,10 @@ func TestFindAllTags_duplicateAnnotatedTags(t *testing.T) {
 		gittest.TestUser, date)
 	require.NoError(t, err)
 
-	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/annotated", tagID, git.ZeroOID))
-	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/annotated-dup", tagID, git.ZeroOID))
-	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/lightweight-1", commitID, git.ZeroOID))
-	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/lightweight-2", commitID, git.ZeroOID))
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/annotated", tagID, git.ObjectHashSHA1.ZeroOID))
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/annotated-dup", tagID, git.ObjectHashSHA1.ZeroOID))
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/lightweight-1", commitID, git.ObjectHashSHA1.ZeroOID))
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/lightweight-2", commitID, git.ObjectHashSHA1.ZeroOID))
 
 	c, err := client.FindAllTags(ctx, &gitalypb.FindAllTagsRequest{Repository: repoProto})
 	require.NoError(t, err)
@@ -642,7 +642,7 @@ func TestFindAllTags_sorted(t *testing.T) {
 	require.NoError(t, err)
 	annotatedTagID, err := repo.WriteTag(ctx, git.ObjectID(headCommit.Id), "commit", []byte("annotated"), []byte("message"), gittest.TestUser, time.Now())
 	require.NoError(t, err)
-	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/annotated", annotatedTagID, git.ZeroOID))
+	require.NoError(t, repo.UpdateRef(ctx, "refs/tags/annotated", annotatedTagID, git.ObjectHashSHA1.ZeroOID))
 
 	require.NoError(t, repo.ExecAndWait(ctx, git.SubCmd{
 		Name: "tag",

@@ -147,7 +147,7 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 			preReceive: func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 				changes, err := io.ReadAll(stdin)
 				require.NoError(t, err)
-				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ZeroOID.String()), string(changes))
+				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ObjectHashSHA1.ZeroOID.String()), string(changes))
 				require.Empty(t, pushOptions)
 				requirePayload(t, env)
 				return nil
@@ -155,14 +155,14 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 			update: func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, ref, oldValue, newValue string, env []string, stdout, stderr io.Writer) error {
 				require.Equal(t, "refs/heads/master", ref)
 				require.Equal(t, oldRev, oldValue)
-				require.Equal(t, newValue, git.ZeroOID.String())
+				require.Equal(t, newValue, git.ObjectHashSHA1.ZeroOID.String())
 				requirePayload(t, env)
 				return nil
 			},
 			postReceive: func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 				changes, err := io.ReadAll(stdin)
 				require.NoError(t, err)
-				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ZeroOID.String()), string(changes))
+				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ObjectHashSHA1.ZeroOID.String()), string(changes))
 				requirePayload(t, env)
 				require.Empty(t, pushOptions)
 				return nil
@@ -170,7 +170,7 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 			referenceTransaction: func(t *testing.T, ctx context.Context, state hook.ReferenceTransactionState, env []string, stdin io.Reader) error {
 				changes, err := io.ReadAll(stdin)
 				require.NoError(t, err)
-				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ZeroOID.String()), string(changes))
+				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ObjectHashSHA1.ZeroOID.String()), string(changes))
 
 				require.Less(t, referenceTransactionCalls, 2)
 				if referenceTransactionCalls == 0 {
@@ -257,7 +257,7 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 			gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 			updater := updateref.NewUpdaterWithHooks(cfg, config.NewLocator(cfg), hookManager, gitCmdFactory, nil)
 
-			err := updater.UpdateReference(ctx, repo, user, nil, git.ReferenceName("refs/heads/master"), git.ZeroOID, git.ObjectID(oldRev))
+			err := updater.UpdateReference(ctx, repo, user, nil, git.ReferenceName("refs/heads/master"), git.ObjectHashSHA1.ZeroOID, git.ObjectID(oldRev))
 			if tc.expectedErr == "" {
 				require.NoError(t, err)
 			} else {
@@ -367,7 +367,7 @@ func TestUpdaterWithHooks_quarantine(t *testing.T) {
 		},
 		quarantine,
 		git.ReferenceName("refs/heads/master"),
-		git.ZeroOID,
+		git.ObjectHashSHA1.ZeroOID,
 		git.ObjectID("1e292f8fedd741b75372e19097c76d327140c312"),
 	))
 

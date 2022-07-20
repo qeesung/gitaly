@@ -77,7 +77,7 @@ func WriteBlob(t testing.TB, cfg config.Cfg, testRepoPath string, contents []byt
 	hex := text.ChompBytes(ExecOpts(t, cfg, ExecConfig{Stdin: bytes.NewReader(contents)},
 		"-C", testRepoPath, "hash-object", "-w", "--stdin",
 	))
-	oid, err := git.NewObjectIDFromHex(hex)
+	oid, err := DefaultObjectHash.FromHex(hex)
 	require.NoError(t, err)
 	return oid
 }

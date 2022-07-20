@@ -239,6 +239,8 @@ func RewrittenRepository(ctx context.Context, t testing.TB, cfg config.Cfg, repo
 type InitRepoOpts struct {
 	// WithRelativePath determines the relative path of this repository.
 	WithRelativePath string
+	// ObjectFormat overrides the object format used by the repository.
+	ObjectFormat string
 }
 
 // InitRepo creates a new empty repository in the given storage. You can either pass no or exactly
@@ -260,6 +262,9 @@ func InitRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...Init
 	args := []string{"init", "--bare"}
 	args = append(args, initRepoExtraArgs...)
 	args = append(args, repoPath)
+	if opt.ObjectFormat != "" {
+		args = append(args, "--object-format", opt.ObjectFormat)
+	}
 
 	Exec(t, cfg, args...)
 

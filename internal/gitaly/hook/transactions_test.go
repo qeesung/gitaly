@@ -60,7 +60,7 @@ func TestHookManager_stopCalled(t *testing.T) {
 		return hookManager.PreReceiveHook(ctx, repo, nil, []string{hooksPayload}, strings.NewReader("changes"), io.Discard, io.Discard)
 	}
 	updateFunc := func(t *testing.T) error {
-		return hookManager.UpdateHook(ctx, repo, "ref", git.ZeroOID.String(), git.ZeroOID.String(), []string{hooksPayload}, io.Discard, io.Discard)
+		return hookManager.UpdateHook(ctx, repo, "ref", git.ObjectHashSHA1.ZeroOID.String(), git.ObjectHashSHA1.ZeroOID.String(), []string{hooksPayload}, io.Discard, io.Discard)
 	}
 	postReceiveFunc := func(t *testing.T) error {
 		return hookManager.PostReceiveHook(ctx, repo, nil, []string{hooksPayload}, strings.NewReader("changes"), io.Discard, io.Discard)
@@ -148,7 +148,7 @@ func TestHookManager_contextCancellationCancelsVote(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
-	changes := fmt.Sprintf("%s %s refs/heads/master", strings.Repeat("1", 40), git.ZeroOID)
+	changes := fmt.Sprintf("%s %s refs/heads/master", strings.Repeat("1", 40), git.ObjectHashSHA1.ZeroOID)
 
 	cancel()
 
@@ -158,7 +158,7 @@ func TestHookManager_contextCancellationCancelsVote(t *testing.T) {
 
 func TestIsForceDeletionsOnly(t *testing.T) {
 	anyOID := strings.Repeat("1", 40)
-	zeroOID := git.ZeroOID.String()
+	zeroOID := git.ObjectHashSHA1.ZeroOID.String()
 
 	forceDeletion := fmt.Sprintf("%s %s refs/heads/force-delete", zeroOID, zeroOID)
 	forceUpdate := fmt.Sprintf("%s %s refs/heads/force-update", zeroOID, anyOID)

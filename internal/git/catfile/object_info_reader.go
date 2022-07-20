@@ -75,7 +75,7 @@ restart:
 		return nil, fmt.Errorf("invalid info line: %q", infoLine)
 	}
 
-	oid, err := git.NewObjectIDFromHex(info[0])
+	oid, err := git.ObjectHashSHA1.FromHex(info[0])
 	if err != nil {
 		return nil, fmt.Errorf("parse object ID: %w", err)
 	}

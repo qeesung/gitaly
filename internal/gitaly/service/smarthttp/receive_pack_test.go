@@ -824,7 +824,7 @@ func TestPostReceivePack_referenceTransactionHook(t *testing.T) {
 		branchOID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/delete-me"))
 
 		uploadPackData := &bytes.Buffer{}
-		gittest.WritePktlineString(t, uploadPackData, fmt.Sprintf("%s %s refs/heads/delete-me\x00 %s", branchOID, git.ZeroOID.String(), uploadPackCapabilities))
+		gittest.WritePktlineString(t, uploadPackData, fmt.Sprintf("%s %s refs/heads/delete-me\x00 %s", branchOID, git.ObjectHashSHA1.ZeroOID.String(), uploadPackCapabilities))
 		gittest.WritePktlineFlush(t, uploadPackData)
 
 		response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
@@ -907,7 +907,7 @@ func createPushRequest(t *testing.T, cfg config.Cfg) (git.ObjectID, git.ObjectID
 	// We form the packet line the same way git executable does: https://github.com/git/git/blob/d1a13d3fcb252631361a961cb5e2bf10ed467cba/send-pack.c#L524-L527
 	var request bytes.Buffer
 	gittest.WritePktlinef(t, &request, "%s %s refs/heads/master\x00 %s", oldCommitID, newCommitID, uploadPackCapabilities)
-	gittest.WritePktlinef(t, &request, "%s %s refs/heads/branch", git.ZeroOID, newCommitID)
+	gittest.WritePktlinef(t, &request, "%s %s refs/heads/branch", git.ObjectHashSHA1.ZeroOID, newCommitID)
 	gittest.WritePktlineFlush(t, &request)
 
 	// We need to get a pack file containing the objects we want to push, so we use git pack-objects

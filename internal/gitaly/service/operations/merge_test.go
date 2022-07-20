@@ -170,7 +170,7 @@ func TestUserMergeBranch_quarantine(t *testing.T) {
 	), err)
 	require.Nil(t, secondResponse)
 
-	oid, err := git.NewObjectIDFromHex(strings.TrimSpace(firstResponse.CommitId))
+	oid, err := git.ObjectHashSHA1.FromHex(strings.TrimSpace(firstResponse.CommitId))
 	require.NoError(t, err)
 	exists, err := repo.HasRevision(ctx, oid.Revision()+"^{commit}")
 	require.NoError(t, err)
@@ -393,7 +393,7 @@ func TestUserMergeBranch_ambiguousReference(t *testing.T) {
 		"refs/tags/heads/" + mergeBranchName,
 		"refs/tags/refs/heads/" + mergeBranchName,
 	} {
-		require.NoError(t, repo.UpdateRef(ctx, git.ReferenceName(reference), masterOID, git.ZeroOID))
+		require.NoError(t, repo.UpdateRef(ctx, git.ReferenceName(reference), masterOID, git.ObjectHashSHA1.ZeroOID))
 	}
 
 	mergeCommitMessage := "Merged by Gitaly"

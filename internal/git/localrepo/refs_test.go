@@ -138,7 +138,7 @@ func TestRepo_GetReferenceWithAmbiguousRefs(t *testing.T) {
 		"refs/master",
 		"refs/tags/master",
 	} {
-		require.NoError(t, repo.UpdateRef(ctx, ref, prevOID, git.ZeroOID))
+		require.NoError(t, repo.UpdateRef(ctx, ref, prevOID, git.ObjectHashSHA1.ZeroOID))
 	}
 
 	ref, err := repo.GetReference(ctx, "refs/heads/master")
@@ -423,7 +423,7 @@ func TestRepo_UpdateRef(t *testing.T) {
 		{
 			desc:     "deleting master succeeds",
 			ref:      "refs/heads/master",
-			newValue: git.ZeroOID,
+			newValue: git.ObjectHashSHA1.ZeroOID,
 			oldValue: masterOID,
 			verify: func(t *testing.T, repo *Repo, err error) {
 				require.NoError(t, err)
@@ -435,7 +435,7 @@ func TestRepo_UpdateRef(t *testing.T) {
 			desc:     "creating new branch succeeds",
 			ref:      "refs/heads/new",
 			newValue: masterOID,
-			oldValue: git.ZeroOID,
+			oldValue: git.ObjectHashSHA1.ZeroOID,
 			verify: func(t *testing.T, repo *Repo, err error) {
 				require.NoError(t, err)
 				ref, err := repo.GetReference(ctx, "refs/heads/new")

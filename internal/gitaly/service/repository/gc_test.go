@@ -465,7 +465,7 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 		{
 			desc:        "Filled with the blank ref",
 			refName:     "0b4bc9a49b562e85de7cc9e834518ea6828729b9",
-			refContent:  git.ZeroOID.String(),
+			refContent:  git.ObjectHashSHA1.ZeroOID.String(),
 			shouldExist: true,
 		},
 		{

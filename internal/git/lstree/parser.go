@@ -61,7 +61,7 @@ func (p *Parser) NextEntry() (*Entry, error) {
 		return nil, err
 	}
 
-	objectID, err := git.NewObjectIDFromHex(string(treeEntryID))
+	objectID, err := git.ObjectHashSHA1.FromHex(string(treeEntryID))
 	if err != nil {
 		return nil, err
 	}

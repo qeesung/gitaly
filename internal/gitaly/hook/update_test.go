@@ -245,7 +245,7 @@ func TestUpdate_quarantine(t *testing.T) {
 
 			var stdout, stderr bytes.Buffer
 			require.NoError(t, hookManager.UpdateHook(ctx, repo, "refs/heads/master",
-				git.ZeroOID.String(), git.ZeroOID.String(), []string{env}, &stdout, &stderr))
+				git.ObjectHashSHA1.ZeroOID.String(), git.ObjectHashSHA1.ZeroOID.String(), []string{env}, &stdout, &stderr))
 
 			if isQuarantined {
 				require.Equal(t, "allyourbasearebelongtous", stdout.String())

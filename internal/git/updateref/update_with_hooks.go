@@ -163,10 +163,10 @@ func (u *UpdaterWithHooks) UpdateReference(
 	if reference == "" {
 		return fmt.Errorf("reference cannot be empty")
 	}
-	if err := git.ValidateObjectID(oldrev.String()); err != nil {
+	if err := git.ObjectHashSHA1.ValidateHex(oldrev.String()); err != nil {
 		return fmt.Errorf("validating old value: %w", err)
 	}
-	if err := git.ValidateObjectID(newrev.String()); err != nil {
+	if err := git.ObjectHashSHA1.ValidateHex(newrev.String()); err != nil {
 		return fmt.Errorf("validating new value: %w", err)
 	}
 

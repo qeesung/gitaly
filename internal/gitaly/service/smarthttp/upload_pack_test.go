@@ -83,7 +83,7 @@ func testServerPostUpload(t *testing.T, ctx context.Context, makeRequest request
 
 	testcfg.BuildGitalyHooks(t, cfg)
 
-	oldCommit, err := git.NewObjectIDFromHex("1e292f8fedd741b75372e19097c76d327140c312") // refs/heads/master
+	oldCommit, err := git.ObjectHashSHA1.FromHex("1e292f8fedd741b75372e19097c76d327140c312") // refs/heads/master
 	require.NoError(t, err)
 	newCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"), gittest.WithParents(oldCommit))
 
@@ -454,7 +454,7 @@ func testServerPostUploadPackPartialClone(t *testing.T, ctx context.Context, mak
 
 	testcfg.BuildGitalyHooks(t, cfg)
 
-	oldCommit, err := git.NewObjectIDFromHex("1e292f8fedd741b75372e19097c76d327140c312") // refs/heads/master
+	oldCommit, err := git.ObjectHashSHA1.FromHex("1e292f8fedd741b75372e19097c76d327140c312") // refs/heads/master
 	require.NoError(t, err)
 	newCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"), gittest.WithParents(oldCommit))
 

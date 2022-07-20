@@ -168,8 +168,8 @@ func (s *server) resolveConflicts(header *gitalypb.ResolveConflictsRequestHeader
 		authorDate = header.Timestamp.AsTime()
 	}
 
-	if git.ValidateObjectID(header.GetOurCommitOid()) != nil ||
-		git.ValidateObjectID(header.GetTheirCommitOid()) != nil {
+	if git.ObjectHashSHA1.ValidateHex(header.GetOurCommitOid()) != nil ||
+		git.ObjectHashSHA1.ValidateHex(header.GetTheirCommitOid()) != nil {
 		return errors.New("Rugged::InvalidError: unable to parse OID - contains invalid characters")
 	}
 
@@ -192,7 +192,7 @@ func (s *server) resolveConflicts(header *gitalypb.ResolveConflictsRequestHeader
 		return err
 	}
 
-	commitOID, err := git.NewObjectIDFromHex(result.CommitID)
+	commitOID, err := git.ObjectHashSHA1.FromHex(result.CommitID)
 	if err != nil {
 		return err
 	}

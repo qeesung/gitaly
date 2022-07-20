@@ -39,10 +39,10 @@ func (m *GitLabHookManager) updateHook(ctx context.Context, payload git.HooksPay
 	if ref == "" {
 		return helper.ErrInternalf("hook got no reference")
 	}
-	if err := git.ValidateObjectID(oldValue); err != nil {
+	if err := git.ObjectHashSHA1.ValidateHex(oldValue); err != nil {
 		return helper.ErrInternalf("hook got invalid old value: %w", err)
 	}
-	if err := git.ValidateObjectID(newValue); err != nil {
+	if err := git.ObjectHashSHA1.ValidateHex(newValue); err != nil {
 		return helper.ErrInternalf("hook got invalid new value: %w", err)
 	}
 	if payload.UserDetails == nil {

@@ -138,7 +138,7 @@ func (s *Server) userUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 		return nil, fmt.Errorf("%s: submodule subcommand: %w", userUpdateSubmoduleName, err)
 	}
 
-	commitID, err := git.NewObjectIDFromHex(result.CommitID)
+	commitID, err := git.ObjectHashSHA1.FromHex(result.CommitID)
 	if err != nil {
 		return nil, helper.ErrInvalidArgumentf("cannot parse commit ID: %w", err)
 	}

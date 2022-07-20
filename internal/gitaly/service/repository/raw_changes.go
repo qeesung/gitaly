@@ -38,13 +38,13 @@ func (s *server) GetRawChanges(req *gitalypb.GetRawChangesRequest, stream gitaly
 }
 
 func validateRawChangesRequest(ctx context.Context, req *gitalypb.GetRawChangesRequest, objectInfoReader catfile.ObjectInfoReader) error {
-	if from := req.FromRevision; !git.ObjectID(from).IsZeroOID() {
+	if from := req.FromRevision; !git.ObjectHashSHA1.IsZeroOID(git.ObjectID(from)) {
 		if _, err := objectInfoReader.Info(ctx, git.Revision(from)); err != nil {
 			return fmt.Errorf("invalid 'from' revision: %q", from)
 		}
 	}
 
-	if to := req.ToRevision; !git.ObjectID(to).IsZeroOID() {
+	if to := req.ToRevision; !git.ObjectHashSHA1.IsZeroOID(git.ObjectID(to)) {
 		if _, err := objectInfoReader.Info(ctx, git.Revision(to)); err != nil {
 			return fmt.Errorf("invalid 'to' revision: %q", to)
 		}
@@ -54,12 +54,12 @@ func validateRawChangesRequest(ctx context.Context, req *gitalypb.GetRawChangesR
 }
 
 func (s *server) getRawChanges(stream gitalypb.RepositoryService_GetRawChangesServer, repo git.RepositoryExecutor, objectInfoReader catfile.ObjectInfoReader, from, to string) error {
-	if git.ObjectID(to).IsZeroOID() {
+	if git.ObjectHashSHA1.IsZeroOID(git.ObjectID(to)) {
 		return nil
 	}
 
-	if git.ObjectID(from).IsZeroOID() {
-		from = git.EmptyTreeOID.String()
+	if git.ObjectHashSHA1.IsZeroOID(git.ObjectID(from)) {
+		from = git.ObjectHashSHA1.EmptyTreeOID.String()
 	}
 
 	ctx := stream.Context()

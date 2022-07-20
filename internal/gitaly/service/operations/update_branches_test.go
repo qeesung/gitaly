@@ -52,7 +52,7 @@ func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
 		{
 			desc:             "short name branch creation",
 			updateBranchName: "a-new-branch",
-			oldRev:           []byte(git.ZeroOID.String()),
+			oldRev:           []byte(git.ObjectHashSHA1.ZeroOID.String()),
 			newRev:           []byte("845009f4d7bdc9e0d8f26b1c6fb6e108aaff9314"),
 		},
 		// We create refs/heads/heads/BRANCH and
@@ -62,13 +62,13 @@ func TestSuccessfulUserUpdateBranchRequest(t *testing.T) {
 		{
 			desc:             "heads/* branch creation",
 			updateBranchName: "heads/a-new-branch",
-			oldRev:           []byte(git.ZeroOID.String()),
+			oldRev:           []byte(git.ObjectHashSHA1.ZeroOID.String()),
 			newRev:           []byte("845009f4d7bdc9e0d8f26b1c6fb6e108aaff9314"),
 		},
 		{
 			desc:             "refs/heads/* branch creation",
 			updateBranchName: "refs/heads/a-new-branch",
-			oldRev:           []byte(git.ZeroOID.String()),
+			oldRev:           []byte(git.ObjectHashSHA1.ZeroOID.String()),
 			newRev:           []byte("845009f4d7bdc9e0d8f26b1c6fb6e108aaff9314"),
 		},
 	}
@@ -118,7 +118,7 @@ func TestSuccessfulUserUpdateBranchRequestToDelete(t *testing.T) {
 			desc:             "short name branch deletion",
 			updateBranchName: "csv",
 			oldRev:           []byte("3dd08961455abf80ef9115f4afdc1c6f968b503c"),
-			newRev:           []byte(git.ZeroOID.String()),
+			newRev:           []byte(git.ObjectHashSHA1.ZeroOID.String()),
 			err:              status.Error(codes.InvalidArgument, "object not found"),
 		},
 		// We test for the failed heads/* and refs/heads/* cases below in TestFailedUserUpdateBranchRequest
@@ -127,7 +127,7 @@ func TestSuccessfulUserUpdateBranchRequestToDelete(t *testing.T) {
 			updateBranchName: "heads/my-test-branch",
 			createBranch:     true,
 			oldRev:           []byte("689600b91aabec706e657e38ea706ece1ee8268f"),
-			newRev:           []byte(git.ZeroOID.String()),
+			newRev:           []byte(git.ObjectHashSHA1.ZeroOID.String()),
 			err:              status.Error(codes.InvalidArgument, "object not found"),
 		},
 		{
@@ -135,7 +135,7 @@ func TestSuccessfulUserUpdateBranchRequestToDelete(t *testing.T) {
 			updateBranchName: "refs/heads/my-other-test-branch",
 			createBranch:     true,
 			oldRev:           []byte("db46a1c5a5e474aa169b6cdb7a522d891bc4c5f9"),
-			newRev:           []byte(git.ZeroOID.String()),
+			newRev:           []byte(git.ObjectHashSHA1.ZeroOID.String()),
 			err:              status.Error(codes.InvalidArgument, "object not found"),
 		},
 	}
@@ -298,7 +298,7 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 		{
 			desc:       "existing branch failed deletion attempt",
 			branchName: "csv",
-			newrev:     []byte(git.ZeroOID.String()),
+			newrev:     []byte(git.ObjectHashSHA1.ZeroOID.String()),
 			oldrev:     oldrev,
 			gotrev:     []byte("3dd08961455abf80ef9115f4afdc1c6f968b503c"),
 			user:       gittest.TestUser,
@@ -332,7 +332,7 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 		{
 			desc:       "delete existing branch, but unsupported refs/heads/* name",
 			branchName: "refs/heads/crlf-diff",
-			newrev:     []byte(git.ZeroOID.String()),
+			newrev:     []byte(git.ObjectHashSHA1.ZeroOID.String()),
 			oldrev:     []byte("593890758a6f845c600f38ffa05be2749211caee"),
 			user:       gittest.TestUser,
 			err:        status.Errorf(codes.FailedPrecondition, "Could not update %v. Please refresh and try again.", "refs/heads/crlf-diff"),
@@ -341,7 +341,7 @@ func TestFailedUserUpdateBranchRequest(t *testing.T) {
 			desc:                "short name branch deletion",
 			branchName:          "csv",
 			oldrev:              []byte("3dd08961455abf80ef9115f4afdc1c6f968b503c"),
-			newrev:              []byte(git.ZeroOID.String()),
+			newrev:              []byte(git.ObjectHashSHA1.ZeroOID.String()),
 			expectNotFoundError: true,
 			user:                gittest.TestUser,
 			err:                 nil,

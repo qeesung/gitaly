@@ -116,7 +116,7 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 		return helper.ErrInternal(err)
 	}
 
-	mergeOID, err := git.NewObjectIDFromHex(merge.CommitID)
+	mergeOID, err := git.ObjectHashSHA1.FromHex(merge.CommitID)
 	if err != nil {
 		return helper.ErrInternalf("could not parse merge ID: %w", err)
 	}
@@ -256,7 +256,7 @@ func (s *Server) UserFFBranch(ctx context.Context, in *gitalypb.UserFFBranchRequ
 		return nil, helper.ErrInvalidArgument(err)
 	}
 
-	commitID, err := git.NewObjectIDFromHex(in.CommitId)
+	commitID, err := git.ObjectHashSHA1.FromHex(in.CommitId)
 	if err != nil {
 		return nil, helper.ErrInvalidArgumentf("cannot parse commit ID: %w", err)
 	}
@@ -365,14 +365,14 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 			return nil, helper.ErrFailedPreconditionf("target reference is symbolic: %q", request.TargetRef)
 		}
 
-		oid, err := git.NewObjectIDFromHex(targetRef.Target)
+		oid, err := git.ObjectHashSHA1.FromHex(targetRef.Target)
 		if err != nil {
 			return nil, helper.ErrInternalf("invalid target revision: %v", err)
 		}
 
 		oldTargetOID = oid
 	} else if errors.Is(err, git.ErrReferenceNotFound) {
-		oldTargetOID = git.ZeroOID
+		oldTargetOID = git.ObjectHashSHA1.ZeroOID
 	} else {
 		return nil, helper.ErrInternalf("could not read target reference: %v", err)
 	}
@@ -404,7 +404,7 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 			sourceOID, oid, string(request.TargetRef))
 	}
 
-	mergeOID, err := git.NewObjectIDFromHex(merge.CommitID)
+	mergeOID, err := git.ObjectHashSHA1.FromHex(merge.CommitID)
 	if err != nil {
 		return nil, err
 	}

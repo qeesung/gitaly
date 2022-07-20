@@ -212,7 +212,7 @@ func TestRepo_FetchInternal(t *testing.T) {
 
 		// Create a local reference. Given that it doesn't exist on the remote side, it
 		// would get pruned if we pass `--prune`.
-		require.NoError(t, repo.UpdateRef(ctx, "refs/heads/prune-me", remoteOID, git.ZeroOID))
+		require.NoError(t, repo.UpdateRef(ctx, "refs/heads/prune-me", remoteOID, git.ObjectHashSHA1.ZeroOID))
 
 		// By default, refs are not pruned.
 		require.NoError(t, repo.FetchInternal(

@@ -328,13 +328,13 @@ func (parser *Parser) handleTypeChangeDiff() {
 		":%o %o %s %s A\t%s\n",
 		0,
 		parser.currentDiff.NewMode,
-		git.ZeroOID,
+		git.ObjectHashSHA1.ZeroOID,
 		parser.currentDiff.ToID,
 		parser.currentDiff.FromPath,
 	)
 
 	parser.currentDiff.NewMode = 0
-	parser.currentDiff.ToID = git.ZeroOID.String()
+	parser.currentDiff.ToID = git.ObjectHashSHA1.ZeroOID.String()
 
 	parser.rawLines = append([][]byte{[]byte(newRawLine)}, parser.rawLines...)
 }

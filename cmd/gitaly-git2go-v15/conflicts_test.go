@@ -239,20 +239,20 @@ func TestConflicts_checkError(t *testing.T) {
 		},
 		{
 			desc:   "ours OID doesn't exist",
-			ours:   glgit.ZeroOID,
+			ours:   glgit.ObjectHashSHA1.ZeroOID,
 			theirs: validOID,
 			expErr: status.Error(codes.InvalidArgument, "odb: cannot read object: null OID cannot exist"),
 		},
 		{
 			desc:   "invalid object type",
-			ours:   glgit.EmptyTreeOID,
+			ours:   glgit.ObjectHashSHA1.EmptyTreeOID,
 			theirs: validOID,
 			expErr: status.Error(codes.InvalidArgument, "the requested type does not match the type in the ODB"),
 		},
 		{
 			desc:   "theirs OID doesn't exist",
 			ours:   validOID,
-			theirs: glgit.ZeroOID,
+			theirs: glgit.ObjectHashSHA1.ZeroOID,
 			expErr: status.Error(codes.InvalidArgument, "odb: cannot read object: null OID cannot exist"),
 		},
 	}

@@ -133,7 +133,7 @@ func (s *Server) UserCherryPick(ctx context.Context, req *gitalypb.UserCherryPic
 	oldrev, err := quarantineRepo.ResolveRevision(ctx, referenceName.Revision()+"^{commit}")
 	if errors.Is(err, git.ErrReferenceNotFound) {
 		branchCreated = true
-		oldrev = git.ZeroOID
+		oldrev = git.ObjectHashSHA1.ZeroOID
 	} else if err != nil {
 		return nil, helper.ErrInvalidArgumentf("resolve ref: %w", err)
 	}

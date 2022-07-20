@@ -44,7 +44,7 @@ func (s *Server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateB
 		return nil, status.Errorf(codes.FailedPrecondition, "revspec '%s' not found", req.StartPoint)
 	}
 
-	startPointOID, err := git.NewObjectIDFromHex(startPointCommit.Id)
+	startPointOID, err := git.ObjectHashSHA1.FromHex(startPointCommit.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not parse start point commit ID: %v", err)
 	}
@@ -57,7 +57,7 @@ func (s *Server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateB
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if err := s.updateReferenceWithHooks(ctx, req.GetRepository(), req.User, quarantineDir, referenceName, startPointOID, git.ZeroOID); err != nil {
+	if err := s.updateReferenceWithHooks(ctx, req.GetRepository(), req.User, quarantineDir, referenceName, startPointOID, git.ObjectHashSHA1.ZeroOID); err != nil {
 		var customHookErr updateref.CustomHookError
 		if errors.As(err, &customHookErr) {
 			return &gitalypb.UserCreateBranchResponse{
@@ -108,12 +108,12 @@ func (s *Server) UserUpdateBranch(ctx context.Context, req *gitalypb.UserUpdateB
 		return nil, err
 	}
 
-	newOID, err := git.NewObjectIDFromHex(string(req.Newrev))
+	newOID, err := git.ObjectHashSHA1.FromHex(string(req.Newrev))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not parse newrev: %v", err)
 	}
 
-	oldOID, err := git.NewObjectIDFromHex(string(req.Oldrev))
+	oldOID, err := git.ObjectHashSHA1.FromHex(string(req.Oldrev))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not parse oldrev: %v", err)
 	}
@@ -163,7 +163,7 @@ func (s *Server) UserDeleteBranch(ctx context.Context, req *gitalypb.UserDeleteB
 		return nil, helper.ErrFailedPreconditionf("branch not found: %q", req.BranchName)
 	}
 
-	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, nil, referenceName, git.ZeroOID, referenceValue); err != nil {
+	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, nil, referenceName, git.ObjectHashSHA1.ZeroOID, referenceValue); err != nil {
 		var notAllowedError hook.NotAllowedError
 		var customHookErr updateref.CustomHookError
 		var updateRefError updateref.Error

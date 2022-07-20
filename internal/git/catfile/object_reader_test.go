@@ -24,7 +24,7 @@ func TestObjectReader_reader(t *testing.T) {
 
 	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 
-	commitID, err := git.NewObjectIDFromHex(text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/master")))
+	commitID, err := git.ObjectHashSHA1.FromHex(text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/master")))
 	require.NoError(t, err)
 	commitContents := gittest.Exec(t, cfg, "-C", repoPath, "cat-file", "-p", "refs/heads/master")
 

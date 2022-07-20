@@ -34,7 +34,7 @@ func (s *Server) UserDeleteTag(ctx context.Context, req *gitalypb.UserDeleteTagR
 		return nil, status.Errorf(codes.FailedPrecondition, "tag not found: %s", req.TagName)
 	}
 
-	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, nil, referenceName, git.ZeroOID, revision); err != nil {
+	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, nil, referenceName, git.ObjectHashSHA1.ZeroOID, revision); err != nil {
 		var customHookErr updateref.CustomHookError
 		if errors.As(err, &customHookErr) {
 			return &gitalypb.UserDeleteTagResponse{
@@ -110,7 +110,7 @@ func (s *Server) UserCreateTag(ctx context.Context, req *gitalypb.UserCreateTagR
 	}
 
 	referenceName := git.ReferenceName(fmt.Sprintf("refs/tags/%s", req.TagName))
-	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, quarantineDir, referenceName, tagID, git.ZeroOID); err != nil {
+	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, quarantineDir, referenceName, tagID, git.ObjectHashSHA1.ZeroOID); err != nil {
 		var customHookErrr updateref.CustomHookError
 		if errors.As(err, &customHookErrr) {
 			return &gitalypb.UserCreateTagResponse{

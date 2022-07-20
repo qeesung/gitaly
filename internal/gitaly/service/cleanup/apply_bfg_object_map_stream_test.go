@@ -57,10 +57,10 @@ func TestApplyBfgObjectMapStreamSuccess(t *testing.T) {
 	const filterRepoCommitMapHeader = "old                                      new\n"
 	objectMapData := fmt.Sprintf(
 		filterRepoCommitMapHeader+strings.Repeat("%s %s\n", 5),
-		headCommit.Id, git.ZeroOID.String(),
-		git.ZeroOID.String(), blobID,
-		git.ZeroOID.String(), tagID,
-		blobID, git.ZeroOID.String(),
+		headCommit.Id, git.ObjectHashSHA1.ZeroOID.String(),
+		git.ObjectHashSHA1.ZeroOID.String(), blobID,
+		git.ObjectHashSHA1.ZeroOID.String(), tagID,
+		blobID, git.ObjectHashSHA1.ZeroOID.String(),
 		tagID, tagID,
 	)
 
@@ -90,10 +90,10 @@ func TestApplyBfgObjectMapStreamSuccess(t *testing.T) {
 
 	// Ensure that the returned entry is correct
 	require.Len(t, entries, 4, "wrong number of entries returned")
-	requireEntry(t, entries[0], headCommit.Id, git.ZeroOID.String(), gitalypb.ObjectType_COMMIT)
-	requireEntry(t, entries[1], git.ZeroOID.String(), blobID, gitalypb.ObjectType_BLOB)
-	requireEntry(t, entries[2], git.ZeroOID.String(), tagID, gitalypb.ObjectType_TAG)
-	requireEntry(t, entries[3], blobID, git.ZeroOID.String(), gitalypb.ObjectType_UNKNOWN)
+	requireEntry(t, entries[0], headCommit.Id, git.ObjectHashSHA1.ZeroOID.String(), gitalypb.ObjectType_COMMIT)
+	requireEntry(t, entries[1], git.ObjectHashSHA1.ZeroOID.String(), blobID, gitalypb.ObjectType_BLOB)
+	requireEntry(t, entries[2], git.ObjectHashSHA1.ZeroOID.String(), tagID, gitalypb.ObjectType_TAG)
+	requireEntry(t, entries[3], blobID, git.ObjectHashSHA1.ZeroOID.String(), gitalypb.ObjectType_UNKNOWN)
 }
 
 func requireEntry(t *testing.T, entry *gitalypb.ApplyBfgObjectMapStreamResponse_Entry, oldOid, newOid string, objectType gitalypb.ObjectType) {

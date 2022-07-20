@@ -96,7 +96,7 @@ func testRepositoryHasBranches(t *testing.T, cfg config.Cfg, getRepository GetRe
 
 	repo, repoPath := getRepository(ctx, t, false)
 
-	emptyCommit := text.ChompBytes(Exec(t, cfg, "-C", repoPath, "commit-tree", git.EmptyTreeOID.String()))
+	emptyCommit := text.ChompBytes(Exec(t, cfg, "-C", repoPath, "commit-tree", git.ObjectHashSHA1.EmptyTreeOID.String()))
 
 	Exec(t, cfg, "-C", repoPath, "update-ref", "refs/headsbranch", emptyCommit)
 

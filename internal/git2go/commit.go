@@ -80,7 +80,7 @@ func (b *Executor) Commit(ctx context.Context, repo repository.GitRepo, params C
 		return "", result.Err
 	}
 
-	commitID, err := git.NewObjectIDFromHex(result.CommitID)
+	commitID, err := git.ObjectHashSHA1.FromHex(result.CommitID)
 	if err != nil {
 		return "", fmt.Errorf("could not parse commit ID: %w", err)
 	}

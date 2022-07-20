@@ -198,12 +198,12 @@ func (b Blackbox) push(probe Probe) error {
 
 	commands := make([]stats.PushCommand, len(probe.Push.Commands))
 	for i, command := range probe.Push.Commands {
-		oldOID, err := git.NewObjectIDFromHex(command.OldOID)
+		oldOID, err := git.ObjectHashSHA1.FromHex(command.OldOID)
 		if err != nil {
 			return fmt.Errorf("invalid old object ID for probe %q: %w", probe.Name, err)
 		}
 
-		newOID, err := git.NewObjectIDFromHex(command.NewOID)
+		newOID, err := git.ObjectHashSHA1.FromHex(command.NewOID)
 		if err != nil {
 			return fmt.Errorf("invalid new object ID for probe %q: %w", probe.Name, err)
 		}

@@ -18,7 +18,7 @@ func WriteRef(t testing.TB, cfg config.Cfg, repoPath string, ref git.ReferenceNa
 func ResolveRevision(t testing.TB, cfg config.Cfg, repoPath string, revision string) git.ObjectID {
 	t.Helper()
 	output := Exec(t, cfg, "-C", repoPath, "rev-parse", "--verify", revision)
-	objectID, err := git.NewObjectIDFromHex(text.ChompBytes(output))
+	objectID, err := DefaultObjectHash.FromHex(text.ChompBytes(output))
 	require.NoError(t, err)
 	return objectID
 }

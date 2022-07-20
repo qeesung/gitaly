@@ -261,7 +261,7 @@ func TestUserCreateBranch_startPoint(t *testing.T) {
 		t.Run(testCase.desc, func(t *testing.T) {
 			gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/"+testCase.startPoint,
 				testCase.startPointCommit,
-				git.ZeroOID.String(),
+				git.ObjectHashSHA1.ZeroOID.String(),
 			)
 			request := &gitalypb.UserCreateBranchRequest{
 				Repository: repoProto,
@@ -466,7 +466,7 @@ func TestUserDeleteBranch_allowed(t *testing.T) {
 							UserId:       "user-123",
 							ErrorMessage: "something something",
 							Changes: []byte(fmt.Sprintf(
-								"%s %s refs/heads/branch\n", "549090fbeacc6607bc70648d3ba554c355e670c5", git.ZeroOID,
+								"%s %s refs/heads/branch\n", "549090fbeacc6607bc70648d3ba554c355e670c5", git.ObjectHashSHA1.ZeroOID,
 							)),
 						},
 					},
@@ -487,7 +487,7 @@ func TestUserDeleteBranch_allowed(t *testing.T) {
 							UserId:       "user-123",
 							ErrorMessage: "something else",
 							Changes: []byte(fmt.Sprintf(
-								"%s %s refs/heads/branch\n", "549090fbeacc6607bc70648d3ba554c355e670c5", git.ZeroOID,
+								"%s %s refs/heads/branch\n", "549090fbeacc6607bc70648d3ba554c355e670c5", git.ObjectHashSHA1.ZeroOID,
 							)),
 						},
 					},
@@ -545,7 +545,7 @@ func TestUserDeleteBranch_concurrentUpdate(t *testing.T) {
 			Error: &gitalypb.UserDeleteBranchError_ReferenceUpdate{
 				ReferenceUpdate: &gitalypb.ReferenceUpdateError{
 					OldOid:        commitID.String(),
-					NewOid:        git.ZeroOID.String(),
+					NewOid:        git.ObjectHashSHA1.ZeroOID.String(),
 					ReferenceName: []byte("refs/heads/concurrent-update"),
 				},
 			},

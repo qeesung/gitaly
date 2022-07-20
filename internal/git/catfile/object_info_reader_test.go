@@ -92,7 +92,7 @@ func TestObjectInfoReader(t *testing.T) {
 		"refs/tags/v1.1.1",
 	} {
 		revParseOutput := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", revision)
-		objectID, err := git.NewObjectIDFromHex(text.ChompBytes(revParseOutput))
+		objectID, err := git.ObjectHashSHA1.FromHex(text.ChompBytes(revParseOutput))
 		require.NoError(t, err)
 
 		objectType := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "cat-file", "-t", revision))

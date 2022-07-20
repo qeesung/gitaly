@@ -164,10 +164,10 @@ func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
 	require.NoError(t, err)
 
 	refsVote := voting.VoteFromData([]byte(strings.Join([]string{
-		fmt.Sprintf("%s %s refs/keep-around/2", git.ZeroOID, masterOID),
-		fmt.Sprintf("%s %s refs/keep-around/1", git.ZeroOID, masterOID),
-		fmt.Sprintf("%s %s refs/heads/feature", git.ZeroOID, featureOID),
-		fmt.Sprintf("%s %s refs/heads/master", git.ZeroOID, masterOID),
+		fmt.Sprintf("%s %s refs/keep-around/2", git.ObjectHashSHA1.ZeroOID, masterOID),
+		fmt.Sprintf("%s %s refs/keep-around/1", git.ObjectHashSHA1.ZeroOID, masterOID),
+		fmt.Sprintf("%s %s refs/heads/feature", git.ObjectHashSHA1.ZeroOID, featureOID),
+		fmt.Sprintf("%s %s refs/heads/master", git.ObjectHashSHA1.ZeroOID, masterOID),
 	}, "\n") + "\n"))
 
 	// Compute the second vote hash to assert that we really hash exactly the files that we

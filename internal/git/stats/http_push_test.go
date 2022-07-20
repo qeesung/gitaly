@@ -51,7 +51,7 @@ func TestPerformHTTPPush(t *testing.T) {
 				)
 
 				return []PushCommand{
-					{OldOID: git.ZeroOID, NewOID: commit, Reference: "refs/heads/foobar"},
+					{OldOID: git.ObjectHashSHA1.ZeroOID, NewOID: commit, Reference: "refs/heads/foobar"},
 				}, bytes.NewReader(pack)
 			},
 			expectedTimings: []string{
@@ -84,7 +84,7 @@ func TestPerformHTTPPush(t *testing.T) {
 					commit := gittest.WriteCommit(t, cfg, repoPath)
 					commits[i] = commit.String()
 					commands[i] = PushCommand{
-						OldOID:    git.ZeroOID,
+						OldOID:    git.ObjectHashSHA1.ZeroOID,
 						NewOID:    commit,
 						Reference: git.ReferenceName(fmt.Sprintf("refs/heads/branch-%d", i)),
 					}
@@ -123,7 +123,7 @@ func TestPerformHTTPPush(t *testing.T) {
 				oldOID := git.ObjectID(text.ChompBytes(commit))
 
 				return []PushCommand{
-					{OldOID: oldOID, NewOID: git.ZeroOID, Reference: "refs/heads/feature"},
+					{OldOID: oldOID, NewOID: git.ObjectHashSHA1.ZeroOID, Reference: "refs/heads/feature"},
 				}, nil
 			},
 			expectedTimings: []string{
@@ -151,7 +151,7 @@ func TestPerformHTTPPush(t *testing.T) {
 				oldOID := git.ObjectID(strings.Repeat("1", 40))
 
 				return []PushCommand{
-					{OldOID: oldOID, NewOID: git.ZeroOID, Reference: "refs/heads/master"},
+					{OldOID: oldOID, NewOID: git.ObjectHashSHA1.ZeroOID, Reference: "refs/heads/master"},
 				}, nil
 			},
 			expectedErr: fmt.Errorf("parsing packfile response: %w",
