@@ -151,7 +151,11 @@ func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, st
 
 	if err := cmd.Wait(); err != nil {
 		status, _ := command.ExitStatus(err)
-		return status, fmt.Errorf("cmd wait: %w, stderr: %q", err, stderrBuilder.String())
+		err = fmt.Errorf("cmd wait: %w, stderr: %q", err, stderrBuilder.String())
+		if strings.Contains(stderrBuilder.String(), "fatal: the remote end hung up unexpectedly") {
+			err = helper.ErrCanceled(err)
+		}
+		return status, err
 	}
 
 	ctxlogrus.Extract(ctx).WithField("response_bytes", stdoutCounter.N).Info("request details")
