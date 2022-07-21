@@ -102,7 +102,7 @@ func assertContainsLocalBranch(t *testing.T, branches []*gitalypb.FindLocalBranc
 			}
 
 			testhelper.ProtoEqual(t, branch.Commit, b.Commit)
-			return // Found the branch and it maches. Success!
+			return // Found the branch and it matches. Success!
 		}
 	}
 	t.Errorf("Expected to find branch %q in local branches", branch.Name)
@@ -129,7 +129,7 @@ func assertContainsBranch(t *testing.T, branches []*gitalypb.FindAllBranchesResp
 	for _, b := range branches {
 		if bytes.Equal(branch.Name, b.Name) {
 			testhelper.ProtoEqual(t, b.Target, branch.Target)
-			return // Found the branch and it maches. Success!
+			return // Found the branch and it matches. Success!
 		}
 		branchNames = append(branchNames, b.Name)
 	}

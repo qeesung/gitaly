@@ -44,7 +44,7 @@ func TestWalkRepos(t *testing.T) {
 	storageRoot := cfg.Storages[0].Path
 
 	// file walk happens lexicographically, so we delete repository in the middle
-	// of the seqeuence to ensure the walk proceeds normally
+	// of the sequence to ensure the walk proceeds normally
 	testRepo1, testRepo1Path := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
 		RelativePath: "a",
 	})

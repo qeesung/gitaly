@@ -215,7 +215,7 @@ func TestUserRebaseConfirmable_transaction(t *testing.T) {
 		expectPreReceiveHook bool
 	}{
 		{
-			desc:                 "non-transactonal does not vote but executes hook",
+			desc:                 "non-transactional does not vote but executes hook",
 			expectedVotes:        0,
 			expectPreReceiveHook: true,
 		},

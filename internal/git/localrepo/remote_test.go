@@ -70,7 +70,7 @@ func TestRepo_FetchRemote(t *testing.T) {
 		var stderr bytes.Buffer
 		require.NoError(t, repo.FetchRemote(ctx, "origin", FetchOpts{Stderr: &stderr}))
 
-		require.Empty(t, stderr.String(), "it should not produce output as it is called with --quite flag by default")
+		require.Empty(t, stderr.String(), "it should not produce output as it is called with --quiet flag by default")
 
 		refs, err := repo.GetReferences(ctx)
 		require.NoError(t, err)
@@ -215,7 +215,7 @@ func TestRepo_FetchRemote(t *testing.T) {
 }
 
 // captureGitSSHCommand creates a new intercepting command factory which captures the
-// GIT_SSH_COMMAND environment variable. The returned function can be used to read the variables's
+// GIT_SSH_COMMAND environment variable. The returned function can be used to read the variable's
 // value.
 func captureGitSSHCommand(ctx context.Context, t testing.TB, cfg config.Cfg) (git.CommandFactory, func() ([]byte, error)) {
 	envPath := filepath.Join(testhelper.TempDir(t), "GIT_SSH_PATH")
@@ -259,7 +259,7 @@ func TestRepo_Push(t *testing.T) {
 		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 		repo := New(locator, gitCmdFactory, catfileCache, repoProto)
 
-		// set up master as a divergin ref in push repo
+		// set up master as a diverging ref in push repo
 		sourceMaster, err := sourceRepo.GetReference(ctx, "refs/heads/master")
 		require.NoError(t, err)
 

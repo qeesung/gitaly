@@ -10,7 +10,7 @@ import (
 )
 
 // clone a repository to a pool, without setting the alternates, is not the
-// resposibility of this function.
+// responsibility of this function.
 func (o *ObjectPool) clone(ctx context.Context, repo *localrepo.Repo) error {
 	repoPath, err := repo.Path()
 	if err != nil {

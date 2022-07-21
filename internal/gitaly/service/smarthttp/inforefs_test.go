@@ -359,7 +359,7 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 	rpcRequest := &gitalypb.InfoRefsRequest{Repository: repo}
 
 	// The key computed for the cache entry takes into account all feature flags. Because
-	// Praefect explicitly injects all unset feature flags, the key is thus differend depending
+	// Praefect explicitly injects all unset feature flags, the key is thus different depending
 	// on whether Praefect is in use or not. We thus manually inject all feature flags here such
 	// that they're forced to the same state.
 	for _, ff := range featureflag.DefinedFlags() {

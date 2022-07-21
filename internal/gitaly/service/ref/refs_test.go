@@ -855,7 +855,7 @@ func TestListBranchNamesContainingCommit(t *testing.T) {
 		},
 		{
 			// gitlab-test contains a branch refs/heads/1942eed5cc108b19c7405106e81fa96125d0be22
-			// which is in conflift with a commit with the same ID
+			// which is in conflict with a commit with the same ID
 			description: "branch name is also commit id",
 			commitID:    "1942eed5cc108b19c7405106e81fa96125d0be22",
 			code:        codes.OK,

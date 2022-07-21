@@ -70,7 +70,7 @@ func validateUserSquashRequest(req *gitalypb.UserSquashRequest) error {
 	}
 
 	if len(req.GetAuthor().GetEmail()) == 0 {
-		return errors.New("empty auithor email")
+		return errors.New("empty author email")
 	}
 
 	return nil

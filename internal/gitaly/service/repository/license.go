@@ -98,7 +98,7 @@ func (f *gitFiler) ReadFile(path string) ([]byte, error) {
 	// readme files as defined in licensedb.Detect:
 	// https://github.com/go-enry/go-license-detector/blob/4f2ca6af2ab943d9b5fa3a02782eebc06f79a5f4/licensedb/internal/investigation.go#L61
 	//
-	// This doesn't filter out the possible license files identified from the readme files which may infact not
+	// This doesn't filter out the possible license files identified from the readme files which may in fact not
 	// be licenses.
 	if !f.foundLicense {
 		f.foundLicense = !readmeRegexp.MatchString(strings.ToLower(path))
