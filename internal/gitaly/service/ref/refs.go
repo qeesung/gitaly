@@ -257,7 +257,7 @@ func (s *server) findTag(ctx context.Context, repo git.RepositoryExecutor, tagNa
 			return nil, err
 		}
 	} else {
-		return nil, helper.ErrNotFoundf("no tag found")
+		return nil, errors.New("no tag found")
 	}
 
 	if err = tagCmd.Wait(); err != nil {

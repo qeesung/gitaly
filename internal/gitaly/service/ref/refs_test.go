@@ -1212,15 +1212,3 @@ func TestInvalidFindTagRequest(t *testing.T) {
 		})
 	}
 }
-
-func TestNotFoundFindTagRequest(t *testing.T) {
-	t.Parallel()
-
-	ctx := testhelper.Context(t)
-	_, repoProto, _, client := setupRefService(ctx, t)
-
-	rpcRequest := &gitalypb.FindTagRequest{Repository: repoProto, TagName: []byte("not-found")}
-
-	_, err := client.FindTag(ctx, rpcRequest)
-	testhelper.RequireGrpcError(t, err, helper.ErrNotFoundf("no tag found"))
-}
