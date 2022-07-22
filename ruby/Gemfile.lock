@@ -2,9 +2,9 @@ GEM
   remote: https://rubygems.org/
   specs:
     abstract_type (0.0.7)
-    actionpack (6.1.4.7)
-      actionview (= 6.1.4.7)
-      activesupport (= 6.1.4.7)
+    actionpack (6.1.5.1)
+      actionview (= 6.1.5.1)
+      activesupport (= 6.1.5.1)
       rack (~> 2.0, >= 2.0.9)
       rack-test (>= 0.6.3)
       rails-dom-testing (~> 2.0)
