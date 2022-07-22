@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
@@ -105,6 +106,88 @@ func TestReplicateRepository(t *testing.T) {
 
 	// if an unreachable object has been replicated, that means snapshot replication was used
 	gittest.Exec(t, cfg, "-C", targetRepoPath, "cat-file", "-p", blobID)
+}
+
+func TestReplicateRepository_hiddenRefs(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages("default", "replica"))
+	cfg := cfgBuilder.Build(t)
+
+	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(t, cfg)
+
+	client, serverSocketPath := runRepositoryService(t, cfg, nil, testserver.WithDisablePraefect())
+	cfg.SocketPath = serverSocketPath
+
+	ctx = testhelper.MergeOutgoingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
+
+	t.Run("initial seeding", func(t *testing.T) {
+		sourceRepo, sourceRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+		// Create a bunch of internal references, regardless of whether we classify them as hidden
+		// or read-only. We should be able to replicate all of them.
+		var expectedRefs []string
+		for refPrefix := range git.InternalRefPrefixes {
+			commitID := gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithParents(), gittest.WithMessage(refPrefix))
+			gittest.Exec(t, cfg, "-C", sourceRepoPath, "update-ref", refPrefix+"1", commitID.String())
+			expectedRefs = append(expectedRefs, fmt.Sprintf("%s commit\t%s", commitID, refPrefix+"1"))
+		}
+
+		targetRepo := proto.Clone(sourceRepo).(*gitalypb.Repository)
+		targetRepo.StorageName = cfg.Storages[1].Name
+		targetRepoPath := filepath.Join(cfg.Storages[1].Path, targetRepo.GetRelativePath())
+
+		_, err := client.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
+			Repository: targetRepo,
+			Source:     sourceRepo,
+		})
+		require.NoError(t, err)
+
+		require.ElementsMatch(t, expectedRefs, strings.Split(text.ChompBytes(gittest.Exec(t, cfg, "-C", targetRepoPath, "for-each-ref")), "\n"))
+
+		// Perform another sanity-check to verify that source and target repository have the
+		// same references now.
+		require.Equal(t,
+			text.ChompBytes(gittest.Exec(t, cfg, "-C", sourceRepoPath, "for-each-ref")),
+			text.ChompBytes(gittest.Exec(t, cfg, "-C", targetRepoPath, "for-each-ref")),
+		)
+	})
+
+	t.Run("incremental replication", func(t *testing.T) {
+		sourceRepo, sourceRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		targetRepo, targetRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[1], gittest.InitRepoOpts{
+			WithRelativePath: sourceRepo.GetRelativePath(),
+		})
+
+		// Create the same commit in both repositories so that they're in a known-good
+		// state.
+		sourceCommitID := gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithParents(), gittest.WithMessage("base"), gittest.WithBranch("main"))
+		targetCommitID := gittest.WriteCommit(t, cfg, targetRepoPath, gittest.WithParents(), gittest.WithMessage("base"), gittest.WithBranch("main"))
+		require.Equal(t, sourceCommitID, targetCommitID)
+
+		// Create the internal references now.
+		for refPrefix := range git.InternalRefPrefixes {
+			commitID := gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithParents(), gittest.WithMessage(refPrefix))
+			gittest.Exec(t, cfg, "-C", sourceRepoPath, "update-ref", refPrefix+"1", commitID.String())
+		}
+
+		// And now replicate the with the new internal references having been created.
+		// Because the target repository exists already we'll do a fetch instead of
+		// replicating via an archive.
+		_, err := client.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
+			Repository: targetRepo,
+			Source:     sourceRepo,
+		})
+		require.NoError(t, err)
+
+		// Verify that the references for both repositories match.
+		require.Equal(t,
+			text.ChompBytes(gittest.Exec(t, cfg, "-C", sourceRepoPath, "for-each-ref")),
+			text.ChompBytes(gittest.Exec(t, cfg, "-C", targetRepoPath, "for-each-ref")),
+		)
+	})
 }
 
 func TestReplicateRepositoryTransactional(t *testing.T) {

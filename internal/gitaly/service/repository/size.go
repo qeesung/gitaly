@@ -21,8 +21,8 @@ func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySize
 	var err error
 
 	var excludes []string
-	for _, prefix := range git.InternalRefPrefixes {
-		excludes = append(excludes, prefix+"*")
+	for refPrefix := range git.InternalRefPrefixes {
+		excludes = append(excludes, refPrefix+"*")
 	}
 
 	path, err := repo.Path()

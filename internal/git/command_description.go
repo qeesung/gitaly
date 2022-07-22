@@ -2,7 +2,6 @@ package git
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"runtime"
 	"strings"
@@ -299,12 +298,12 @@ var commandDescriptions = map[string]commandDescription{
 	},
 	"upload-pack": {
 		flags: scNoRefUpdates,
-		opts: append([]GlobalOption{
+		opts: append(append([]GlobalOption{
 			ConfigPair{Key: "uploadpack.allowFilter", Value: "true"},
 			// Enables the capability to request individual SHA1's from the
 			// remote repo.
 			ConfigPair{Key: "uploadpack.allowAnySHA1InWant", Value: "true"},
-		}, packConfiguration()...),
+		}, hiddenUploadPackRefPrefixes()...), packConfiguration()...),
 	},
 	"version": {
 		flags: scNoRefUpdates,
@@ -312,34 +311,6 @@ var commandDescriptions = map[string]commandDescription{
 	"worktree": {
 		flags: 0,
 	},
-}
-
-func init() {
-	// This is the poor-mans static assert that all internal ref prefixes are properly hidden
-	// from git-receive-pack(1) such that they cannot be written to when the user pushes.
-	receivePackDesc, ok := commandDescriptions["receive-pack"]
-	if !ok {
-		log.Fatal("could not find command description of git-receive-pack(1)")
-	}
-
-	hiddenRefs := map[string]bool{}
-	for _, opt := range receivePackDesc.opts {
-		configPair, ok := opt.(ConfigPair)
-		if !ok {
-			continue
-		}
-		if configPair.Key != "receive.hideRefs" {
-			continue
-		}
-
-		hiddenRefs[configPair.Value] = true
-	}
-
-	for _, internalRef := range InternalRefPrefixes {
-		if !hiddenRefs[internalRef] {
-			log.Fatalf("command description of receive-pack is missing hidden ref %q", internalRef)
-		}
-	}
 }
 
 // mayUpdateRef indicates if a command is known to update references.
@@ -404,13 +375,38 @@ func validatePositionalArg(arg string) error {
 }
 
 func hiddenReceivePackRefPrefixes() []GlobalOption {
-	var cps []GlobalOption
+	config := make([]GlobalOption, 0, len(InternalRefPrefixes))
 
-	for _, ns := range InternalRefPrefixes {
-		cps = append(cps, ConfigPair{Key: "receive.hideRefs", Value: ns})
+	for refPrefix, refType := range InternalRefPrefixes {
+		switch refType {
+		case InternalReferenceTypeReadonly, InternalReferenceTypeHidden:
+			// We want to hide both read-only and hidden refs in git-receive-pack(1) so
+			// that we make neither of them writeable.
+			config = append(config, ConfigPair{Key: "receive.hideRefs", Value: refPrefix})
+		default:
+			panic(fmt.Sprintf("unhandled internal reference type: %v", refType))
+		}
 	}
 
-	return cps
+	return config
+}
+
+func hiddenUploadPackRefPrefixes() []GlobalOption {
+	config := make([]GlobalOption, 0, len(InternalRefPrefixes))
+
+	for refPrefix, refType := range InternalRefPrefixes {
+		switch refType {
+		case InternalReferenceTypeHidden:
+			config = append(config, ConfigPair{Key: "uploadpack.hideRefs", Value: refPrefix})
+		case InternalReferenceTypeReadonly:
+			// git-upload-pack(1) doesn't allow writing references, and we do want to
+			// announce read-only references that aren't hidden.
+		default:
+			panic(fmt.Sprintf("unhandled internal reference type: %v", refType))
+		}
+	}
+
+	return config
 }
 
 // fsckConfiguration generates our fsck configuration, including ignored checks. The prefix must

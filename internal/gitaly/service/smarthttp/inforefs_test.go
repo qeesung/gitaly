@@ -35,25 +35,99 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestSuccessfulInfoRefsUploadPack(t *testing.T) {
+func TestInfoRefsUploadPack_successful(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
-
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
-
 	ctx := testhelper.Context(t)
-	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
+
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithParents())
+	tagID := gittest.WriteTag(t, cfg, repoPath, "v1.0.0", commitID.Revision(), gittest.WriteTagConfig{
+		Message: "annotated tag",
 	})
 
 	rpcRequest := &gitalypb.InfoRefsRequest{Repository: repo}
 	response, err := makeInfoRefsUploadPackRequest(ctx, t, cfg.SocketPath, cfg.Auth.Token, rpcRequest)
 	require.NoError(t, err)
-	assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response), "001e# service=git-upload-pack", "0000", []string{
-		"003ef4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8 refs/tags/v1.0.0",
-		"00416f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9 refs/tags/v1.0.0^{}",
+	requireAdvertisedRefs(t, string(response), "git-upload-pack", []string{
+		commitID.String() + " HEAD",
+		commitID.String() + " refs/heads/main\n",
+		tagID.String() + " refs/tags/v1.0.0\n",
+		commitID.String() + " refs/tags/v1.0.0^{}\n",
 	})
+}
+
+func TestInfoRefsUploadPack_internalRefs(t *testing.T) {
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+	cfg.SocketPath = runSmartHTTPServer(t, cfg)
+	ctx := testhelper.Context(t)
+
+	for _, tc := range []struct {
+		ref                    string
+		expectedAdvertisements []string
+	}{
+		{
+			ref: "refs/merge-requests/1/head",
+			expectedAdvertisements: []string{
+				"HEAD",
+				"refs/heads/main\n",
+				"refs/merge-requests/1/head\n",
+			},
+		},
+		{
+			ref: "refs/environments/1",
+			expectedAdvertisements: []string{
+				"HEAD",
+				"refs/environments/1\n",
+				"refs/heads/main\n",
+			},
+		},
+		{
+			ref: "refs/pipelines/1",
+			expectedAdvertisements: []string{
+				"HEAD",
+				"refs/heads/main\n",
+				"refs/pipelines/1\n",
+			},
+		},
+		{
+			ref: "refs/tmp/1",
+			expectedAdvertisements: []string{
+				"HEAD",
+				"refs/heads/main\n",
+			},
+		},
+		{
+			ref: "refs/keep-around/1",
+			expectedAdvertisements: []string{
+				"HEAD",
+				"refs/heads/main\n",
+			},
+		},
+	} {
+		t.Run(tc.ref, func(t *testing.T) {
+			repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+
+			commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithParents())
+			gittest.Exec(t, cfg, "-C", repoPath, "update-ref", tc.ref, commitID.String())
+
+			var expectedAdvertisements []string
+			for _, expectedRef := range tc.expectedAdvertisements {
+				expectedAdvertisements = append(expectedAdvertisements, commitID.String()+" "+expectedRef)
+			}
+
+			response, err := makeInfoRefsUploadPackRequest(ctx, t, cfg.SocketPath, cfg.Auth.Token, &gitalypb.InfoRefsRequest{
+				Repository: repo,
+			})
+			require.NoError(t, err)
+			requireAdvertisedRefs(t, string(response), "git-upload-pack", expectedAdvertisements)
+		})
+	}
 }
 
 func TestInfoRefsUploadPack_repositoryDoesntExist(t *testing.T) {
@@ -79,7 +153,7 @@ func TestInfoRefsUploadPack_repositoryDoesntExist(t *testing.T) {
 	testhelper.RequireGrpcError(t, expectedErr, err)
 }
 
-func TestSuccessfulInfoRefsUploadWithPartialClone(t *testing.T) {
+func TestInfoRefsUploadPack_partialClone(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -106,16 +180,16 @@ func TestSuccessfulInfoRefsUploadWithPartialClone(t *testing.T) {
 	}
 }
 
-func TestSuccessfulInfoRefsUploadPackWithGitConfigOptions(t *testing.T) {
+func TestInfoRefsUploadPack_gitConfigOptions(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
 
 	ctx := testhelper.Context(t)
-	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithParents())
 
 	// transfer.hideRefs=refs will hide every ref that info-refs would normally
 	// output, allowing us to test that the custom configuration is respected
@@ -125,10 +199,12 @@ func TestSuccessfulInfoRefsUploadPackWithGitConfigOptions(t *testing.T) {
 	}
 	response, err := makeInfoRefsUploadPackRequest(ctx, t, cfg.SocketPath, cfg.Auth.Token, rpcRequest)
 	require.NoError(t, err)
-	assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response), "001e# service=git-upload-pack", "0000", []string{})
+	requireAdvertisedRefs(t, string(response), "git-upload-pack", []string{
+		commitID.String() + " HEAD",
+	})
 }
 
-func TestSuccessfulInfoRefsUploadPackWithGitProtocol(t *testing.T) {
+func TestInfoRefsUploadPack_gitProtocol(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -186,30 +262,32 @@ func makeInfoRefsUploadPackRequest(ctx context.Context, t *testing.T, serverSock
 	return response, err
 }
 
-func TestSuccessfulInfoRefsReceivePack(t *testing.T) {
+func TestInfoRefsReceivePack_successful(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
-
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
-
 	ctx := testhelper.Context(t)
-	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
+
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithParents())
+	tagID := gittest.WriteTag(t, cfg, repoPath, "v1.0.0", commitID.Revision(), gittest.WriteTagConfig{
+		Message: "annotated tag",
 	})
 
-	rpcRequest := &gitalypb.InfoRefsRequest{Repository: repo}
-
-	response, err := makeInfoRefsReceivePackRequest(ctx, t, cfg.SocketPath, cfg.Auth.Token, rpcRequest)
+	response, err := makeInfoRefsReceivePackRequest(ctx, t, cfg.SocketPath, cfg.Auth.Token, &gitalypb.InfoRefsRequest{
+		Repository: repo,
+	})
 	require.NoError(t, err)
 
-	assertGitRefAdvertisement(t, "InfoRefsReceivePack", string(response), "001f# service=git-receive-pack", "0000", []string{
-		"003ef4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8 refs/tags/v1.0.0",
-		"003e8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b refs/tags/v1.1.0",
+	requireAdvertisedRefs(t, string(response), "git-receive-pack", []string{
+		commitID.String() + " refs/heads/main",
+		tagID.String() + " refs/tags/v1.0.0\n",
 	})
 }
 
-func TestObjectPoolRefAdvertisementHiding(t *testing.T) {
+func TestInfoRefsReceivePack_hiddenRefs(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -252,7 +330,7 @@ func TestObjectPoolRefAdvertisementHiding(t *testing.T) {
 	require.NotContains(t, string(response), commitID+" .have")
 }
 
-func TestFailureRepoNotFoundInfoRefsReceivePack(t *testing.T) {
+func TestInfoRefsReceivePack_repoNotFound(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -272,7 +350,7 @@ func TestFailureRepoNotFoundInfoRefsReceivePack(t *testing.T) {
 	testhelper.RequireGrpcError(t, expectedErr, err)
 }
 
-func TestFailureRepoNotSetInfoRefsReceivePack(t *testing.T) {
+func TestInfoRefsReceivePack_repoNotSet(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -304,23 +382,28 @@ func makeInfoRefsReceivePackRequest(ctx context.Context, t *testing.T, serverSoc
 	return response, err
 }
 
-func assertGitRefAdvertisement(t *testing.T, rpc, responseBody string, firstLine, lastLine string, middleLines []string) {
-	responseLines := strings.Split(responseBody, "\n")
+func requireAdvertisedRefs(t *testing.T, responseBody, expectedService string, expectedRefs []string) {
+	t.Helper()
 
-	if responseLines[0] != firstLine {
-		t.Errorf("%q: expected response first line to be %q, found %q", rpc, firstLine, responseLines[0])
+	responseLines := strings.SplitAfter(responseBody, "\n")
+	require.Greater(t, len(responseLines), 2)
+
+	for i, expectedRef := range expectedRefs {
+		expectedRefs[i] = gittest.Pktlinef(t, "%s", expectedRef)
 	}
 
-	lastIndex := len(responseLines) - 1
-	if responseLines[lastIndex] != lastLine {
-		t.Errorf("%q: expected response last line to be %q, found %q", rpc, lastLine, responseLines[lastIndex])
-	}
+	// The first line contains the service announcement.
+	require.Equal(t, gittest.Pktlinef(t, "# service=%s\n", expectedService), responseLines[0])
 
-	for _, ref := range middleLines {
-		if !strings.Contains(responseBody, ref) {
-			t.Errorf("%q: expected response to contain %q, found none", rpc, ref)
-		}
-	}
+	// The second line contains the first reference as well as the capability announcement. We
+	// thus split the string at "\x00" and ignore the capability announcement here.
+	refAndCapabilities := strings.SplitN(responseLines[1], "\x00", 2)
+	require.Len(t, refAndCapabilities, 2)
+	// We just replace the first advertised reference to make it easier to compare refs.
+	responseLines[1] = gittest.Pktlinef(t, "%s", refAndCapabilities[0][8:])
+
+	require.Equal(t, responseLines[1:len(responseLines)-1], expectedRefs)
+	require.Equal(t, "0000", responseLines[len(responseLines)-1])
 }
 
 type mockStreamer struct {
@@ -335,7 +418,7 @@ func (ms *mockStreamer) PutStream(ctx context.Context, repo *gitalypb.Repository
 	return ms.Streamer.PutStream(ctx, repo, req, src)
 }
 
-func TestCacheInfoRefsUploadPack(t *testing.T) {
+func TestInfoRefsUploadPack_cache(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -352,8 +435,12 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 	cfg.SocketPath = gitalyServer.Address()
 
 	ctx := testhelper.Context(t)
-	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
+
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithParents())
+	tagID := gittest.WriteTag(t, cfg, repoPath, "v1.0.0", commitID.Revision(), gittest.WriteTagConfig{
+		Message: "annotated tag",
 	})
 
 	rpcRequest := &gitalypb.InfoRefsRequest{Repository: repo}
@@ -371,13 +458,12 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 		response, err := makeInfoRefsUploadPackRequest(ctx, t, addr, cfg.Auth.Token, rpcRequest)
 		require.NoError(t, err)
 
-		assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response),
-			"001e# service=git-upload-pack", "0000",
-			[]string{
-				"003ef4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8 refs/tags/v1.0.0",
-				"00416f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9 refs/tags/v1.0.0^{}",
-			},
-		)
+		requireAdvertisedRefs(t, string(response), "git-upload-pack", []string{
+			commitID.String() + " HEAD",
+			commitID.String() + " refs/heads/main\n",
+			tagID.String() + " refs/tags/v1.0.0\n",
+			commitID.String() + " refs/tags/v1.0.0^{}\n",
+		})
 	}
 
 	assertNormalResponse(gitalyServer.Address())
@@ -395,9 +481,7 @@ func TestCacheInfoRefsUploadPack(t *testing.T) {
 	replaceCachedResponse(t, ctx, cache, rewrittenRequest, strings.Join(replacedContents, "\n"))
 	response, err := makeInfoRefsUploadPackRequest(ctx, t, gitalyServer.Address(), cfg.Auth.Token, rpcRequest)
 	require.NoError(t, err)
-	assertGitRefAdvertisement(t, "InfoRefsUploadPack", string(response),
-		replacedContents[0], replacedContents[3], replacedContents[1:3],
-	)
+	require.Equal(t, strings.Join(replacedContents, "\n"), string(response))
 
 	invalidateCacheForRepo := func() {
 		ender, err := cache.StartLease(rewrittenRequest.Repository)

@@ -124,10 +124,15 @@ func (c *Cleaner) processEntry(ctx context.Context, oldSHA, newSHA string) error
 // action). It is consulted once per line in the object map. Git is optimized
 // for ref -> SHA lookups, but we want the opposite!
 func buildLookupTable(ctx context.Context, repo git.RepositoryExecutor) (map[string][]git.ReferenceName, error) {
+	internalRefPrefixes := make([]string, 0, len(git.InternalRefPrefixes))
+	for refPrefix := range git.InternalRefPrefixes {
+		internalRefPrefixes = append(internalRefPrefixes, refPrefix)
+	}
+
 	cmd, err := repo.Exec(ctx, git.SubCmd{
 		Name:  "for-each-ref",
 		Flags: []git.Option{git.ValueFlag{Name: "--format", Value: "%(objectname) %(refname)"}},
-		Args:  git.InternalRefPrefixes[:],
+		Args:  internalRefPrefixes,
 	})
 	if err != nil {
 		return nil, err
