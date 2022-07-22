@@ -151,6 +151,20 @@ func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, st
 
 	if err := cmd.Wait(); err != nil {
 		status, _ := command.ExitStatus(err)
+
+		// A common error case is that the client is terminating the request prematurely,
+		// e.g. by killing their git-fetch(1) process because it's taking too long. This is
+		// an expected failure, but we're not in a position to easily tell this error apart
+		// from other errors returned by git-upload-pack(1). So we have to resort to parsing
+		// the error message returned by Git, and if we see that it matches we return an
+		// error with a `Canceled` error code.
+		//
+		// Note that we're being quite strict with how we match the error for now. We may
+		// have to make it more lenient in case we see that this doesn't catch all cases.
+		if stderrBuilder.String() == "fatal: the remote end hung up unexpectedly\n" {
+			return status, helper.ErrCanceledf("user canceled the fetch")
+		}
+
 		return status, fmt.Errorf("cmd wait: %w, stderr: %q", err, stderrBuilder.String())
 	}
 

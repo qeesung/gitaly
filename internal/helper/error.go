@@ -60,6 +60,12 @@ func wrapError(code codes.Code, err error) error {
 	return err
 }
 
+// ErrCanceledf wraps a formatted error with codes.Canceled, unless the formatted error is a
+// wrapped gRPC error.
+func ErrCanceledf(format string, a ...interface{}) error {
+	return formatError(codes.Canceled, format, a...)
+}
+
 // ErrInternalf wraps a formatted error with codes.Internal, unless the formatted error is a
 // wrapped gRPC error.
 func ErrInternalf(format string, a ...interface{}) error {

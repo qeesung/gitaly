@@ -54,6 +54,7 @@ func StartGitalyServer(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Serv
 
 	if !testhelper.IsPraefectEnabled() || disablePraefect {
 		return GitalyServer{
+			Server:   gitalySrv,
 			shutdown: gitalySrv.Stop,
 			address:  gitalyAddr,
 		}
@@ -61,6 +62,7 @@ func StartGitalyServer(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Serv
 
 	praefectServer := runPraefectProxy(t, cfg, gitalyAddr)
 	return GitalyServer{
+		Server: gitalySrv,
 		shutdown: func() {
 			praefectServer.Shutdown()
 			gitalySrv.Stop()
@@ -106,6 +108,7 @@ func runPraefectProxy(t testing.TB, gitalyCfg config.Cfg, gitalyAddr string) Pra
 // GitalyServer is a helper that carries additional info and
 // functionality about gitaly (+praefect) server.
 type GitalyServer struct {
+	Server   *grpc.Server
 	shutdown func()
 	address  string
 }

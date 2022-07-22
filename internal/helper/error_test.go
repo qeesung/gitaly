@@ -99,6 +99,11 @@ func TestErrorf(t *testing.T) {
 		expectedCode codes.Code
 	}{
 		{
+			desc:         "Canceledf",
+			errorf:       ErrCanceledf,
+			expectedCode: codes.Canceled,
+		},
+		{
 			desc:         "Internalf",
 			errorf:       ErrInternalf,
 			expectedCode: codes.Internal,

@@ -247,6 +247,42 @@ func TestUploadPackWithSidechannel_client(t *testing.T) {
 			),
 		},
 		{
+			desc: "request missing object",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository: repo,
+			},
+			client: func(clientConn *sidechannel.ClientConn, _ func()) error {
+				gittest.WritePktlineString(t, clientConn, "want "+strings.Repeat("1", 40)+" multi_ack\n")
+				gittest.WritePktlineFlush(t, clientConn)
+				gittest.WritePktlineString(t, clientConn, "done\n")
+
+				require.NoError(t, clientConn.CloseWrite())
+
+				return nil
+			},
+			expectedErr: helper.ErrInternalf("cmd wait: exit status 128, stderr: %q",
+				"fatal: git upload-pack: not our ref "+strings.Repeat("1", 40)+"\n",
+			),
+		},
+		{
+			desc: "request invalidly formatted object",
+			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
+				Repository: repo,
+			},
+			client: func(clientConn *sidechannel.ClientConn, _ func()) error {
+				gittest.WritePktlineString(t, clientConn, "want 1111 multi_ack\n")
+				gittest.WritePktlineFlush(t, clientConn)
+				gittest.WritePktlineString(t, clientConn, "done\n")
+
+				require.NoError(t, clientConn.CloseWrite())
+
+				return nil
+			},
+			expectedErr: helper.ErrInternalf("cmd wait: exit status 128, stderr: %q",
+				"fatal: git upload-pack: protocol error, expected to get object ID, not 'want 1111 multi_ack'\n",
+			),
+		},
+		{
 			desc: "missing input",
 			request: &gitalypb.SSHUploadPackWithSidechannelRequest{
 				Repository:  repo,
@@ -273,7 +309,7 @@ func TestUploadPackWithSidechannel_client(t *testing.T) {
 
 				return nil
 			},
-			expectedErr: helper.ErrInternalf("cmd wait: exit status 128, stderr: %q", "fatal: the remote end hung up unexpectedly\n"),
+			expectedErr: helper.ErrCanceledf("user canceled the fetch"),
 		},
 		{
 			desc: "garbage",
