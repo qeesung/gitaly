@@ -3,7 +3,6 @@
 package operations
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -17,7 +16,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/txinfo"
@@ -511,14 +509,8 @@ func TestUserRebaseConfirmable_abortViaApply(t *testing.T) {
 
 func TestUserRebaseConfirmable_preReceiveError(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserRebaseConfirmableImprovedErrorHandling).
-		Run(t, testUserRebaseConfirmablePreReceiveError)
-}
 
-func testUserRebaseConfirmablePreReceiveError(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
-	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, testhelper.Context(t))
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	repoCopyProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
@@ -549,24 +541,18 @@ func testUserRebaseConfirmablePreReceiveError(t *testing.T, ctx context.Context)
 			require.NoError(t, rebaseStream.Send(applyRequest), "apply rebase")
 
 			secondResponse, err := rebaseStream.Recv()
+			require.Nil(t, secondResponse)
 
-			if featureflag.UserRebaseConfirmableImprovedErrorHandling.IsEnabled(ctx) {
-				testhelper.RequireGrpcError(t, errWithDetails(t,
-					helper.ErrPermissionDeniedf(`access check: "running %s hooks: failure\n"`, hookName),
-					&gitalypb.UserRebaseConfirmableError{
-						Error: &gitalypb.UserRebaseConfirmableError_AccessCheck{
-							AccessCheck: &gitalypb.AccessCheckError{
-								ErrorMessage: "failure\n",
-							},
+			testhelper.RequireGrpcError(t, errWithDetails(t,
+				helper.ErrPermissionDeniedf(`access check: "running %s hooks: failure\n"`, hookName),
+				&gitalypb.UserRebaseConfirmableError{
+					Error: &gitalypb.UserRebaseConfirmableError_AccessCheck{
+						AccessCheck: &gitalypb.AccessCheckError{
+							ErrorMessage: "failure\n",
 						},
 					},
-				), err)
-			} else {
-				require.NoError(t, err, "receive second response")
-				require.Contains(t, secondResponse.PreReceiveError, "failure")
-				_, err = rebaseStream.Recv()
-				require.Equal(t, io.EOF, err)
-			}
+				},
+			), err)
 
 			_, err = repo.ReadCommit(ctx, git.Revision(firstResponse.GetRebaseSha()))
 			if hookName == "pre-receive" {
@@ -584,14 +570,8 @@ func testUserRebaseConfirmablePreReceiveError(t *testing.T, ctx context.Context)
 
 func TestUserRebaseConfirmable_gitError(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserRebaseConfirmableImprovedErrorHandling).
-		Run(t, testFailedUserRebaseConfirmableDueToGitError)
-}
 
-func testFailedUserRebaseConfirmableDueToGitError(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
-	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, testhelper.Context(t))
 
 	repoCopyProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
@@ -608,31 +588,24 @@ func testFailedUserRebaseConfirmableDueToGitError(t *testing.T, ctx context.Cont
 
 	require.NoError(t, rebaseStream.Send(headerRequest), "send header")
 
-	firstResponse, err := rebaseStream.Recv()
-	if featureflag.UserRebaseConfirmableImprovedErrorHandling.IsEnabled(ctx) {
-		testhelper.RequireGrpcError(t, errWithDetails(t,
-			helper.ErrFailedPrecondition(errors.New(`rebasing commits: rebase: commit "eb8f5fb9523b868cef583e09d4bf70b99d2dd404": there are conflicting files`)),
-			&gitalypb.UserRebaseConfirmableError{
-				Error: &gitalypb.UserRebaseConfirmableError_RebaseConflict{
-					RebaseConflict: &gitalypb.MergeConflictError{
-						ConflictingFiles: [][]byte{
-							[]byte("README.md"),
-						},
-						ConflictingCommitIds: []string{
-							sourceBranchCommitID.String(),
-							targetBranchCommitID.String(),
-						},
+	response, err := rebaseStream.Recv()
+	require.Nil(t, response)
+	testhelper.RequireGrpcError(t, errWithDetails(t,
+		helper.ErrFailedPrecondition(errors.New(`rebasing commits: rebase: commit "eb8f5fb9523b868cef583e09d4bf70b99d2dd404": there are conflicting files`)),
+		&gitalypb.UserRebaseConfirmableError{
+			Error: &gitalypb.UserRebaseConfirmableError_RebaseConflict{
+				RebaseConflict: &gitalypb.MergeConflictError{
+					ConflictingFiles: [][]byte{
+						[]byte("README.md"),
+					},
+					ConflictingCommitIds: []string{
+						sourceBranchCommitID.String(),
+						targetBranchCommitID.String(),
 					},
 				},
 			},
-		), err)
-	} else {
-		require.NoError(t, err, "receive first response")
-		require.Contains(t, firstResponse.GitError, "conflict")
-
-		_, err = rebaseStream.Recv()
-		require.Equal(t, io.EOF, err)
-	}
+		},
+	), err)
 
 	newBranchCommitID := gittest.ResolveRevision(t, cfg, repoPath, targetBranch)
 	require.Equal(t, targetBranchCommitID, newBranchCommitID, "branch should not change when the rebase fails due to GitError")

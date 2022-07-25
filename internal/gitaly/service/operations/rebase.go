@@ -9,7 +9,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -68,41 +67,35 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 		SkipEmptyCommits: true,
 	})
 	if err != nil {
-		if featureflag.UserRebaseConfirmableImprovedErrorHandling.IsEnabled(ctx) {
-			var conflictErr git2go.ConflictingFilesError
-			if errors.As(err, &conflictErr) {
-				conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
-				for _, conflictingFile := range conflictErr.ConflictingFiles {
-					conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
-				}
+		var conflictErr git2go.ConflictingFilesError
+		if errors.As(err, &conflictErr) {
+			conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFiles))
+			for _, conflictingFile := range conflictErr.ConflictingFiles {
+				conflictingFiles = append(conflictingFiles, []byte(conflictingFile))
+			}
 
-				detailedErr, err := helper.ErrWithDetails(
-					helper.ErrFailedPreconditionf("rebasing commits: %w", err),
-					&gitalypb.UserRebaseConfirmableError{
-						Error: &gitalypb.UserRebaseConfirmableError_RebaseConflict{
-							RebaseConflict: &gitalypb.MergeConflictError{
-								ConflictingFiles: conflictingFiles,
-								ConflictingCommitIds: []string{
-									startRevision.String(),
-									oldrev.String(),
-								},
+			detailedErr, err := helper.ErrWithDetails(
+				helper.ErrFailedPreconditionf("rebasing commits: %w", err),
+				&gitalypb.UserRebaseConfirmableError{
+					Error: &gitalypb.UserRebaseConfirmableError_RebaseConflict{
+						RebaseConflict: &gitalypb.MergeConflictError{
+							ConflictingFiles: conflictingFiles,
+							ConflictingCommitIds: []string{
+								startRevision.String(),
+								oldrev.String(),
 							},
 						},
 					},
-				)
-				if err != nil {
-					return helper.ErrInternalf("error details: %w", err)
-				}
-
-				return detailedErr
+				},
+			)
+			if err != nil {
+				return helper.ErrInternalf("error details: %w", err)
 			}
 
-			return helper.ErrInternalf("rebasing commits: %w", err)
+			return detailedErr
 		}
 
-		return stream.Send(&gitalypb.UserRebaseConfirmableResponse{
-			GitError: err.Error(),
-		})
+		return helper.ErrInternalf("rebasing commits: %w", err)
 	}
 
 	if err := stream.Send(&gitalypb.UserRebaseConfirmableResponse{
@@ -135,25 +128,20 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 		var customHookErr updateref.CustomHookError
 		switch {
 		case errors.As(err, &customHookErr):
-			if featureflag.UserRebaseConfirmableImprovedErrorHandling.IsEnabled(ctx) {
-				detailedErr, err := helper.ErrWithDetails(
-					helper.ErrPermissionDeniedf("access check: %q", err),
-					&gitalypb.UserRebaseConfirmableError{
-						Error: &gitalypb.UserRebaseConfirmableError_AccessCheck{
-							AccessCheck: &gitalypb.AccessCheckError{
-								ErrorMessage: customHookErr.Error(),
-							},
+			detailedErr, err := helper.ErrWithDetails(
+				helper.ErrPermissionDeniedf("access check: %q", err),
+				&gitalypb.UserRebaseConfirmableError{
+					Error: &gitalypb.UserRebaseConfirmableError_AccessCheck{
+						AccessCheck: &gitalypb.AccessCheckError{
+							ErrorMessage: customHookErr.Error(),
 						},
 					},
-				)
-				if err != nil {
-					return helper.ErrInternalf("error details: %w", err)
-				}
-				return detailedErr
+				},
+			)
+			if err != nil {
+				return helper.ErrInternalf("error details: %w", err)
 			}
-			return stream.Send(&gitalypb.UserRebaseConfirmableResponse{
-				PreReceiveError: err.Error(),
-			})
+			return detailedErr
 		case errors.Is(err, git2go.ErrInvalidArgument):
 			return fmt.Errorf("update ref: %w", err)
 		}
