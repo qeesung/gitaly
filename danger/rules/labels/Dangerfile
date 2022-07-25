@@ -17,4 +17,4 @@ def inherited_labels
     .select { |label| INHERITABLE_LABELS.include?(label) }
 end
 
-helper.labels_to_add.concat(%w[devops::create] | inherited_labels)
+helper.labels_to_add.concat(%w[devops::systems] | inherited_labels)
