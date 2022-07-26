@@ -25,7 +25,7 @@ func (err errString) Error() string { return string(err) }
 // ErrInvalidPoolDir is returned when the object pool relative path is malformed.
 const ErrInvalidPoolDir errString = "invalid object pool directory"
 
-// ObjectPool are a way to dedup objects between repositories, where the objects
+// ObjectPool are a way to de-dupe objects between repositories, where the objects
 // live in a pool in a distinct repository which is used as an alternate object
 // store for other repositories.
 type ObjectPool struct {
@@ -128,7 +128,7 @@ func (o *ObjectPool) Remove(ctx context.Context) (err error) {
 	return os.RemoveAll(o.FullPath())
 }
 
-// Init will intiailize an empty pool repository
+// Init will initialize an empty pool repository
 // if one already exists, it will do nothing
 func (o *ObjectPool) Init(ctx context.Context) (err error) {
 	targetDir := o.FullPath()

@@ -102,7 +102,7 @@ func (c *ConcurrencyTracker) finish(keyType, compositeKey string) {
 }
 
 // Collect allows ConcurrencyTracker to adhere to the prometheus.Collector
-// interface for collecing metrics.
+// interface for collecting metrics.
 func (c *ConcurrencyTracker) Collect(ch chan<- prometheus.Metric) {
 	c.currentCallersVec.Collect(ch)
 	c.totalCallersVec.Collect(ch)

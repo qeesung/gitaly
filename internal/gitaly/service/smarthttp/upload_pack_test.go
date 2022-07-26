@@ -479,7 +479,7 @@ func testServerPostUploadPackPartialClone(t *testing.T, ctx context.Context, mak
 	// a4a132b1b0d6720ca9254440a7ba8a6b9bbd69ec is README.md, which is a small file
 	blobLessThanLimit := git.ObjectID("a4a132b1b0d6720ca9254440a7ba8a6b9bbd69ec")
 
-	// c1788657b95998a2f177a4f86d68a60f2a80117f is CONTRIBUTING.md, which is > 200 bytese
+	// c1788657b95998a2f177a4f86d68a60f2a80117f is CONTRIBUTING.md, which is > 200 bytes
 	blobGreaterThanLimit := git.ObjectID("c1788657b95998a2f177a4f86d68a60f2a80117f")
 
 	gittest.RequireObjectExists(t, cfg, localRepoPath, blobLessThanLimit)

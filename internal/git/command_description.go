@@ -156,7 +156,7 @@ var commandDescriptions = map[string]commandDescription{
 			ConfigPair{Key: "init.defaultBranch", Value: DefaultBranch},
 
 			// When creating a new repository, then Git will by default copy over all
-			// files from the femplate directory into the repository. These templates
+			// files from the template directory into the repository. These templates
 			// are non-mandatory files which help the user to configure parts of Git
 			// correctly, like hook templates or an exclude file. Given that repos
 			// should not be touched by admins anyway as they are completely owned by
@@ -437,7 +437,7 @@ func fsckConfiguration(prefix string) []GlobalOption {
 		{key: "fsck.missingSpaceBeforeDate", value: "ignore"},
 
 		// Oldish Git versions used to zero-pad some filemodes, e.g. instead of a
-		// file mode of 40000 the tree object would have endcoded the filemode as
+		// file mode of 40000 the tree object would have encoded the filemode as
 		// 04000. This doesn't cause any and Git can cope with it alright, so let's
 		// ignore it.
 		{key: "fsck.zeroPaddedFilemode", value: "ignore"},

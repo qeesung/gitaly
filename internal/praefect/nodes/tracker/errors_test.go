@@ -104,8 +104,8 @@ func TestErrorTracker_ClearErrors(t *testing.T) {
 	errors.IncrReadErr(node)
 
 	errors.clear()
-	assert.Len(t, errors.readErrors[node], 1, "clear should only have cleared the read error older than the time specifiied")
-	assert.Len(t, errors.writeErrors[node], 1, "clear should only have cleared the write error older than the time specifiied")
+	assert.Len(t, errors.readErrors[node], 1, "clear should only have cleared the read error older than the time specified")
+	assert.Len(t, errors.writeErrors[node], 1, "clear should only have cleared the write error older than the time specified")
 }
 
 func TestErrorTracker_Expired(t *testing.T) {

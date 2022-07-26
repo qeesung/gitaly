@@ -65,7 +65,7 @@ func sendTreeEntry(
 
 	if strings.ToLower(treeEntry.Type.String()) != objectInfo.Type {
 		return helper.ErrInternalf(
-			"TreeEntry: mismatched nbject type: tree-oid=%s object-oid=%s entry-type=%s object-type=%s",
+			"TreeEntry: mismatched object type: tree-oid=%s object-oid=%s entry-type=%s object-type=%s",
 			treeEntry.Oid, objectInfo.Oid, treeEntry.Type.String(), objectInfo.Type,
 		)
 	}

@@ -87,7 +87,7 @@ func (s *server) CreateRepositoryFromSnapshot(ctx context.Context, in *gitalypb.
 		// it needs (especially, the config file and hooks directory).
 		//
 		// NOTE: The received archive is trusted *a lot*. Before pointing this RPC
-		// at endpoints not under our control, it should undergo a lot of hardning.
+		// at endpoints not under our control, it should undergo a lot of hardening.
 		if err := untar(ctx, path, in); err != nil {
 			return helper.ErrInternalf("extracting snapshot: %w", err)
 		}

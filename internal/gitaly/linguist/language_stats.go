@@ -33,7 +33,7 @@ type languageStats struct {
 	// Totals contains the total statistics for the CommitID
 	Totals ByteCountPerLanguage `json:"totals"`
 	// ByFile contains the statistics for a single file, where the filename
-	// is it's key.
+	// is its key.
 	ByFile map[string]ByteCountPerLanguage `json:"by_file"`
 }
 

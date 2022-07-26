@@ -39,10 +39,10 @@ func TestGetObjectPoolSuccess(t *testing.T) {
 
 func TestGetObjectPoolNoFile(t *testing.T) {
 	ctx := testhelper.Context(t)
-	_, repoo, _, _, client := setup(ctx, t)
+	_, repo, _, _, client := setup(ctx, t)
 
 	resp, err := client.GetObjectPool(ctx, &gitalypb.GetObjectPoolRequest{
-		Repository: repoo,
+		Repository: repo,
 	})
 
 	require.NoError(t, err)

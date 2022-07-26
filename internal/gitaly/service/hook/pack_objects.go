@@ -114,16 +114,16 @@ func (s *server) runPackObjects(
 	key string,
 ) error {
 	// We want to keep the context for logging, but we want to block all its
-	// cancelation signals (deadline, cancel etc.). This is because of
+	// cancellation signals (deadline, cancel etc.). This is because of
 	// the following scenario. Imagine client1 calls PackObjectsHook and
 	// causes runPackObjects to run in a goroutine. Now suppose that client2
 	// calls PackObjectsHook with the same arguments and stdin, so it joins
 	// client1 in waiting for this goroutine. Now client1 hangs up before the
 	// runPackObjects goroutine is done.
 	//
-	// If the cancelation of client1 propagated into the runPackObjects
+	// If the cancellation of client1 propagated into the runPackObjects
 	// goroutine this would affect client2. We don't want that. So to prevent
-	// that, we suppress the cancelation of the originating context.
+	// that, we suppress the cancellation of the originating context.
 	ctx = helper.SuppressCancellation(ctx)
 
 	ctx, cancel := context.WithCancel(ctx)
