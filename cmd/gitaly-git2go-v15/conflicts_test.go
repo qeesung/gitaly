@@ -172,7 +172,7 @@ func TestConflicts(t *testing.T) {
 
 		testcfg.BuildGitalyGit2Go(t, cfg)
 
-		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(tc.base...))
+		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(tc.base...))
 		ours := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(tc.ours...))
 		theirs := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(tc.theirs...))
 
@@ -193,7 +193,7 @@ func TestConflicts(t *testing.T) {
 
 func TestConflicts_checkError(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
-	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries())
+	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries())
 	validOID := glgit.ObjectID(base.String())
 	executor := buildExecutor(t, cfg)
 

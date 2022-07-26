@@ -21,7 +21,7 @@ func TestServer_ListRefs(t *testing.T) {
 
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
-	oldCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents())
+	oldCommitID := gittest.WriteCommit(t, cfg, repoPath)
 	newCommitID := gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithParents(oldCommitID),
 		gittest.WithAuthorDate(time.Date(2011, 2, 16, 14, 1, 0, 0, time.FixedZone("UTC+1", +1*60*60))),

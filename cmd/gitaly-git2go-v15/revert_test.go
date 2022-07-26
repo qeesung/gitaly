@@ -86,7 +86,7 @@ func TestRevert_trees(t *testing.T) {
 		{
 			desc: "trivial revert succeeds",
 			setupRepo: func(t testing.TB, cfg config.Cfg, repoPath string) (ours, revert string) {
-				baseOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(
+				baseOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "a", Content: "apple", Mode: "100644"},
 					gittest.TreeEntry{Path: "b", Content: "banana", Mode: "100644"},
 				))
@@ -113,7 +113,7 @@ func TestRevert_trees(t *testing.T) {
 		{
 			desc: "conflicting revert fails",
 			setupRepo: func(t testing.TB, cfg config.Cfg, repoPath string) (ours, revert string) {
-				baseOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(
+				baseOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "a", Content: "apple", Mode: "100644"},
 				))
 				revertOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(baseOid), gittest.WithTreeEntries(
@@ -131,7 +131,7 @@ func TestRevert_trees(t *testing.T) {
 		{
 			desc: "empty revert fails",
 			setupRepo: func(t testing.TB, cfg config.Cfg, repoPath string) (ours, revert string) {
-				baseOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(
+				baseOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "a", Content: "apple", Mode: "100644"},
 				))
 				revertOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(baseOid), gittest.WithTreeEntries(
@@ -149,7 +149,7 @@ func TestRevert_trees(t *testing.T) {
 		{
 			desc: "nonexistent ours fails",
 			setupRepo: func(t testing.TB, cfg config.Cfg, repoPath string) (ours, revert string) {
-				revertOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(
+				revertOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "a", Content: "apple", Mode: "100644"},
 				))
 
@@ -160,7 +160,7 @@ func TestRevert_trees(t *testing.T) {
 		{
 			desc: "nonexistent revert fails",
 			setupRepo: func(t testing.TB, cfg config.Cfg, repoPath string) (ours, revert string) {
-				oursOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(
+				oursOid := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "a", Content: "apple", Mode: "100644"},
 				))
 

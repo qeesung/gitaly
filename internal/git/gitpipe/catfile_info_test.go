@@ -288,7 +288,7 @@ func TestCatfileInfoAllObjects(t *testing.T) {
 	tree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
 		{Path: "foobar", Mode: "100644", OID: blob1},
 	})
-	commit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents())
+	commit := gittest.WriteCommit(t, cfg, repoPath)
 
 	actualObjects := []CatfileInfoResult{
 		{ObjectInfo: &catfile.ObjectInfo{Oid: blob1, Type: "blob", Size: 6}},

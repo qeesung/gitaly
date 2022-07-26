@@ -148,7 +148,7 @@ func TestCherryPick(t *testing.T) {
 		testcfg.BuildGitalyGit2Go(t, cfg)
 		executor := buildExecutor(t, cfg)
 
-		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(tc.base...))
+		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(tc.base...))
 
 		ours, commit := "nonexistent", "nonexistent"
 		if len(tc.ours) > 0 {
@@ -229,7 +229,6 @@ func TestCherryPickStructuredErrors(t *testing.T) {
 		t,
 		cfg,
 		repoPath,
-		gittest.WithParents(),
 		gittest.WithTreeEntries(gittest.TreeEntry{
 			Path: "file", Content: "foo", Mode: "100644",
 		}))

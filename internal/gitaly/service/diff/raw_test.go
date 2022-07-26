@@ -6,7 +6,6 @@ import (
 	"io"
 	"regexp"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
@@ -47,9 +46,9 @@ func TestRawDiff_successful(t *testing.T) {
 	require.NoError(t, err)
 
 	signature := git2go.Signature{
-		Name:  "Scrooge McDuck",
-		Email: "scrooge@mcduck.com",
-		When:  time.Unix(12345, 0),
+		Name:  gittest.DefaultCommitterName,
+		Email: gittest.DefaultCommitterMail,
+		When:  gittest.DefaultCommitTime,
 	}
 
 	// Now that we have read the patch in we verify that it indeed round-trips to the same tree
@@ -150,9 +149,9 @@ func TestRawPatch_successful(t *testing.T) {
 	require.NoError(t, err)
 
 	signature := git2go.Signature{
-		Name:  "Scrooge McDuck",
-		Email: "scrooge@mcduck.com",
-		When:  time.Unix(12345, 0),
+		Name:  gittest.DefaultCommitterName,
+		Email: gittest.DefaultCommitterMail,
+		When:  gittest.DefaultCommitTime,
 	}
 
 	// Now that we have read the patch in we verify that it indeed round-trips to the same tree

@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package gittest
 
 import (
@@ -12,8 +10,7 @@ import (
 func TestResolveRevision(t *testing.T) {
 	cfg, _, repoPath := setup(t)
 
-	require.Equal(t,
-		git.ObjectID("1e292f8fedd741b75372e19097c76d327140c312"),
-		ResolveRevision(t, cfg, repoPath, "refs/heads/master"),
-	)
+	commitID := WriteCommit(t, cfg, repoPath, WithBranch(git.DefaultBranch))
+
+	require.Equal(t, commitID, ResolveRevision(t, cfg, repoPath, git.DefaultBranch))
 }

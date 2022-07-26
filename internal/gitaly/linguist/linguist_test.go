@@ -164,7 +164,7 @@ func testInstanceStats(t *testing.T, ctx context.Context) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 				repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-				oldCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(
+				oldCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "main.rb", Content: "require 'fileutils'", Mode: "100644"},
 				))
 				newCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(oldCommitID), gittest.WithTreeEntries(

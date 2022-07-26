@@ -144,6 +144,10 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 	}
 
 	if opts.Seed != "" {
+		if ObjectHashIsSHA256() {
+			require.FailNow(t, "seeded repository creation not supported with SHA256")
+		}
+
 		_, err := client.CreateRepositoryFromURL(ctx, &gitalypb.CreateRepositoryFromURLRequest{
 			Repository: repository,
 			Url:        testRepositoryPath(t, opts.Seed),
@@ -290,6 +294,10 @@ type CloneRepoOpts struct {
 // CloneRepo clones a new copy of test repository under a subdirectory in the storage root. You can
 // either pass no or exactly one CloneRepoOpts.
 func CloneRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...CloneRepoOpts) (*gitalypb.Repository, string) {
+	if ObjectHashIsSHA256() {
+		require.FailNow(t, "seeded repository creation not supported with SHA256")
+	}
+
 	require.Less(t, len(opts), 2, "you must either pass no or exactly one option")
 
 	opt := CloneRepoOpts{}

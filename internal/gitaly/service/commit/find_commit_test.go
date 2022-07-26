@@ -203,14 +203,14 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 				Id:      bigCommitID.String(),
 				Subject: []byte("An empty commit with REALLY BIG message"),
 				Author: &gitalypb.CommitAuthor{
-					Name:     []byte("Scrooge McDuck"),
-					Email:    []byte("scrooge@mcduck.com"),
+					Name:     []byte(gittest.DefaultCommitterName),
+					Email:    []byte(gittest.DefaultCommitterMail),
 					Date:     &timestamppb.Timestamp{Seconds: bigCommit.Author.Date.Seconds},
 					Timezone: []byte("+0100"),
 				},
 				Committer: &gitalypb.CommitAuthor{
-					Name:     []byte("Scrooge McDuck"),
-					Email:    []byte("scrooge@mcduck.com"),
+					Name:     []byte(gittest.DefaultCommitterName),
+					Email:    []byte(gittest.DefaultCommitterMail),
 					Date:     &timestamppb.Timestamp{Seconds: bigCommit.Committer.Date.Seconds},
 					Timezone: []byte("+0100"),
 				},

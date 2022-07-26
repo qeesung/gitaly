@@ -40,7 +40,7 @@ func TestRepackObjects(t *testing.T) {
 		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+		gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 		requireObjectCount(t, repoPath, 1)
 		requirePackfileCount(t, repoPath, 0)

@@ -501,7 +501,7 @@ func TestUserDeleteBranch_allowed(t *testing.T) {
 			))
 
 			repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
-			gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("branch"))
+			gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("branch"))
 
 			response, err := client.UserDeleteBranch(ctx, &gitalypb.UserDeleteBranchRequest{
 				Repository: repo,

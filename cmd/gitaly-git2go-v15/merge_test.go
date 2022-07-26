@@ -289,7 +289,7 @@ func TestMerge_trees(t *testing.T) {
 		testcfg.BuildGitalyGit2Go(t, cfg)
 		executor := buildExecutor(t, cfg)
 
-		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(tc.base...))
+		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(tc.base...))
 		ours := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(tc.ours...))
 		theirs := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(tc.theirs...))
 
@@ -362,7 +362,7 @@ func TestMerge_squash(t *testing.T) {
 	theirFile1 := gittest.TreeEntry{Path: "file.txt", Content: "b\nc\nd", Mode: "100644"}
 	theirFile2 := gittest.TreeEntry{Path: "file.txt", Content: "b\nc\nd\ne", Mode: "100644"}
 
-	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(baseFile))
+	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(baseFile))
 	ours := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(ourFile))
 	theirs1 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(theirFile1))
 	theirs2 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(theirs1), gittest.WithTreeEntries(theirFile2))
@@ -420,7 +420,7 @@ func TestMerge_recursive(t *testing.T) {
 
 	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
-	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(
+	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 		gittest.TreeEntry{Path: "base", Content: "base\n", Mode: "100644"},
 	))
 

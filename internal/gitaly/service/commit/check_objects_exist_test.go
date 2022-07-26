@@ -23,7 +23,7 @@ func TestCheckObjectsExist(t *testing.T) {
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 	commitID1 := gittest.WriteCommit(t, cfg, repoPath,
-		gittest.WithBranch("master"), gittest.WithMessage("commit-1"), gittest.WithParents(),
+		gittest.WithBranch("master"), gittest.WithMessage("commit-1"),
 	)
 	commitID2 := gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithBranch("feature"), gittest.WithMessage("commit-2"), gittest.WithParents(commitID1),

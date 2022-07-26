@@ -15,9 +15,20 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
-const (
-	committerName  = "Scrooge McDuck"
-	committerEmail = "scrooge@mcduck.com"
+var (
+	// DefaultCommitterName is the default name of the committer and author used to create
+	// commits.
+	DefaultCommitterName = "Scrooge McDuck"
+	// DefaultCommitterMail is the default mail of the committer and author used to create
+	// commits.
+	DefaultCommitterMail = "scrooge@mcduck.com"
+	// DefaultCommitTime is the default time used as written by WriteCommit().
+	DefaultCommitTime = time.Date(2019, 11, 3, 11, 27, 59, 0, time.FixedZone("", 60*60))
+	// DefaultCommitterSignature is the default signature in the format like it would be present
+	// in commits: "$name <$email> $unixtimestamp $timezone".
+	DefaultCommitterSignature = fmt.Sprintf(
+		"%s <%s> %d %s", DefaultCommitterName, DefaultCommitterMail, DefaultCommitTime.Unix(), DefaultCommitTime.Format("-0700"),
+	)
 )
 
 type writeCommitConfig struct {
@@ -133,12 +144,6 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 	}
 	stdin := bytes.NewBufferString(message)
 
-	// The ID of an arbitrary commit known to exist in the test repository.
-	parents := []git.ObjectID{"1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"}
-	if writeCommitConfig.parents != nil {
-		parents = writeCommitConfig.parents
-	}
-
 	if len(writeCommitConfig.treeEntries) > 0 && writeCommitConfig.treeID != "" {
 		require.FailNow(t, "cannot set tree entries and tree ID at the same time")
 	}
@@ -148,15 +153,15 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 		tree = WriteTree(t, cfg, repoPath, writeCommitConfig.treeEntries).String()
 	} else if writeCommitConfig.treeID != "" {
 		tree = writeCommitConfig.treeID.String()
-	} else if len(parents) == 0 {
+	} else if len(writeCommitConfig.parents) == 0 {
 		// If there are no parents, then we set the root tree to the empty tree.
 		tree = DefaultObjectHash.EmptyTreeOID.String()
 	} else {
-		tree = parents[0].String() + "^{tree}"
+		tree = writeCommitConfig.parents[0].String() + "^{tree}"
 	}
 
 	if writeCommitConfig.authorName == "" {
-		writeCommitConfig.authorName = committerName
+		writeCommitConfig.authorName = DefaultCommitterName
 	}
 
 	if writeCommitConfig.authorDate.IsZero() {
@@ -164,7 +169,7 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 	}
 
 	if writeCommitConfig.committerName == "" {
-		writeCommitConfig.committerName = committerName
+		writeCommitConfig.committerName = DefaultCommitterName
 	}
 
 	if writeCommitConfig.committerDate.IsZero() {
@@ -176,7 +181,7 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 	// --allow-empty".
 	commitArgs := []string{
 		"-c", fmt.Sprintf("user.name=%s", writeCommitConfig.committerName),
-		"-c", fmt.Sprintf("user.email=%s", committerEmail),
+		"-c", fmt.Sprintf("user.email=%s", DefaultCommitterMail),
 		"-C", repoPath,
 		"commit-tree", "-F", "-", tree,
 	}
@@ -196,13 +201,13 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 	env = append(env,
 		fmt.Sprintf("GIT_AUTHOR_DATE=%d %s", writeCommitConfig.authorDate.Unix(), writeCommitConfig.authorDate.Format("-0700")),
 		fmt.Sprintf("GIT_AUTHOR_NAME=%s", writeCommitConfig.authorName),
-		fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", committerEmail),
+		fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", DefaultCommitterMail),
 		fmt.Sprintf("GIT_COMMITTER_DATE=%d %s", writeCommitConfig.committerDate.Unix(), writeCommitConfig.committerDate.Format("-0700")),
 		fmt.Sprintf("GIT_COMMITTER_NAME=%s", writeCommitConfig.committerName),
-		fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", committerEmail),
+		fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", DefaultCommitterMail),
 	)
 
-	for _, parent := range parents {
+	for _, parent := range writeCommitConfig.parents {
 		commitArgs = append(commitArgs, "-p", parent.String())
 	}
 

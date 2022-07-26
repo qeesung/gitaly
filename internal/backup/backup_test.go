@@ -424,7 +424,6 @@ func testManagerRestore(t *testing.T, ctx context.Context) {
 
 				root := gittest.WriteCommit(t, cfg, expectedRepoPath,
 					gittest.WithBranch("master"),
-					gittest.WithParents(),
 				)
 				master1 := gittest.WriteCommit(t, cfg, expectedRepoPath,
 					gittest.WithBranch("master"),

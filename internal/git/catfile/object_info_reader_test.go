@@ -182,7 +182,7 @@ func TestObjectInfoReader_queue(t *testing.T) {
 		Size: int64(len("foobar")),
 	}
 
-	commitOID := gittest.WriteCommit(t, cfg, repoPath)
+	commitOID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents("master"))
 	commitInfo := ObjectInfo{
 		Oid:  commitOID,
 		Type: "commit",

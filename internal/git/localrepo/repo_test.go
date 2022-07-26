@@ -84,7 +84,6 @@ func TestSize(t *testing.T) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 				gittest.WriteCommit(t, cfg, repoPath,
-					gittest.WithParents(),
 					gittest.WithTreeEntries(
 						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1000)},
 					),
@@ -102,7 +101,6 @@ func TestSize(t *testing.T) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 				gittest.WriteCommit(t, cfg, repoPath,
-					gittest.WithParents(),
 					gittest.WithTreeEntries(
 						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1000)},
 					),
@@ -119,7 +117,6 @@ func TestSize(t *testing.T) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 				rootCommitID := gittest.WriteCommit(t, cfg, repoPath,
-					gittest.WithParents(),
 					gittest.WithTreeEntries(
 						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1000)},
 					),
@@ -145,7 +142,6 @@ func TestSize(t *testing.T) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 				rootCommitID := gittest.WriteCommit(t, cfg, repoPath,
-					gittest.WithParents(),
 					gittest.WithTreeEntries(
 						gittest.TreeEntry{Path: "file", Mode: "100644", Content: strings.Repeat("a", 1000)},
 					),
@@ -173,7 +169,6 @@ func TestSize(t *testing.T) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 				gittest.WriteCommit(t, cfg, repoPath,
-					gittest.WithParents(),
 					gittest.WithTreeEntries(
 						gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
 					),
@@ -181,7 +176,6 @@ func TestSize(t *testing.T) {
 				)
 
 				gittest.WriteCommit(t, cfg, repoPath,
-					gittest.WithParents(),
 					gittest.WithTreeEntries(
 						gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("x", 2000)},
 					),
@@ -202,7 +196,6 @@ func TestSize(t *testing.T) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 				gittest.WriteCommit(t, cfg, repoPath,
-					gittest.WithParents(),
 					gittest.WithTreeEntries(
 						gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
 					),
@@ -231,7 +224,6 @@ func TestSize(t *testing.T) {
 
 				for _, path := range []string{repoPath, poolPath} {
 					gittest.WriteCommit(t, cfg, path,
-						gittest.WithParents(),
 						gittest.WithTreeEntries(
 							gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
 						),
@@ -264,7 +256,6 @@ func TestSize(t *testing.T) {
 				// exclude it from our size calculations.
 				for _, path := range []string{repoPath, poolPath} {
 					gittest.WriteCommit(t, cfg, path,
-						gittest.WithParents(),
 						gittest.WithTreeEntries(
 							gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
 						),
@@ -296,7 +287,6 @@ func TestSize(t *testing.T) {
 					// We first write one blob into the repo that is the same
 					// across both repositories.
 					rootCommitID := gittest.WriteCommit(t, cfg, path,
-						gittest.WithParents(),
 						gittest.WithTreeEntries(
 							gittest.TreeEntry{Path: "1kbblob", Mode: "100644", Content: strings.Repeat("a", 1000)},
 						),

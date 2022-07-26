@@ -469,7 +469,6 @@ func testSuccessfulWikiFindPageRequestWithTrailers(t *testing.T, cfg config.Cfg,
 
 	gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithBranch("main"),
-		gittest.WithParents(),
 		gittest.WithMessage("main branch, empty commit"),
 	)
 

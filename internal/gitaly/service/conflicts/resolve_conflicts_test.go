@@ -825,6 +825,7 @@ func TestResolveConflictsQuarantine(t *testing.T) {
 
 	sourceBlobOID := gittest.WriteBlob(t, cfg, sourceRepoPath, []byte("contents-1\n"))
 	sourceCommitOID := gittest.WriteCommit(t, cfg, sourceRepoPath,
+		gittest.WithParents("1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"),
 		gittest.WithTreeEntries(gittest.TreeEntry{
 			Path: "file.txt", OID: sourceBlobOID, Mode: "100644",
 		}),
@@ -847,6 +848,7 @@ func TestResolveConflictsQuarantine(t *testing.T) {
 	})
 	targetBlobOID := gittest.WriteBlob(t, cfg, targetRepoPath, []byte("contents-2\n"))
 	targetCommitOID := gittest.WriteCommit(t, cfg, targetRepoPath,
+		gittest.WithParents("1a0b36b3cdad1d2ee32457c102a8c0b7056fa863"),
 		gittest.WithTreeEntries(gittest.TreeEntry{
 			Path: "file.txt", OID: targetBlobOID, Mode: "100644",
 		}),

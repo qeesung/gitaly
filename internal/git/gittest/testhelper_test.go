@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package gittest
 
 import (
@@ -54,7 +52,7 @@ func setup(t testing.TB) (config.Cfg, *gitalypb.Repository, string) {
 
 	require.NoError(t, cfg.Validate())
 
-	repo, repoPath := CloneRepo(t, cfg, cfg.Storages[0])
+	repo, repoPath := InitRepo(t, cfg, cfg.Storages[0])
 
 	return cfg, repo, repoPath
 }

@@ -328,7 +328,7 @@ func TestUserSquash_renames(t *testing.T) {
 
 	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
-	gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -336,7 +336,6 @@ func TestUserSquash_renames(t *testing.T) {
 	renamedFilename := "renamed-file.txt"
 
 	rootCommitID := gittest.WriteCommit(t, cfg, repoPath,
-		gittest.WithParents(),
 		gittest.WithTreeEntries(
 			gittest.TreeEntry{Path: originalFilename, Mode: "100644", Content: "This is a test"},
 		),
@@ -422,7 +421,7 @@ func TestUserSquash_emptyCommit(t *testing.T) {
 	// Set up history with two diverging lines of branches, where both sides have implemented
 	// the same changes. During merge, the diff will thus become empty.
 	base := gittest.WriteCommit(t, cfg, repoPath,
-		gittest.WithParents(), gittest.WithTreeEntries(
+		gittest.WithTreeEntries(
 			gittest.TreeEntry{Path: "a", Content: "base", Mode: "100644"},
 		),
 	)
@@ -670,7 +669,7 @@ func TestUserSquash_ancestry(t *testing.T) {
 
 	// We create an empty parent commit and two commits which both branch off from it. As a
 	// result, they are not direct ancestors of each other.
-	parent := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("p"), gittest.WithTreeEntries(), gittest.WithParents())
+	parent := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("p"), gittest.WithTreeEntries())
 	commit1 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("1"),
 		gittest.WithTreeEntries(gittest.TreeEntry{Path: "a", Mode: "100644", Content: "a-content"}),
 		gittest.WithParents(parent),
@@ -805,7 +804,6 @@ func TestUserSquash_squashingMerge(t *testing.T) {
 
 	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("base"),
 		gittest.WithTreeEntries(gittest.TreeEntry{Path: "a", Mode: "100644", Content: "base-content"}),
-		gittest.WithParents(),
 	)
 	ours := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("ours"),
 		gittest.WithTreeEntries(gittest.TreeEntry{Path: "a", Mode: "100644", Content: "ours-content"}),

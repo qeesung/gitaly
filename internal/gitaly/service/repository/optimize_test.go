@@ -106,7 +106,6 @@ func TestOptimizeRepository(t *testing.T) {
 				OID: git.ObjectID(blobID), Mode: "100644", Path: "blob",
 			}),
 			gittest.WithBranch(blobID),
-			gittest.WithParents(),
 		)
 	}
 

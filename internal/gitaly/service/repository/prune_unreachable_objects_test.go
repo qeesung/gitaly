@@ -59,7 +59,7 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 		// Create the commit and a branch pointing to it to make it reachable.
-		commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("branch"))
+		commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("branch"))
 
 		_, err := client.PruneUnreachableObjects(ctx, &gitalypb.PruneUnreachableObjectsRequest{
 			Repository: repo,
@@ -74,7 +74,7 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 		// Create the commit, but don't create a reference pointing to it.
-		commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents())
+		commitID := gittest.WriteCommit(t, cfg, repoPath)
 		// Set the object time to something that's close to 30 minutes, but gives us enough
 		// room to not cause flakes.
 		setObjectTime(t, repoPath, commitID, time.Now().Add(-28*time.Minute))
@@ -93,7 +93,7 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 		// Create the commit, but don't create a reference pointing to it.
-		commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents())
+		commitID := gittest.WriteCommit(t, cfg, repoPath)
 		setObjectTime(t, repoPath, commitID, time.Now().Add(-31*time.Minute))
 
 		_, err := client.PruneUnreachableObjects(ctx, &gitalypb.PruneUnreachableObjectsRequest{
@@ -110,13 +110,13 @@ func TestPruneUnreachableObjects(t *testing.T) {
 	t.Run("repository with mixed objects", func(t *testing.T) {
 		repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
-		reachableOldCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithMessage("a"), gittest.WithBranch("branch"))
+		reachableOldCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("a"), gittest.WithBranch("branch"))
 		setObjectTime(t, repoPath, reachableOldCommit, time.Now().Add(-31*time.Minute))
 
-		unreachableRecentCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("b"), gittest.WithParents())
+		unreachableRecentCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("b"))
 		setObjectTime(t, repoPath, unreachableRecentCommit, time.Now().Add(-28*time.Minute))
 
-		unreachableOldCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("c"), gittest.WithParents())
+		unreachableOldCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("c"))
 		setObjectTime(t, repoPath, unreachableOldCommit, time.Now().Add(-31*time.Minute))
 
 		_, err := client.PruneUnreachableObjects(ctx, &gitalypb.PruneUnreachableObjectsRequest{
@@ -141,7 +141,7 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		// Write two commits into the repository and create a commit-graph. The second
 		// commit will become unreachable and will be pruned, but will be contained in the
 		// commit-graph.
-		rootCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents())
+		rootCommitID := gittest.WriteCommit(t, cfg, repoPath)
 		unreachableCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(rootCommitID), gittest.WithBranch("main"))
 		gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--split", "--changed-paths")
 

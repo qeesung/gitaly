@@ -358,7 +358,7 @@ func TestSuccessfulListLastCommitsForTreeRequestWithGlobCharacters(t *testing.T)
 		Path: ":wq", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
 			{Path: "README.md", Mode: "100644", Content: "something"},
 		}),
-	}), gittest.WithParents())
+	}))
 
 	t.Run("with literal pathspecs", func(t *testing.T) {
 		stream, err := client.ListLastCommitsForTree(ctx, &gitalypb.ListLastCommitsForTreeRequest{

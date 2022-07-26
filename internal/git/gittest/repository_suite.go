@@ -96,7 +96,7 @@ func testRepositoryHasBranches(t *testing.T, cfg config.Cfg, getRepository GetRe
 
 	repo, repoPath := getRepository(ctx, t, false)
 
-	emptyCommit := text.ChompBytes(Exec(t, cfg, "-C", repoPath, "commit-tree", git.ObjectHashSHA1.EmptyTreeOID.String()))
+	emptyCommit := text.ChompBytes(Exec(t, cfg, "-C", repoPath, "commit-tree", DefaultObjectHash.EmptyTreeOID.String()))
 
 	Exec(t, cfg, "-C", repoPath, "update-ref", "refs/headsbranch", emptyCommit)
 
@@ -124,7 +124,7 @@ func testRepositoryGetDefaultBranch(t *testing.T, cfg config.Cfg, getRepository 
 			desc: "default ref",
 			repo: func(t *testing.T) git.Repository {
 				repo, repoPath := getRepository(ctx, t, false)
-				oid := WriteCommit(t, cfg, repoPath, WithParents(), WithBranch("apple"))
+				oid := WriteCommit(t, cfg, repoPath, WithBranch("apple"))
 				WriteCommit(t, cfg, repoPath, WithParents(oid), WithBranch("main"))
 				return repo
 			},
@@ -134,7 +134,7 @@ func testRepositoryGetDefaultBranch(t *testing.T, cfg config.Cfg, getRepository 
 			desc: "legacy default ref",
 			repo: func(t *testing.T) git.Repository {
 				repo, repoPath := getRepository(ctx, t, false)
-				oid := WriteCommit(t, cfg, repoPath, WithParents(), WithBranch("apple"))
+				oid := WriteCommit(t, cfg, repoPath, WithBranch("apple"))
 				WriteCommit(t, cfg, repoPath, WithParents(oid), WithBranch("master"))
 				return repo
 			},
@@ -151,7 +151,7 @@ func testRepositoryGetDefaultBranch(t *testing.T, cfg config.Cfg, getRepository 
 			desc: "one branch",
 			repo: func(t *testing.T) git.Repository {
 				repo, repoPath := getRepository(ctx, t, false)
-				WriteCommit(t, cfg, repoPath, WithParents(), WithBranch("apple"))
+				WriteCommit(t, cfg, repoPath, WithBranch("apple"))
 				return repo
 			},
 			expectedName: git.NewReferenceNameFromBranchName("apple"),
@@ -160,7 +160,7 @@ func testRepositoryGetDefaultBranch(t *testing.T, cfg config.Cfg, getRepository 
 			desc: "no default branches",
 			repo: func(t *testing.T) git.Repository {
 				repo, repoPath := getRepository(ctx, t, false)
-				oid := WriteCommit(t, cfg, repoPath, WithParents(), WithBranch("apple"))
+				oid := WriteCommit(t, cfg, repoPath, WithBranch("apple"))
 				WriteCommit(t, cfg, repoPath, WithParents(oid), WithBranch("banana"))
 				return repo
 			},

@@ -51,7 +51,6 @@ func TestRepositoryProfile(t *testing.T) {
 			gittest.WithTreeEntries(gittest.TreeEntry{
 				Mode: "100644", Path: "blob", OID: git.ObjectID(blobID),
 			}),
-			gittest.WithParents(),
 		)
 		gittest.Exec(t, cfg, "-C", testRepoPath, "update-ref", "refs/heads/"+blobID, commitID.String())
 	}

@@ -84,7 +84,7 @@ SOFTWARE.`,
 					})
 				}
 
-				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithTreeEntries(treeEntries...), gittest.WithParents())
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithTreeEntries(treeEntries...))
 
 				if tc.nonExistentRepository {
 					require.NoError(t, os.RemoveAll(repoPath))

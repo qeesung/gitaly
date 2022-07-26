@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package gittest
 
 import (

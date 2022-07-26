@@ -552,7 +552,7 @@ func TestGarbageCollect_commitGraphsWithPrunedObjects(t *testing.T) {
 	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 	// Write a first commit-graph that contains the root commit, only.
-	rootCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+	rootCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 	gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--split", "--changed-paths")
 
 	// Write a second, incremental commit-graph that contains a commit we're about to

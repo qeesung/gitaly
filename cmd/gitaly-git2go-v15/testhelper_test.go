@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	git "github.com/libgit2/git2go/v33"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
@@ -16,9 +15,9 @@ import (
 
 // DefaultAuthor is the author used by BuildCommit
 var DefaultAuthor = git.Signature{
-	Name:  "Scrooge McDuck",
-	Email: "scrooge@mcduck.com",
-	When:  time.Date(2019, 11, 3, 11, 27, 59, 0, time.FixedZone("", 60*60)),
+	Name:  gittest.DefaultCommitterName,
+	Email: gittest.DefaultCommitterMail,
+	When:  gittest.DefaultCommitTime,
 }
 
 func TestMain(m *testing.M) {

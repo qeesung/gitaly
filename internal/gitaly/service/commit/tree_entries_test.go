@@ -25,7 +25,7 @@ func TestGetTreeEntries_curlyBraces(t *testing.T) {
 	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
-	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(gittest.TreeEntry{
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(gittest.TreeEntry{
 		Path: "issue-46261", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
 			{
 				Path: "folder", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
@@ -582,7 +582,7 @@ func TestGetTreeEntries_deepFlatpath(t *testing.T) {
 
 		treeID = gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{treeEntry})
 	}
-	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTree(treeID))
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(treeID))
 
 	// We make a non-recursive request which tries to fetch tree entrie for the tree structure
 	// we have created above. This should return a single entry, which is the directory we're

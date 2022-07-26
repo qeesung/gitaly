@@ -117,7 +117,7 @@ func TestCreateFork_refs(t *testing.T) {
 
 	// Prepare the source repository with a bunch of refs and a non-default HEAD ref so we can
 	// assert that the target repo gets created with the correct set of refs.
-	commitID := gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithParents())
+	commitID := gittest.WriteCommit(t, cfg, sourceRepoPath)
 	for _, ref := range []string{
 		"refs/environments/something",
 		"refs/heads/something",

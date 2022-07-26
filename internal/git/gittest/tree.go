@@ -2,7 +2,6 @@ package gittest
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
 	"testing"
@@ -36,8 +35,12 @@ func RequireTree(t testing.TB, cfg config.Cfg, repoPath, treeish string, expecte
 		}
 
 		blob := fmt.Sprintf("blob %d\000%s", len(entry.Content), entry.Content)
-		hash := sha1.Sum([]byte(blob))
-		expectedEntries[i].OID = git.ObjectID(hex.EncodeToString(hash[:]))
+
+		hasher := DefaultObjectHash.Hash()
+		_, err := hasher.Write([]byte(blob))
+		require.NoError(t, err)
+
+		expectedEntries[i].OID = git.ObjectID(hex.EncodeToString(hasher.Sum(nil)))
 	}
 
 	var actualEntries []TreeEntry

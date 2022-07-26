@@ -40,7 +40,7 @@ func TestFetchRemote_checkTagsChanged(t *testing.T) {
 
 	_, remoteRepoPath := gittest.CreateRepository(ctx, t, cfg)
 
-	gittest.WriteCommit(t, cfg, remoteRepoPath, gittest.WithParents(), gittest.WithBranch("main"))
+	gittest.WriteCommit(t, cfg, remoteRepoPath, gittest.WithBranch("main"))
 
 	t.Run("check tags without tags", func(t *testing.T) {
 		repoProto, _ := gittest.CreateRepository(ctx, t, cfg)
@@ -814,7 +814,6 @@ func TestFetchRemote_pooledRepository(t *testing.T) {
 			// remote as "have".
 			_, poolRepoPath := gittest.CreateRepository(ctx, t, cfg)
 			poolCommitID := gittest.WriteCommit(t, cfg, poolRepoPath,
-				gittest.WithParents(),
 				gittest.WithBranch("pooled"),
 				gittest.WithTreeEntries(gittest.TreeEntry{Path: "pool", Mode: "100644", Content: "pool contents"}),
 			)
@@ -829,7 +828,6 @@ func TestFetchRemote_pooledRepository(t *testing.T) {
 			// would actually try to fetch objects.
 			_, remoteRepoPath := gittest.CreateRepository(ctx, t, cfg)
 			gittest.WriteCommit(t, cfg, remoteRepoPath,
-				gittest.WithParents(),
 				gittest.WithBranch("remote"),
 				gittest.WithTreeEntries(gittest.TreeEntry{Path: "remote", Mode: "100644", Content: "remote contents"}),
 			)

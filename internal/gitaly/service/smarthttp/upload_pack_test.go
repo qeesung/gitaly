@@ -139,7 +139,6 @@ func testServerPostUploadPackGitConfigOptions(t *testing.T, ctx context.Context,
 	// the gitconfig indeed is applied because we should not be able to fetch the hidden ref.
 	baseID := gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithMessage("base commit"),
-		gittest.WithParents(),
 		gittest.WithBranch("main"),
 	)
 	hiddenID := gittest.WriteCommit(t, cfg, repoPath,

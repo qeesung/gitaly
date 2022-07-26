@@ -53,7 +53,10 @@ func TestDetectObjectHash(t *testing.T) {
 					ObjectFormat: "sha1",
 				})
 
-				// Explicitly set the object format to SHA1.
+				// Explicitly set the object format to SHA1. Note that setting the
+				// object format explicitly requires the repository format version
+				// to be at least `1`.
+				gittest.Exec(t, cfg, "-C", repoPath, "config", "core.repositoryFormatVersion", "1")
 				gittest.Exec(t, cfg, "-C", repoPath, "config", "extensions.objectFormat", "sha1")
 
 				return repo
@@ -77,6 +80,22 @@ func TestDetectObjectHash(t *testing.T) {
 			expectedHash: git.ObjectHashSHA256,
 		},
 		{
+			desc: "invalid repository configuration",
+			setup: func(t *testing.T) *gitalypb.Repository {
+				repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
+					ObjectFormat: "sha1",
+				})
+
+				gittest.Exec(t, cfg, "-C", repoPath, "config", "extensions.objectFormat", "sha1")
+
+				return repo
+			},
+			expectedErr: fmt.Errorf(
+				"reading object format: exit status 128, stderr: %q",
+				"fatal: repo version is 0, but v1-only extension found:\n\tobjectformat\n",
+			),
+		},
+		{
 			desc: "unknown hash",
 			setup: func(t *testing.T) *gitalypb.Repository {
 				repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
@@ -86,7 +105,9 @@ func TestDetectObjectHash(t *testing.T) {
 
 				return repo
 			},
-			expectedErr: fmt.Errorf("reading object format: exit status 128"),
+			expectedErr: fmt.Errorf(
+				"reading object format: exit status 128, stderr: \"error: invalid value for 'extensions.objectformat'",
+			),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -95,10 +116,16 @@ func TestDetectObjectHash(t *testing.T) {
 
 			hash, err := git.DetectObjectHash(ctx, repo)
 			if tc.expectedErr != nil {
-				require.EqualError(t, err, tc.expectedErr.Error())
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErr.Error())
 			} else {
 				require.NoError(t, err)
 			}
+
+			// Function pointers cannot be compared, so we need to unset them.
+			hash.Hash = nil
+			tc.expectedHash.Hash = nil
+
 			require.Equal(t, tc.expectedHash, hash)
 		})
 	}

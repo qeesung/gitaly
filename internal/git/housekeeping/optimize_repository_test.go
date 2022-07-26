@@ -385,7 +385,7 @@ func TestPackRefsIfNeeded(t *testing.T) {
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 			// Write an empty commit such that we can create valid refs.
-			commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents())
+			commitID := gittest.WriteCommit(t, cfg, repoPath)
 			looseRefContent := []byte(commitID.String() + "\n")
 
 			// We first create a single big packfile which is used to determine the
@@ -685,7 +685,7 @@ gitaly_housekeeping_tasks_total{housekeeping_task="total", status="success"} 1
 				})
 
 				for i := 0; i < 16; i++ {
-					gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch(fmt.Sprintf("branch-%d", i)))
+					gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(fmt.Sprintf("branch-%d", i)))
 				}
 
 				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "--write-bitmap-index")
@@ -1008,7 +1008,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 			desc: "repository without commit-graph",
 			setup: func(t *testing.T) (*gitalypb.Repository, string) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-				gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 				return repoProto, repoPath
 			},
 			expectedWrite: true,
@@ -1021,7 +1021,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 			desc: "repository with old-style unsplit commit-graph",
 			setup: func(t *testing.T) (*gitalypb.Repository, string) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-				gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 				// Write a non-split commit-graph with bloom filters. We should
 				// always rewrite the commit-graphs when we're not using a split
@@ -1043,7 +1043,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 			desc: "repository with split commit-graph without bitmap",
 			setup: func(t *testing.T) (*gitalypb.Repository, string) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-				gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 				// Generate a split commit-graph, but don't enable computation of
 				// changed paths. This should trigger a rewrite so that we can
@@ -1062,7 +1062,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 			desc: "repository with split commit-graph with bitmap without repack",
 			setup: func(t *testing.T) (*gitalypb.Repository, string) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-				gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 				// Write a split commit-graph with bitmaps. This is the state we
 				// want to be in.
@@ -1081,7 +1081,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 			desc: "repository with split commit-graph with bitmap with repack",
 			setup: func(t *testing.T) (*gitalypb.Repository, string) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-				gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 				// Write a split commit-graph with bitmaps. This is the state we
 				// want to be in, so there is no write required if we didn't also
@@ -1101,7 +1101,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 			desc: "repository with split commit-graph with bitmap with pruned objects",
 			setup: func(t *testing.T) (*gitalypb.Repository, string) {
 				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-				gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 				// Write a split commit-graph with bitmaps. This is the state we
 				// want to be in, so there is no write required if we didn't also
@@ -1145,7 +1145,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		// Write a first commit-graph that contains the root commit, only.
-		rootCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("main"))
+		rootCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 		gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--split", "--changed-paths")
 
 		// Write a second, incremental commit-graph that contains a commit we're about to

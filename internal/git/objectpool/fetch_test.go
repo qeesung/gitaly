@@ -223,7 +223,6 @@ func testFetchFromOriginRefUpdates(t *testing.T, ctx context.Context) {
 	// it's easy enough to do, so it doesn't hurt.
 	for i := 0; i < 32; i++ {
 		newRefs[fmt.Sprintf("heads/branch-%d", i)] = gittest.WriteCommit(t, cfg, repoPath,
-			gittest.WithParents(),
 			gittest.WithMessage(strconv.Itoa(i)),
 		).String()
 	}
@@ -259,7 +258,7 @@ func testFetchFromOriginRefs(t *testing.T, ctx context.Context) {
 	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries())
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries())
 	for _, ref := range []string{"refs/heads/master", "refs/environments/1", "refs/tags/lightweight-tag"} {
 		gittest.Exec(t, cfg, "-C", repoPath, "update-ref", ref, commitID.String())
 	}

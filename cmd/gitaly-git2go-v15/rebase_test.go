@@ -246,7 +246,7 @@ func TestRebase_skipEmptyCommit(t *testing.T) {
 	// Set up history with two diverging lines of branches, where both sides have implemented
 	// the same changes. During rebase, the diff will thus become empty.
 	base := gittest.WriteCommit(t, cfg, repoPath,
-		gittest.WithParents(), gittest.WithTreeEntries(gittest.TreeEntry{
+		gittest.WithTreeEntries(gittest.TreeEntry{
 			Path: "a", Content: "base", Mode: "100644",
 		}),
 	)

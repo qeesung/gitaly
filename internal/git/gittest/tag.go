@@ -39,13 +39,10 @@ func WriteTag(
 		config = optionalConfig[0]
 	}
 
-	committerName := "Scrooge McDuck"
-	committerEmail := "scrooge@mcduck.com"
-
 	args := []string{
 		"-C", repoPath,
-		"-c", fmt.Sprintf("user.name=%s", committerName),
-		"-c", fmt.Sprintf("user.email=%s", committerEmail),
+		"-c", fmt.Sprintf("user.name=%s", DefaultCommitterName),
+		"-c", fmt.Sprintf("user.email=%s", DefaultCommitterMail),
 		"tag",
 	}
 

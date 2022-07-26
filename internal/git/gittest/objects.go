@@ -15,6 +15,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 )
 
+// ObjectHashIsSHA256 returns if the current default object hash is SHA256.
+func ObjectHashIsSHA256() bool {
+	return DefaultObjectHash.EmptyTreeOID == git.ObjectHashSHA256.EmptyTreeOID
+}
+
 // RequireObjectExists asserts that the given repository does contain an object with the specified
 // object ID.
 func RequireObjectExists(t testing.TB, cfg config.Cfg, repoPath string, objectID git.ObjectID) {

@@ -97,7 +97,6 @@ func TestUserRebaseConfirmable_skipEmptyCommits(t *testing.T) {
 
 	// This is the base commit from which both "theirs" and "ours" branch from".
 	baseCommit := gittest.WriteCommit(t, cfg, repoPath,
-		gittest.WithParents(),
 		gittest.WithTreeEntries(
 			gittest.TreeEntry{Mode: "100644", Path: "README", Content: "a\nb\nc\nd\ne\nf\n"},
 		),
@@ -175,9 +174,9 @@ func TestUserRebaseConfirmable_skipEmptyCommits(t *testing.T) {
 		ParentIds: []string{theirs.String()},
 		TreeId:    "b68aeb18813d7f2e180f2cc0bccc128511438b29",
 		Author: &gitalypb.CommitAuthor{
-			Name:     []byte("Scrooge McDuck"),
-			Email:    []byte("scrooge@mcduck.com"),
-			Date:     &timestamppb.Timestamp{Seconds: 1572776879},
+			Name:     []byte(gittest.DefaultCommitterName),
+			Email:    []byte(gittest.DefaultCommitterMail),
+			Date:     timestamppb.New(gittest.DefaultCommitTime),
 			Timezone: []byte("+0100"),
 		},
 		Committer: &gitalypb.CommitAuthor{
@@ -626,7 +625,6 @@ func TestUserRebaseConfirmable_deletedFileInLocalRepo(t *testing.T) {
 	var rootCommitID git.ObjectID
 	for _, path := range []string{localRepoPath, remoteRepoPath} {
 		rootCommitID = gittest.WriteCommit(t, cfg, path,
-			gittest.WithParents(),
 			gittest.WithTreeEntries(
 				gittest.TreeEntry{Path: "change-me", Mode: "100644", Content: "unchanged contents"},
 				gittest.TreeEntry{Path: "delete-me", Mode: "100644", Content: "useless stuff"},
@@ -697,7 +695,6 @@ func TestUserRebaseConfirmable_deletedFileInRemoteRepo(t *testing.T) {
 	var rootCommitID git.ObjectID
 	for _, path := range []string{localRepoPath, remoteRepoPath} {
 		rootCommitID = gittest.WriteCommit(t, cfg, path,
-			gittest.WithParents(),
 			gittest.WithTreeEntries(
 				gittest.TreeEntry{Path: "unchanged", Mode: "100644", Content: "unchanged contents"},
 				gittest.TreeEntry{Path: "delete-me", Mode: "100644", Content: "useless stuff"},
