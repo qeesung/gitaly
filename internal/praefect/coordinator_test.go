@@ -2627,29 +2627,38 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 	err := errors.New("error")
 
 	for _, tc := range []struct {
-		change datastore.ChangeType
-		errMsg string
+		desc         string
+		change       datastore.ChangeType
+		errMsg       string
+		enqueueError error
 	}{
 		{
+			desc:   "increment generation receives suppressed cancellation",
 			change: datastore.UpdateRepo,
 			errMsg: "increment generation: error",
 		},
 		{
+			desc:   "rename repository receives suppressed cancellation",
 			change: datastore.RenameRepo,
 			errMsg: "rename repository: error",
 		},
 		{
-			change: "replication jobs only",
-			errMsg: "enqueue replication event: error",
+			desc:         "enqueue receives suppressed cancellation",
+			errMsg:       "enqueue replication event: error",
+			enqueueError: err,
+		},
+		{
+			desc:   "original context error is returned",
+			errMsg: context.DeadlineExceeded.Error(),
 		},
 	} {
-		t.Run(string(tc.change), func(t *testing.T) {
+		t.Run(tc.desc, func(t *testing.T) {
 			require.EqualError(t,
 				NewCoordinator(
 					&datastore.MockReplicationEventQueue{
 						EnqueueFunc: func(ctx context.Context, _ datastore.ReplicationEvent) (datastore.ReplicationEvent, error) {
 							requireSuppressedCancellation(t, ctx)
-							return datastore.ReplicationEvent{}, err
+							return datastore.ReplicationEvent{}, tc.enqueueError
 						},
 					},
 					datastore.MockRepositoryStore{
