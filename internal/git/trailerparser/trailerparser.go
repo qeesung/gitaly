@@ -33,7 +33,7 @@ const (
 // Where \0 is a NULL byte. The input should not end in a NULL byte.
 //
 // Trailers must be separated with a null byte, as their values can include any
-// other separater character. NULL bytes however are not allowed in commit
+// other separator character. NULL bytes however are not allowed in commit
 // messages, and thus can't occur in trailers.
 //
 // The key-value separator must be a colon, as this is the separator the Git CLI

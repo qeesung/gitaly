@@ -137,8 +137,8 @@ func (m *GitLabHookManager) preReceiveHook(ctx context.Context, payload git.Hook
 	if err != nil {
 		// This logic is broken because we just return every potential error to the
 		// caller, even though we cannot tell whether the error message stems from
-		// the API or if it is a generic error. Ideally, we'd be able to able to
-		// tell whether the error was a PermissionDenied error and only then return
+		// the API or if it is a generic error. Ideally, we'd be able to tell
+		// whether the error was a PermissionDenied error and only then return
 		// the error message as GitLab message. But this will require upstream
 		// changes in gitlab-shell first.
 		return NotAllowedError{

@@ -185,7 +185,7 @@ func (s *server) updateRemoteMirror(stream gitalypb.RemoteService_UpdateRemoteMi
 			continue
 		}
 
-		// The commit in the extra branch in the remote repositoy has not been merged in to the
+		// The commit in the extra branch in the remote repository has not been merged in to the
 		// local repository's default branch. Keep it to avoid losing work.
 		delete(toDelete, remoteRef)
 	}
@@ -234,7 +234,7 @@ func (s *server) updateRemoteMirror(stream gitalypb.RemoteService_UpdateRemoteMi
 // be updated in the mirror repository. Tags are always matched successfully.
 // branchMatchers optionally contain patterns that are used to match branches.
 // The patterns should only include the branch name without the `refs/heads/`
-// prefix. "*" can be used as a wilcard in the patterns. If no branchMatchers
+// prefix. "*" can be used as a wildcard in the patterns. If no branchMatchers
 // are specified, all branches are matched successfully.
 func newReferenceMatcher(branchMatchers [][]byte) (*regexp.Regexp, error) {
 	sb := &strings.Builder{}

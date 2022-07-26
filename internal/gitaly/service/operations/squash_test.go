@@ -774,6 +774,18 @@ func TestUserSquash_gitError(t *testing.T) {
 			},
 			expectedErr: helper.ErrInvalidArgumentf("UserSquash: empty author name"),
 		},
+		{
+			desc: "author has no email set",
+			request: &gitalypb.UserSquashRequest{
+				Repository:    repo,
+				User:          gittest.TestUser,
+				Author:        &gitalypb.User{Name: gittest.TestUser.Name},
+				CommitMessage: commitMessage,
+				StartSha:      startSha,
+				EndSha:        endSha,
+			},
+			expectedErr: helper.ErrInvalidArgumentf("UserSquash: empty author email"),
+		},
 	}
 
 	for _, tc := range testCases {

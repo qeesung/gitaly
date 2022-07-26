@@ -106,7 +106,7 @@ func (l *configLocator) StateDir(storageName string) (string, error) {
 	return l.getPath(storageName, statePrefix)
 }
 
-// TempDir returns the path to the temp dir for a storag.
+// TempDir returns the path to the temp dir for a storage.
 func (l *configLocator) TempDir(storageName string) (string, error) {
 	return l.getPath(storageName, tmpRootPrefix)
 }

@@ -655,7 +655,7 @@ func TestUploadPack_packObjectsHook(t *testing.T) {
 
 	testcfg.BuildGitalySSH(t, cfg)
 
-	// We're using a custom pack-objetcs hook for git-upload-pack. In order
+	// We're using a custom pack-objects hook for git-upload-pack. In order
 	// to assure that it's getting executed as expected, we're writing a
 	// custom script which replaces the hook binary. It doesn't do anything
 	// special, but writes an error message and errors out and should thus

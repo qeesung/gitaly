@@ -235,8 +235,8 @@ func TestInstance_Stats_unmarshalJSONError(t *testing.T) {
 	ling, err := New(cfg, gitCmdFactory)
 	require.NoError(t, err)
 
-	// When an error occurs, this used to trigger JSON marshelling of a plain string
-	// the new behaviour shouldn't do that, and return an command error
+	// When an error occurs, this used to trigger JSON marshaling of a plain string
+	// the new behaviour shouldn't do that, and return a command error
 	_, err = ling.Stats(ctx, repo, "deadbeef", catfileCache)
 	require.Error(t, err)
 
