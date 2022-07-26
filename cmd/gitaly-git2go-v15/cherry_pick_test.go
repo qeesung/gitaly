@@ -3,7 +3,6 @@
 package main
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
@@ -161,11 +159,7 @@ func TestCherryPick(t *testing.T) {
 		}
 
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := featureflag.ContextWithFeatureFlag(
-				testhelper.Context(t),
-				featureflag.CherryPickStructuredErrors,
-				true,
-			)
+			ctx := testhelper.Context(t)
 
 			committer := git.Signature{
 				Name:  "Baz",
@@ -224,12 +218,8 @@ func TestCherryPick(t *testing.T) {
 }
 
 func TestCherryPickStructuredErrors(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.CherryPickStructuredErrors).Run(t,
-		testCherryPickStructuredErrors,
-	)
-}
+	ctx := testhelper.Context(t)
 
-func testCherryPickStructuredErrors(t *testing.T, ctx context.Context) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
 	testcfg.BuildGitalyGit2Go(t, cfg)
@@ -278,11 +268,6 @@ func testCherryPickStructuredErrors(t *testing.T, ctx context.Context) {
 		Commit:        commit,
 	})
 
-	if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
-		require.EqualError(t, err, "cherry-pick: there are conflicting files")
-		require.ErrorAs(t, err, &git2go.ConflictingFilesError{})
-	} else {
-		require.EqualError(t, err, "cherry-pick: could not apply due to conflicts")
-		require.ErrorAs(t, err, &git2go.HasConflictsError{})
-	}
+	require.EqualError(t, err, "cherry-pick: there are conflicting files")
+	require.ErrorAs(t, err, &git2go.ConflictingFilesError{})
 }

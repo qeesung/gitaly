@@ -3,7 +3,6 @@
 package operations
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -16,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -349,13 +347,7 @@ func TestServer_UserCherryPick_failedValidations(t *testing.T) {
 func TestServer_UserCherryPick_failedWithPreReceiveError(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.CherryPickStructuredErrors).Run(t, testServerUserCherryPickFailedWithPreReceiveError)
-}
-
-func testServerUserCherryPickFailedWithPreReceiveError(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
-	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, testhelper.Context(t))
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -380,37 +372,27 @@ func testServerUserCherryPickFailedWithPreReceiveError(t *testing.T, ctx context
 			gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
 			response, err := client.UserCherryPick(ctx, request)
-			if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
-				require.Nil(t, response)
-				testhelper.RequireGrpcError(t, errWithDetails(t,
-					helper.ErrFailedPrecondition(
-						errors.New("access check failed"),
-					),
-					&gitalypb.UserCherryPickError{
-						Error: &gitalypb.UserCherryPickError_AccessCheck{
-							AccessCheck: &gitalypb.AccessCheckError{
-								ErrorMessage: "GL_ID=user-123",
-							},
+			require.Nil(t, response)
+			testhelper.RequireGrpcError(t, errWithDetails(t,
+				helper.ErrFailedPrecondition(
+					errors.New("access check failed"),
+				),
+				&gitalypb.UserCherryPickError{
+					Error: &gitalypb.UserCherryPickError_AccessCheck{
+						AccessCheck: &gitalypb.AccessCheckError{
+							ErrorMessage: "GL_ID=user-123",
 						},
 					},
-				), err)
-			} else {
-				require.NoError(t, err)
-				require.Contains(t, response.PreReceiveError, "GL_ID="+gittest.TestUser.GlId)
-			}
+				},
+			), err)
 		})
 	}
 }
 
 func TestServer_UserCherryPick_failedWithCreateTreeError(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.CherryPickStructuredErrors).Run(t, testServerUserCherryPickFailedWithCreateTreeError)
-}
 
-func testServerUserCherryPickFailedWithCreateTreeError(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
-	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, testhelper.Context(t))
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -430,32 +412,21 @@ func testServerUserCherryPickFailedWithCreateTreeError(t *testing.T, ctx context
 	}
 
 	response, err := client.UserCherryPick(ctx, request)
-	if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
-		require.Nil(t, response)
-		testhelper.RequireGrpcError(t, errWithDetails(t,
-			helper.ErrFailedPrecondition(
-				errors.New("cherry-pick: could not apply because the result was empty"),
-			),
-			&gitalypb.UserCherryPickError{
-				Error: &gitalypb.UserCherryPickError_ChangesAlreadyApplied{},
-			},
-		), err)
-	} else {
-		require.NoError(t, err)
-		require.NotEmpty(t, response.CreateTreeError)
-		require.Equal(t, gitalypb.UserCherryPickResponse_EMPTY, response.CreateTreeErrorCode)
-	}
+	require.Nil(t, response)
+	testhelper.RequireGrpcError(t, errWithDetails(t,
+		helper.ErrFailedPrecondition(
+			errors.New("cherry-pick: could not apply because the result was empty"),
+		),
+		&gitalypb.UserCherryPickError{
+			Error: &gitalypb.UserCherryPickError_ChangesAlreadyApplied{},
+		},
+	), err)
 }
 
 func TestServer_UserCherryPick_failedWithCommitError(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.CherryPickStructuredErrors).Run(t, testServerUserCherryPickFailedWithCommitError)
-}
 
-func testServerUserCherryPickFailedWithCommitError(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
-	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, testhelper.Context(t))
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -477,36 +448,24 @@ func testServerUserCherryPickFailedWithCommitError(t *testing.T, ctx context.Con
 	}
 
 	response, err := client.UserCherryPick(ctx, request)
-	if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
-		require.Nil(t, response)
-		s, ok := status.FromError(err)
-		require.True(t, ok)
+	require.Nil(t, response)
+	s, ok := status.FromError(err)
+	require.True(t, ok)
 
-		details := s.Details()
-		require.Len(t, details, 1)
-		detailedErr, ok := details[0].(*gitalypb.UserCherryPickError)
-		require.True(t, ok)
+	details := s.Details()
+	require.Len(t, details, 1)
+	detailedErr, ok := details[0].(*gitalypb.UserCherryPickError)
+	require.True(t, ok)
 
-		targetBranchDivergedErr, ok := detailedErr.Error.(*gitalypb.UserCherryPickError_TargetBranchDiverged)
-		require.True(t, ok)
-		assert.Equal(t, []byte("8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"), targetBranchDivergedErr.TargetBranchDiverged.ParentRevision)
-	} else {
-		require.NoError(t, err)
-		require.Equal(t, "Branch diverged", response.CommitError)
-	}
+	targetBranchDivergedErr, ok := detailedErr.Error.(*gitalypb.UserCherryPickError_TargetBranchDiverged)
+	require.True(t, ok)
+	assert.Equal(t, []byte("8a0f2ee90d940bfb0ba1e14e8214b0649056e4ab"), targetBranchDivergedErr.TargetBranchDiverged.ParentRevision)
 }
 
 func TestServerUserCherryPickRailedWithConflict(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.CherryPickStructuredErrors).Run(
-		t,
-		testServerUserCherryPickRailedWithConflict,
-	)
-}
-
-func testServerUserCherryPickRailedWithConflict(t *testing.T, ctx context.Context) {
-	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, testhelper.Context(t))
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -526,25 +485,19 @@ func testServerUserCherryPickRailedWithConflict(t *testing.T, ctx context.Contex
 	}
 
 	response, err := client.UserCherryPick(ctx, request)
-	if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
-		require.Nil(t, response)
-		s, ok := status.FromError(err)
-		require.True(t, ok)
+	require.Nil(t, response)
+	s, ok := status.FromError(err)
+	require.True(t, ok)
 
-		details := s.Details()
-		require.Len(t, details, 1)
-		detailedErr, ok := details[0].(*gitalypb.UserCherryPickError)
-		require.True(t, ok)
+	details := s.Details()
+	require.Len(t, details, 1)
+	detailedErr, ok := details[0].(*gitalypb.UserCherryPickError)
+	require.True(t, ok)
 
-		conflictErr, ok := detailedErr.Error.(*gitalypb.UserCherryPickError_CherryPickConflict)
-		require.True(t, ok)
-		require.Len(t, conflictErr.CherryPickConflict.ConflictingFiles, 1)
-		assert.Equal(t, []byte("NEW_FILE.md"), conflictErr.CherryPickConflict.ConflictingFiles[0])
-	} else {
-		require.NoError(t, err)
-		require.NotEmpty(t, response.CreateTreeError)
-		require.Equal(t, gitalypb.UserCherryPickResponse_CONFLICT, response.CreateTreeErrorCode)
-	}
+	conflictErr, ok := detailedErr.Error.(*gitalypb.UserCherryPickError_CherryPickConflict)
+	require.True(t, ok)
+	require.Len(t, conflictErr.CherryPickConflict.ConflictingFiles, 1)
+	assert.Equal(t, []byte("NEW_FILE.md"), conflictErr.CherryPickConflict.ConflictingFiles[0])
 }
 
 func TestServer_UserCherryPick_successfulWithGivenCommits(t *testing.T) {
@@ -605,13 +558,7 @@ func TestServer_UserCherryPick_successfulWithGivenCommits(t *testing.T) {
 func TestServer_UserCherryPick_quarantine(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.CherryPickStructuredErrors).Run(t, testServerUserCherryPickQuarantine)
-}
-
-func testServerUserCherryPickQuarantine(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
-	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, testhelper.Context(t))
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	// Set up a hook that parses the new object and then aborts the update. Like this, we can
@@ -636,14 +583,9 @@ func testServerUserCherryPickQuarantine(t *testing.T, ctx context.Context) {
 	}
 
 	response, err := client.UserCherryPick(ctx, request)
-	if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
-		require.Nil(t, response)
-		require.NotNil(t, err)
-		assert.Contains(t, err.Error(), "access check failed")
-	} else {
-		require.NoError(t, err)
-		require.NotNil(t, response)
-	}
+	require.Nil(t, response)
+	require.NotNil(t, err)
+	assert.Contains(t, err.Error(), "access check failed")
 
 	hookOutput := testhelper.MustReadFile(t, outputPath)
 	oid, err := git.ObjectHashSHA1.FromHex(text.ChompBytes(hookOutput))

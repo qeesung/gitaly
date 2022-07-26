@@ -12,7 +12,6 @@ import (
 	git "github.com/libgit2/git2go/v33"
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 )
 
 type cherryPickSubcommand struct{}
@@ -93,18 +92,14 @@ func (cmd *cherryPickSubcommand) cherryPick(ctx context.Context, r *git2go.Cherr
 	}
 
 	if index.HasConflicts() {
-		if featureflag.CherryPickStructuredErrors.IsEnabled(ctx) {
-			conflictingFiles, err := getConflictingFiles(index)
-			if err != nil {
-				return "", fmt.Errorf("getting conflicting files: %w", err)
-			}
-
-			return "", git2go.ConflictingFilesError{
-				ConflictingFiles: conflictingFiles,
-			}
+		conflictingFiles, err := getConflictingFiles(index)
+		if err != nil {
+			return "", fmt.Errorf("getting conflicting files: %w", err)
 		}
 
-		return "", git2go.HasConflictsError{}
+		return "", git2go.ConflictingFilesError{
+			ConflictingFiles: conflictingFiles,
+		}
 	}
 
 	tree, err := index.WriteTreeTo(repo)
