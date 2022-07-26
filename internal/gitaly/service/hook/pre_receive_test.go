@@ -224,7 +224,7 @@ func TestPreReceive_APIErrors(t *testing.T) {
 			expectedStderr:     "GitLab: not allowed",
 		},
 		{
-			desc:               "/pre_receive endpoint fails to increase reference coutner",
+			desc:               "/pre_receive endpoint fails to increase reference counter",
 			allowedHandler:     allowedHandler(t, true),
 			preReceiveHandler:  preReceiveHandler(t, false),
 			expectedExitStatus: 1,

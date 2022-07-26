@@ -74,7 +74,7 @@ func (e FormatTagError) Error() string {
 // because we're just about to run git's own "fsck" check on this.
 //
 // However, if someone injected parameters with extra newlines they
-// could cause subsequent values to be ignore via a crafted
+// could cause subsequent values to be ignored via a crafted
 // message. This someone could also locally craft a tag locally and
 // "git push" it. But allowing e.g. someone to provide their own
 // timestamp here would at best be annoying, and at worst run up

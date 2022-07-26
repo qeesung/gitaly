@@ -49,7 +49,7 @@ func (s *server) SSHUploadPack(stream gitalypb.SSHService_SSHUploadPackServer) e
 	})
 
 	// gRPC doesn't allow concurrent writes to a stream, so we need to
-	// synchronize writing stdout and stderrr.
+	// synchronize writing stdout and stderr.
 	var m sync.Mutex
 	stdout := streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.SSHUploadPackResponse{Stdout: p})

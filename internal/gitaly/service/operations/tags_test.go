@@ -744,7 +744,7 @@ func TestSuccessfulUserCreateTagNestedTags(t *testing.T) {
 					Tag: &gitalypb.Tag{
 						Name: request.TagName,
 						Id:   createdIDStr,
-						// TargetCommit: is dymamically determined, filled in below
+						// TargetCommit: is dynamically determined, filled in below
 						Message:     request.Message,
 						MessageSize: int64(len(request.Message)),
 					},

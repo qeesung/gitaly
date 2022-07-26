@@ -109,7 +109,7 @@ func sendBlobTreeEntry(
 		readLimit = limit
 	}
 
-	// For correctness it does not matter, but for performance, the order is
+	// For correctness, it does not matter, but for performance, the order is
 	// important: first check if readlimit == 0, if not, only then create
 	// blobObj.
 	if readLimit == 0 {

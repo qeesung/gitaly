@@ -197,7 +197,7 @@ func (q *requestQueue) readInfo() (*ObjectInfo, error) {
 		return nil, fmt.Errorf("cannot read object info: %w", os.ErrClosed)
 	}
 
-	// We first need to determine wether there are any queued requests at all. If not, then we
+	// We first need to determine whether there are any queued requests at all. If not, then we
 	// cannot read anything.
 	queuedRequests := atomic.LoadInt64(&q.outstandingRequests)
 	if queuedRequests == 0 {
