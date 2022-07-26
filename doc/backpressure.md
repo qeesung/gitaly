@@ -39,7 +39,7 @@ configuration can prevent an unbounded in-memory queue of requests:
   concurrency queue. When a request waits longer than this time, it returns
   an error to the client.
 - `max_queue_size` is the maximum size the concurrency queue can grow for a given
-  RPC for a repository. If a concurrency queue is at its maximum, subsequent requests
+  RPC. If a concurrency queue is at its maximum, subsequent requests
   return with an error.
 
 For example:
