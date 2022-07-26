@@ -5,7 +5,6 @@ package ref
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -295,10 +293,7 @@ func TestSuccessfulFindLocalBranches(t *testing.T) {
 }
 
 func TestFindLocalBranches_huge_committer(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.ExactPaginationTokenMatch).Run(t, testFindLocalBranchesHugeCommitter)
-}
-
-func testFindLocalBranchesHugeCommitter(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRefService(ctx, t)
 
 	gittest.WriteCommit(t, cfg, repoPath,
@@ -321,10 +316,7 @@ func testFindLocalBranchesHugeCommitter(t *testing.T, ctx context.Context) {
 }
 
 func TestFindLocalBranchesPagination(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.ExactPaginationTokenMatch).Run(t, testFindLocalBranchesPagination)
-}
-
-func testFindLocalBranchesPagination(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	_, repo, _, client := setupRefService(ctx, t)
 
 	limit := 1
@@ -373,10 +365,7 @@ func testFindLocalBranchesPagination(t *testing.T, ctx context.Context) {
 }
 
 func TestFindLocalBranchesPaginationSequence(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.ExactPaginationTokenMatch).Run(t, testFindLocalBranchesPaginationSequence)
-}
-
-func testFindLocalBranchesPaginationSequence(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	_, repo, _, client := setupRefService(ctx, t)
 
 	limit := 2
@@ -426,10 +415,7 @@ func testFindLocalBranchesPaginationSequence(t *testing.T, ctx context.Context) 
 }
 
 func TestFindLocalBranchesPaginationWithIncorrectToken(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.ExactPaginationTokenMatch).Run(t, testFindLocalBranchesPaginationWithIncorrectToken)
-}
-
-func testFindLocalBranchesPaginationWithIncorrectToken(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	_, repo, _, client := setupRefService(ctx, t)
 
 	limit := 1
@@ -443,44 +429,9 @@ func testFindLocalBranchesPaginationWithIncorrectToken(t *testing.T, ctx context
 	c, err := client.FindLocalBranches(ctx, rpcRequest)
 	require.NoError(t, err)
 
-	if featureflag.ExactPaginationTokenMatch.IsEnabled(ctx) {
-		_, err = c.Recv()
-		require.NotEqual(t, err, io.EOF)
-		testhelper.RequireGrpcError(t, helper.ErrInternalf("could not find page token"), err)
-	} else {
-		require.NoError(t, err)
-
-		var branches []*gitalypb.FindLocalBranchResponse
-		for {
-			r, err := c.Recv()
-			if err == io.EOF {
-				break
-			}
-			require.NoError(t, err)
-			branches = append(branches, r.GetBranches()...)
-		}
-
-		testhelper.ProtoEqual(t, []*gitalypb.FindLocalBranchResponse{
-			{
-				Name:          []byte("refs/heads/rebase-encoding-failure-trigger"),
-				Commit:        gittest.CommitsByID["ca47bfd5e930148c42ed74c3b561a8783e381f7f"],
-				CommitId:      "ca47bfd5e930148c42ed74c3b561a8783e381f7f",
-				CommitSubject: []byte("Add Modula-2 source file for language detection"),
-				CommitAuthor: &gitalypb.FindLocalBranchCommitAuthor{
-					Name:     []byte("Jacob Vosmaer"),
-					Email:    []byte("jacob@gitlab.com"),
-					Date:     &timestamppb.Timestamp{Seconds: 1501503403},
-					Timezone: []byte("+0200"),
-				},
-				CommitCommitter: &gitalypb.FindLocalBranchCommitAuthor{
-					Name:     []byte("Ahmad Sherif"),
-					Email:    []byte("me@ahmadsherif.com"),
-					Date:     &timestamppb.Timestamp{Seconds: 1521033060},
-					Timezone: []byte("+0100"),
-				},
-			},
-		}, branches)
-	}
+	_, err = c.Recv()
+	require.NotEqual(t, err, io.EOF)
+	testhelper.RequireGrpcError(t, helper.ErrInternalf("could not find page token"), err)
 }
 
 // Test that `s` contains the elements in `relativeOrder` in that order
@@ -502,10 +453,7 @@ func isOrderedSubset(subset, set []string) bool {
 }
 
 func TestFindLocalBranchesSort(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.ExactPaginationTokenMatch).Run(t, testFindLocalBranchesSort)
-}
-
-func testFindLocalBranchesSort(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	testCases := []struct {
 		desc          string
 		relativeOrder []string

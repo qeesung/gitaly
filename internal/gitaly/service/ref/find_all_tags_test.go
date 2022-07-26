@@ -20,7 +20,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -508,10 +507,7 @@ func TestFindAllTags_invalidRequest(t *testing.T) {
 }
 
 func TestFindAllTags_pagination(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.ExactPaginationTokenMatch).Run(t, testFindAllTagsPagination)
-}
-
-func testFindAllTagsPagination(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	cfg, repoProto, repoPath, client := setupRefService(ctx, t)
 
 	catfileCache := catfile.NewCache(cfg)
@@ -565,15 +561,7 @@ func testFindAllTagsPagination(t *testing.T, ctx context.Context) {
 			paginationParams: &gitalypb.PaginationParameter{Limit: 3, PageToken: "refs/tags/v1.0.0"},
 			sortBy:           &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_REFNAME, Direction: gitalypb.SortDirection_DESCENDING},
 			expected: func(context.Context) ([]string, error) {
-				if featureflag.ExactPaginationTokenMatch.IsEnabled(ctx) {
-					return []string{
-						annotatedTagID.String(),
-					}, nil
-				}
-
 				return []string{
-					"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
-					"f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
 					annotatedTagID.String(),
 				}, nil
 			},
@@ -589,14 +577,7 @@ func testFindAllTagsPagination(t *testing.T, ctx context.Context) {
 			desc:             "with invalid page token",
 			paginationParams: &gitalypb.PaginationParameter{Limit: 3, PageToken: "refs/tags/invalid"},
 			expected: func(ctx context.Context) ([]string, error) {
-				if featureflag.ExactPaginationTokenMatch.IsEnabled(ctx) {
-					return nil, helper.ErrInvalidArgumentf("could not find page token")
-				}
-
-				return []string{
-					"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
-					"8f03acbcd11c53d9c9468078f32a2622005a4841",
-				}, nil
+				return nil, helper.ErrInvalidArgumentf("could not find page token")
 			},
 		},
 	} {

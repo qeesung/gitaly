@@ -13,7 +13,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/lines"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
@@ -296,19 +295,15 @@ func buildPaginationOpts(ctx context.Context, p *gitalypb.PaginationParameter) *
 	}
 
 	if p.GetPageToken() != "" {
-		if featureflag.ExactPaginationTokenMatch.IsEnabled(ctx) {
-			opts.IsPageToken = func(line []byte) bool {
-				// Only use the first part of the line before \x00 separator
-				if nullByteIndex := bytes.IndexByte(line, 0); nullByteIndex != -1 {
-					line = line[:nullByteIndex]
-				}
-
-				return bytes.Equal(line, []byte(p.GetPageToken()))
+		opts.IsPageToken = func(line []byte) bool {
+			// Only use the first part of the line before \x00 separator
+			if nullByteIndex := bytes.IndexByte(line, 0); nullByteIndex != -1 {
+				line = line[:nullByteIndex]
 			}
-			opts.PageTokenError = true
-		} else {
-			opts.IsPageToken = func(l []byte) bool { return bytes.Compare(l, []byte(p.GetPageToken())) >= 0 }
+
+			return bytes.Equal(line, []byte(p.GetPageToken()))
 		}
+		opts.PageTokenError = true
 	}
 
 	return opts
