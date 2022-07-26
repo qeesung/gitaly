@@ -20,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/pktline"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/sidechannel"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
@@ -45,15 +46,15 @@ func runTestWithAndWithoutConfigOptions(
 	makeRequest requestMaker,
 	opts ...testcfg.Option,
 ) {
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, func(t *testing.T, ctx context.Context) {
+		t.Run("no config options", func(t *testing.T) { tf(t, ctx, makeRequest) })
 
-	t.Run("no config options", func(t *testing.T) { tf(t, ctx, makeRequest) })
-
-	if len(opts) > 0 {
-		t.Run("with config options", func(t *testing.T) {
-			tf(t, ctx, makeRequest, opts...)
-		})
-	}
+		if len(opts) > 0 {
+			t.Run("with config options", func(t *testing.T) {
+				tf(t, ctx, makeRequest, opts...)
+			})
+		}
+	})
 }
 
 func TestServer_PostUpload(t *testing.T) {
@@ -263,16 +264,18 @@ func testServerPostUploadPackSuppressDeepenExitError(t *testing.T, ctx context.C
 
 func TestServer_PostUploadPack_usesPackObjectsHook(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
-	testServerPostUploadPackUsesPackObjectsHook(t, ctx, makePostUploadPackRequest)
+	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, func(t *testing.T, ctx context.Context) {
+		testServerPostUploadPackUsesPackObjectsHook(t, ctx, makePostUploadPackRequest)
+	})
 }
 
 func TestServer_PostUploadPackWithSidechannel_usesPackObjectsHook(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
-	testServerPostUploadPackUsesPackObjectsHook(t, ctx, makePostUploadPackWithSidechannelRequest)
+	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, func(t *testing.T, ctx context.Context) {
+		testServerPostUploadPackUsesPackObjectsHook(t, ctx, makePostUploadPackWithSidechannelRequest)
+	})
 }
 
 func testServerPostUploadPackUsesPackObjectsHook(t *testing.T, ctx context.Context, makeRequest requestMaker, opts ...testcfg.Option) {
@@ -493,16 +496,18 @@ func testServerPostUploadPackPartialClone(t *testing.T, ctx context.Context, mak
 
 func TestServer_PostUploadPack_allowAnySHA1InWant(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
-	testServerPostUploadPackAllowAnySHA1InWant(t, ctx, makePostUploadPackRequest)
+	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, func(t *testing.T, ctx context.Context) {
+		testServerPostUploadPackAllowAnySHA1InWant(t, ctx, makePostUploadPackRequest)
+	})
 }
 
 func TestServer_PostUploadPackWithSidechannel_allowAnySHA1InWant(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
 
-	testServerPostUploadPackAllowAnySHA1InWant(t, ctx, makePostUploadPackWithSidechannelRequest)
+	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, func(t *testing.T, ctx context.Context) {
+		testServerPostUploadPackAllowAnySHA1InWant(t, ctx, makePostUploadPackWithSidechannelRequest)
+	})
 }
 
 func testServerPostUploadPackAllowAnySHA1InWant(t *testing.T, ctx context.Context, makeRequest requestMaker, opts ...testcfg.Option) {
