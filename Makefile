@@ -145,6 +145,11 @@ GIT_EXECUTABLES += git
 GIT_EXECUTABLES += git-remote-http
 GIT_EXECUTABLES += git-http-backend
 
+## The version of Git to build and test Gitaly with when not used
+## WITH_BUNDLED_GIT=YesPlease. Can be set to an arbitrary Git revision with
+## tags, branches, and commit ids.
+GIT_VERSION ?=
+
 # The default version is used in case the caller does not set the variable or
 # if it is either set to the empty string or "default".
 ifeq (${GIT_VERSION:default=},)
@@ -311,7 +316,8 @@ help:
 		 { desc = "" }' $(MAKEFILE_LIST) | sort | column -s: -t
 
 	${Q}echo ""
-	${Q}echo "These are common variables which can be overridden in config.mak:"
+	${Q}echo "These are common variables which can be overridden in config.mak"
+	${Q}echo "or by passing them to make directly as environment variables:"
 	${Q}echo ""
 
 	@ # Match all variables which have preceding `## ` comments and which are assigned via `?=`.
