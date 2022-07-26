@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	grpcmetadata "google.golang.org/grpc/metadata"
@@ -74,6 +75,9 @@ func TestWithPackObjectsHookEnv(t *testing.T) {
 
 	ctx = grpcmetadata.AppendToOutgoingContext(ctx, "user_id", userID, "username", username)
 	ctx = metadata.OutgoingToIncoming(ctx)
+	// We don't care about this feature flag as it doesn't impact behaviour of the system under
+	// test.
+	ctx = featureflag.IncomingCtxWithFeatureFlag(ctx, featureflag.UploadPackHideRefs, true)
 
 	cmd, err := gittest.NewCommandFactory(t, cfg, git.WithSkipHooks()).New(ctx, repo, subCmd, opt)
 	require.NoError(t, err)
