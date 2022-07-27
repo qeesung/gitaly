@@ -599,8 +599,15 @@ ${BUILD_DIR}/bin/%: ${BUILD_DIR}/intermediate/% | ${BUILD_DIR}/bin
 		install "$<" "$@"; \
 	fi
 
+# The build process left a go.mod and go.sum file in ${BUILD_DIR} in the past. This causes problems these days
+# when attempting to embed the auxiliary binaries into Gitaly binary as they are considered to be in a different
+# module due to this. Remove the legacy files.
+.PHONY: remove-legacy-go-mod
+remove-legacy-go-mod:
+	${Q}rm -f $(addprefix ${BUILD_DIR}/, go.mod go.sum)
+
 ${BUILD_DIR}/intermediate/gitaly:            GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
-${BUILD_DIR}/intermediate/gitaly:            ${GITALY_PACKED_EXECUTABLES}
+${BUILD_DIR}/intermediate/gitaly:            remove-legacy-go-mod ${GITALY_PACKED_EXECUTABLES}
 ${BUILD_DIR}/intermediate/praefect:          GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
 ${BUILD_DIR}/intermediate/gitaly-git2go-v15: GO_BUILD_TAGS = ${GIT2GO_BUILD_TAGS}
 ${BUILD_DIR}/intermediate/gitaly-git2go-v15: libgit2
