@@ -456,9 +456,14 @@ notice-up-to-date: ${BUILD_DIR}/NOTICE
 notice: ${SOURCE_DIR}/NOTICE
 
 .PHONY: clean
-## Clean up build artifacts.
+## Clean up the Go and Ruby build artifacts.
 clean:
 	rm -rf ${BUILD_DIR} ${SOURCE_DIR}/ruby/.bundle/ ${SOURCE_DIR}/ruby/vendor/bundle/
+
+.PHONY: clean-build
+## Clean up the build artifacts except for Ruby dependencies.
+clean-build:
+	rm -rf ${BUILD_DIR}
 
 .PHONY: clean-ruby-vendor-go
 clean-ruby-vendor-go:
