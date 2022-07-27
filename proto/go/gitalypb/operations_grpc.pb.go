@@ -41,7 +41,8 @@ type OperationServiceClient interface {
 	//   `gitaly_user_delete_branch_structured_errors` feature flag is set this error case will
 	//   instead return `FailedPrecondition` with a `ReferenceUpdate` structured error.
 	UserDeleteBranch(ctx context.Context, in *UserDeleteBranchRequest, opts ...grpc.CallOption) (*UserDeleteBranchResponse, error)
-	// UserCreateTag creates a new tag.
+	// UserCreateTag creates a new tag. This RPC knows to create both lightweight and annotated tags
+	// depending on whether a message is set.
 	UserCreateTag(ctx context.Context, in *UserCreateTagRequest, opts ...grpc.CallOption) (*UserCreateTagResponse, error)
 	// This comment is left unintentionally blank.
 	UserDeleteTag(ctx context.Context, in *UserDeleteTagRequest, opts ...grpc.CallOption) (*UserDeleteTagResponse, error)
@@ -356,7 +357,8 @@ type OperationServiceServer interface {
 	//   `gitaly_user_delete_branch_structured_errors` feature flag is set this error case will
 	//   instead return `FailedPrecondition` with a `ReferenceUpdate` structured error.
 	UserDeleteBranch(context.Context, *UserDeleteBranchRequest) (*UserDeleteBranchResponse, error)
-	// UserCreateTag creates a new tag.
+	// UserCreateTag creates a new tag. This RPC knows to create both lightweight and annotated tags
+	// depending on whether a message is set.
 	UserCreateTag(context.Context, *UserCreateTagRequest) (*UserCreateTagResponse, error)
 	// This comment is left unintentionally blank.
 	UserDeleteTag(context.Context, *UserDeleteTagRequest) (*UserDeleteTagResponse, error)

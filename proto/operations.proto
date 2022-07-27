@@ -49,7 +49,8 @@ service OperationService {
     };
   }
 
-  // UserCreateTag creates a new tag.
+  // UserCreateTag creates a new tag. This RPC knows to create both lightweight and annotated tags
+  // depending on whether a message is set.
   rpc UserCreateTag(UserCreateTagRequest) returns (UserCreateTagResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -257,26 +258,29 @@ message UserDeleteTagResponse {
   string pre_receive_error = 1;
 }
 
-// This comment is left unintentionally blank.
+// UserCreateTagRequest is a request for the UserCreateTag RPC.
 message UserCreateTagRequest {
-  // repository is the repository in which the tag shall be created.
+  // Repository is the repository in which the tag shall be created.
   Repository repository = 1 [(target_repository)=true];
-  // tag_name is the name of the tag that shall be created.
+  // TagName is the name of the tag that shall be created. Note that this should be set to the name
+  // only: if you want to create a tag `refs/heads/v1.0`, you need to pass `v1.0` as TagName.
   bytes tag_name = 2;
-  // user is the user as which the tag shall be created.
+  // User is the user as which the tag shall be created. This user is used to perform access checks
+  // against Rails' `/internal/allowed` endpoint.
   User user = 3;
-  // target_revision is the revision which the tag should point to.
+  // TargetRevision is the revision that the newly created tag should be pointing to. Note that if
+  // the revision points to a tag, that tag will be peeled to the commit it is pointing to. If the
+  // TargetRevision does not point to a commit then the RPC will return an error.
   bytes target_revision = 4;
-  // message is the message of the tag. If it is empty, a lightweight tag is
-  // created. Otherwise, an annotated tag is created.
+  // Message is the message of the tag. If it is empty, a lightweight tag is created. Otherwise, an
+  // annotated tag is created.
   bytes message = 5;
-  // timestamp is the optional timestamp to use for the created tag tags. If
-  // it's not set, the current time will be used. It's only used if an
-  // annotated tag is being created.
+  // Timestamp is the optional timestamp to use for the created tag tags. If it's not set, the
+  // current time will be used. It's only used if an annotated tag is being created.
   google.protobuf.Timestamp timestamp = 7;
 }
 
-// This comment is left unintentionally blank.
+// UserCreateTagResponse is a response for the UserCreateTag RPC.
 message UserCreateTagResponse {
   // tag is the newly created tag.
   Tag tag = 1;

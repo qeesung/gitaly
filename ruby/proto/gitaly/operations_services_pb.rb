@@ -37,7 +37,8 @@ module Gitaly
       #   `gitaly_user_delete_branch_structured_errors` feature flag is set this error case will
       #   instead return `FailedPrecondition` with a `ReferenceUpdate` structured error.
       rpc :UserDeleteBranch, ::Gitaly::UserDeleteBranchRequest, ::Gitaly::UserDeleteBranchResponse
-      # UserCreateTag creates a new tag.
+      # UserCreateTag creates a new tag. This RPC knows to create both lightweight and annotated tags
+      # depending on whether a message is set.
       rpc :UserCreateTag, ::Gitaly::UserCreateTagRequest, ::Gitaly::UserCreateTagResponse
       # This comment is left unintentionally blank.
       rpc :UserDeleteTag, ::Gitaly::UserDeleteTagRequest, ::Gitaly::UserDeleteTagResponse

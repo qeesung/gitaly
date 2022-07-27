@@ -806,26 +806,29 @@ func (x *UserDeleteTagResponse) GetPreReceiveError() string {
 	return ""
 }
 
-// This comment is left unintentionally blank.
+// UserCreateTagRequest is a request for the UserCreateTag RPC.
 type UserCreateTagRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// repository is the repository in which the tag shall be created.
+	// Repository is the repository in which the tag shall be created.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	// tag_name is the name of the tag that shall be created.
+	// TagName is the name of the tag that shall be created. Note that this should be set to the name
+	// only: if you want to create a tag `refs/heads/v1.0`, you need to pass `v1.0` as TagName.
 	TagName []byte `protobuf:"bytes,2,opt,name=tag_name,json=tagName,proto3" json:"tag_name,omitempty"`
-	// user is the user as which the tag shall be created.
+	// User is the user as which the tag shall be created. This user is used to perform access checks
+	// against Rails' `/internal/allowed` endpoint.
 	User *User `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
-	// target_revision is the revision which the tag should point to.
+	// TargetRevision is the revision that the newly created tag should be pointing to. Note that if
+	// the revision points to a tag, that tag will be peeled to the commit it is pointing to. If the
+	// TargetRevision does not point to a commit then the RPC will return an error.
 	TargetRevision []byte `protobuf:"bytes,4,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
-	// message is the message of the tag. If it is empty, a lightweight tag is
-	// created. Otherwise, an annotated tag is created.
+	// Message is the message of the tag. If it is empty, a lightweight tag is created. Otherwise, an
+	// annotated tag is created.
 	Message []byte `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
-	// timestamp is the optional timestamp to use for the created tag tags. If
-	// it's not set, the current time will be used. It's only used if an
-	// annotated tag is being created.
+	// Timestamp is the optional timestamp to use for the created tag tags. If it's not set, the
+	// current time will be used. It's only used if an annotated tag is being created.
 	Timestamp *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 }
 
@@ -903,7 +906,7 @@ func (x *UserCreateTagRequest) GetTimestamp() *timestamppb.Timestamp {
 	return nil
 }
 
-// This comment is left unintentionally blank.
+// UserCreateTagResponse is a response for the UserCreateTag RPC.
 type UserCreateTagResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -54,32 +54,28 @@ func (s *Server) UserDeleteTag(ctx context.Context, req *gitalypb.UserDeleteTagR
 }
 
 func validateUserCreateTag(req *gitalypb.UserCreateTagRequest) error {
-	// Emulate validations done by Ruby. A lot of these (e.g. the
-	// upper-case error messages) can be simplified once we're not
-	// doing bug-for-bug Ruby emulation anymore)
 	if len(req.TagName) == 0 {
-		return status.Errorf(codes.InvalidArgument, "empty tag name")
+		return fmt.Errorf("empty tag name")
 	}
 
-	if bytes.Contains(req.TagName, []byte(" ")) {
-		return status.Errorf(codes.Unknown, "Gitlab::Git::CommitError: Could not update refs/tags/%s. Please refresh and try again.", req.TagName)
+	if err := git.ValidateRevision(req.TagName); err != nil {
+		return fmt.Errorf("invalid tag name: %w", err)
 	}
 
 	if req.User == nil {
-		return status.Errorf(codes.InvalidArgument, "empty user")
+		return fmt.Errorf("empty user")
 	}
 
 	if len(req.TargetRevision) == 0 {
-		return status.Error(codes.InvalidArgument, "empty target revision")
+		return fmt.Errorf("empty target revision")
 	}
 
 	if bytes.Contains(req.Message, []byte("\000")) {
-		return status.Errorf(codes.Unknown, "ArgumentError: string contains null byte")
+		return fmt.Errorf("tag message contains NUL byte")
 	}
 
-	// Our own Go-specific validation
 	if req.GetRepository() == nil {
-		return status.Errorf(codes.Internal, "empty repository")
+		return fmt.Errorf("empty repository")
 	}
 
 	return nil
@@ -87,9 +83,8 @@ func validateUserCreateTag(req *gitalypb.UserCreateTagRequest) error {
 
 //nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserCreateTag(ctx context.Context, req *gitalypb.UserCreateTagRequest) (*gitalypb.UserCreateTagResponse, error) {
-	// Validate the request
 	if err := validateUserCreateTag(req); err != nil {
-		return nil, err
+		return nil, helper.ErrInvalidArgumentf("validating request: %w", err)
 	}
 
 	targetRevision := git.Revision(req.TargetRevision)
