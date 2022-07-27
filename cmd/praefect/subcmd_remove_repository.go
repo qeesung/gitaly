@@ -23,6 +23,7 @@ import (
 const (
 	removeRepositoryCmdName = "remove-repository"
 	paramApply              = "apply"
+	paramDBOnly             = "db-only"
 )
 
 type writer struct {
@@ -41,6 +42,7 @@ type removeRepository struct {
 	virtualStorage string
 	relativePath   string
 	apply          bool
+	dbOnly         bool
 	dialTimeout    time.Duration
 	w              io.Writer
 }
@@ -53,16 +55,19 @@ func (cmd *removeRepository) FlagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet(removeRepositoryCmdName, flag.ExitOnError)
 	fs.StringVar(&cmd.virtualStorage, paramVirtualStorage, "", "name of the repository's virtual storage")
 	fs.BoolVar(&cmd.apply, paramApply, false, "physically remove the repository from disk and the database")
+	fs.BoolVar(&cmd.dbOnly, paramDBOnly, false, "remove the repository records from the database only")
 	fs.StringVar(&cmd.relativePath, paramRelativePath, "", "relative path to the repository")
 	fs.Usage = func() {
 		printfErr("Description:\n" +
 			"	This command removes all state associated with a given repository from the Gitaly Cluster.\n" +
 			"	This includes both on-disk repositories on all relevant Gitaly nodes as well as any potential\n" +
-			"	database state as tracked by Praefect.\n" +
+			"	database state as tracked by Praefect, or optionally only database state.\n" +
 			"	Runs in dry-run mode by default checks whether the repository exists" +
 			"	without actually removing it from the database and disk.\n" +
 			"	When -apply is used, the repository will be removed from the database as well as\n" +
-			"	the individual gitaly nodes on which they exist.\n")
+			"	the individual gitaly nodes on which they exist.\n" +
+			"   When -apply and -db-only are used, the repository will be removed from the\n" +
+			"   database but left in-place on the gitaly nodes.")
 		fs.PrintDefaults()
 	}
 	return fs
@@ -115,7 +120,24 @@ func (cmd *removeRepository) exec(ctx context.Context, logger logrus.FieldLogger
 	}
 
 	if !cmd.apply {
-		fmt.Fprintln(cmd.w, "Re-run the command with -apply to remove repositories from the database and disk.")
+		fmt.Fprintln(cmd.w, "Re-run the command with -apply to remove repositories from the database"+
+			" and disk or -apply and -db-only to remove from database only.")
+		return nil
+	}
+
+	ticker := helper.NewTimerTicker(time.Second)
+	defer ticker.Stop()
+
+	if cmd.dbOnly {
+		fmt.Fprintf(cmd.w, "Attempting to remove %s from the database...\n", cmd.relativePath)
+		if _, _, err := rs.DeleteRepository(ctx, cmd.virtualStorage, cmd.relativePath); err != nil {
+			return fmt.Errorf("remove repository from database: %w", err)
+		}
+		fmt.Fprintln(cmd.w, "Repository removal from database completed.")
+
+		if err := cmd.removeReplicationEvents(ctx, logger, db, ticker); err != nil {
+			return fmt.Errorf("remove scheduled replication events: %w", err)
+		}
 		return nil
 	}
 
@@ -137,8 +159,6 @@ func (cmd *removeRepository) exec(ctx context.Context, logger logrus.FieldLogger
 	fmt.Fprintln(cmd.w, "Repository removal completed.")
 
 	fmt.Fprintln(cmd.w, "Removing replication events...")
-	ticker := helper.NewTimerTicker(time.Second)
-	defer ticker.Stop()
 	if err := cmd.removeReplicationEvents(ctx, logger, db, ticker); err != nil {
 		return fmt.Errorf("remove scheduled replication events: %w", err)
 	}

@@ -19,6 +19,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	gitalycfg "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/setup"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
@@ -127,6 +128,7 @@ func TestRemoveRepository_Exec(t *testing.T) {
 			relativePath:   repo.RelativePath,
 			dialTimeout:    time.Second,
 			apply:          false,
+			dbOnly:         false,
 			w:              &writer{w: &out},
 		}
 		require.NoError(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf))
@@ -134,36 +136,40 @@ func TestRemoveRepository_Exec(t *testing.T) {
 		require.DirExists(t, filepath.Join(g1Cfg.Storages[0].Path, replicaPath))
 		require.DirExists(t, filepath.Join(g2Cfg.Storages[0].Path, replicaPath))
 		assert.Contains(t, out.String(), "Repository found in the database.\n")
-		assert.Contains(t, out.String(), "Re-run the command with -apply to remove repositories from the database and disk.\n")
+		assert.Contains(t, out.String(), "Re-run the command with -apply to remove repositories from the database and disk or -apply and -db-only to remove from database only.")
 		require.True(t, repositoryExists(t, repo))
 	})
 
 	t.Run("ok", func(t *testing.T) {
 		var out bytes.Buffer
 		repo := createRepo(t, ctx, repoClient, praefectStorage, t.Name())
+		replicaPath := gittest.GetReplicaPath(ctx, t, gitalycfg.Cfg{SocketPath: praefectServer.Address()}, repo)
+		require.DirExists(t, filepath.Join(g1Cfg.Storages[0].Path, replicaPath))
+		require.DirExists(t, filepath.Join(g2Cfg.Storages[0].Path, replicaPath))
+
 		cmd := &removeRepository{
 			logger:         testhelper.NewDiscardingLogger(t),
 			virtualStorage: repo.StorageName,
 			relativePath:   repo.RelativePath,
 			dialTimeout:    time.Second,
 			apply:          true,
+			dbOnly:         false,
 			w:              &writer{w: &out},
 		}
 		require.NoError(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf))
 
-		require.NoDirExists(t, filepath.Join(g1Cfg.Storages[0].Path, repo.RelativePath))
-		require.NoDirExists(t, filepath.Join(g2Cfg.Storages[0].Path, repo.RelativePath))
+		require.NoDirExists(t, filepath.Join(g1Cfg.Storages[0].Path, replicaPath))
+		require.NoDirExists(t, filepath.Join(g2Cfg.Storages[0].Path, replicaPath))
 		assert.Contains(t, out.String(), "Repository found in the database.\n")
 		assert.Contains(t, out.String(), fmt.Sprintf("Attempting to remove %s from the database, and delete it from all gitaly nodes...\n", repo.RelativePath))
 		assert.Contains(t, out.String(), "Repository removal completed.")
 		require.False(t, repositoryExists(t, repo))
 	})
 
-	t.Run("repository doesnt exist on one gitaly", func(t *testing.T) {
+	t.Run("db only", func(t *testing.T) {
 		var out bytes.Buffer
 		repo := createRepo(t, ctx, repoClient, praefectStorage, t.Name())
-
-		require.NoError(t, os.RemoveAll(filepath.Join(g2Cfg.Storages[0].Path, repo.RelativePath)))
+		replicaPath := gittest.GetReplicaPath(ctx, t, gitalycfg.Cfg{SocketPath: praefectServer.Address()}, repo)
 
 		cmd := &removeRepository{
 			logger:         testhelper.NewDiscardingLogger(t),
@@ -171,12 +177,45 @@ func TestRemoveRepository_Exec(t *testing.T) {
 			relativePath:   repo.RelativePath,
 			dialTimeout:    time.Second,
 			apply:          true,
+			dbOnly:         true,
 			w:              &writer{w: &out},
 		}
 		require.NoError(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf))
 
-		require.NoDirExists(t, filepath.Join(g1Cfg.Storages[0].Path, repo.RelativePath))
-		require.NoDirExists(t, filepath.Join(g2Cfg.Storages[0].Path, repo.RelativePath))
+		// Repo is no longer present in the Praefect DB.
+		require.False(t, repositoryExists(t, repo))
+
+		// Repo is still present on-disk on the Gitaly nodes.
+		require.True(t, storage.IsGitDirectory(filepath.Join(g1Cfg.Storages[0].Path, replicaPath)))
+		require.True(t, storage.IsGitDirectory(filepath.Join(g2Cfg.Storages[0].Path, replicaPath)))
+
+		assert.Contains(t, out.String(), "Repository found in the database.\n")
+		assert.Contains(t, out.String(), fmt.Sprintf("Attempting to remove %s from the database...\n", repo.RelativePath))
+		assert.Contains(t, out.String(), "Repository removal from database completed.")
+	})
+
+	t.Run("repository doesnt exist on one gitaly", func(t *testing.T) {
+		var out bytes.Buffer
+		repo := createRepo(t, ctx, repoClient, praefectStorage, t.Name())
+		replicaPath := gittest.GetReplicaPath(ctx, t, gitalycfg.Cfg{SocketPath: praefectServer.Address()}, repo)
+
+		require.DirExists(t, filepath.Join(g2Cfg.Storages[0].Path, replicaPath))
+		require.DirExists(t, filepath.Join(g1Cfg.Storages[0].Path, replicaPath))
+		require.NoError(t, os.RemoveAll(filepath.Join(g2Cfg.Storages[0].Path, replicaPath)))
+
+		cmd := &removeRepository{
+			logger:         testhelper.NewDiscardingLogger(t),
+			virtualStorage: repo.StorageName,
+			relativePath:   repo.RelativePath,
+			dialTimeout:    time.Second,
+			apply:          true,
+			dbOnly:         false,
+			w:              &writer{w: &out},
+		}
+		require.NoError(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf))
+
+		require.NoDirExists(t, filepath.Join(g1Cfg.Storages[0].Path, replicaPath))
+		require.NoDirExists(t, filepath.Join(g2Cfg.Storages[0].Path, replicaPath))
 		assert.Contains(t, out.String(), "Repository found in the database.\n")
 		assert.Contains(t, out.String(), fmt.Sprintf("Attempting to remove %s from the database, and delete it from all gitaly nodes...\n", repo.RelativePath))
 		assert.Contains(t, out.String(), "Repository removal completed.")
@@ -198,6 +237,7 @@ func TestRemoveRepository_Exec(t *testing.T) {
 			relativePath:   repo.RelativePath,
 			dialTimeout:    time.Second,
 			apply:          true,
+			dbOnly:         false,
 			w:              &writer{w: &out},
 		}
 		require.Error(t, cmd.Exec(flag.NewFlagSet("", flag.PanicOnError), conf), "repository is not being tracked in Praefect")
@@ -221,6 +261,7 @@ func TestRemoveRepository_Exec(t *testing.T) {
 			relativePath:   repo.RelativePath,
 			dialTimeout:    100 * time.Millisecond,
 			apply:          true,
+			dbOnly:         false,
 			w:              &writer{w: &out},
 		}
 
