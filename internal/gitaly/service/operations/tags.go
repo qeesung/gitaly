@@ -113,6 +113,7 @@ func (s *Server) UserCreateTag(ctx context.Context, req *gitalypb.UserCreateTagR
 	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, quarantineDir, referenceName, tagID, git.ObjectHashSHA1.ZeroOID); err != nil {
 		var customHookErrr updateref.CustomHookError
 		if errors.As(err, &customHookErrr) {
+			// TODO: this case should return a CustomHookError.
 			return &gitalypb.UserCreateTagResponse{
 				PreReceiveError: customHookErrr.Error(),
 			}, nil
@@ -136,6 +137,8 @@ func (s *Server) UserCreateTag(ctx context.Context, req *gitalypb.UserCreateTagR
 				// does is what the Ruby code used to
 				// do, so let's follow it off that
 				// cliff.
+				//
+				// TODO: this case should return a ReferenceExistsError.
 				return &gitalypb.UserCreateTagResponse{
 					Tag:    nil,
 					Exists: true,
@@ -146,6 +149,8 @@ func (s *Server) UserCreateTag(ctx context.Context, req *gitalypb.UserCreateTagR
 			// tell the user to retry with an
 			// invalid ref name, but ditto on the
 			// Ruby bug-for-bug emulation.
+			//
+			// TODO: this case should return a ReferenceUpdateError.
 			return &gitalypb.UserCreateTagResponse{
 				Tag:    nil,
 				Exists: true,
@@ -158,6 +163,9 @@ func (s *Server) UserCreateTag(ctx context.Context, req *gitalypb.UserCreateTagR
 		// we've got an unknown error (it should all be
 		// updateRefError above) let's relay it to the
 		// caller. This should not happen.
+		//
+		// TODO: this case should either return an AccessCheckError in case Rails refused
+		// the update, or alternatively an Internal error.
 		return &gitalypb.UserCreateTagResponse{
 			Tag:    nil,
 			Exists: true,

@@ -287,6 +287,23 @@ message UserCreateTagResponse {
   string pre_receive_error = 3;
 }
 
+// UserCreateTagError includes error descriptions which may be set as error details in case
+// UserCreateTag fails.
+message UserCreateTagError {
+  oneof error {
+    // AccessCheckError is set if the RPC failed because `/internal/allowed` failed.
+    AccessCheckError access_check = 1;
+    // ReferenceUpdateError is set if the RPC failed because updating the
+    // reference to the new object ID has failed.
+    ReferenceUpdateError reference_update = 2;
+    // CustomHook is set if any custom hook which has running as part of this RPC call has returned
+    // a non-zero exit code.
+    CustomHookError custom_hook = 3;
+    // ReferenceExistsError is set if the tag reference exists already.
+    ReferenceExistsError reference_exists = 4;
+  }
+}
+
 // This comment is left unintentionally blank.
 message UserMergeBranchRequest {
   // The following parameters must only be set in the first message to declare

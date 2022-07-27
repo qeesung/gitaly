@@ -65,6 +65,14 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :exists, :bool, 2
       optional :pre_receive_error, :string, 3
     end
+    add_message "gitaly.UserCreateTagError" do
+      oneof :error do
+        optional :access_check, :message, 1, "gitaly.AccessCheckError"
+        optional :reference_update, :message, 2, "gitaly.ReferenceUpdateError"
+        optional :custom_hook, :message, 3, "gitaly.CustomHookError"
+        optional :reference_exists, :message, 4, "gitaly.ReferenceExistsError"
+      end
+    end
     add_message "gitaly.UserMergeBranchRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
       optional :user, :message, 2, "gitaly.User"
@@ -308,6 +316,7 @@ module Gitaly
   UserDeleteTagResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserDeleteTagResponse").msgclass
   UserCreateTagRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCreateTagRequest").msgclass
   UserCreateTagResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCreateTagResponse").msgclass
+  UserCreateTagError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCreateTagError").msgclass
   UserMergeBranchRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserMergeBranchRequest").msgclass
   UserMergeBranchResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserMergeBranchResponse").msgclass
   UserMergeBranchError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserMergeBranchError").msgclass

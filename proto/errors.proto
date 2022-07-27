@@ -58,6 +58,15 @@ message MergeConflictError {
 message ReferencesLockedError {
 }
 
+// ReferenceExistsError is an error returned when a reference that ought not to exist does exist
+// already.
+message ReferenceExistsError {
+  // ReferenceName is the name of the reference that exists already.
+  bytes reference_name = 1;
+  // Oid is the object ID of the reference that preexists already.
+  string oid = 2;
+}
+
 // ReferenceUpdateError is an error returned when updating a reference has
 // failed.
 message ReferenceUpdateError {
