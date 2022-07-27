@@ -15,9 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 )
 
 // FetchFromOrigin initializes the pool and fetches the objects from its origin repository
@@ -73,21 +71,8 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *localrepo.Repo
 		return fmt.Errorf("computing stats after fetch: %w", err)
 	}
 
-	if featureflag.FetchIntoObjectPoolOptimizeRepository.IsEnabled(ctx) {
-		if err := o.housekeepingManager.OptimizeRepository(ctx, o.Repo); err != nil {
-			return fmt.Errorf("optimizing pool repo: %w", err)
-		}
-	} else {
-		if err := o.Repo.ExecAndWait(ctx, git.SubCmd{
-			Name:  "pack-refs",
-			Flags: []git.Option{git.Flag{Name: "--all"}},
-		}); err != nil {
-			return fmt.Errorf("packing pool refs: %w", err)
-		}
-
-		if err := o.repackPool(ctx, o); err != nil {
-			return fmt.Errorf("repacking pool: %w", err)
-		}
+	if err := o.housekeepingManager.OptimizeRepository(ctx, o.Repo); err != nil {
+		return fmt.Errorf("optimizing pool repo: %w", err)
 	}
 
 	return nil
@@ -143,30 +128,6 @@ func (o *ObjectPool) rescueDanglingObjects(ctx context.Context) error {
 	}
 
 	return updater.Commit()
-}
-
-func (o *ObjectPool) repackPool(ctx context.Context, pool repository.GitRepo) error {
-	config := []git.ConfigPair{
-		{Key: "pack.island", Value: git.ObjectPoolRefNamespace + "/he(a)ds"},
-		{Key: "pack.island", Value: git.ObjectPoolRefNamespace + "/t(a)gs"},
-		{Key: "pack.islandCore", Value: "a"},
-		{Key: "pack.writeBitmapHashCache", Value: "true"},
-	}
-
-	if err := o.Repo.ExecAndWait(ctx, git.SubCmd{
-		Name: "repack",
-		Flags: []git.Option{
-			git.Flag{Name: "-aidb"},
-			// This can be removed as soon as we have upstreamed a
-			// `repack.updateServerInfo` config option. See gitlab-org/git#105 for more
-			// details.
-			git.Flag{Name: "-n"},
-		},
-	}, git.WithConfig(config...)); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (o *ObjectPool) logStats(ctx context.Context, when string) error {
