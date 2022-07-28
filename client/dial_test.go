@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-client-go"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
-	proxytestdata "gitlab.com/gitlab-org/gitaly/v15/internal/praefect/grpc-proxy/testdata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	gitalyx509 "gitlab.com/gitlab-org/gitaly/v15/internal/x509"
 	"gitlab.com/gitlab-org/labkit/correlation"
@@ -31,6 +30,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/test/grpc_testing"
 )
 
 var proxyEnvironmentKeys = []string{"http_proxy", "https_proxy", "no_proxy"}
@@ -257,22 +257,22 @@ func TestDialSidechannel(t *testing.T) {
 }
 
 type testSvc struct {
-	proxytestdata.UnimplementedTestServiceServer
-	PingMethod       func(context.Context, *proxytestdata.PingRequest) (*proxytestdata.PingResponse, error)
-	PingStreamMethod func(stream proxytestdata.TestService_PingStreamServer) error
+	grpc_testing.UnimplementedTestServiceServer
+	unaryCall      func(context.Context, *grpc_testing.SimpleRequest) (*grpc_testing.SimpleResponse, error)
+	fullDuplexCall func(stream grpc_testing.TestService_FullDuplexCallServer) error
 }
 
-func (ts *testSvc) Ping(ctx context.Context, r *proxytestdata.PingRequest) (*proxytestdata.PingResponse, error) {
-	if ts.PingMethod != nil {
-		return ts.PingMethod(ctx, r)
+func (ts *testSvc) UnaryCall(ctx context.Context, r *grpc_testing.SimpleRequest) (*grpc_testing.SimpleResponse, error) {
+	if ts.unaryCall != nil {
+		return ts.unaryCall(ctx, r)
 	}
 
-	return &proxytestdata.PingResponse{}, nil
+	return &grpc_testing.SimpleResponse{}, nil
 }
 
-func (ts *testSvc) PingStream(stream proxytestdata.TestService_PingStreamServer) error {
-	if ts.PingStreamMethod != nil {
-		return ts.PingStreamMethod(stream)
+func (ts *testSvc) FullDuplexCall(stream grpc_testing.TestService_FullDuplexCallServer) error {
+	if ts.fullDuplexCall != nil {
+		return ts.fullDuplexCall(stream)
 	}
 
 	return nil
@@ -287,13 +287,13 @@ func TestDial_Correlation(t *testing.T) {
 
 		grpcServer := grpc.NewServer(grpc.UnaryInterceptor(grpccorrelation.UnaryServerCorrelationInterceptor()))
 		svc := &testSvc{
-			PingMethod: func(ctx context.Context, r *proxytestdata.PingRequest) (*proxytestdata.PingResponse, error) {
+			unaryCall: func(ctx context.Context, r *grpc_testing.SimpleRequest) (*grpc_testing.SimpleResponse, error) {
 				cid := correlation.ExtractFromContext(ctx)
 				assert.Equal(t, "correlation-id-1", cid)
-				return &proxytestdata.PingResponse{}, nil
+				return &grpc_testing.SimpleResponse{}, nil
 			},
 		}
-		proxytestdata.RegisterTestServiceServer(grpcServer, svc)
+		grpc_testing.RegisterTestServiceServer(grpcServer, svc)
 
 		go func() { assert.NoError(t, grpcServer.Serve(listener)) }()
 
@@ -304,10 +304,10 @@ func TestDial_Correlation(t *testing.T) {
 		require.NoError(t, err)
 		defer cc.Close()
 
-		client := proxytestdata.NewTestServiceClient(cc)
+		client := grpc_testing.NewTestServiceClient(cc)
 
 		ctx = correlation.ContextWithCorrelation(ctx, "correlation-id-1")
-		_, err = client.Ping(ctx, &proxytestdata.PingRequest{})
+		_, err = client.UnaryCall(ctx, &grpc_testing.SimpleRequest{})
 		require.NoError(t, err)
 	})
 
@@ -319,15 +319,15 @@ func TestDial_Correlation(t *testing.T) {
 
 		grpcServer := grpc.NewServer(grpc.StreamInterceptor(grpccorrelation.StreamServerCorrelationInterceptor()))
 		svc := &testSvc{
-			PingStreamMethod: func(stream proxytestdata.TestService_PingStreamServer) error {
+			fullDuplexCall: func(stream grpc_testing.TestService_FullDuplexCallServer) error {
 				cid := correlation.ExtractFromContext(stream.Context())
 				assert.Equal(t, "correlation-id-1", cid)
 				_, err := stream.Recv()
 				assert.NoError(t, err)
-				return stream.Send(&proxytestdata.PingResponse{})
+				return stream.Send(&grpc_testing.StreamingOutputCallResponse{})
 			},
 		}
-		proxytestdata.RegisterTestServiceServer(grpcServer, svc)
+		grpc_testing.RegisterTestServiceServer(grpcServer, svc)
 
 		go func() { assert.NoError(t, grpcServer.Serve(listener)) }()
 		defer grpcServer.Stop()
@@ -337,13 +337,13 @@ func TestDial_Correlation(t *testing.T) {
 		require.NoError(t, err)
 		defer cc.Close()
 
-		client := proxytestdata.NewTestServiceClient(cc)
+		client := grpc_testing.NewTestServiceClient(cc)
 
 		ctx = correlation.ContextWithCorrelation(ctx, "correlation-id-1")
-		stream, err := client.PingStream(ctx)
+		stream, err := client.FullDuplexCall(ctx)
 		require.NoError(t, err)
 
-		require.NoError(t, stream.Send(&proxytestdata.PingRequest{}))
+		require.NoError(t, stream.Send(&grpc_testing.StreamingOutputCallRequest{}))
 		require.NoError(t, stream.CloseSend())
 
 		_, err = stream.Recv()
@@ -367,13 +367,13 @@ func TestDial_Tracing(t *testing.T) {
 		grpc.StreamInterceptor(grpctracing.StreamServerTracingInterceptor()),
 	)
 	svc := &testSvc{
-		PingMethod: func(ctx context.Context, r *proxytestdata.PingRequest) (*proxytestdata.PingResponse, error) {
+		unaryCall: func(ctx context.Context, r *grpc_testing.SimpleRequest) (*grpc_testing.SimpleResponse, error) {
 			span, _ := opentracing.StartSpanFromContext(ctx, "nested-span")
 			defer span.Finish()
 			span.LogKV("was", "called")
-			return &proxytestdata.PingResponse{}, nil
+			return &grpc_testing.SimpleResponse{}, nil
 		},
-		PingStreamMethod: func(stream proxytestdata.TestService_PingStreamServer) error {
+		fullDuplexCall: func(stream grpc_testing.TestService_FullDuplexCallServer) error {
 			// synchronize the client has returned from CloseSend as the client span finishing
 			// races with sending the stream close to the server
 			select {
@@ -388,7 +388,7 @@ func TestDial_Tracing(t *testing.T) {
 			return nil
 		},
 	}
-	proxytestdata.RegisterTestServiceServer(grpcServer, svc)
+	grpc_testing.RegisterTestServiceServer(grpcServer, svc)
 
 	go func() { require.NoError(t, grpcServer.Serve(listener)) }()
 	defer grpcServer.Stop()
@@ -419,7 +419,7 @@ func TestDial_Tracing(t *testing.T) {
 		// We're now invoking the unary RPC with the span injected into
 		// the context. This should create a span that's nested into
 		// the "stream-check" span.
-		_, err = proxytestdata.NewTestServiceClient(cc).Ping(ctx, &proxytestdata.PingRequest{})
+		_, err = grpc_testing.NewTestServiceClient(cc).UnaryCall(ctx, &grpc_testing.SimpleRequest{})
 		require.NoError(t, err)
 
 		span.Finish()
@@ -438,7 +438,7 @@ func TestDial_Tracing(t *testing.T) {
 			// This span is the RPC call to TestService/Ping. It
 			// inherits the "unary-check" we set up and thus has
 			// baggage.
-			{baggage: "stub", operation: "/mwitkow.testproto.TestService/Ping"},
+			{baggage: "stub", operation: "/grpc.testing.TestService/UnaryCall"},
 			// And this finally is the outermost span which we
 			// manually set up before the RPC call.
 			{baggage: "stub", operation: "unary-check"},
@@ -474,7 +474,7 @@ func TestDial_Tracing(t *testing.T) {
 
 		// We're now invoking the streaming RPC with the span injected into the context.
 		// This should create a span that's nested into the "stream-check" span.
-		stream, err := proxytestdata.NewTestServiceClient(cc).PingStream(ctx)
+		stream, err := grpc_testing.NewTestServiceClient(cc).FullDuplexCall(ctx)
 		require.NoError(t, err)
 		require.NoError(t, stream.CloseSend())
 		close(clientSendClosed)
@@ -494,7 +494,7 @@ func TestDial_Tracing(t *testing.T) {
 			operation string
 		}{
 			// This span is the RPC call to TestService/Ping.
-			{baggage: "stub", operation: "/mwitkow.testproto.TestService/PingStream"},
+			{baggage: "stub", operation: "/grpc.testing.TestService/FullDuplexCall"},
 			// This is the second span we expect, which is the "nested-span" span which
 			// we've manually created inside of PingMethod. This is different than for
 			// unary RPCs: given that one can send multiple messages to the RPC, we may

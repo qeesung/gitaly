@@ -9,6 +9,8 @@ import (
 )
 
 func TestCodec_ReadYourWrites(t *testing.T) {
+	t.Parallel()
+
 	framePtr := &frame{}
 	data := []byte{0xDE, 0xAD, 0xBE, 0xEF}
 	codec := rawCodec{}

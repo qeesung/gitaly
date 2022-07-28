@@ -10,6 +10,8 @@ import (
 )
 
 func TestFailDestinationWithError(t *testing.T) {
+	t.Parallel()
+
 	expectedErr := errors.New("some error")
 
 	t.Run("works with nil ErrHandlers", func(t *testing.T) {

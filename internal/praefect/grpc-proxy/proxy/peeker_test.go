@@ -7,133 +7,148 @@ import (
 	"io"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/grpc-proxy/proxy"
-	testservice "gitlab.com/gitlab-org/gitaly/v15/internal/praefect/grpc-proxy/testdata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
+	"google.golang.org/grpc/test/grpc_testing"
 	"google.golang.org/protobuf/proto"
 )
 
-// TestStreamPeeking demonstrates that a director function is able to peek
-// into a stream. Further more, it demonstrates that peeking into a stream
-// will not disturb the stream sent from the proxy client to the backend.
+// TestStreamPeeking demonstrates that a director function is able to peek into a stream. Further
+// more, it demonstrates that peeking into a stream will not disturb the stream sent from the proxy
+// client to the backend.
 func TestStreamPeeking(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
-	backendCC, backendSrvr, cleanupPinger := newBackendPinger(t, ctx)
-	defer cleanupPinger()
+	backendCC, backendSrvr := newBackendPinger(t, ctx)
 
-	pingReqSent := &testservice.PingRequest{Value: "hi"}
+	requestSent := &grpc_testing.StreamingOutputCallRequest{
+		Payload: &grpc_testing.Payload{
+			Body: []byte("hi"),
+		},
+	}
+	responseSent := &grpc_testing.StreamingOutputCallResponse{
+		Payload: &grpc_testing.Payload{
+			Body: []byte("bye"),
+		},
+	}
 
-	// director will peek into stream before routing traffic
-	director := func(ctx context.Context, fullMethodName string, peeker proxy.StreamPeeker) (*proxy.StreamParameters, error) {
-		peekedMsg, err := peeker.Peek()
+	// We create a director that's peeking into the message in order to assert that the peeked
+	// message will still be seen by the client.
+	director := func(ctx context.Context, _ string, peeker proxy.StreamPeeker) (*proxy.StreamParameters, error) {
+		peekedMessage, err := peeker.Peek()
 		require.NoError(t, err)
 
-		peekedRequest := &testservice.PingRequest{}
-		err = proto.Unmarshal(peekedMsg, peekedRequest)
+		var peekedRequest grpc_testing.StreamingOutputCallRequest
+		require.NoError(t, proto.Unmarshal(peekedMessage, &peekedRequest))
+		testhelper.ProtoEqual(t, requestSent, &peekedRequest)
+
+		return proxy.NewStreamParameters(proxy.Destination{
+			Ctx:  metadata.IncomingToOutgoing(ctx),
+			Conn: backendCC,
+			Msg:  peekedMessage,
+		}, nil, nil, nil), nil
+	}
+
+	// The backend is supposed to still receive the message as expected without any modification
+	// to it.
+	backendSrvr.fullDuplexCall = func(stream grpc_testing.TestService_FullDuplexCallServer) error {
+		requestReceived, err := stream.Recv()
 		require.NoError(t, err)
-		require.True(t, proto.Equal(pingReqSent, peekedRequest), "expected to be the same")
+		testhelper.ProtoEqual(t, requestSent, requestReceived)
 
-		return proxy.NewStreamParameters(proxy.Destination{Ctx: metadata.IncomingToOutgoing(ctx), Conn: backendCC, Msg: peekedMsg}, nil, nil, nil), nil
+		return stream.Send(responseSent)
 	}
 
-	pingResp := &testservice.PingResponse{
-		Counter: 1,
-	}
+	proxyConn := newProxy(t, ctx, director, "grpc_testing.TestService", "FullDuplexCall")
+	proxyClient := grpc_testing.NewTestServiceClient(proxyConn)
 
-	// we expect the backend server to receive the peeked message
-	backendSrvr.pingStream = func(stream testservice.TestService_PingStreamServer) error {
-		pingReqReceived, err := stream.Recv()
-		assert.NoError(t, err)
-		assert.True(t, proto.Equal(pingReqSent, pingReqReceived), "expected to be the same")
-
-		return stream.Send(pingResp)
-	}
-
-	proxyCC, cleanupProxy := newProxy(t, ctx, director, "mwitkow.testproto.TestService", "PingStream")
-	defer cleanupProxy()
-
-	proxyClient := testservice.NewTestServiceClient(proxyCC)
-
-	proxyClientPingStream, err := proxyClient.PingStream(ctx)
+	// Send the request on the stream and close the writing side.
+	proxyStream, err := proxyClient.FullDuplexCall(ctx)
 	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, proxyClientPingStream.CloseSend())
-	}()
+	require.NoError(t, proxyStream.Send(requestSent))
+	require.NoError(t, proxyStream.CloseSend())
 
-	require.NoError(t,
-		proxyClientPingStream.Send(pingReqSent),
-	)
-
-	resp, err := proxyClientPingStream.Recv()
+	// And now verify that the response we've got in fact matches our expected response.
+	responseReceived, err := proxyStream.Recv()
 	require.NoError(t, err)
-	require.True(t, proto.Equal(resp, pingResp), "expected to be the same")
+	testhelper.ProtoEqual(t, responseReceived, responseSent)
 
-	_, err = proxyClientPingStream.Recv()
+	_, err = proxyStream.Recv()
 	require.Equal(t, io.EOF, err)
 }
 
 func TestStreamInjecting(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
-	backendCC, backendSrvr, cleanupPinger := newBackendPinger(t, ctx)
-	defer cleanupPinger()
+	backendCC, backendSrvr := newBackendPinger(t, ctx)
 
-	pingReqSent := &testservice.PingRequest{Value: "hi"}
-	newValue := "bye"
+	requestSent := &grpc_testing.StreamingOutputCallRequest{
+		Payload: &grpc_testing.Payload{
+			Body: []byte("hi"),
+		},
+	}
+	requestReplaced := &grpc_testing.StreamingOutputCallRequest{
+		Payload: &grpc_testing.Payload{
+			Body: []byte("replaced"),
+		},
+	}
+	responseSent := &grpc_testing.StreamingOutputCallResponse{
+		Payload: &grpc_testing.Payload{
+			Body: []byte("bye"),
+		},
+	}
 
-	// director will peek into stream and change some frames
+	// We create a director that peeks the incoming request and in fact changes its values. This
+	// is to assert that the client receives the changed requests.
 	director := func(ctx context.Context, fullMethodName string, peeker proxy.StreamPeeker) (*proxy.StreamParameters, error) {
-		peekedMsg, err := peeker.Peek()
+		peekedMessage, err := peeker.Peek()
 		require.NoError(t, err)
 
-		peekedRequest := &testservice.PingRequest{}
-		require.NoError(t, proto.Unmarshal(peekedMsg, peekedRequest))
-		require.Equal(t, "hi", peekedRequest.GetValue())
+		// Assert that we get the expected original ping request.
+		var peekedRequest grpc_testing.StreamingOutputCallRequest
+		require.NoError(t, proto.Unmarshal(peekedMessage, &peekedRequest))
+		testhelper.ProtoEqual(t, requestSent, &peekedRequest)
 
-		peekedRequest.Value = newValue
-
-		newPayload, err := proto.Marshal(peekedRequest)
+		// Replace the value of the peeked request and send along the changed request.
+		replacedMessage, err := proto.Marshal(requestReplaced)
 		require.NoError(t, err)
 
-		return proxy.NewStreamParameters(proxy.Destination{Ctx: metadata.IncomingToOutgoing(ctx), Conn: backendCC, Msg: newPayload}, nil, nil, nil), nil
+		return proxy.NewStreamParameters(proxy.Destination{
+			Ctx:  metadata.IncomingToOutgoing(ctx),
+			Conn: backendCC,
+			Msg:  replacedMessage,
+		}, nil, nil, nil), nil
 	}
 
-	pingResp := &testservice.PingResponse{
-		Counter: 1,
+	// Upon receiving the request the backend server should only ever see the changed request.
+	backendSrvr.fullDuplexCall = func(stream grpc_testing.TestService_FullDuplexCallServer) error {
+		requestReceived, err := stream.Recv()
+		require.NoError(t, err)
+		testhelper.ProtoEqual(t, requestReplaced, requestReceived)
+
+		return stream.Send(responseSent)
 	}
 
-	// we expect the backend server to receive the modified message
-	backendSrvr.pingStream = func(stream testservice.TestService_PingStreamServer) error {
-		pingReqReceived, err := stream.Recv()
-		assert.NoError(t, err)
-		assert.Equal(t, newValue, pingReqReceived.GetValue())
+	proxyConn := newProxy(t, ctx, director, "grpc_testing.TestService", "FullDuplexCall")
+	proxyClient := grpc_testing.NewTestServiceClient(proxyConn)
 
-		return stream.Send(pingResp)
-	}
-
-	proxyCC, cleanupProxy := newProxy(t, ctx, director, "mwitkow.testproto.TestService", "PingStream")
-	defer cleanupProxy()
-
-	proxyClient := testservice.NewTestServiceClient(proxyCC)
-
-	proxyClientPingStream, err := proxyClient.PingStream(ctx)
+	proxyStream, err := proxyClient.FullDuplexCall(ctx)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, proxyClientPingStream.CloseSend())
+		require.NoError(t, proxyStream.CloseSend())
 	}()
+	require.NoError(t, proxyStream.Send(requestSent))
 
-	require.NoError(t,
-		proxyClientPingStream.Send(pingReqSent),
-	)
-
-	resp, err := proxyClientPingStream.Recv()
+	responseReceived, err := proxyStream.Recv()
 	require.NoError(t, err)
-	require.True(t, proto.Equal(resp, pingResp), "expected to be the same")
+	testhelper.ProtoEqual(t, responseSent, responseReceived)
 
-	_, err = proxyClientPingStream.Recv()
+	_, err = proxyStream.Recv()
 	require.Equal(t, io.EOF, err)
 }
