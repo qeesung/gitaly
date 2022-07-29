@@ -26,6 +26,9 @@ func (sw statusWrapper) Unwrap() error {
 // ErrCanceled wraps err with codes.Canceled, unless err is already a gRPC error.
 func ErrCanceled(err error) error { return wrapError(codes.Canceled, err) }
 
+// ErrDeadlineExceeded wraps err with codes.DeadlineExceeded, unless err is already a gRPC error.
+func ErrDeadlineExceeded(err error) error { return wrapError(codes.DeadlineExceeded, err) }
+
 // ErrInternal wraps err with codes.Internal, unless err is already a gRPC error.
 func ErrInternal(err error) error { return wrapError(codes.Internal, err) }
 
@@ -64,6 +67,12 @@ func wrapError(code codes.Code, err error) error {
 // wrapped gRPC error.
 func ErrCanceledf(format string, a ...interface{}) error {
 	return formatError(codes.Canceled, format, a...)
+}
+
+// ErrDeadlineExceededf wraps a formatted error with codes.DeadlineExceeded, unless the formatted
+// error is a wrapped gRPC error.
+func ErrDeadlineExceededf(format string, a ...interface{}) error {
+	return formatError(codes.DeadlineExceeded, format, a...)
 }
 
 // ErrInternalf wraps a formatted error with codes.Internal, unless the formatted error is a

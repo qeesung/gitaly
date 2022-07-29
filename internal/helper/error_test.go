@@ -31,6 +31,11 @@ func TestError(t *testing.T) {
 			code:   codes.Canceled,
 		},
 		{
+			desc:   "DeadlineExceeded",
+			errorf: ErrDeadlineExceeded,
+			code:   codes.DeadlineExceeded,
+		},
+		{
 			desc:   "Internal",
 			errorf: ErrInternal,
 			code:   codes.Internal,
@@ -102,6 +107,11 @@ func TestErrorf(t *testing.T) {
 			desc:         "Canceledf",
 			errorf:       ErrCanceledf,
 			expectedCode: codes.Canceled,
+		},
+		{
+			desc:         "DeadlineExceededf",
+			errorf:       ErrDeadlineExceededf,
+			expectedCode: codes.DeadlineExceeded,
 		},
 		{
 			desc:         "Internalf",

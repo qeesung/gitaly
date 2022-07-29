@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -41,7 +42,7 @@ func TestFailedUploadArchiveRequestDueToTimeout(t *testing.T) {
 	// Because the client says nothing, the server would block. Because of
 	// the timeout, it won't block forever, and return with a non-zero exit
 	// code instead.
-	requireFailedSSHStream(t, func() (int32, error) {
+	requireFailedSSHStream(t, helper.ErrDeadlineExceededf("waiting for packfile negotiation: context canceled"), func() (int32, error) {
 		resp, err := stream.Recv()
 		if err != nil {
 			return 0, err

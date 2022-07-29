@@ -28,13 +28,8 @@ func (s *server) SSHUploadPack(stream gitalypb.SSHService_SSHUploadPackServer) e
 		return helper.ErrInternal(err)
 	}
 
-	repository := ""
-	if req.Repository != nil {
-		repository = req.Repository.GlRepository
-	}
-
 	ctxlogrus.Extract(ctx).WithFields(log.Fields{
-		"GlRepository":     repository,
+		"GlRepository":     req.GetRepository().GetGlRepository(),
 		"GitConfigOptions": req.GitConfigOptions,
 		"GitProtocol":      req.GitProtocol,
 	}).Debug("SSHUploadPack")
@@ -77,8 +72,8 @@ type sshUploadPackRequest interface {
 	GetGitProtocol() string
 }
 
-func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-	ctx, cancelCtx := context.WithCancel(ctx)
+func (s *server) sshUploadPack(rpcContext context.Context, req sshUploadPackRequest, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	ctx, cancelCtx := context.WithCancel(rpcContext)
 	defer cancelCtx()
 
 	stdoutCounter := &helper.CountingWriter{W: stdout}
@@ -151,6 +146,18 @@ func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, st
 
 	if err := cmd.Wait(); err != nil {
 		status, _ := command.ExitStatus(err)
+
+		// When waiting for the packfile negotiation to end times out we'll cancel the local
+		// context, but not cancel the overall RPC's context. Our cancelhandler middleware
+		// thus cannot observe the fact that we're cancelling the context, and neither do we
+		// provide any valuable information to the caller that we do indeed kill the command
+		// because of our own internal timeout.
+		//
+		// We thus need to special-case the situation where we cancel our own context in
+		// order to provide that information and return a proper gRPC error code.
+		if ctx.Err() != nil && rpcContext.Err() == nil {
+			return status, helper.ErrDeadlineExceededf("waiting for packfile negotiation: %w", ctx.Err())
+		}
 
 		// A common error case is that the client is terminating the request prematurely,
 		// e.g. by killing their git-fetch(1) process because it's taking too long. This is

@@ -30,7 +30,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -97,21 +96,23 @@ func requireRevisionsEqual(t *testing.T, cfg config.Cfg, repoPathA, repoPathB, r
 func TestUploadPack_timeout(t *testing.T) {
 	t.Parallel()
 
-	runTestWithAndWithoutConfigOptions(t, testUploadPackTimeout, testcfg.WithPackObjectsCacheEnabled())
+	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, func(t *testing.T, ctx context.Context) {
+		runTestWithAndWithoutConfigOptions(t, func(t *testing.T, opts ...testcfg.Option) {
+			testUploadPackTimeout(t, ctx, opts...)
+		}, testcfg.WithPackObjectsCacheEnabled())
+	})
 }
 
-func testUploadPackTimeout(t *testing.T, opts ...testcfg.Option) {
+func testUploadPackTimeout(t *testing.T, ctx context.Context, opts ...testcfg.Option) {
 	cfg := testcfg.Build(t, opts...)
 
-	cfg.SocketPath = runSSHServerWithOptions(t, cfg, []ServerOpt{WithUploadPackRequestTimeout(10 * time.Microsecond)})
+	cfg.SocketPath = runSSHServerWithOptions(t, cfg, []ServerOpt{WithUploadPackRequestTimeout(1)})
 
-	repo, _ := gittest.CreateRepository(testhelper.Context(t), t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, repoPath := gittest.CreateRepository(testhelper.Context(t), t, cfg)
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	client, conn := newSSHClient(t, cfg.SocketPath)
 	defer conn.Close()
-	ctx := testhelper.Context(t)
 
 	stream, err := client.SSHUploadPack(ctx)
 	require.NoError(t, err)
@@ -122,7 +123,7 @@ func testUploadPackTimeout(t *testing.T, opts ...testcfg.Option) {
 	// Because the client says nothing, the server would block. Because of
 	// the timeout, it won't block forever, and return with a non-zero exit
 	// code instead.
-	requireFailedSSHStream(t, func() (int32, error) {
+	requireFailedSSHStream(t, helper.ErrDeadlineExceededf("waiting for packfile negotiation: context canceled"), func() (int32, error) {
 		resp, err := stream.Recv()
 		if err != nil {
 			return 0, err
@@ -406,7 +407,7 @@ func testUploadPackWithSidechannelClient(t *testing.T, ctx context.Context) {
 	}
 }
 
-func requireFailedSSHStream(t *testing.T, recv func() (int32, error)) {
+func requireFailedSSHStream(t *testing.T, expectedErr error, recv func() (int32, error)) {
 	done := make(chan struct{})
 	var code int32
 	var err error
@@ -420,7 +421,7 @@ func requireFailedSSHStream(t *testing.T, recv func() (int32, error)) {
 
 	select {
 	case <-done:
-		testhelper.RequireGrpcCode(t, err, codes.Internal)
+		testhelper.RequireGrpcError(t, expectedErr, err)
 		require.NotEqual(t, 0, code, "exit status")
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for SSH stream")
@@ -527,9 +528,21 @@ func testUploadPackSuccessful(t *testing.T, sidechannel bool, opts ...testcfg.Op
 		WithPackfileNegotiationMetrics(negotiationMetrics),
 	}, testserver.WithGitCommandFactory(protocolDetectingFactory))
 
-	repo, repoPath := gittest.CreateRepository(testhelper.Context(t), t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+
+	smallBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("foobar"))
+	largeBlobID := gittest.WriteBlob(t, cfg, repoPath, bytes.Repeat([]byte("1"), 2048))
+
+	// We set up the commits so that HEAD does not reference the above two blobs. If it did we'd
+	// fetch the blobs regardless of `--filter=blob:limit`.
+	rootCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithTreeEntries(
+		gittest.TreeEntry{Path: "small", Mode: "100644", OID: smallBlobID},
+		gittest.TreeEntry{Path: "large", Mode: "100644", OID: largeBlobID},
+	))
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(rootCommitID), gittest.WithBranch("main"), gittest.WithTreeEntries(
+		gittest.TreeEntry{Path: "unrelated", Mode: "100644", Content: "something"},
+	))
+	gittest.WriteTag(t, cfg, repoPath, "v1.0.0", rootCommitID.Revision())
 
 	for _, tc := range []struct {
 		desc             string
@@ -581,16 +594,11 @@ func testUploadPackSuccessful(t *testing.T, sidechannel bool, opts ...testcfg.Op
 				Repository: repo,
 			},
 			cloneFlags: []git.Option{
-				git.ValueFlag{Name: "--filter", Value: "blob:limit=2048"},
+				git.ValueFlag{Name: "--filter", Value: "blob:limit=1024"},
 			},
 			verify: func(t *testing.T, repoPath string) {
-				// Ruby file which is ~1kB in size and not present in HEAD
-				blobLessThanLimit := git.ObjectID("6ee41e85cc9bf33c10b690df09ca735b22f3790f")
-				// Image which is ~100kB in size and not present in HEAD
-				blobGreaterThanLimit := git.ObjectID("18079e308ff9b3a5e304941020747e5c39b46c88")
-
-				gittest.RequireObjectNotExists(t, cfg, repoPath, blobGreaterThanLimit)
-				gittest.RequireObjectExists(t, cfg, repoPath, blobLessThanLimit)
+				gittest.RequireObjectNotExists(t, cfg, repoPath, largeBlobID)
+				gittest.RequireObjectExists(t, cfg, repoPath, smallBlobID)
 			},
 		},
 		{
@@ -627,7 +635,7 @@ func testUploadPackSuccessful(t *testing.T, sidechannel bool, opts ...testcfg.Op
 				Flags: tc.cloneFlags,
 			}, tc.request))
 
-			requireRevisionsEqual(t, cfg, repoPath, localRepoPath, "refs/heads/master")
+			requireRevisionsEqual(t, cfg, repoPath, localRepoPath, "refs/heads/main")
 
 			metric, err := negotiationMetrics.GetMetricWithLabelValues("deepen")
 			require.NoError(t, err)
