@@ -279,6 +279,8 @@ debug_go_tests = PATH='${SOURCE_DIR}/internal/testhelper/testdata/home/bin:${PAT
     ${DELVE} test --build-flags="-ldflags '${GO_LDFLAGS}' -tags '${SERVER_BUILD_TAGS},${GIT2GO_BUILD_TAGS}'" ${TEST_PACKAGES} -- ${DEBUG_OPTIONS}
 
 unexport GOROOT
+## GOCACHE_MAX_SIZE_KB is the maximum size of Go's build cache in kilobytes before it is cleaned up.
+GOCACHE_MAX_SIZE_KB              ?= 5000000
 export GOCACHE                   ?= ${BUILD_DIR}/cache
 export GOPROXY                   ?= https://proxy.golang.org
 export PATH                      := ${BUILD_DIR}/bin:${PATH}
@@ -610,12 +612,18 @@ ${BUILD_DIR}/bin/%: ${BUILD_DIR}/intermediate/% | ${BUILD_DIR}/bin
 remove-legacy-go-mod:
 	${Q}rm -f $(addprefix ${BUILD_DIR}/, go.mod go.sum)
 
+# clear-go-build-cache-if-needed cleans the Go build cache if it exceeds the maximum size as
+# configured in GOCACHE_MAX_SIZE_KB.
+.PHONY: clear-go-build-cache-if-needed
+clear-go-build-cache-if-needed:
+	${Q}if [ $$(du -sk ${GOCACHE} | cut -f 1) -gt ${GOCACHE_MAX_SIZE_KB} ]; then go clean --cache; fi
+
 ${BUILD_DIR}/intermediate/gitaly:            GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
 ${BUILD_DIR}/intermediate/gitaly:            remove-legacy-go-mod ${GITALY_PACKED_EXECUTABLES}
 ${BUILD_DIR}/intermediate/praefect:          GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
 ${BUILD_DIR}/intermediate/gitaly-git2go-v15: GO_BUILD_TAGS = ${GIT2GO_BUILD_TAGS}
 ${BUILD_DIR}/intermediate/gitaly-git2go-v15: libgit2
-${BUILD_DIR}/intermediate/%: .FORCE
+${BUILD_DIR}/intermediate/%:                 clear-go-build-cache-if-needed .FORCE
 	@ # We're building intermediate binaries first which contain a fixed build ID
 	@ # of "TEMP_GITALY_BUILD_ID". In the final binary we replace this build ID with
 	@ # the computed build ID for this binary.
