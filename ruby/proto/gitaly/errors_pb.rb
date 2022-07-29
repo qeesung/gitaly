@@ -31,6 +31,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :reference_name, :bytes, 1
       optional :oid, :string, 2
     end
+    add_message "gitaly.ReferenceNotFoundError" do
+      optional :reference_name, :bytes, 1
+    end
     add_message "gitaly.ReferenceUpdateError" do
       optional :reference_name, :bytes, 1
       optional :old_oid, :string, 2
@@ -65,6 +68,7 @@ module Gitaly
   MergeConflictError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.MergeConflictError").msgclass
   ReferencesLockedError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferencesLockedError").msgclass
   ReferenceExistsError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferenceExistsError").msgclass
+  ReferenceNotFoundError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferenceNotFoundError").msgclass
   ReferenceUpdateError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ReferenceUpdateError").msgclass
   ResolveRevisionError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.ResolveRevisionError").msgclass
   LimitError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.LimitError").msgclass

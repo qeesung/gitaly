@@ -27,7 +27,9 @@ module Gitaly
       rpc :FindAllBranches, ::Gitaly::FindAllBranchesRequest, stream(::Gitaly::FindAllBranchesResponse)
       # Returns a stream of tags repository has.
       rpc :FindAllTags, ::Gitaly::FindAllTagsRequest, stream(::Gitaly::FindAllTagsResponse)
-      # This comment is left unintentionally blank.
+      # FindTag looks up a tag by its name and returns it to the caller if it exists. This RPC supports
+      # both lightweight and annotated tags. Note: this RPC returns an `Internal` error if the tag was
+      # not found.
       rpc :FindTag, ::Gitaly::FindTagRequest, ::Gitaly::FindTagResponse
       # This comment is left unintentionally blank.
       rpc :FindAllRemoteBranches, ::Gitaly::FindAllRemoteBranchesRequest, stream(::Gitaly::FindAllRemoteBranchesResponse)

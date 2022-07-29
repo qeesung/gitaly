@@ -67,6 +67,12 @@ message ReferenceExistsError {
   string oid = 2;
 }
 
+// ReferenceNotFoundError is an error retruned when a reference that ought to exist does not exist.
+message ReferenceNotFoundError {
+  // ReferenceName is the name of the reference that does not exist.
+  bytes reference_name = 1;
+}
+
 // ReferenceUpdateError is an error returned when updating a reference has
 // failed.
 message ReferenceUpdateError {

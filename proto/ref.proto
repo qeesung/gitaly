@@ -55,7 +55,9 @@ service RefService {
     };
   }
 
-  // This comment is left unintentionally blank.
+  // FindTag looks up a tag by its name and returns it to the caller if it exists. This RPC supports
+  // both lightweight and annotated tags. Note: this RPC returns an `Internal` error if the tag was
+  // not found.
   rpc FindTag(FindTagRequest) returns (FindTagResponse) {
     option (op_type) = {
       op: ACCESSOR
@@ -268,18 +270,27 @@ message FindAllBranchesResponse {
   repeated Branch branches = 1;
 }
 
-// This comment is left unintentionally blank.
+// FindTagRequest is a request for the FindTag RPC.
 message FindTagRequest {
-  // This comment is left unintentionally blank.
+  // Repository is the repository to look up the tag in.
   Repository repository = 1 [(target_repository)=true];
-  // This comment is left unintentionally blank.
+  // TagName is the name of the tag that should be looked up. The caller is supposed to pass in the
+  // tag name only, so if e.g. a tag `refs/tags/v1.0.0` exists, then the caller should pass `v1.0.0`
+  // as argument.
   bytes tag_name = 2;
 }
 
-// This comment is left unintentionally blank.
+// FindTagResponse is a response for the FindTag RPC.
 message FindTagResponse {
-  // This comment is left unintentionally blank.
+  // Tag is the tag that was found.
   Tag tag = 1;
+}
+
+// FindTagError is an error that will be returned by the FindTag RPC under specific error
+// conditions.
+message FindTagError {
+  // TagNotFound indicates that the tag was not found.
+  ReferenceNotFoundError tag_not_found = 1;
 }
 
 // This comment is left unintentionally blank.

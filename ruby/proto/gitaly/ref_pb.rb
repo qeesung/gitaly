@@ -73,6 +73,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.FindTagResponse" do
       optional :tag, :message, 1, "gitaly.Tag"
     end
+    add_message "gitaly.FindTagError" do
+      optional :tag_not_found, :message, 1, "gitaly.ReferenceNotFoundError"
+    end
     add_message "gitaly.FindAllTagsRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
       optional :sort_by, :message, 2, "gitaly.FindAllTagsRequest.SortBy"
@@ -239,6 +242,7 @@ module Gitaly
   FindAllBranchesResponse::Branch = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllBranchesResponse.Branch").msgclass
   FindTagRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindTagRequest").msgclass
   FindTagResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindTagResponse").msgclass
+  FindTagError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindTagError").msgclass
   FindAllTagsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagsRequest").msgclass
   FindAllTagsRequest::SortBy = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagsRequest.SortBy").msgclass
   FindAllTagsRequest::SortBy::Key = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.FindAllTagsRequest.SortBy.Key").enummodule

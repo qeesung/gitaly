@@ -34,7 +34,9 @@ type RefServiceClient interface {
 	FindAllBranches(ctx context.Context, in *FindAllBranchesRequest, opts ...grpc.CallOption) (RefService_FindAllBranchesClient, error)
 	// Returns a stream of tags repository has.
 	FindAllTags(ctx context.Context, in *FindAllTagsRequest, opts ...grpc.CallOption) (RefService_FindAllTagsClient, error)
-	// This comment is left unintentionally blank.
+	// FindTag looks up a tag by its name and returns it to the caller if it exists. This RPC supports
+	// both lightweight and annotated tags. Note: this RPC returns an `Internal` error if the tag was
+	// not found.
 	FindTag(ctx context.Context, in *FindTagRequest, opts ...grpc.CallOption) (*FindTagResponse, error)
 	// This comment is left unintentionally blank.
 	FindAllRemoteBranches(ctx context.Context, in *FindAllRemoteBranchesRequest, opts ...grpc.CallOption) (RefService_FindAllRemoteBranchesClient, error)
@@ -509,7 +511,9 @@ type RefServiceServer interface {
 	FindAllBranches(*FindAllBranchesRequest, RefService_FindAllBranchesServer) error
 	// Returns a stream of tags repository has.
 	FindAllTags(*FindAllTagsRequest, RefService_FindAllTagsServer) error
-	// This comment is left unintentionally blank.
+	// FindTag looks up a tag by its name and returns it to the caller if it exists. This RPC supports
+	// both lightweight and annotated tags. Note: this RPC returns an `Internal` error if the tag was
+	// not found.
 	FindTag(context.Context, *FindTagRequest) (*FindTagResponse, error)
 	// This comment is left unintentionally blank.
 	FindAllRemoteBranches(*FindAllRemoteBranchesRequest, RefService_FindAllRemoteBranchesServer) error
