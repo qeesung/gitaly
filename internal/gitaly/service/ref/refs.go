@@ -256,6 +256,10 @@ func (s *server) findTag(ctx context.Context, repo git.RepositoryExecutor, tagNa
 			return nil, err
 		}
 	} else {
+		if featureflag.FindTagNotFound.IsEnabled(ctx) {
+			return nil, helper.ErrNotFoundf("no tag found")
+		}
+
 		return nil, errors.New("no tag found")
 	}
 
