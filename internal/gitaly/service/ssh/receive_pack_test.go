@@ -24,6 +24,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
@@ -33,85 +34,106 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v15/streamio"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func TestFailedReceivePackRequestDueToValidationError(t *testing.T) {
+func TestReceivePack_validation(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
-
 	cfg.SocketPath = runSSHServer(t, cfg)
 
-	repo, _ := gittest.CreateRepository(testhelper.Context(t), t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, _ := gittest.CreateRepository(ctx, t, cfg)
 
-	client, conn := newSSHClient(t, cfg.SocketPath)
-	defer conn.Close()
+	client := newSSHClient(t, cfg.SocketPath)
 
-	tests := []struct {
-		Desc string
-		Req  *gitalypb.SSHReceivePackRequest
-		Code codes.Code
+	for _, tc := range []struct {
+		desc        string
+		request     *gitalypb.SSHReceivePackRequest
+		expectedErr error
 	}{
 		{
-			Desc: "Repository.RelativePath is empty",
-			Req:  &gitalypb.SSHReceivePackRequest{Repository: &gitalypb.Repository{StorageName: cfg.Storages[0].Name, RelativePath: ""}, GlId: "user-123"},
-			Code: codes.InvalidArgument,
-		},
-		{
-			Desc: "Repository is nil",
-			Req:  &gitalypb.SSHReceivePackRequest{Repository: nil, GlId: "user-123"},
-			Code: codes.InvalidArgument,
-		},
-		{
-			Desc: "Empty GlId",
-			Req:  &gitalypb.SSHReceivePackRequest{Repository: &gitalypb.Repository{StorageName: cfg.Storages[0].Name, RelativePath: repo.GetRelativePath()}, GlId: ""},
-			Code: codes.InvalidArgument,
-		},
-		{
-			Desc: "Data exists on first request",
-			Req:  &gitalypb.SSHReceivePackRequest{Repository: &gitalypb.Repository{StorageName: cfg.Storages[0].Name, RelativePath: repo.GetRelativePath()}, GlId: "user-123", Stdin: []byte("Fail")},
-			Code: codes.InvalidArgument,
-		},
-	}
+			desc: "empty relative path",
+			request: &gitalypb.SSHReceivePackRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  cfg.Storages[0].Name,
+					RelativePath: "",
+				},
+				GlId: "user-123",
+			},
+			expectedErr: func() error {
+				if testhelper.IsPraefectEnabled() {
+					return helper.ErrInvalidArgumentf("repo scoped: invalid Repository")
+				}
 
-	for _, test := range tests {
-		t.Run(test.Desc, func(t *testing.T) {
-			ctx := testhelper.Context(t)
+				return helper.ErrInvalidArgumentf("GetPath: relative path missing from storage_name:\"default\"")
+			}(),
+		},
+		{
+			desc: "missing repository",
+			request: &gitalypb.SSHReceivePackRequest{
+				Repository: nil,
+				GlId:       "user-123",
+			},
+			expectedErr: func() error {
+				if testhelper.IsPraefectEnabled() {
+					return helper.ErrInvalidArgumentf("repo scoped: empty Repository")
+				}
 
+				return helper.ErrInvalidArgumentf("repository is empty")
+			}(),
+		},
+		{
+			desc: "missing GlId",
+			request: &gitalypb.SSHReceivePackRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  cfg.Storages[0].Name,
+					RelativePath: repo.GetRelativePath(),
+				},
+				GlId: "",
+			},
+			expectedErr: helper.ErrInvalidArgumentf("empty GlId"),
+		},
+		{
+			desc: "stdin on first request",
+			request: &gitalypb.SSHReceivePackRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  cfg.Storages[0].Name,
+					RelativePath: repo.GetRelativePath(),
+				},
+				GlId:  "user-123",
+				Stdin: []byte("Fail"),
+			},
+			expectedErr: helper.ErrInvalidArgumentf("non-empty data in first request"),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
 			stream, err := client.SSHReceivePack(ctx)
 			require.NoError(t, err)
 
-			require.NoError(t, stream.Send(test.Req))
+			require.NoError(t, stream.Send(tc.request))
 			require.NoError(t, stream.CloseSend())
 
-			err = drainPostReceivePackResponse(stream)
-			testhelper.RequireGrpcCode(t, err, test.Code)
+			testhelper.RequireGrpcError(t, tc.expectedErr, drainPostReceivePackResponse(stream))
 		})
 	}
 }
 
-func TestReceivePackPushSuccess(t *testing.T) {
+func TestReceivePack_success(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
-
 	cfg.GitlabShell.Dir = "/foo/bar/gitlab-shell"
 
 	gitCmdFactory, hookOutputFile := gittest.CaptureHookEnv(t, cfg)
-
 	testcfg.BuildGitalySSH(t, cfg)
 
 	cfg.SocketPath = runSSHServer(t, cfg, testserver.WithGitCommandFactory(gitCmdFactory))
 
-	ctx := testhelper.Context(t)
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed:         gittest.SeedGitLabTest,
-		RelativePath: "gitlab-test-ssh-receive-pack.git",
-	})
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	glRepository := "project-456"
 	glProjectPath := "project/path"
@@ -179,7 +201,90 @@ func TestReceivePackPushSuccess(t *testing.T) {
 	}, payload)
 }
 
-func TestReceivePackPushSuccessWithGitProtocol(t *testing.T) {
+func TestReceivePack_client(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+	cfg.SocketPath = runSSHServer(t, cfg)
+
+	for _, tc := range []struct {
+		desc              string
+		writeRequest      func(*testing.T, io.Writer)
+		expectedErr       error
+		expectedErrorCode int32
+		expectedStderr    string
+	}{
+		{
+			desc: "no commands",
+			writeRequest: func(t *testing.T, stdin io.Writer) {
+				gittest.WritePktlineFlush(t, stdin)
+			},
+		},
+		{
+			desc: "garbage",
+			writeRequest: func(t *testing.T, stdin io.Writer) {
+				gittest.WritePktlineString(t, stdin, "garbage")
+			},
+			expectedErr:       helper.ErrInternalf("cmd wait: exit status 128"),
+			expectedErrorCode: 128,
+			expectedStderr:    "fatal: protocol error: expected old/new/ref, got 'garbage'\n",
+		},
+		{
+			desc: "command without flush",
+			writeRequest: func(t *testing.T, stdin io.Writer) {
+				gittest.WritePktlinef(t, stdin, "%[1]s %[1]s refs/heads/main", gittest.DefaultObjectHash.ZeroOID)
+			},
+			expectedErr:       helper.ErrCanceledf("user canceled the push"),
+			expectedErrorCode: 128,
+			expectedStderr:    "fatal: the remote end hung up unexpectedly\n",
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			repoProto, _ := gittest.CreateRepository(ctx, t, cfg)
+
+			stream, err := newSSHClient(t, cfg.SocketPath).SSHReceivePack(ctx)
+			require.NoError(t, err)
+
+			var observedErrorCode int32
+			var stderr bytes.Buffer
+			errCh := make(chan error, 1)
+			go func() {
+				stdout := streamio.NewReader(func() ([]byte, error) {
+					msg, err := stream.Recv()
+					if errorCode := msg.GetExitStatus().GetValue(); errorCode != 0 {
+						require.Zero(t, observedErrorCode, "must not receive multiple messages with non-zero exit code")
+						observedErrorCode = errorCode
+					}
+
+					// Write stderr so we can verify what git-receive-pack(1)
+					// complains about.
+					_, writeErr := stderr.Write(msg.GetStderr())
+					require.NoError(t, writeErr)
+
+					return msg.GetStdout(), err
+				})
+
+				_, err := io.Copy(io.Discard, stdout)
+				errCh <- err
+			}()
+
+			require.NoError(t, stream.Send(&gitalypb.SSHReceivePackRequest{Repository: repoProto, GlId: "user-123"}))
+
+			stdin := streamio.NewWriter(func(b []byte) error {
+				return stream.Send(&gitalypb.SSHReceivePackRequest{Stdin: b})
+			})
+			tc.writeRequest(t, stdin)
+			require.NoError(t, stream.CloseSend())
+
+			testhelper.RequireGrpcError(t, <-errCh, tc.expectedErr)
+			require.Equal(t, tc.expectedErrorCode, observedErrorCode)
+			require.Equal(t, tc.expectedStderr, stderr.String())
+		})
+	}
+}
+
+func TestReceive_gitProtocol(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -192,9 +297,8 @@ func TestReceivePackPushSuccessWithGitProtocol(t *testing.T) {
 
 	cfg.SocketPath = runSSHServer(t, cfg, testserver.WithGitCommandFactory(protocolDetectingFactory))
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	lHead, rHead, err := testCloneAndPush(ctx, t, cfg, cfg.SocketPath, repo, repoPath, pushParams{
 		storageName:  testhelper.DefaultStorageName,
@@ -203,43 +307,56 @@ func TestReceivePackPushSuccessWithGitProtocol(t *testing.T) {
 		gitProtocol:  git.ProtocolV2,
 	})
 	require.NoError(t, err)
-
-	require.Equal(t, lHead, rHead, "local and remote head not equal. push failed")
+	require.Equal(t, lHead, rHead)
 
 	envData := protocolDetectingFactory.ReadProtocol(t)
 	require.Contains(t, envData, fmt.Sprintf("GIT_PROTOCOL=%s\n", git.ProtocolV2))
 }
 
-func TestReceivePackPushFailure(t *testing.T) {
+func TestReceivePack_failure(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+	cfg.SocketPath = runSSHServer(t, cfg)
 
-	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
+	testcfg.BuildGitalySSH(t, cfg)
 
-	serverSocketPath := runSSHServer(t, cfg)
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
-	_, _, err := testCloneAndPush(ctx, t, cfg, serverSocketPath, repo, repoPath, pushParams{storageName: "foobar", glID: "1"})
-	require.Error(t, err, "local and remote head equal. push did not fail")
+	t.Run("clone with invalid storage name", func(t *testing.T) {
+		_, _, err := testCloneAndPush(ctx, t, cfg, cfg.SocketPath, repo, repoPath, pushParams{
+			storageName: "foobar",
+			glID:        "1",
+		})
+		require.Error(t, err)
 
-	_, _, err = testCloneAndPush(ctx, t, cfg, serverSocketPath, repo, repoPath, pushParams{storageName: cfg.Storages[0].Name, glID: ""})
-	require.Error(t, err, "local and remote head equal. push did not fail")
+		if testhelper.IsPraefectEnabled() {
+			require.Contains(t, err.Error(), helper.ErrInvalidArgumentf("repo scoped: invalid Repository").Error())
+		} else {
+			require.Contains(t, err.Error(), helper.ErrInvalidArgumentf("GetStorageByName: no such storage: \\\"foobar\\\"\\n").Error())
+		}
+	})
+
+	t.Run("clone with invalid GlId", func(t *testing.T) {
+		_, _, err := testCloneAndPush(ctx, t, cfg, cfg.SocketPath, repo, repoPath, pushParams{storageName: cfg.Storages[0].Name, glID: ""})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), helper.ErrInvalidArgumentf("empty GlId").Error())
+	})
 }
 
-func TestReceivePackPushHookFailure(t *testing.T) {
+func TestReceivePack_hookFailure(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg, git.WithHooksPath(testhelper.TempDir(t)))
 
 	testcfg.BuildGitalySSH(t, cfg)
 
 	cfg.SocketPath = runSSHServer(t, cfg, testserver.WithGitCommandFactory(gitCmdFactory))
-	ctx := testhelper.Context(t)
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 	hookContent := []byte("#!/bin/sh\nexit 1")
 	require.NoError(t, os.WriteFile(filepath.Join(gitCmdFactory.HooksPath(ctx), "pre-receive"), hookContent, 0o755))
@@ -249,21 +366,17 @@ func TestReceivePackPushHookFailure(t *testing.T) {
 	require.Contains(t, err.Error(), "(pre-receive hook declined)")
 }
 
-func TestReceivePackPushHookFailureWithCustomHook(t *testing.T) {
+func TestReceivePack_customHookFailure(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
-	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+	cfg.SocketPath = runSSHServer(t, cfg)
 
 	testcfg.BuildGitalySSH(t, cfg)
 	testcfg.BuildGitalyHooks(t, cfg)
 
-	cfg.SocketPath = runSSHServer(t, cfg, testserver.WithGitCommandFactory(gitCmdFactory))
-	ctx := testhelper.Context(t)
-
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 	cloneDetails, cleanup := setupSSHClone(t, cfg, repo, repoPath)
 	defer cleanup()
@@ -282,7 +395,6 @@ func TestReceivePackPushHookFailureWithCustomHook(t *testing.T) {
 	require.NoError(t, err)
 	stderr, err := cmd.StderrPipe()
 	require.NoError(t, err)
-
 	require.NoError(t, cmd.Start())
 
 	c, err := io.Copy(io.Discard, stdout)
@@ -296,28 +408,23 @@ func TestReceivePackPushHookFailureWithCustomHook(t *testing.T) {
 
 	require.Contains(t, string(slurpErr), "remote: this is wrong")
 	require.Contains(t, string(slurpErr), "(pre-receive hook declined)")
-
 	require.NotContains(t, string(slurpErr), "final transactional vote: transaction was stopped")
 }
 
-func TestObjectPoolRefAdvertisementHidingSSH(t *testing.T) {
+func TestReceivePack_hidesObjectPoolReferences(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
+	cfg.SocketPath = runSSHServer(t, cfg)
 
 	testcfg.BuildGitalyHooks(t, cfg)
 
-	cfg.SocketPath = runSSHServer(t, cfg)
-
-	ctx := testhelper.Context(t)
-	repoProto, _ := gittest.CreateRepository(testhelper.Context(t), t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repoProto, _ := gittest.CreateRepository(ctx, t, cfg)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 	txManager := transaction.NewManager(cfg, backchannel.NewRegistry())
 
-	client, conn := newSSHClient(t, cfg.SocketPath)
-	defer conn.Close()
+	client := newSSHClient(t, cfg.SocketPath)
 
 	stream, err := client.SSHReceivePack(ctx)
 	require.NoError(t, err)
@@ -332,16 +439,13 @@ func TestObjectPoolRefAdvertisementHidingSSH(t *testing.T) {
 		gittest.NewObjectPoolName(t),
 	)
 	require.NoError(t, err)
-
 	require.NoError(t, pool.Create(ctx, repo))
-
 	require.NoError(t, pool.Link(ctx, repo))
 
 	commitID := gittest.WriteCommit(t, cfg, pool.FullPath(), gittest.WithBranch(t.Name()))
 
 	// First request
 	require.NoError(t, stream.Send(&gitalypb.SSHReceivePackRequest{Repository: repoProto, GlId: "user-123"}))
-
 	require.NoError(t, stream.Send(&gitalypb.SSHReceivePackRequest{Stdin: []byte("0000")}))
 	require.NoError(t, stream.CloseSend())
 
@@ -356,44 +460,40 @@ func TestObjectPoolRefAdvertisementHidingSSH(t *testing.T) {
 	require.NotContains(t, b.String(), commitID+" .have")
 }
 
-func TestReceivePackTransactional(t *testing.T) {
+func TestReceivePack_transactional(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
-
-	testcfg.BuildGitalyHooks(t, cfg)
 
 	txManager := transaction.NewTrackingManager()
 
 	cfg.SocketPath = runSSHServer(t, cfg, testserver.WithTransactionManager(txManager))
 
-	ctx := testhelper.Context(t)
-	repoProto, repoPath := gittest.CreateRepository(testhelper.Context(t), t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
-	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+	testcfg.BuildGitalyHooks(t, cfg)
 
-	client, conn := newSSHClient(t, cfg.SocketPath)
-	defer conn.Close()
+	client := newSSHClient(t, cfg.SocketPath)
+
 	ctx, err := txinfo.InjectTransaction(ctx, 1, "node", true)
 	require.NoError(t, err)
 	ctx = metadata.IncomingToOutgoing(ctx)
 
-	masterOID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath,
-		"rev-parse", "refs/heads/master"))
-	masterParentOID := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/master~"))
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg)
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+	parentCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithParents(parentCommitID))
 
 	type command struct {
 		ref    string
-		oldOID string
-		newOID string
+		oldOID git.ObjectID
+		newOID git.ObjectID
 	}
 
 	for _, tc := range []struct {
 		desc          string
 		writePackfile bool
 		commands      []command
-		expectedRefs  map[string]string
+		expectedRefs  map[string]git.ObjectID
 		expectedVotes int
 	}{
 		{
@@ -401,13 +501,13 @@ func TestReceivePackTransactional(t *testing.T) {
 			writePackfile: true,
 			commands: []command{
 				{
-					ref:    "refs/heads/master",
-					oldOID: masterOID,
-					newOID: masterOID,
+					ref:    "refs/heads/main",
+					oldOID: commitID,
+					newOID: commitID,
 				},
 			},
-			expectedRefs: map[string]string{
-				"refs/heads/master": masterOID,
+			expectedRefs: map[string]git.ObjectID{
+				"refs/heads/main": commitID,
 			},
 			expectedVotes: 3,
 		},
@@ -416,13 +516,13 @@ func TestReceivePackTransactional(t *testing.T) {
 			writePackfile: true,
 			commands: []command{
 				{
-					ref:    "refs/heads/master",
-					oldOID: masterOID,
-					newOID: masterParentOID,
+					ref:    "refs/heads/main",
+					oldOID: commitID,
+					newOID: parentCommitID,
 				},
 			},
-			expectedRefs: map[string]string{
-				"refs/heads/master": masterParentOID,
+			expectedRefs: map[string]git.ObjectID{
+				"refs/heads/main": parentCommitID,
 			},
 			expectedVotes: 3,
 		},
@@ -432,12 +532,12 @@ func TestReceivePackTransactional(t *testing.T) {
 			commands: []command{
 				{
 					ref:    "refs/heads/other",
-					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
-					newOID: masterOID,
+					oldOID: gittest.DefaultObjectHash.ZeroOID,
+					newOID: commitID,
 				},
 			},
-			expectedRefs: map[string]string{
-				"refs/heads/other": masterOID,
+			expectedRefs: map[string]git.ObjectID{
+				"refs/heads/other": commitID,
 			},
 			expectedVotes: 3,
 		},
@@ -446,12 +546,12 @@ func TestReceivePackTransactional(t *testing.T) {
 			commands: []command{
 				{
 					ref:    "refs/heads/other",
-					oldOID: masterOID,
-					newOID: git.ObjectHashSHA1.ZeroOID.String(),
+					oldOID: commitID,
+					newOID: gittest.DefaultObjectHash.ZeroOID,
 				},
 			},
-			expectedRefs: map[string]string{
-				"refs/heads/other": git.ObjectHashSHA1.ZeroOID.String(),
+			expectedRefs: map[string]git.ObjectID{
+				"refs/heads/other": gittest.DefaultObjectHash.ZeroOID,
 			},
 			expectedVotes: 3,
 		},
@@ -461,18 +561,18 @@ func TestReceivePackTransactional(t *testing.T) {
 			commands: []command{
 				{
 					ref:    "refs/heads/a",
-					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
-					newOID: masterOID,
+					oldOID: gittest.DefaultObjectHash.ZeroOID,
+					newOID: commitID,
 				},
 				{
 					ref:    "refs/heads/b",
-					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
-					newOID: masterOID,
+					oldOID: gittest.DefaultObjectHash.ZeroOID,
+					newOID: commitID,
 				},
 			},
-			expectedRefs: map[string]string{
-				"refs/heads/a": masterOID,
-				"refs/heads/b": masterOID,
+			expectedRefs: map[string]git.ObjectID{
+				"refs/heads/a": commitID,
+				"refs/heads/b": commitID,
 			},
 			expectedVotes: 5,
 		},
@@ -482,12 +582,12 @@ func TestReceivePackTransactional(t *testing.T) {
 			commands: []command{
 				{
 					ref:    "refs/heads/a",
-					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
-					newOID: masterParentOID,
+					oldOID: gittest.DefaultObjectHash.ZeroOID,
+					newOID: parentCommitID,
 				},
 			},
-			expectedRefs: map[string]string{
-				"refs/heads/a": masterOID,
+			expectedRefs: map[string]git.ObjectID{
+				"refs/heads/a": commitID,
 			},
 			expectedVotes: 1,
 		},
@@ -497,17 +597,17 @@ func TestReceivePackTransactional(t *testing.T) {
 			commands: []command{
 				{
 					ref:    "refs/heads/a",
-					oldOID: git.ObjectHashSHA1.ZeroOID.String(),
-					newOID: masterParentOID,
+					oldOID: gittest.DefaultObjectHash.ZeroOID,
+					newOID: parentCommitID,
 				},
 				{
 					ref:    "refs/heads/b",
-					oldOID: masterOID,
-					newOID: git.ObjectHashSHA1.ZeroOID.String(),
+					oldOID: commitID,
+					newOID: gittest.DefaultObjectHash.ZeroOID,
 				},
 			},
-			expectedRefs: map[string]string{
-				"refs/heads/a": masterOID,
+			expectedRefs: map[string]git.ObjectID{
+				"refs/heads/a": commitID,
 			},
 			expectedVotes: 3,
 		},
@@ -551,11 +651,11 @@ func TestReceivePackTransactional(t *testing.T) {
 			for expectedRef, expectedOID := range tc.expectedRefs {
 				actualOID, err := repo.ResolveRevision(ctx, git.Revision(expectedRef))
 
-				if expectedOID == git.ObjectHashSHA1.ZeroOID.String() {
+				if expectedOID == gittest.DefaultObjectHash.ZeroOID {
 					require.Equal(t, git.ErrReferenceNotFound, err)
 				} else {
 					require.NoError(t, err)
-					require.Equal(t, expectedOID, actualOID.String())
+					require.Equal(t, expectedOID, actualOID)
 				}
 			}
 			require.Equal(t, tc.expectedVotes, len(txManager.Votes()))
@@ -563,7 +663,7 @@ func TestReceivePackTransactional(t *testing.T) {
 	}
 }
 
-func TestSSHReceivePackToHooks(t *testing.T) {
+func TestReceivePack_objectExistsHook(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -581,9 +681,7 @@ func TestSSHReceivePackToHooks(t *testing.T) {
 	protocolDetectingFactory := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
 	cfg.SocketPath = runSSHServer(t, cfg, testserver.WithGitCommandFactory(protocolDetectingFactory))
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 	tempGitlabShellDir := testhelper.TempDir(t)
 

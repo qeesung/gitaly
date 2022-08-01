@@ -30,8 +30,7 @@ func TestFailedUploadArchiveRequestDueToTimeout(t *testing.T) {
 		Seed: gittest.SeedGitLabTest,
 	})
 
-	client, conn := newSSHClient(t, cfg.SocketPath)
-	defer conn.Close()
+	client := newSSHClient(t, cfg.SocketPath)
 
 	stream, err := client.SSHUploadArchive(ctx)
 	require.NoError(t, err)
@@ -64,8 +63,7 @@ func TestFailedUploadArchiveRequestDueToValidationError(t *testing.T) {
 
 	serverSocketPath := runSSHServer(t, cfg)
 
-	client, conn := newSSHClient(t, serverSocketPath)
-	defer conn.Close()
+	client := newSSHClient(t, serverSocketPath)
 
 	tests := []struct {
 		Desc string

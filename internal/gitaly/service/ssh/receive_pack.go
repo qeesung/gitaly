@@ -3,6 +3,8 @@ package ssh
 import (
 	"errors"
 	"fmt"
+	"io"
+	"strings"
 	"sync"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
@@ -55,9 +57,15 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 	stdout := streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.SSHReceivePackResponse{Stdout: p})
 	})
+
+	// We both need to listen in on the stderr stream in order to be able to judge what exactly
+	// is happening, but also relay the output to the client. We thus create a MultiWriter to
+	// enable both at the same time.
+	var stderrBuilder strings.Builder
 	stderr := streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.SSHReceivePackResponse{Stderr: p})
 	})
+	stderr = io.MultiWriter(&stderrBuilder, stderr)
 
 	repoPath, err := s.locator.GetRepoPath(req.Repository)
 	if err != nil {
@@ -86,10 +94,25 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 	}
 
 	if err := cmd.Wait(); err != nil {
-		if status, ok := command.ExitStatus(err); ok {
-			return stream.Send(&gitalypb.SSHReceivePackResponse{
-				ExitStatus: &gitalypb.ExitStatus{Value: int32(status)},
-			})
+		status, ok := command.ExitStatus(err)
+		if !ok {
+			return fmt.Errorf("extracting exit status: %w", err)
+		}
+
+		// When the command has failed we both want to send its exit status as well as
+		// return an error from this RPC call. Otherwise we'd fail the RPC, but return with
+		// an `OK` error code to the client.
+		if errSend := stream.Send(&gitalypb.SSHReceivePackResponse{
+			ExitStatus: &gitalypb.ExitStatus{Value: int32(status)},
+		}); errSend != nil {
+			ctxlogrus.Extract(ctx).WithError(errSend).Error("send final status code")
+		}
+
+		// Detect the case where the user has cancelled the push and log it with a proper
+		// gRPC error code. We can't do anything about this error anyway and it is a totally
+		// valid outcome.
+		if stderrBuilder.String() == "fatal: the remote end hung up unexpectedly\n" {
+			return helper.ErrCanceledf("user canceled the push")
 		}
 
 		return fmt.Errorf("cmd wait: %v", err)

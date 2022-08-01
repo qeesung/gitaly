@@ -5,6 +5,7 @@ package ssh
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/hook"
@@ -56,14 +57,12 @@ func startSSHServerWithOptions(t *testing.T, cfg config.Cfg, opts []ServerOpt, s
 	}, serverOpts...)
 }
 
-func newSSHClient(t *testing.T, serverSocketPath string) (gitalypb.SSHServiceClient, *grpc.ClientConn) {
-	connOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	conn, err := grpc.Dial(serverSocketPath, connOpts...)
-	if err != nil {
-		t.Fatal(err)
-	}
+func newSSHClient(t *testing.T, serverSocketPath string) gitalypb.SSHServiceClient {
+	conn, err := grpc.Dial(serverSocketPath, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		testhelper.MustClose(t, conn)
+	})
 
-	return gitalypb.NewSSHServiceClient(conn), conn
+	return gitalypb.NewSSHServiceClient(conn)
 }
