@@ -28,7 +28,7 @@ require (
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.2.0
 	github.com/rubenv/sql-migrate v0.0.0-20191213152630-06338513c237
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	gitlab.com/gitlab-org/gitlab-shell/v14 v14.8.0
@@ -36,7 +36,7 @@ require (
 	go.uber.org/goleak v1.1.12
 	gocloud.dev v0.25.0
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
-	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858
 	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.28.0
