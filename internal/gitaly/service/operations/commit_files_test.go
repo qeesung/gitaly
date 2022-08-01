@@ -54,8 +54,9 @@ func TestUserCommitFiles(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		desc  string
-		steps []step
+		desc         string
+		createTarget func(*testing.T) (*gitalypb.Repository, string)
+		steps        []step
 	}{
 		{
 			desc: "create file with .git/hooks/pre-commit",
@@ -833,6 +834,32 @@ func TestUserCommitFiles(t *testing.T) {
 			},
 		},
 		{
+			desc: "start repository refers to target repository and is not empty",
+			createTarget: func(t *testing.T) (*gitalypb.Repository, string) {
+				return gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					RelativePath: targetRelativePath,
+					Seed:         gittest.SeedGitLabTest,
+				})
+			},
+			steps: []step{
+				{
+					actions: []*gitalypb.UserCommitFilesRequest{
+						createFileHeaderRequest("file-1"),
+						actionContentRequest("content-1"),
+					},
+					startRepository: &gitalypb.Repository{
+						StorageName:  startRepo.GetStorageName(),
+						RelativePath: targetRelativePath,
+					},
+					branchCreated: true,
+					repoCreated:   false,
+					treeEntries: []gittest.TreeEntry{
+						{Mode: DefaultMode, Path: "file-1", Content: "content-1"},
+					},
+				},
+			},
+		},
+		{
 			desc: "empty target repository with start branch set",
 			steps: []step{
 				{
@@ -871,9 +898,16 @@ func TestUserCommitFiles(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			const branch = "main"
 
-			repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-				RelativePath: targetRelativePath,
-			})
+			var repo *gitalypb.Repository
+			var repoPath string
+
+			if tc.createTarget != nil {
+				repo, repoPath = tc.createTarget(t)
+			} else {
+				repo, repoPath = gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					RelativePath: targetRelativePath,
+				})
+			}
 
 			for i, step := range tc.steps {
 				headerRequest := headerRequest(
@@ -916,7 +950,7 @@ func TestUserCommitFiles(t *testing.T) {
 				require.Equal(t, step.repoCreated, resp.BranchUpdate.RepoCreated, "step %d", i+1)
 				gittest.RequireTree(t, cfg, repoPath, branch, step.treeEntries)
 
-				authorDate := gittest.Exec(t, cfg, "-C", repoPath, "log", "--pretty='format:%ai'", "-1")
+				authorDate := gittest.Exec(t, cfg, "-C", repoPath, "log", "--pretty='format:%ai'", "-1", branch)
 				require.Contains(t, string(authorDate), gittest.TimezoneOffset)
 			}
 		})
