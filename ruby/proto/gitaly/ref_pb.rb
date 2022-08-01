@@ -74,7 +74,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :tag, :message, 1, "gitaly.Tag"
     end
     add_message "gitaly.FindTagError" do
-      optional :tag_not_found, :message, 1, "gitaly.ReferenceNotFoundError"
+      oneof :error do
+        optional :tag_not_found, :message, 1, "gitaly.ReferenceNotFoundError"
+      end
     end
     add_message "gitaly.FindAllTagsRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
