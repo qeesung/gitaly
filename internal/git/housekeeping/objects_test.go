@@ -60,7 +60,7 @@ func TestRepackObjects(t *testing.T) {
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		gittest.TestDeltaIslands(t, cfg, repoPath, IsPoolRepository(repoProto), func() error {
+		gittest.TestDeltaIslands(t, cfg, repoPath, repoPath, IsPoolRepository(repoProto), func() error {
 			return RepackObjects(ctx, repo, RepackObjectsConfig{
 				FullRepack: true,
 			})

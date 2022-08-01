@@ -37,7 +37,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "gitaly.FetchIntoObjectPoolRequest" do
       optional :origin, :message, 1, "gitaly.Repository"
       optional :object_pool, :message, 2, "gitaly.ObjectPool"
-      optional :repack, :bool, 3
     end
     add_message "gitaly.FetchIntoObjectPoolResponse" do
     end

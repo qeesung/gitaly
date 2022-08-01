@@ -125,6 +125,20 @@ func TestWriteCommit(t *testing.T) {
 			expectedRevUpdate: "refs/heads/foo",
 		},
 		{
+			desc: "with reference",
+			opts: []WriteCommitOption{
+				WithReference("refs/custom/namespace"),
+			},
+			expectedCommit: strings.Join([]string{
+				"tree " + DefaultObjectHash.EmptyTreeOID.String(),
+				"author " + DefaultCommitterSignature,
+				"committer " + DefaultCommitterSignature,
+				"",
+				"message",
+			}, "\n"),
+			expectedRevUpdate: "refs/custom/namespace",
+		},
+		{
 			desc: "with tree entry",
 			opts: []WriteCommitOption{
 				WithTreeEntries(treeEntryA),

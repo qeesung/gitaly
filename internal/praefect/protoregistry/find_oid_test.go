@@ -78,7 +78,6 @@ func TestProtoRegistryTargetRepo(t *testing.T) {
 			pbMsg: &gitalypb.FetchIntoObjectPoolRequest{
 				Origin:     testRepos[0],
 				ObjectPool: &gitalypb.ObjectPool{Repository: testRepos[1]},
-				Repack:     false,
 			},
 			expectRepo:           testRepos[1],
 			expectAdditionalRepo: testRepos[0],

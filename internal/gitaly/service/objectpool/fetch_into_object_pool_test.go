@@ -3,8 +3,11 @@
 package objectpool
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,21 +22,30 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/peer"
 )
 
 func TestFetchIntoObjectPool_Success(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolPruneRefs).Run(t, testFetchIntoObjectPoolSuccess)
+}
 
-	ctx := testhelper.Context(t)
+func testFetchIntoObjectPoolSuccess(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg, repo, repoPath, locator, client := setup(ctx, t)
 
 	repoCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(t.Name()))
@@ -48,7 +60,6 @@ func TestFetchIntoObjectPool_Success(t *testing.T) {
 	req := &gitalypb.FetchIntoObjectPoolRequest{
 		ObjectPool: pool.ToProto(),
 		Origin:     repo,
-		Repack:     true,
 	}
 
 	_, err = client.FetchIntoObjectPool(ctx, req)
@@ -85,16 +96,37 @@ func TestFetchIntoObjectPool_Success(t *testing.T) {
 	require.Error(t, err, "Expected refs/heads/broken to be deleted")
 }
 
-func TestFetchIntoObjectPool_hooks(t *testing.T) {
+func TestFetchIntoObjectPool_transactional(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolPruneRefs).Run(t, testFetchIntoObjectPoolTransactional)
+}
+
+func testFetchIntoObjectPoolTransactional(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	var votes []voting.Vote
+	var votesMutex sync.Mutex
+	txManager := transaction.MockManager{
+		VoteFn: func(_ context.Context, _ txinfo.Transaction, vote voting.Vote, _ voting.Phase) error {
+			votesMutex.Lock()
+			defer votesMutex.Unlock()
+			votes = append(votes, vote)
+			return nil
+		},
+	}
+
 	cfg := testcfg.Build(t)
-	gitCmdFactory := gittest.NewCommandFactory(t, cfg, git.WithHooksPath(testhelper.TempDir(t)))
+	cfg.SocketPath = runObjectPoolServer(
+		t, cfg, config.NewLocator(cfg),
+		testhelper.NewDiscardingLogger(t),
+		testserver.WithTransactionManager(&txManager),
+		// We need to disable Praefect given that we replace transactions with our own logic
+		// here.
+		testserver.WithDisablePraefect(),
+	)
+	testcfg.BuildGitalyHooks(t, cfg)
 
-	cfg.SocketPath = runObjectPoolServer(t, cfg, config.NewLocator(cfg), testhelper.NewDiscardingLogger(t), testserver.WithGitCommandFactory(gitCmdFactory))
-
-	ctx := testhelper.Context(t)
-	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 	conn, err := grpc.Dial(cfg.SocketPath, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
@@ -109,24 +141,109 @@ func TestFetchIntoObjectPool_hooks(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Set up a custom reference-transaction hook which simply exits failure. This asserts that
-	// the RPC doesn't invoke any reference-transaction.
-	testhelper.WriteExecutable(t, filepath.Join(gitCmdFactory.HooksPath(ctx), "reference-transaction"), []byte("#!/bin/sh\nexit 1\n"))
+	// CreateObjectPool has a bug because it will leave the configuration of the origin remote
+	// in the gitconfig. This will get cleaned up at a later point by our housekeeping logic, so
+	// it doesn't hurt much in the first place to have it. But the cleanup logic would trigger
+	// another transactional vote which we want to avoid, so we simply unset the configuration
+	// here.
+	gittest.Exec(t, cfg, "-C", pool.FullPath(), "config", "--unset", "remote.origin.url")
 
-	req := &gitalypb.FetchIntoObjectPoolRequest{
-		ObjectPool: pool.ToProto(),
-		Origin:     repo,
-		Repack:     true,
-	}
+	// Inject transaction information so that FetchInotObjectPool knows to perform
+	// transactional voting.
+	ctx, err = txinfo.InjectTransaction(peer.NewContext(ctx, &peer.Peer{}), 1, "node", true)
+	require.NoError(t, err)
+	ctx = metadata.IncomingToOutgoing(ctx)
 
-	_, err = client.FetchIntoObjectPool(ctx, req)
-	testhelper.RequireGrpcError(t, status.Error(codes.Internal, "fetch into object pool: exit status 128, stderr: \"fatal: ref updates aborted by hook\\n\""), err)
+	t.Run("without changed data", func(t *testing.T) {
+		votes = nil
+
+		_, err = client.FetchIntoObjectPool(ctx, &gitalypb.FetchIntoObjectPoolRequest{
+			ObjectPool: pool.ToProto(),
+			Origin:     repo,
+		})
+		require.NoError(t, err)
+
+		if featureflag.FetchIntoObjectPoolPruneRefs.IsEnabled(ctx) {
+			require.Equal(t, []voting.Vote{
+				// We expect to see two votes that demonstrate we're voting on no deleted
+				// references.
+				voting.VoteFromData(nil), voting.VoteFromData(nil),
+				// It is a bug though that we don't have a vote on the unchanged references
+				// in git-fetch(1).
+			}, votes)
+		} else {
+			require.Nil(t, votes)
+		}
+	})
+
+	t.Run("with a new reference", func(t *testing.T) {
+		votes = nil
+
+		// Create a new reference that we'd in fact fetch into the object pool so that we
+		// know that something will be voted on.
+		repoCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(), gittest.WithBranch("new-branch"))
+
+		_, err = client.FetchIntoObjectPool(ctx, &gitalypb.FetchIntoObjectPoolRequest{
+			ObjectPool: pool.ToProto(),
+			Origin:     repo,
+		})
+		require.NoError(t, err)
+
+		vote := voting.VoteFromData([]byte(fmt.Sprintf(
+			"%s %s refs/remotes/origin/heads/new-branch\n", git.ObjectHashSHA1.ZeroOID, repoCommit,
+		)))
+		if featureflag.FetchIntoObjectPoolPruneRefs.IsEnabled(ctx) {
+			require.Equal(t, []voting.Vote{
+				// The first two votes stem from the fact that we're voting on no
+				// deleted references.
+				voting.VoteFromData(nil), voting.VoteFromData(nil),
+				// And the other two votes are from the new branch we pull in.
+				vote, vote,
+			}, votes)
+		} else {
+			require.Equal(t, []voting.Vote{vote, vote}, votes)
+		}
+	})
+
+	t.Run("with a stale reference in pool", func(t *testing.T) {
+		votes = nil
+
+		reference := "refs/remotes/origin/heads/to-be-pruned"
+
+		// Create a commit in the pool repository itself. Right now, we don't touch this
+		// commit at all, but this will change in one of the next commits.
+		gittest.WriteCommit(t, cfg, pool.FullPath(), gittest.WithParents(), gittest.WithReference(reference))
+
+		_, err = client.FetchIntoObjectPool(ctx, &gitalypb.FetchIntoObjectPoolRequest{
+			ObjectPool: pool.ToProto(),
+			Origin:     repo,
+		})
+		require.NoError(t, err)
+
+		if featureflag.FetchIntoObjectPoolPruneRefs.IsEnabled(ctx) {
+			// We expect a single vote on the reference we have deleted.
+			vote := voting.VoteFromData([]byte(fmt.Sprintf(
+				"%[1]s %[1]s %s\n", git.ObjectHashSHA1.ZeroOID, reference,
+			)))
+			require.Equal(t, []voting.Vote{vote, vote}, votes)
+		} else {
+			require.Nil(t, votes)
+		}
+
+		exists, err := pool.Repo.HasRevision(ctx, git.Revision(reference))
+		require.NoError(t, err)
+		require.Equal(t, exists, featureflag.FetchIntoObjectPoolPruneRefs.IsDisabled(ctx))
+	})
 }
 
 func TestFetchIntoObjectPool_CollectLogStatistics(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolPruneRefs).Run(t, testFetchIntoObjectPoolCollectLogStatistics)
+}
 
-	ctx := testhelper.Context(t)
+func testFetchIntoObjectPoolCollectLogStatistics(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyHooks(t, cfg)
 
@@ -155,7 +272,6 @@ func TestFetchIntoObjectPool_CollectLogStatistics(t *testing.T) {
 	req := &gitalypb.FetchIntoObjectPoolRequest{
 		ObjectPool: pool.ToProto(),
 		Origin:     repo,
-		Repack:     true,
 	}
 
 	_, err = client.FetchIntoObjectPool(ctx, req)
@@ -250,5 +366,71 @@ func TestFetchIntoObjectPool_Failure(t *testing.T) {
 			testhelper.RequireGrpcCode(t, err, tc.code)
 			assert.Contains(t, err.Error(), tc.errMsg)
 		})
+	}
+}
+
+func TestFetchIntoObjectPool_dfConflict(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolPruneRefs).Run(t, testFetchIntoObjectPoolDfConflict)
+}
+
+func testFetchIntoObjectPoolDfConflict(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	cfg, repo, repoPath, _, client := setup(ctx, t)
+
+	pool := initObjectPool(t, cfg, cfg.Storages[0])
+	_, err := client.CreateObjectPool(ctx, &gitalypb.CreateObjectPoolRequest{
+		ObjectPool: pool.ToProto(),
+		Origin:     repo,
+	})
+	require.NoError(t, err)
+
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("branch"))
+
+	// Perform an initial fetch into the object pool with the given object that exists in the
+	// pool member's repository.
+	_, err = client.FetchIntoObjectPool(ctx, &gitalypb.FetchIntoObjectPoolRequest{
+		ObjectPool: pool.ToProto(),
+		Origin:     repo,
+	})
+	require.NoError(t, err)
+
+	// Now we delete the reference in the pool member and create a new reference that has the
+	// same prefix, but is stored in a subdirectory. This will create a D/F conflict.
+	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "-d", "refs/heads/branch")
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("branch/conflict"))
+
+	gitVersion, err := gittest.NewCommandFactory(t, cfg).GitVersion(ctx)
+	require.NoError(t, err)
+
+	// Due to a bug in old Git versions we may get an unexpected exit status.
+	expectedExitStatus := 254
+	if !gitVersion.FlushesUpdaterefStatus() {
+		expectedExitStatus = 1
+	}
+
+	// Verify that we can still fetch into the object pool regardless of the D/F conflict. While
+	// it is not possible to store both references at the same time due to the conflict, we
+	// should know to delete the old conflicting reference and replace it with the new one.
+	_, err = client.FetchIntoObjectPool(ctx, &gitalypb.FetchIntoObjectPoolRequest{
+		ObjectPool: pool.ToProto(),
+		Origin:     repo,
+	})
+	if featureflag.FetchIntoObjectPoolPruneRefs.IsEnabled(ctx) {
+		require.NoError(t, err)
+
+		poolPath, err := config.NewLocator(cfg).GetRepoPath(gittest.RewrittenRepository(ctx, t, cfg, pool.ToProto().GetRepository()))
+		require.NoError(t, err)
+
+		// Verify that the conflicting reference exists now.
+		gittest.Exec(t, cfg, "-C", poolPath, "rev-parse", "refs/remotes/origin/heads/branch/conflict")
+	} else {
+		// But right now it fails due to a bug.
+		testhelper.RequireGrpcError(t, helper.ErrInternalf(
+			"fetch into object pool: exit status %d, stderr: %q",
+			expectedExitStatus,
+			"error: cannot lock ref 'refs/remotes/origin/heads/branch/conflict': 'refs/remotes/origin/heads/branch' exists; cannot create 'refs/remotes/origin/heads/branch/conflict'\n",
+		), err)
 	}
 }

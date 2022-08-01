@@ -48,7 +48,10 @@ service ObjectPoolService {
     };
   }
 
-  // This comment is left unintentionally blank.
+  // FetchIntoObjectPool fetches all references from a pool member into an object pool so that
+  // objects shared between this repository and other pool members can be deduplicated. This RPC
+  // will perform housekeeping tasks after the object pool has been updated to ensure that the pool
+  // is in an optimal state.
   rpc FetchIntoObjectPool(FetchIntoObjectPoolRequest) returns (FetchIntoObjectPoolResponse) {
     option (op_type) = {
       op: MUTATOR
@@ -120,17 +123,20 @@ message DisconnectGitAlternatesRequest {
 message DisconnectGitAlternatesResponse {
 }
 
-// This comment is left unintentionally blank.
+// FetchIntoObjectPoolRequest is a request for the FetchIntoObjectPool RPC.
 message FetchIntoObjectPoolRequest {
-  // This comment is left unintentionally blank.
+  // Origin is the repository to fetch changes from.
   Repository origin = 1 [(additional_repository)=true];
-  // This comment is left unintentionally blank.
+  // ObjectPool is the repository to fetch changes into.
   ObjectPool object_pool = 2 [(target_repository)=true];
-  // This comment is left unintentionally blank.
-  bool repack = 3;
+
+  // Repack had the intent to control whether FetchIntoObjectPool would perform housekeeping tasks
+  // in the pool repository or not. This flag wasn't ever honored though and is thus doing nothing.
+  reserved 3;
+  reserved "repack";
 }
 
-// This comment is left unintentionally blank.
+// FetchIntoObjectPoolResponse is a response for the FetchIntoObjectPool RPC.
 message FetchIntoObjectPoolResponse {
 }
 

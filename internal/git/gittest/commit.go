@@ -32,7 +32,7 @@ var (
 )
 
 type writeCommitConfig struct {
-	branch             string
+	reference          string
 	parents            []git.ObjectID
 	authorDate         time.Time
 	authorName         string
@@ -47,12 +47,18 @@ type writeCommitConfig struct {
 // WriteCommitOption is an option which can be passed to WriteCommit.
 type WriteCommitOption func(*writeCommitConfig)
 
-// WithBranch is an option for WriteCommit which will cause it to update the update the given branch
-// name to the new commit.
-func WithBranch(branch string) WriteCommitOption {
+// WithReference is an option for WriteCommit which will cause it to update the given reference to
+// point to the new commit. This function requires the fully-qualified reference name.
+func WithReference(reference string) WriteCommitOption {
 	return func(cfg *writeCommitConfig) {
-		cfg.branch = branch
+		cfg.reference = reference
 	}
+}
+
+// WithBranch is an option for WriteCommit which will cause it to update the given branch name to
+// the new commit.
+func WithBranch(branch string) WriteCommitOption {
+	return WithReference("refs/heads/" + branch)
 }
 
 // WithMessage is an option for WriteCommit which will set the commit message.
@@ -218,10 +224,10 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 	oid, err := DefaultObjectHash.FromHex(text.ChompBytes(stdout))
 	require.NoError(t, err)
 
-	if writeCommitConfig.branch != "" {
+	if writeCommitConfig.reference != "" {
 		ExecOpts(t, cfg, ExecConfig{
 			Env: env,
-		}, "-C", repoPath, "update-ref", "refs/heads/"+writeCommitConfig.branch, oid.String())
+		}, "-C", repoPath, "update-ref", writeCommitConfig.reference, oid.String())
 	}
 
 	return oid

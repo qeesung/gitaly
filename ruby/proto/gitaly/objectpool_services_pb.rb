@@ -28,7 +28,10 @@ module Gitaly
       rpc :ReduplicateRepository, ::Gitaly::ReduplicateRepositoryRequest, ::Gitaly::ReduplicateRepositoryResponse
       # This comment is left unintentionally blank.
       rpc :DisconnectGitAlternates, ::Gitaly::DisconnectGitAlternatesRequest, ::Gitaly::DisconnectGitAlternatesResponse
-      # This comment is left unintentionally blank.
+      # FetchIntoObjectPool fetches all references from a pool member into an object pool so that
+      # objects shared between this repository and other pool members can be deduplicated. This RPC
+      # will perform housekeeping tasks after the object pool has been updated to ensure that the pool
+      # is in an optimal state.
       rpc :FetchIntoObjectPool, ::Gitaly::FetchIntoObjectPoolRequest, ::Gitaly::FetchIntoObjectPoolResponse
       # This comment is left unintentionally blank.
       rpc :GetObjectPool, ::Gitaly::GetObjectPoolRequest, ::Gitaly::GetObjectPoolResponse

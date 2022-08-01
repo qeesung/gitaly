@@ -536,7 +536,7 @@ func TestGarbageCollectDeltaIslands(t *testing.T) {
 	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
-	gittest.TestDeltaIslands(t, cfg, repoPath, false, func() error {
+	gittest.TestDeltaIslands(t, cfg, repoPath, repoPath, false, func() error {
 		//nolint:staticcheck
 		_, err := client.GarbageCollect(ctx, &gitalypb.GarbageCollectRequest{Repository: repo})
 		return err

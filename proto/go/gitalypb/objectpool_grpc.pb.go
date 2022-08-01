@@ -32,7 +32,10 @@ type ObjectPoolServiceClient interface {
 	ReduplicateRepository(ctx context.Context, in *ReduplicateRepositoryRequest, opts ...grpc.CallOption) (*ReduplicateRepositoryResponse, error)
 	// This comment is left unintentionally blank.
 	DisconnectGitAlternates(ctx context.Context, in *DisconnectGitAlternatesRequest, opts ...grpc.CallOption) (*DisconnectGitAlternatesResponse, error)
-	// This comment is left unintentionally blank.
+	// FetchIntoObjectPool fetches all references from a pool member into an object pool so that
+	// objects shared between this repository and other pool members can be deduplicated. This RPC
+	// will perform housekeeping tasks after the object pool has been updated to ensure that the pool
+	// is in an optimal state.
 	FetchIntoObjectPool(ctx context.Context, in *FetchIntoObjectPoolRequest, opts ...grpc.CallOption) (*FetchIntoObjectPoolResponse, error)
 	// This comment is left unintentionally blank.
 	GetObjectPool(ctx context.Context, in *GetObjectPoolRequest, opts ...grpc.CallOption) (*GetObjectPoolResponse, error)
@@ -123,7 +126,10 @@ type ObjectPoolServiceServer interface {
 	ReduplicateRepository(context.Context, *ReduplicateRepositoryRequest) (*ReduplicateRepositoryResponse, error)
 	// This comment is left unintentionally blank.
 	DisconnectGitAlternates(context.Context, *DisconnectGitAlternatesRequest) (*DisconnectGitAlternatesResponse, error)
-	// This comment is left unintentionally blank.
+	// FetchIntoObjectPool fetches all references from a pool member into an object pool so that
+	// objects shared between this repository and other pool members can be deduplicated. This RPC
+	// will perform housekeeping tasks after the object pool has been updated to ensure that the pool
+	// is in an optimal state.
 	FetchIntoObjectPool(context.Context, *FetchIntoObjectPoolRequest) (*FetchIntoObjectPoolResponse, error)
 	// This comment is left unintentionally blank.
 	GetObjectPool(context.Context, *GetObjectPoolRequest) (*GetObjectPoolResponse, error)

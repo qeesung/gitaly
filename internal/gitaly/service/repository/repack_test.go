@@ -300,7 +300,7 @@ func TestRepackFullDeltaIslands(t *testing.T) {
 	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
 
-	gittest.TestDeltaIslands(t, cfg, repoPath, false, func() error {
+	gittest.TestDeltaIslands(t, cfg, repoPath, repoPath, false, func() error {
 		//nolint:staticcheck
 		_, err := client.RepackFull(ctx, &gitalypb.RepackFullRequest{Repository: repo})
 		return err
