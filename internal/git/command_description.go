@@ -298,12 +298,12 @@ var commandDescriptions = map[string]commandDescription{
 	},
 	"upload-pack": {
 		flags: scNoRefUpdates,
-		opts: append([]GlobalOption{
+		opts: append(append([]GlobalOption{
 			ConfigPair{Key: "uploadpack.allowFilter", Value: "true"},
 			// Enables the capability to request individual SHA1's from the
 			// remote repo.
 			ConfigPair{Key: "uploadpack.allowAnySHA1InWant", Value: "true"},
-		}, packConfiguration()...),
+		}, hiddenUploadPackRefPrefixes()...), packConfiguration()...),
 	},
 	"version": {
 		flags: scNoRefUpdates,

@@ -16,7 +16,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 )
 
 // CommandFactory is designed to create and run git commands in a protected and fully managed manner.
@@ -452,11 +451,6 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, gitConfig []confi
 	}
 
 	combinedGlobals = append(combinedGlobals, commandDescription.opts...)
-
-	if sc.Subcommand() == "upload-pack" && featureflag.UploadPackHideRefs.IsEnabled(ctx) {
-		combinedGlobals = append(combinedGlobals, hiddenUploadPackRefPrefixes()...)
-	}
-
 	combinedGlobals = append(combinedGlobals, cc.globals...)
 	for _, configPair := range gitConfig {
 		combinedGlobals = append(combinedGlobals, ConfigPair{

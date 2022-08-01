@@ -96,14 +96,11 @@ func requireRevisionsEqual(t *testing.T, cfg config.Cfg, repoPathA, repoPathB, r
 func TestUploadPack_timeout(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, func(t *testing.T, ctx context.Context) {
-		runTestWithAndWithoutConfigOptions(t, func(t *testing.T, opts ...testcfg.Option) {
-			testUploadPackTimeout(t, ctx, opts...)
-		}, testcfg.WithPackObjectsCacheEnabled())
-	})
+	runTestWithAndWithoutConfigOptions(t, testUploadPackTimeout, testcfg.WithPackObjectsCacheEnabled())
 }
 
-func testUploadPackTimeout(t *testing.T, ctx context.Context, opts ...testcfg.Option) {
+func testUploadPackTimeout(t *testing.T, opts ...testcfg.Option) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t, opts...)
 
 	cfg.SocketPath = runSSHServerWithOptions(t, cfg, []ServerOpt{WithUploadPackRequestTimeout(1)})
@@ -138,12 +135,7 @@ func testUploadPackTimeout(t *testing.T, ctx context.Context, opts ...testcfg.Op
 	})
 }
 
-func TestUploadPackWithSidechannelClient(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testUploadPackWithSidechannelClient)
-}
-
-func testUploadPackWithSidechannelClient(t *testing.T, ctx context.Context) {
+func TestUploadPackWithSidechannel_client(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -382,7 +374,7 @@ func testUploadPackWithSidechannelClient(t *testing.T, ctx context.Context) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(ctx)
+			ctx, cancel := context.WithCancel(testhelper.Context(t))
 
 			ctx, waiter := sidechannel.RegisterSidechannel(ctx, registry, func(clientConn *sidechannel.ClientConn) (returnedErr error) {
 				errCh := make(chan error, 1)
@@ -655,13 +647,10 @@ func testUploadPackSuccessful(t *testing.T, sidechannel bool, opts ...testcfg.Op
 	}
 }
 
-func TestUploadPackPackObjectsHook(t *testing.T) {
+func TestUploadPack_packObjectsHook(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testUploadPackPackObjectsHook)
-}
 
-func testUploadPackPackObjectsHook(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t, testcfg.WithPackObjectsCacheEnabled())
 
@@ -754,14 +743,10 @@ func testUploadPackWithoutSideband(t *testing.T, opts ...testcfg.Option) {
 	require.Contains(t, string(out), "PACK")
 }
 
-func TestUploadPackInvalidStorage(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testUploadPackInvalidStorage)
-}
-
-func testUploadPackInvalidStorage(t *testing.T, ctx context.Context) {
+func TestUploadPack_invalidStorage(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSSHServer(t, cfg)
 
@@ -793,14 +778,10 @@ func testUploadPackInvalidStorage(t *testing.T, ctx context.Context) {
 	}
 }
 
-func TestUploadPackGitFailure(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testUploadPackGitFailure)
-}
-
-func testUploadPackGitFailure(t *testing.T, ctx context.Context) {
+func TestUploadPack_gitFailure(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSSHServer(t, cfg)
 

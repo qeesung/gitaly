@@ -37,14 +37,10 @@ import (
 
 func TestInfoRefsUploadPack_successful(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsUploadPackSuccessful)
-}
-
-func testInfoRefsUploadPackSuccessful(t *testing.T, ctx context.Context) {
-	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
+	ctx := testhelper.Context(t)
 
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
@@ -66,14 +62,10 @@ func testInfoRefsUploadPackSuccessful(t *testing.T, ctx context.Context) {
 
 func TestInfoRefsUploadPack_internalRefs(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsUploadPackInternalRefs)
-}
-
-func testInfoRefsUploadPackInternalRefs(t *testing.T, ctx context.Context) {
-	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
+	ctx := testhelper.Context(t)
 
 	for _, tc := range []struct {
 		ref                    string
@@ -105,37 +97,17 @@ func testInfoRefsUploadPackInternalRefs(t *testing.T, ctx context.Context) {
 		},
 		{
 			ref: "refs/tmp/1",
-			expectedAdvertisements: func() []string {
-				if featureflag.UploadPackHideRefs.IsDisabled(ctx) {
-					return []string{
-						"HEAD",
-						"refs/heads/main\n",
-						"refs/tmp/1\n",
-					}
-				}
-
-				return []string{
-					"HEAD",
-					"refs/heads/main\n",
-				}
-			}(),
+			expectedAdvertisements: []string{
+				"HEAD",
+				"refs/heads/main\n",
+			},
 		},
 		{
 			ref: "refs/keep-around/1",
-			expectedAdvertisements: func() []string {
-				if featureflag.UploadPackHideRefs.IsDisabled(ctx) {
-					return []string{
-						"HEAD",
-						"refs/heads/main\n",
-						"refs/keep-around/1\n",
-					}
-				}
-
-				return []string{
-					"HEAD",
-					"refs/heads/main\n",
-				}
-			}(),
+			expectedAdvertisements: []string{
+				"HEAD",
+				"refs/heads/main\n",
+			},
 		},
 	} {
 		t.Run(tc.ref, func(t *testing.T) {
@@ -158,21 +130,18 @@ func testInfoRefsUploadPackInternalRefs(t *testing.T, ctx context.Context) {
 	}
 }
 
-func TestInfoRefsUploadPackRepositoryDoesntExist(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsUploadPackRepositoryDoesntExist)
-}
-
-func testInfoRefsUploadPackRepositoryDoesntExist(t *testing.T, ctx context.Context) {
+func TestInfoRefsUploadPack_repositoryDoesntExist(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
+
 	serverSocketPath := runSmartHTTPServer(t, cfg)
 
 	rpcRequest := &gitalypb.InfoRefsRequest{Repository: &gitalypb.Repository{
 		StorageName:  cfg.Storages[0].Name,
 		RelativePath: "doesnt/exist",
 	}}
+	ctx := testhelper.Context(t)
 
 	_, err := makeInfoRefsUploadPackRequest(ctx, t, serverSocketPath, cfg.Auth.Token, rpcRequest)
 
@@ -184,16 +153,13 @@ func testInfoRefsUploadPackRepositoryDoesntExist(t *testing.T, ctx context.Conte
 	testhelper.RequireGrpcError(t, expectedErr, err)
 }
 
-func TestInfoRefsUploadPackPartialClone(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsUploadPackPartialClone)
-}
-
-func testInfoRefsUploadPackPartialClone(t *testing.T, ctx context.Context) {
+func TestInfoRefsUploadPack_partialClone(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
+
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
+	ctx := testhelper.Context(t)
 
 	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
@@ -214,17 +180,13 @@ func testInfoRefsUploadPackPartialClone(t *testing.T, ctx context.Context) {
 	}
 }
 
-func TestInfoRefsUploadPackGitConfigOptions(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsUploadPackGitConfigOptions)
-}
-
-func testInfoRefsUploadPackGitConfigOptions(t *testing.T, ctx context.Context) {
+func TestInfoRefsUploadPack_gitConfigOptions(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
 
+	ctx := testhelper.Context(t)
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithParents())
@@ -242,15 +204,11 @@ func testInfoRefsUploadPackGitConfigOptions(t *testing.T, ctx context.Context) {
 	})
 }
 
-func TestInfoRefsUploadPackGitProtocol(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsUploadPackGitProtocol)
-}
-
-func testInfoRefsUploadPackGitProtocol(t *testing.T, ctx context.Context) {
+func TestInfoRefsUploadPack_gitProtocol(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
+	ctx := testhelper.Context(t)
 
 	protocolDetectingFactory := gittest.NewProtocolDetectingCommandFactory(ctx, t, cfg)
 
@@ -304,16 +262,12 @@ func makeInfoRefsUploadPackRequest(ctx context.Context, t *testing.T, serverSock
 	return response, err
 }
 
-func TestInfoRefsReceivePackSuccessful(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsReceivePackSuccessful)
-}
-
-func testInfoRefsReceivePackSuccessful(t *testing.T, ctx context.Context) {
+func TestInfoRefsReceivePack_successful(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
+	ctx := testhelper.Context(t)
 
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
@@ -333,12 +287,7 @@ func testInfoRefsReceivePackSuccessful(t *testing.T, ctx context.Context) {
 	})
 }
 
-func TestInfoRefsReceivePackHiddenRefs(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsReceivePackHiddenRefs)
-}
-
-func testInfoRefsReceivePackHiddenRefs(t *testing.T, ctx context.Context) {
+func TestInfoRefsReceivePack_hiddenRefs(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -346,6 +295,7 @@ func testInfoRefsReceivePackHiddenRefs(t *testing.T, ctx context.Context) {
 	testcfg.BuildGitalyHooks(t, cfg)
 
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
+	ctx := testhelper.Context(t)
 
 	repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
@@ -380,12 +330,7 @@ func testInfoRefsReceivePackHiddenRefs(t *testing.T, ctx context.Context) {
 	require.NotContains(t, string(response), commitID+" .have")
 }
 
-func TestInfoRefsReceivePackRepoNotFound(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsReceivePackRepoNotFound)
-}
-
-func testInfoRefsReceivePackRepoNotFound(t *testing.T, ctx context.Context) {
+func TestInfoRefsReceivePack_repoNotFound(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -394,6 +339,7 @@ func testInfoRefsReceivePackRepoNotFound(t *testing.T, ctx context.Context) {
 
 	repo := &gitalypb.Repository{StorageName: cfg.Storages[0].Name, RelativePath: "testdata/scratch/another_repo"}
 	rpcRequest := &gitalypb.InfoRefsRequest{Repository: repo}
+	ctx := testhelper.Context(t)
 	_, err := makeInfoRefsReceivePackRequest(ctx, t, serverSocketPath, cfg.Auth.Token, rpcRequest)
 
 	expectedErr := helper.ErrNotFoundf(`GetRepoPath: not a git repository: "` + cfg.Storages[0].Path + "/" + repo.RelativePath + `"`)
@@ -404,12 +350,7 @@ func testInfoRefsReceivePackRepoNotFound(t *testing.T, ctx context.Context) {
 	testhelper.RequireGrpcError(t, expectedErr, err)
 }
 
-func TestInfoRefsReceivePackRepoNotSet(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsReceivePackRepoNotSet)
-}
-
-func testInfoRefsReceivePackRepoNotSet(t *testing.T, ctx context.Context) {
+func TestInfoRefsReceivePack_repoNotSet(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -417,6 +358,7 @@ func testInfoRefsReceivePackRepoNotSet(t *testing.T, ctx context.Context) {
 	serverSocketPath := runSmartHTTPServer(t, cfg)
 
 	rpcRequest := &gitalypb.InfoRefsRequest{}
+	ctx := testhelper.Context(t)
 	_, err := makeInfoRefsReceivePackRequest(ctx, t, serverSocketPath, cfg.Auth.Token, rpcRequest)
 	testhelper.RequireGrpcCode(t, err, codes.InvalidArgument)
 }
@@ -476,12 +418,7 @@ func (ms *mockStreamer) PutStream(ctx context.Context, repo *gitalypb.Repository
 	return ms.Streamer.PutStream(ctx, repo, req, src)
 }
 
-func TestInfoRefsUploadPackCache(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testInfoRefsUploadPackCache)
-}
-
-func testInfoRefsUploadPackCache(t *testing.T, ctx context.Context) {
+func TestInfoRefsUploadPack_cache(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -496,6 +433,8 @@ func testInfoRefsUploadPackCache(t *testing.T, ctx context.Context) {
 
 	gitalyServer := startSmartHTTPServer(t, cfg, withInfoRefCache(mockInfoRefCache))
 	cfg.SocketPath = gitalyServer.Address()
+
+	ctx := testhelper.Context(t)
 
 	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 

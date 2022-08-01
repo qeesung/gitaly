@@ -5,7 +5,6 @@ package repository
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -20,7 +19,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -167,13 +165,10 @@ func TestGetArchive_success(t *testing.T) {
 	}
 }
 
-func TestGetArchiveIncludeLfsBlobs(t *testing.T) {
+func TestGetArchive_includeLfsBlobs(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UploadPackHideRefs).Run(t, testGetArchiveIncludeLfsBlobs)
-}
 
-func testGetArchiveIncludeLfsBlobs(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	defaultOptions := gitlab.TestServerOptions{
 		SecretToken: secretToken,
