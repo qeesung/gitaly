@@ -73,11 +73,17 @@ func loadConfig(configPath string) (config.Cfg, error) {
 
 func flagUsage() {
 	fmt.Println(version.GetVersionString())
-	fmt.Printf("Usage: %v [OPTIONS] configfile\n", os.Args[0])
+	fmt.Printf("Usage: %v [command] [options] <configfile>\n", os.Args[0])
 	flag.PrintDefaults()
+	fmt.Printf("\nThe commands are:\n\n\tcheck\tchecks accessability of internal Rails API\n")
 }
 
 func main() {
+	// If invoked with subcommand check
+	if len(os.Args) > 1 && os.Args[1] == "check" {
+		execCheck()
+	}
+
 	flag.Usage = flagUsage
 	flag.Parse()
 

@@ -55,7 +55,6 @@ through gitaly.
 
 | subcommand     | purpose  | arguments | stdin  |
 |----------------|----------|-----------|--------|
-| `check`        | checks if the hooks can reach the gitlab server | none | none |
 | `pre-receive`  | used as the git pre-receive hook  none | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
 | `update`       | used as the git update hook | `<ref-name>` `<old-object>` `<new-object>` | none
 | `post-receive` | used as the git post-receive hook | none | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |

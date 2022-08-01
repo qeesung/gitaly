@@ -9,14 +9,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
 	gitalylog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
@@ -88,31 +84,6 @@ func run(args []string) error {
 		subCmd := args[1]
 
 		switch subCmd {
-		case "check":
-			logrus.SetLevel(logrus.ErrorLevel)
-			if len(args) != 3 {
-				fmt.Fprint(os.Stderr, "no configuration file path provided invoke with: gitaly-hooks check <config_path>")
-				os.Exit(1)
-			}
-
-			configPath := args[2]
-			fmt.Print("Checking GitLab API access: ")
-
-			info, err := check(configPath)
-			if err != nil {
-				fmt.Print("FAIL\n")
-				fmt.Fprint(os.Stderr, err)
-				os.Exit(1)
-			}
-
-			fmt.Print("OK\n")
-			fmt.Printf("GitLab version: %s\n", info.Version)
-			fmt.Printf("GitLab revision: %s\n", info.Revision)
-			fmt.Printf("GitLab Api version: %s\n", info.APIVersion)
-			fmt.Printf("Redis reachable for GitLab: %t\n", info.RedisReachable)
-			fmt.Println("OK")
-
-			return nil
 		case "git":
 			return executeHook(hookCommand{
 				exec:     packObjectsHook,
@@ -213,32 +184,6 @@ func sendFunc(reqWriter io.Writer, stream grpc.ClientStream, stdin io.Reader) fu
 			errC <- errClose
 		}
 	}
-}
-
-func check(configPath string) (*gitlab.CheckInfo, error) {
-	cfgFile, err := os.Open(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open config file: %w", err)
-	}
-	defer cfgFile.Close()
-
-	cfg, err := config.Load(cfgFile)
-	if err != nil {
-		return nil, err
-	}
-
-	gitlabAPI, err := gitlab.NewHTTPClient(logrus.New(), cfg.Gitlab, cfg.TLS, prometheus.Config{})
-	if err != nil {
-		return nil, err
-	}
-
-	gitCmdFactory, cleanup, err := git.NewExecCommandFactory(cfg)
-	if err != nil {
-		return nil, err
-	}
-	defer cleanup()
-
-	return hook.NewManager(cfg, config.NewLocator(cfg), gitCmdFactory, nil, gitlabAPI).Check(context.TODO())
 }
 
 func updateHook(ctx context.Context, payload git.HooksPayload, hookClient gitalypb.HookServiceClient, args []string) error {

@@ -50,6 +50,13 @@ func BuildPraefect(t testing.TB, cfg config.Cfg) string {
 	return buildGitalyCommand(t, cfg, "praefect")
 }
 
+// BuildGitaly builds the gitaly binary and installs it into the binary directory. The gitaly binary
+// embeds other binaries it needs to use when servicing requests. The packed binaries are not built
+// prior to building this gitaly binary and thus cannot be guaranteed to be from the same build.
+func BuildGitaly(t testing.TB, cfg config.Cfg) string {
+	return buildGitalyCommand(t, cfg, "gitaly")
+}
+
 // buildGitalyCommand builds an executable and places it in the correct directory depending
 // whether it is packed in the production build or not.
 func buildGitalyCommand(t testing.TB, cfg config.Cfg, executableName string) string {
