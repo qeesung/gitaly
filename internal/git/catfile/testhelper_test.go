@@ -53,6 +53,10 @@ func (e *repoExecutor) GitVersion(ctx context.Context) (git.Version, error) {
 	return git.Version{}, nil
 }
 
+func (e *repoExecutor) ObjectHash(ctx context.Context) (git.ObjectHash, error) {
+	return gittest.DefaultObjectHash, nil
+}
+
 func setupObjectReader(t *testing.T, ctx context.Context) (config.Cfg, ObjectReader, *gitalypb.Repository) {
 	t.Helper()
 

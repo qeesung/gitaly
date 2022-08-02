@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package localrepo
 
 import (
@@ -30,10 +28,14 @@ func TestRepo_FetchRemote(t *testing.T) {
 	defer catfileCache.Stop()
 	locator := config.NewLocator(cfg)
 
+	_, remoteRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	commitID := gittest.WriteCommit(t, cfg, remoteRepoPath, gittest.WithBranch("main"))
+	tagID := gittest.WriteTag(t, cfg, remoteRepoPath, "v1.0.0", commitID.Revision(), gittest.WriteTagConfig{
+		Message: "annotated tag",
+	})
+
 	initBareWithRemote := func(t *testing.T, remote string) (*Repo, string) {
 		t.Helper()
-
-		_, remoteRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
 
 		clientRepo, clientRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
@@ -74,22 +76,21 @@ func TestRepo_FetchRemote(t *testing.T) {
 
 		refs, err := repo.GetReferences(ctx)
 		require.NoError(t, err)
-		require.Contains(t, refs, git.Reference{Name: "refs/remotes/origin/'test'", Target: "e56497bb5f03a90a51293fc6d516788730953899"})
-		require.Contains(t, refs, git.Reference{Name: "refs/tags/v1.1.0", Target: "8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b"})
+		require.Contains(t, refs, git.Reference{Name: "refs/remotes/origin/main", Target: commitID.String()})
+		require.Contains(t, refs, git.Reference{Name: "refs/tags/v1.0.0", Target: tagID.String()})
 
-		sha, err := repo.ResolveRevision(ctx, git.Revision("refs/remotes/origin/master^{commit}"))
+		fetchedCommitID, err := repo.ResolveRevision(ctx, git.Revision("refs/remotes/origin/main^{commit}"))
 		require.NoError(t, err, "the object from remote should exists in local after fetch done")
-		require.Equal(t, git.ObjectID("1e292f8fedd741b75372e19097c76d327140c312"), sha)
+		require.Equal(t, commitID, fetchedCommitID)
 
 		require.NoFileExists(t, filepath.Join(repoPath, "FETCH_HEAD"))
 	})
 
 	t.Run("with env", func(t *testing.T) {
-		_, sourceRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-		testRepo, testRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		testRepo, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 		repo := New(locator, gitCmdFactory, catfileCache, testRepo)
-		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", sourceRepoPath)
+		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", remoteRepoPath)
 
 		var stderr bytes.Buffer
 		require.NoError(t, repo.FetchRemote(ctx, "source", FetchOpts{Stderr: &stderr, Env: []string{"GIT_TRACE=1"}}))
@@ -97,11 +98,10 @@ func TestRepo_FetchRemote(t *testing.T) {
 	})
 
 	t.Run("with disabled transactions", func(t *testing.T) {
-		_, sourceRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-		testRepo, testRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		testRepo, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 		repo := New(locator, gitCmdFactory, catfileCache, testRepo)
-		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", sourceRepoPath)
+		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", remoteRepoPath)
 
 		var stderr bytes.Buffer
 		require.NoError(t, repo.FetchRemote(ctx, "source", FetchOpts{
@@ -113,16 +113,16 @@ func TestRepo_FetchRemote(t *testing.T) {
 	})
 
 	t.Run("with globals", func(t *testing.T) {
-		_, sourceRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-		testRepo, testRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		testRepo, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 		repo := New(locator, gitCmdFactory, catfileCache, testRepo)
-		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", sourceRepoPath)
+		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", remoteRepoPath)
 
 		require.NoError(t, repo.FetchRemote(ctx, "source", FetchOpts{}))
 
-		gittest.Exec(t, cfg, "-C", testRepoPath, "branch", "--track", "testing-fetch-prune", "refs/remotes/source/markdown")
-		gittest.Exec(t, cfg, "-C", sourceRepoPath, "branch", "-D", "markdown")
+		// Write a commit into the remote's reference namespace that doesn't exist in the
+		// remote and that would thus be pruned.
+		gittest.WriteCommit(t, cfg, testRepoPath, gittest.WithReference("refs/remotes/source/markdown"))
 
 		require.NoError(t, repo.FetchRemote(
 			ctx,
@@ -140,16 +140,15 @@ func TestRepo_FetchRemote(t *testing.T) {
 	})
 
 	t.Run("with prune", func(t *testing.T) {
-		_, sourceRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-		testRepo, testRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		testRepo, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 		repo := New(locator, gitCmdFactory, catfileCache, testRepo)
 
-		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", sourceRepoPath)
+		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", remoteRepoPath)
 		require.NoError(t, repo.FetchRemote(ctx, "source", FetchOpts{}))
-
-		gittest.Exec(t, cfg, "-C", testRepoPath, "branch", "--track", "testing-fetch-prune", "refs/remotes/source/markdown")
-		gittest.Exec(t, cfg, "-C", sourceRepoPath, "branch", "-D", "markdown")
+		// Write a commit into the remote's reference namespace that doesn't exist in the
+		// remote and that would thus be pruned.
+		gittest.WriteCommit(t, cfg, testRepoPath, gittest.WithReference("refs/remotes/source/markdown"))
 
 		require.NoError(t, repo.FetchRemote(ctx, "source", FetchOpts{Prune: true}))
 
@@ -241,14 +240,17 @@ func captureGitSSHCommand(ctx context.Context, t testing.TB, cfg config.Cfg) (gi
 func TestRepo_Push(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	cfg, sourceRepoPb, _ := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
 
 	gitCmdFactory, readSSHCommand := captureGitSSHCommand(ctx, t, cfg)
 	catfileCache := catfile.NewCache(cfg)
 	t.Cleanup(catfileCache.Stop)
 	locator := config.NewLocator(cfg)
 
-	sourceRepo := New(locator, gitCmdFactory, catfileCache, sourceRepoPb)
+	sourceRepoProto, sourceRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	sourceRepo := New(locator, gitCmdFactory, catfileCache, sourceRepoProto)
+	gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
+	gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("feature"))
 
 	setupPushRepo := func(t testing.TB) (*Repo, string, []git.ConfigPair) {
 		repoProto, repopath := gittest.InitRepo(t, cfg, cfg.Storages[0])

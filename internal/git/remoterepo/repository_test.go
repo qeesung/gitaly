@@ -55,22 +55,15 @@ func TestRepository(t *testing.T) {
 	pool := client.NewPool()
 	defer pool.Close()
 
-	gittest.TestRepository(t, cfg, func(ctx context.Context, t testing.TB, seeded bool) (git.Repository, string) {
+	gittest.TestRepository(t, cfg, func(ctx context.Context, t testing.TB) (git.Repository, string) {
 		t.Helper()
-
-		seed := ""
-		if seeded {
-			seed = gittest.SeedGitLabTest
-		}
 
 		ctx, err := storage.InjectGitalyServers(ctx, "default", cfg.SocketPath, cfg.Auth.Token)
 		require.NoError(t, err)
 
-		pbRepo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-			Seed: seed,
-		})
+		repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
-		repo, err := remoterepo.New(metadata.OutgoingToIncoming(ctx), pbRepo, pool)
+		repo, err := remoterepo.New(metadata.OutgoingToIncoming(ctx), repoProto, pool)
 		require.NoError(t, err)
 		return repo, repoPath
 	})

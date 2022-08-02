@@ -267,6 +267,12 @@ func TestObjectHash_FromHex(t *testing.T) {
 	}
 }
 
+func TestObjectHash_EncodedLen(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, 40, git.ObjectHashSHA1.EncodedLen())
+	require.Equal(t, 64, git.ObjectHashSHA256.EncodedLen())
+}
+
 func TestObjectID_Bytes(t *testing.T) {
 	for _, tc := range []struct {
 		desc          string

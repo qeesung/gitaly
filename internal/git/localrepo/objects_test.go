@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package localrepo
 
 import (
@@ -18,7 +16,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ReaderFunc func([]byte) (int, error)
@@ -28,7 +25,7 @@ func (fn ReaderFunc) Read(b []byte) (int, error) { return fn(b) }
 func TestRepo_WriteBlob(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, repoPath := setupRepo(t, withEmptyRepo())
+	_, repo, repoPath := setupRepo(t)
 
 	for _, tc := range []struct {
 		desc       string
@@ -103,7 +100,7 @@ func TestFormatTag(t *testing.T) {
 		// internal/gitaly/service/operations/tags_test.go
 		{
 			desc:       "basic signature",
-			objectID:   git.ObjectHashSHA1.ZeroOID,
+			objectID:   gittest.DefaultObjectHash.ZeroOID,
 			objectType: "commit",
 			tagName:    []byte("my-tag"),
 			author: &gitalypb.User{
@@ -114,7 +111,7 @@ func TestFormatTag(t *testing.T) {
 		},
 		{
 			desc:       "basic signature",
-			objectID:   git.ObjectHashSHA1.ZeroOID,
+			objectID:   gittest.DefaultObjectHash.ZeroOID,
 			objectType: "commit",
 			tagName:    []byte("my-tag\ninjection"),
 			tagBody:    []byte(""),
@@ -126,7 +123,7 @@ func TestFormatTag(t *testing.T) {
 		},
 		{
 			desc:       "signature with fixed time",
-			objectID:   git.ObjectHashSHA1.ZeroOID,
+			objectID:   gittest.DefaultObjectHash.ZeroOID,
 			objectType: "commit",
 			tagName:    []byte("my-tag"),
 			tagBody:    []byte(""),
@@ -157,6 +154,8 @@ func TestRepo_WriteTag(t *testing.T) {
 
 	cfg, repo, repoPath := setupRepo(t)
 
+	commitID := gittest.WriteCommit(t, cfg, repoPath)
+
 	for _, tc := range []struct {
 		desc        string
 		objectID    git.ObjectID
@@ -171,7 +170,7 @@ func TestRepo_WriteTag(t *testing.T) {
 		// internal/gitaly/service/operations/tags_test.go
 		{
 			desc:       "basic signature",
-			objectID:   "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd",
+			objectID:   commitID,
 			objectType: "commit",
 			tagName:    []byte("my-tag"),
 			tagBody:    []byte(""),
@@ -182,7 +181,7 @@ func TestRepo_WriteTag(t *testing.T) {
 		},
 		{
 			desc:       "signature with time",
-			objectID:   "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd",
+			objectID:   commitID,
 			objectType: "commit",
 			tagName:    []byte("tag-with-timestamp"),
 			tagBody:    []byte(""),
@@ -191,15 +190,15 @@ func TestRepo_WriteTag(t *testing.T) {
 				Email: []byte("root@localhost"),
 			},
 			authorDate: time.Unix(12345, 0).UTC(),
-			expectedTag: `object c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd
+			expectedTag: fmt.Sprintf(`object %s
 type commit
 tag tag-with-timestamp
 tagger root <root@localhost> 12345 +0000
-`,
+`, commitID),
 		},
 		{
 			desc:       "signature with time and timezone",
-			objectID:   "c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd",
+			objectID:   commitID,
 			objectType: "commit",
 			tagName:    []byte("tag-with-timezone"),
 			tagBody:    []byte(""),
@@ -208,11 +207,11 @@ tagger root <root@localhost> 12345 +0000
 				Email: []byte("root@localhost"),
 			},
 			authorDate: time.Unix(12345, 0).In(time.FixedZone("myzone", -60*60)),
-			expectedTag: `object c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd
+			expectedTag: fmt.Sprintf(`object %s
 type commit
 tag tag-with-timezone
 tagger root <root@localhost> 12345 -0100
-`,
+`, commitID),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -233,7 +232,8 @@ tagger root <root@localhost> 12345 -0100
 func TestRepo_ReadObject(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _ := setupRepo(t)
+	cfg, repo, repoPath := setupRepo(t)
+	blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("content"))
 
 	for _, tc := range []struct {
 		desc    string
@@ -243,14 +243,13 @@ func TestRepo_ReadObject(t *testing.T) {
 	}{
 		{
 			desc:  "invalid object",
-			oid:   git.ObjectHashSHA1.ZeroOID,
-			error: InvalidObjectError(git.ObjectHashSHA1.ZeroOID.String()),
+			oid:   gittest.DefaultObjectHash.ZeroOID,
+			error: InvalidObjectError(gittest.DefaultObjectHash.ZeroOID.String()),
 		},
 		{
-			desc: "valid object",
-			// README in gitlab-test
-			oid:     "3742e48c1108ced3bf45ac633b34b65ac3f2af04",
-			content: "Sample repo for testing gitlab features\n",
+			desc:    "valid object",
+			oid:     blobID,
+			content: "content",
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -262,9 +261,48 @@ func TestRepo_ReadObject(t *testing.T) {
 }
 
 func TestRepo_ReadCommit(t *testing.T) {
+	if gittest.ObjectHashIsSHA256() {
+		t.Skip("this test is hash-agnostic, but depends on the `git/catfile` package that has not yet been converted")
+	}
+
 	ctx := testhelper.Context(t)
 
-	_, repo, _ := setupRepo(t)
+	cfg, repo, repoPath := setupRepo(t)
+
+	firstParentID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("first parent"))
+	secondParentID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("second parent"))
+
+	treeID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{Path: "file", Mode: "100644", Content: "content"},
+	})
+	commitWithoutTrailers := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithParents(firstParentID, secondParentID),
+		gittest.WithTree(treeID),
+		gittest.WithMessage("subject\n\nbody\n"),
+		gittest.WithBranch("main"),
+	)
+	commitWithTrailers := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithParents(commitWithoutTrailers),
+		gittest.WithTree(treeID),
+		gittest.WithMessage("with trailers\n\ntrailers\n\nSigned-off-by: John Doe <john.doe@example.com>"),
+	)
+
+	// We can't use git-commit-tree(1) directly, but have to manually write signed commits.
+	signedCommit := text.ChompBytes(gittest.ExecOpts(t, cfg, gittest.ExecConfig{
+		Stdin: strings.NewReader(fmt.Sprintf(
+			`tree %s
+parent %s
+author %[3]s
+committer %[3]s
+gpgsig -----BEGIN PGP SIGNATURE-----
+some faked pgp-signature
+ -----END PGP SIGNATURE-----
+
+signed commit subject
+
+signed commit body
+`, treeID, firstParentID, gittest.DefaultCommitterSignature)),
+	}, "-C", repoPath, "hash-object", "-t", "commit", "-w", "--stdin"))
 
 	for _, tc := range []struct {
 		desc           string
@@ -275,118 +313,92 @@ func TestRepo_ReadCommit(t *testing.T) {
 	}{
 		{
 			desc:        "invalid commit",
-			revision:    git.ObjectHashSHA1.ZeroOID.Revision(),
+			revision:    gittest.DefaultObjectHash.ZeroOID.Revision(),
 			expectedErr: ErrObjectNotFound,
 		},
 		{
 			desc:        "invalid commit with trailers",
-			revision:    git.ObjectHashSHA1.ZeroOID.Revision(),
+			revision:    gittest.DefaultObjectHash.ZeroOID.Revision(),
 			expectedErr: ErrObjectNotFound,
 			opts:        []ReadCommitOpt{WithTrailers()},
 		},
 		{
 			desc:     "valid commit",
-			revision: "refs/heads/master",
+			revision: "refs/heads/main",
 			expectedCommit: &gitalypb.GitCommit{
-				Id:     "1e292f8fedd741b75372e19097c76d327140c312",
-				TreeId: "07f8147e8e73aab6c935c296e8cdc5194dee729b",
+				Id:     commitWithoutTrailers.String(),
+				TreeId: treeID.String(),
 				ParentIds: []string{
-					"7975be0116940bf2ad4321f79d02a55c5f7779aa",
-					"c1c67abbaf91f624347bb3ae96eabe3a1b742478",
+					firstParentID.String(),
+					secondParentID.String(),
 				},
-				Subject:  []byte("Merge branch 'cherry-pick-ce369011' into 'master'"),
-				Body:     []byte("Merge branch 'cherry-pick-ce369011' into 'master'\n\nAdd file with a _flattable_ path\n\nSee merge request gitlab-org/gitlab-test!35"),
-				BodySize: 128,
-				Author: &gitalypb.CommitAuthor{
-					Name:  []byte("Drew Blessing"),
-					Email: []byte("drew@blessing.io"),
-					Date: &timestamppb.Timestamp{
-						Seconds: 1540830087,
-					},
-					Timezone: []byte("+0000"),
-				},
-				Committer: &gitalypb.CommitAuthor{
-					Name:  []byte("Drew Blessing"),
-					Email: []byte("drew@blessing.io"),
-					Date: &timestamppb.Timestamp{
-						Seconds: 1540830087,
-					},
-					Timezone: []byte("+0000"),
-				},
+				Subject:   []byte("subject"),
+				Body:      []byte("subject\n\nbody\n"),
+				BodySize:  14,
+				Author:    gittest.DefaultCommitAuthor,
+				Committer: gittest.DefaultCommitAuthor,
 			},
 		},
 		{
 			desc:     "trailers do not get parsed without WithTrailers()",
-			revision: "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
+			revision: commitWithTrailers.Revision(),
 			expectedCommit: &gitalypb.GitCommit{
-				Id:     "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
-				TreeId: "a6973545d42361b28bfba5ced3b75dba5848b955",
+				Id:     commitWithTrailers.String(),
+				TreeId: treeID.String(),
 				ParentIds: []string{
-					"570e7b2abdd848b95f2f578043fc23bd6f6fd24d",
+					commitWithoutTrailers.String(),
 				},
-				Subject:  []byte("Add submodule from gitlab.com"),
-				Body:     []byte("Add submodule from gitlab.com\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
-				BodySize: 98,
-				Author: &gitalypb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date: &timestamppb.Timestamp{
-						Seconds: 1393491698,
-					},
-					Timezone: []byte("+0200"),
-				},
-				Committer: &gitalypb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date: &timestamppb.Timestamp{
-						Seconds: 1393491698,
-					},
-					Timezone: []byte("+0200"),
-				},
-				SignatureType: gitalypb.SignatureType_PGP,
+				Subject:   []byte("with trailers"),
+				Body:      []byte("with trailers\n\ntrailers\n\nSigned-off-by: John Doe <john.doe@example.com>"),
+				BodySize:  71,
+				Author:    gittest.DefaultCommitAuthor,
+				Committer: gittest.DefaultCommitAuthor,
 			},
 		},
 		{
 			desc:     "trailers get parsed with WithTrailers()",
-			revision: "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
+			revision: commitWithTrailers.Revision(),
 			opts:     []ReadCommitOpt{WithTrailers()},
 			expectedCommit: &gitalypb.GitCommit{
-				Id:     "5937ac0a7beb003549fc5fd26fc247adbce4a52e",
-				TreeId: "a6973545d42361b28bfba5ced3b75dba5848b955",
+				Id:     commitWithTrailers.String(),
+				TreeId: treeID.String(),
 				ParentIds: []string{
-					"570e7b2abdd848b95f2f578043fc23bd6f6fd24d",
+					commitWithoutTrailers.String(),
 				},
-				Subject:  []byte("Add submodule from gitlab.com"),
-				Body:     []byte("Add submodule from gitlab.com\n\nSigned-off-by: Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>\n"),
-				BodySize: 98,
-				Author: &gitalypb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date: &timestamppb.Timestamp{
-						Seconds: 1393491698,
-					},
-					Timezone: []byte("+0200"),
-				},
-				Committer: &gitalypb.CommitAuthor{
-					Name:  []byte("Dmitriy Zaporozhets"),
-					Email: []byte("dmitriy.zaporozhets@gmail.com"),
-					Date: &timestamppb.Timestamp{
-						Seconds: 1393491698,
-					},
-					Timezone: []byte("+0200"),
-				},
-				SignatureType: gitalypb.SignatureType_PGP,
+				Subject:   []byte("with trailers"),
+				Body:      []byte("with trailers\n\ntrailers\n\nSigned-off-by: John Doe <john.doe@example.com>"),
+				BodySize:  71,
+				Author:    gittest.DefaultCommitAuthor,
+				Committer: gittest.DefaultCommitAuthor,
 				Trailers: []*gitalypb.CommitTrailer{
 					{
 						Key:   []byte("Signed-off-by"),
-						Value: []byte("Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>"),
+						Value: []byte("John Doe <john.doe@example.com>"),
 					},
 				},
 			},
 		},
 		{
+			desc:     "with PGP signature",
+			revision: git.Revision(signedCommit),
+			opts:     []ReadCommitOpt{},
+			expectedCommit: &gitalypb.GitCommit{
+				Id:     signedCommit,
+				TreeId: treeID.String(),
+				ParentIds: []string{
+					firstParentID.String(),
+				},
+				Subject:       []byte("signed commit subject"),
+				Body:          []byte("signed commit subject\n\nsigned commit body\n"),
+				BodySize:      42,
+				Author:        gittest.DefaultCommitAuthor,
+				Committer:     gittest.DefaultCommitAuthor,
+				SignatureType: gitalypb.SignatureType_PGP,
+			},
+		},
+		{
 			desc:        "not a commit",
-			revision:    "refs/heads/master^{tree}",
+			revision:    "refs/heads/main^{tree}",
 			expectedErr: ErrObjectNotFound,
 		},
 	} {
@@ -401,7 +413,10 @@ func TestRepo_ReadCommit(t *testing.T) {
 func TestRepo_IsAncestor(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _ := setupRepo(t)
+	cfg, repo, repoPath := setupRepo(t)
+
+	parentCommitID := gittest.WriteCommit(t, cfg, repoPath)
+	childCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(parentCommitID))
 
 	for _, tc := range []struct {
 		desc         string
@@ -412,42 +427,42 @@ func TestRepo_IsAncestor(t *testing.T) {
 	}{
 		{
 			desc:       "parent is ancestor",
-			parent:     "HEAD~1",
-			child:      "HEAD",
+			parent:     parentCommitID.Revision(),
+			child:      childCommitID.Revision(),
 			isAncestor: true,
 		},
 		{
 			desc:       "parent is not ancestor",
-			parent:     "HEAD",
-			child:      "HEAD~1",
+			parent:     childCommitID.Revision(),
+			child:      parentCommitID.Revision(),
 			isAncestor: false,
 		},
 		{
 			desc:   "parent is not valid commit",
-			parent: git.ObjectHashSHA1.ZeroOID.Revision(),
-			child:  "HEAD",
+			parent: gittest.DefaultObjectHash.ZeroOID.Revision(),
+			child:  childCommitID.Revision(),
 			errorMatcher: func(t testing.TB, err error) {
-				require.Equal(t, InvalidCommitError(git.ObjectHashSHA1.ZeroOID), err)
+				require.Equal(t, InvalidCommitError(gittest.DefaultObjectHash.ZeroOID), err)
 			},
 		},
 		{
 			desc:   "child is not valid commit",
-			parent: "HEAD",
-			child:  git.ObjectHashSHA1.ZeroOID.Revision(),
+			parent: childCommitID.Revision(),
+			child:  gittest.DefaultObjectHash.ZeroOID.Revision(),
 			errorMatcher: func(t testing.TB, err error) {
-				require.Equal(t, InvalidCommitError(git.ObjectHashSHA1.ZeroOID), err)
+				require.Equal(t, InvalidCommitError(gittest.DefaultObjectHash.ZeroOID), err)
 			},
 		},
 		{
 			desc:   "child points to a tree",
-			parent: "HEAD",
-			child:  "HEAD^{tree}",
+			parent: childCommitID.Revision(),
+			child:  childCommitID.Revision() + "^{tree}",
 			errorMatcher: func(t testing.TB, actualErr error) {
-				treeOID, err := repo.ResolveRevision(ctx, "HEAD^{tree}")
+				treeOID, err := repo.ResolveRevision(ctx, childCommitID.Revision()+"^{tree}")
 				require.NoError(t, err)
 				require.EqualError(t, actualErr, fmt.Sprintf(
-					`determine ancestry: exit status 128, stderr: "error: object %s is a tree, not a commit\nfatal: Not a valid commit name HEAD^{tree}\n"`,
-					treeOID,
+					`determine ancestry: exit status 128, stderr: "error: object %s is a tree, not a commit\nfatal: Not a valid commit name %s^{tree}\n"`,
+					treeOID, childCommitID,
 				))
 			},
 		},

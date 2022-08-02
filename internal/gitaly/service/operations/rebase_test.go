@@ -173,12 +173,7 @@ func TestUserRebaseConfirmable_skipEmptyCommits(t *testing.T) {
 		Id:        "ef7f98be1f753f1a9fa895d999a855611d691629",
 		ParentIds: []string{theirs.String()},
 		TreeId:    "b68aeb18813d7f2e180f2cc0bccc128511438b29",
-		Author: &gitalypb.CommitAuthor{
-			Name:     []byte(gittest.DefaultCommitterName),
-			Email:    []byte(gittest.DefaultCommitterMail),
-			Date:     timestamppb.New(gittest.DefaultCommitTime),
-			Timezone: []byte("+0100"),
-		},
+		Author:    gittest.DefaultCommitAuthor,
 		Committer: &gitalypb.CommitAuthor{
 			Name:     gittest.TestUser.Name,
 			Email:    gittest.TestUser.Email,

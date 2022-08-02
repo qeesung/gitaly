@@ -47,7 +47,12 @@ func (repo *Repo) WriteBlob(ctx context.Context, path string, content io.Reader)
 		return "", errorWithStderr(err, stderr.Bytes())
 	}
 
-	oid, err := git.ObjectHashSHA1.FromHex(text.ChompBytes(stdout.Bytes()))
+	objectHash, err := repo.ObjectHash(ctx)
+	if err != nil {
+		return "", fmt.Errorf("detecting object hash: %w", err)
+	}
+
+	oid, err := objectHash.FromHex(text.ChompBytes(stdout.Bytes()))
 	if err != nil {
 		return "", err
 	}
@@ -159,7 +164,12 @@ func (repo *Repo) WriteTag(
 		return "", MktagError{tagName: tagName, stderr: stderr.String()}
 	}
 
-	tagID, err := git.ObjectHashSHA1.FromHex(text.ChompBytes(stdout.Bytes()))
+	objectHash, err := repo.ObjectHash(ctx)
+	if err != nil {
+		return "", fmt.Errorf("detecting object hash: %w", err)
+	}
+
+	tagID, err := objectHash.FromHex(text.ChompBytes(stdout.Bytes()))
 	if err != nil {
 		return "", fmt.Errorf("could not parse tag ID: %w", err)
 	}

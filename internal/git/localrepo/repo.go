@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,10 @@ type Repo struct {
 	locator       storage.Locator
 	gitCmdFactory git.CommandFactory
 	catfileCache  catfile.Cache
+
+	detectObjectHashOnce sync.Once
+	objectHash           git.ObjectHash
+	objectHashErr        error
 }
 
 // New creates a new Repo from its protobuf representation.
@@ -219,4 +224,12 @@ func (repo *Repo) StorageTempDir() (string, error) {
 	}
 
 	return tempPath, nil
+}
+
+// ObjectHash detects the object hash used by this particular repository.
+func (repo *Repo) ObjectHash(ctx context.Context) (git.ObjectHash, error) {
+	repo.detectObjectHashOnce.Do(func() {
+		repo.objectHash, repo.objectHashErr = git.DetectObjectHash(ctx, repo)
+	})
+	return repo.objectHash, repo.objectHashErr
 }

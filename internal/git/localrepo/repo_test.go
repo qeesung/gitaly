@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package localrepo
 
 import (
@@ -24,24 +22,15 @@ import (
 func TestRepo(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	gittest.TestRepository(t, cfg, func(ctx context.Context, t testing.TB, seeded bool) (git.Repository, string) {
+	gittest.TestRepository(t, cfg, func(ctx context.Context, t testing.TB) (git.Repository, string) {
 		t.Helper()
 
-		var (
-			pbRepo   *gitalypb.Repository
-			repoPath string
-		)
-
-		if seeded {
-			pbRepo, repoPath = gittest.CloneRepo(t, cfg, cfg.Storages[0])
-		} else {
-			pbRepo, repoPath = gittest.InitRepo(t, cfg, cfg.Storages[0])
-		}
+		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 		gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 		catfileCache := catfile.NewCache(cfg)
 		t.Cleanup(catfileCache.Stop)
-		return New(config.NewLocator(cfg), gitCmdFactory, catfileCache, pbRepo), repoPath
+		return New(config.NewLocator(cfg), gitCmdFactory, catfileCache, repoProto), repoPath
 	})
 }
 
@@ -61,6 +50,13 @@ func TestSize(t *testing.T) {
 			exec %q "$@"
 		`, commandArgFile, execEnv.BinaryPath)
 	})
+
+	hashDependentSize := func(sha1Size, sha256Size int64) int64 {
+		if gittest.ObjectHashIsSHA256() {
+			return sha256Size
+		}
+		return sha1Size
+	}
 
 	testCases := []struct {
 		desc              string
@@ -92,7 +88,7 @@ func TestSize(t *testing.T) {
 
 				return repoProto
 			},
-			expectedSize:      203,
+			expectedSize:      hashDependentSize(203, 230),
 			expectedUseBitmap: true,
 		},
 		{
@@ -133,7 +129,7 @@ func TestSize(t *testing.T) {
 
 				return repoProto
 			},
-			expectedSize:      439,
+			expectedSize:      hashDependentSize(439, 510),
 			expectedUseBitmap: true,
 		},
 		{
@@ -160,7 +156,7 @@ func TestSize(t *testing.T) {
 
 				return repoProto
 			},
-			expectedSize:      398,
+			expectedSize:      hashDependentSize(398, 465),
 			expectedUseBitmap: true,
 		},
 		{
@@ -187,7 +183,7 @@ func TestSize(t *testing.T) {
 			opts: []RepoSizeOption{
 				WithExcludeRefs("refs/heads/exclude-me"),
 			},
-			expectedSize:      217,
+			expectedSize:      hashDependentSize(217, 245),
 			expectedUseBitmap: true,
 		},
 		{
@@ -235,7 +231,7 @@ func TestSize(t *testing.T) {
 			},
 			// While both repositories have the same contents, we should still return
 			// the actual repository's size because we don't exclude the alternate.
-			expectedSize: 207,
+			expectedSize: hashDependentSize(207, 234),
 			// Even though we have an alternate, we should still use bitmap indices
 			// given that we don't use `--not --alternate-refs`.
 			expectedUseBitmap: true,
@@ -309,7 +305,7 @@ func TestSize(t *testing.T) {
 			opts: []RepoSizeOption{
 				WithoutAlternates(),
 			},
-			expectedSize:      224,
+			expectedSize:      hashDependentSize(224, 268),
 			expectedUseBitmap: false,
 		},
 	}
@@ -342,8 +338,8 @@ func TestRepo_StorageTempDir(t *testing.T) {
 	t.Cleanup(catfileCache.Stop)
 	locator := config.NewLocator(cfg)
 
-	pbRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-	repo := New(locator, gitCmdFactory, catfileCache, pbRepo)
+	repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo := New(locator, gitCmdFactory, catfileCache, repoProto)
 
 	expected, err := locator.TempDir(cfg.Storages[0].Name)
 	require.NoError(t, err)
@@ -353,4 +349,45 @@ func TestRepo_StorageTempDir(t *testing.T) {
 	require.NoError(t, err)
 	require.DirExists(t, expected)
 	require.Equal(t, expected, tempPath)
+}
+
+func TestRepo_ObjectHash(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
+	locator := config.NewLocator(cfg)
+
+	outputFile := filepath.Join(testhelper.TempDir(t), "output")
+
+	// We create an intercepting command factory that detects when we run our object hash
+	// detection logic and, if so, writes a sentinel value into our output file. Like this we
+	// can test how often the logic runs.
+	gitCmdFactory := gittest.NewInterceptingCommandFactory(ctx, t, cfg, func(execEnv git.ExecutionEnvironment) string {
+		return fmt.Sprintf(`#!/bin/sh
+		( echo "$@" | grep --silent -- '--show-object-format' ) && echo detection-logic >>%q
+		exec %q "$@"`, outputFile, execEnv.BinaryPath)
+	})
+
+	repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo := New(locator, gitCmdFactory, catfileCache, repoProto)
+
+	objectHash, err := repo.ObjectHash(ctx)
+	require.NoError(t, err)
+	require.Equal(t, gittest.DefaultObjectHash.EmptyTreeOID, objectHash.EmptyTreeOID)
+
+	// We should see that the detection logic has been executed once.
+	require.Equal(t, "detection-logic\n", string(testhelper.MustReadFile(t, outputFile)))
+
+	// Verify that running this a second time continues to return the object hash alright
+	// regardless of the cache.
+	objectHash, err = repo.ObjectHash(ctx)
+	require.NoError(t, err)
+	require.Equal(t, gittest.DefaultObjectHash.EmptyTreeOID, objectHash.EmptyTreeOID)
+
+	// But the detection logic should not have been executed a second time.
+	require.Equal(t, "detection-logic\n", string(testhelper.MustReadFile(t, outputFile)))
 }

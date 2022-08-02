@@ -56,8 +56,13 @@ func (repo *Repo) ResolveRevision(ctx context.Context, revision git.Revision) (g
 		return "", err
 	}
 
+	objectHash, err := repo.ObjectHash(ctx)
+	if err != nil {
+		return "", fmt.Errorf("detecting object hash: %w", err)
+	}
+
 	hex := strings.TrimSpace(stdout.String())
-	oid, err := git.ObjectHashSHA1.FromHex(hex)
+	oid, err := objectHash.FromHex(hex)
 	if err != nil {
 		return "", fmt.Errorf("unsupported object hash %q: %w", hex, err)
 	}

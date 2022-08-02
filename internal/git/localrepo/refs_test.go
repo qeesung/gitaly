@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package localrepo
 
 import (
@@ -9,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,15 +28,11 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
-const (
-	masterOID      = git.ObjectID("1e292f8fedd741b75372e19097c76d327140c312")
-	nonexistentOID = git.ObjectID("ba4f184e126b751d1bffad5897f263108befc780")
-)
-
 func TestRepo_ContainsRef(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _ := setupRepo(t)
+	cfg, repo, repoPath := setupRepo(t)
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
 
 	testcases := []struct {
 		desc      string
@@ -73,7 +68,8 @@ func TestRepo_ContainsRef(t *testing.T) {
 func TestRepo_GetReference(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _ := setupRepo(t)
+	cfg, repo, repoPath := setupRepo(t)
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
 
 	testcases := []struct {
 		desc        string
@@ -84,7 +80,7 @@ func TestRepo_GetReference(t *testing.T) {
 		{
 			desc:     "fully qualified master branch",
 			ref:      "refs/heads/master",
-			expected: git.NewReference("refs/heads/master", masterOID.String()),
+			expected: git.NewReference("refs/heads/master", commitID.String()),
 		},
 		{
 			desc:        "unqualified master branch fails",
@@ -120,13 +116,10 @@ func TestRepo_GetReference(t *testing.T) {
 func TestRepo_GetReferenceWithAmbiguousRefs(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _ := setupRepo(t, withDisabledHooks())
+	cfg, repo, repoPath := setupRepo(t, withDisabledHooks())
 
-	currentOID, err := repo.ResolveRevision(ctx, "refs/heads/master")
-	require.NoError(t, err)
-
-	prevOID, err := repo.ResolveRevision(ctx, "refs/heads/master~")
-	require.NoError(t, err)
+	prevOID := gittest.WriteCommit(t, cfg, repoPath)
+	currentOID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(prevOID), gittest.WithBranch("master"))
 
 	for _, ref := range []git.ReferenceName{
 		"refs/heads/something/master",
@@ -138,7 +131,7 @@ func TestRepo_GetReferenceWithAmbiguousRefs(t *testing.T) {
 		"refs/master",
 		"refs/tags/master",
 	} {
-		require.NoError(t, repo.UpdateRef(ctx, ref, prevOID, git.ObjectHashSHA1.ZeroOID))
+		require.NoError(t, repo.UpdateRef(ctx, ref, prevOID, gittest.DefaultObjectHash.ZeroOID))
 	}
 
 	ref, err := repo.GetReference(ctx, "refs/heads/master")
@@ -152,59 +145,65 @@ func TestRepo_GetReferenceWithAmbiguousRefs(t *testing.T) {
 func TestRepo_GetReferences(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _ := setupRepo(t)
+	cfg, repo, repoPath := setupRepo(t)
 
-	masterBranch, err := repo.GetReference(ctx, "refs/heads/master")
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("feature"))
+	gittest.WriteTag(t, cfg, repoPath, "v1.0.0", "refs/heads/main")
+
+	mainReference, err := repo.GetReference(ctx, "refs/heads/main")
+	require.NoError(t, err)
+	featureReference, err := repo.GetReference(ctx, "refs/heads/feature")
+	require.NoError(t, err)
+	tagReference, err := repo.GetReference(ctx, "refs/tags/v1.0.0")
 	require.NoError(t, err)
 
 	testcases := []struct {
-		desc     string
-		patterns []string
-		match    func(t *testing.T, refs []git.Reference)
+		desc         string
+		patterns     []string
+		expectedRefs []git.Reference
 	}{
 		{
-			desc:     "master branch",
-			patterns: []string{"refs/heads/master"},
-			match: func(t *testing.T, refs []git.Reference) {
-				require.Equal(t, []git.Reference{masterBranch}, refs)
+			desc:     "main branch",
+			patterns: []string{"refs/heads/main"},
+			expectedRefs: []git.Reference{
+				mainReference,
 			},
 		},
 		{
 			desc:     "two branches",
-			patterns: []string{"refs/heads/master", "refs/heads/feature"},
-			match: func(t *testing.T, refs []git.Reference) {
-				featureBranch, err := repo.GetReference(ctx, "refs/heads/feature")
-				require.NoError(t, err)
-
-				require.Equal(t, []git.Reference{featureBranch, masterBranch}, refs)
+			patterns: []string{"refs/heads/main", "refs/heads/feature"},
+			expectedRefs: []git.Reference{
+				featureReference,
+				mainReference,
 			},
 		},
 		{
 			desc:     "matching subset is returned",
-			patterns: []string{"refs/heads/master", "refs/heads/nonexistent"},
-			match: func(t *testing.T, refs []git.Reference) {
-				require.Equal(t, []git.Reference{masterBranch}, refs)
+			patterns: []string{"refs/heads/main", "refs/heads/nonexistent"},
+			expectedRefs: []git.Reference{
+				mainReference,
 			},
 		},
 		{
 			desc: "all references",
-			match: func(t *testing.T, refs []git.Reference) {
-				require.Len(t, refs, 97)
+			expectedRefs: []git.Reference{
+				featureReference,
+				mainReference,
+				tagReference,
 			},
 		},
 		{
 			desc:     "branches",
 			patterns: []string{"refs/heads/"},
-			match: func(t *testing.T, refs []git.Reference) {
-				require.Len(t, refs, 94)
+			expectedRefs: []git.Reference{
+				featureReference,
+				mainReference,
 			},
 		},
 		{
 			desc:     "non-existent branch",
 			patterns: []string{"refs/heads/nonexistent"},
-			match: func(t *testing.T, refs []git.Reference) {
-				require.Empty(t, refs)
-			},
 		},
 	}
 
@@ -212,7 +211,7 @@ func TestRepo_GetReferences(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			refs, err := repo.GetReferences(ctx, tc.patterns...)
 			require.NoError(t, err)
-			tc.match(t, refs)
+			require.Equal(t, tc.expectedRefs, refs)
 		})
 	}
 }
@@ -338,20 +337,41 @@ func TestRepo_GetRemoteReferences(t *testing.T) {
 func TestRepo_GetBranches(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	_, repo, _ := setupRepo(t)
+	cfg, repo, repoPath := setupRepo(t)
+
+	mainID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithMessage("main"))
+	featureID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("feature"), gittest.WithMessage("feature"))
+	thirdID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("third"), gittest.WithMessage("third"))
+
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithReference("refs/different/namespace"))
+	gittest.WriteTag(t, cfg, repoPath, "v1.0.0", mainID.Revision())
 
 	refs, err := repo.GetBranches(ctx)
 	require.NoError(t, err)
-	require.Len(t, refs, 94)
+	require.Equal(t, []git.Reference{
+		{Name: "refs/heads/feature", Target: featureID.String()},
+		{Name: "refs/heads/main", Target: mainID.String()},
+		{Name: "refs/heads/third", Target: thirdID.String()},
+	}, refs)
 }
 
 func TestRepo_UpdateRef(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	cfg, repo, _ := setupRepo(t, withDisabledHooks())
+	cfg, repo, repoPath := setupRepo(t, withDisabledHooks())
 
-	otherRef, err := repo.GetReference(ctx, "refs/heads/gitaly-test-ref")
+	// We move this into a function so that we can re-seed the repository for each test.
+	seedRepo := func(t *testing.T, repoPath string) {
+		gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithMessage("main"))
+		gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("other"), gittest.WithMessage("other"))
+	}
+	seedRepo(t, repoPath)
+
+	mainCommitID := gittest.ResolveRevision(t, cfg, repoPath, "refs/heads/main")
+	otherRef, err := repo.GetReference(ctx, "refs/heads/other")
 	require.NoError(t, err)
+
+	nonexistentOID := git.ObjectID(strings.Repeat("1", gittest.DefaultObjectHash.EncodedLen()))
 
 	testcases := []struct {
 		desc     string
@@ -361,95 +381,98 @@ func TestRepo_UpdateRef(t *testing.T) {
 		verify   func(t *testing.T, repo *Repo, err error)
 	}{
 		{
-			desc:     "successfully update master",
-			ref:      "refs/heads/master",
+			desc:     "successfully update main",
+			ref:      "refs/heads/main",
 			newValue: git.ObjectID(otherRef.Target),
-			oldValue: masterOID,
+			oldValue: mainCommitID,
 			verify: func(t *testing.T, repo *Repo, err error) {
 				require.NoError(t, err)
-				ref, err := repo.GetReference(ctx, "refs/heads/master")
+				ref, err := repo.GetReference(ctx, "refs/heads/main")
 				require.NoError(t, err)
 				require.Equal(t, ref.Target, otherRef.Target)
 			},
 		},
 		{
 			desc:     "update fails with stale oldValue",
-			ref:      "refs/heads/master",
+			ref:      "refs/heads/main",
 			newValue: git.ObjectID(otherRef.Target),
 			oldValue: nonexistentOID,
 			verify: func(t *testing.T, repo *Repo, err error) {
 				require.Error(t, err)
-				ref, err := repo.GetReference(ctx, "refs/heads/master")
+				ref, err := repo.GetReference(ctx, "refs/heads/main")
 				require.NoError(t, err)
-				require.Equal(t, ref.Target, masterOID.String())
+				require.Equal(t, ref.Target, mainCommitID.String())
 			},
 		},
 		{
 			desc:     "update fails with invalid newValue",
-			ref:      "refs/heads/master",
+			ref:      "refs/heads/main",
 			newValue: nonexistentOID,
-			oldValue: masterOID,
+			oldValue: mainCommitID,
 			verify: func(t *testing.T, repo *Repo, err error) {
 				require.Error(t, err)
-				ref, err := repo.GetReference(ctx, "refs/heads/master")
+				ref, err := repo.GetReference(ctx, "refs/heads/main")
 				require.NoError(t, err)
-				require.Equal(t, ref.Target, masterOID.String())
+				require.Equal(t, ref.Target, mainCommitID.String())
 			},
 		},
 		{
-			desc:     "successfully update master with empty oldValue",
-			ref:      "refs/heads/master",
+			desc:     "successfully update main with empty oldValue",
+			ref:      "refs/heads/main",
 			newValue: git.ObjectID(otherRef.Target),
 			oldValue: "",
 			verify: func(t *testing.T, repo *Repo, err error) {
 				require.NoError(t, err)
-				ref, err := repo.GetReference(ctx, "refs/heads/master")
+				ref, err := repo.GetReference(ctx, "refs/heads/main")
 				require.NoError(t, err)
 				require.Equal(t, ref.Target, otherRef.Target)
 			},
 		},
 		{
 			desc:     "updating unqualified branch fails",
-			ref:      "master",
+			ref:      "main",
 			newValue: git.ObjectID(otherRef.Target),
-			oldValue: masterOID,
+			oldValue: mainCommitID,
 			verify: func(t *testing.T, repo *Repo, err error) {
 				require.Error(t, err)
-				ref, err := repo.GetReference(ctx, "refs/heads/master")
+				ref, err := repo.GetReference(ctx, "refs/heads/main")
 				require.NoError(t, err)
-				require.Equal(t, ref.Target, masterOID.String())
+				require.Equal(t, ref.Target, mainCommitID.String())
 			},
 		},
 		{
-			desc:     "deleting master succeeds",
-			ref:      "refs/heads/master",
-			newValue: git.ObjectHashSHA1.ZeroOID,
-			oldValue: masterOID,
+			desc:     "deleting main succeeds",
+			ref:      "refs/heads/main",
+			newValue: gittest.DefaultObjectHash.ZeroOID,
+			oldValue: mainCommitID,
 			verify: func(t *testing.T, repo *Repo, err error) {
 				require.NoError(t, err)
-				_, err = repo.GetReference(ctx, "refs/heads/master")
+				_, err = repo.GetReference(ctx, "refs/heads/main")
 				require.Error(t, err)
 			},
 		},
 		{
 			desc:     "creating new branch succeeds",
 			ref:      "refs/heads/new",
-			newValue: masterOID,
-			oldValue: git.ObjectHashSHA1.ZeroOID,
+			newValue: mainCommitID,
+			oldValue: gittest.DefaultObjectHash.ZeroOID,
 			verify: func(t *testing.T, repo *Repo, err error) {
 				require.NoError(t, err)
 				ref, err := repo.GetReference(ctx, "refs/heads/new")
 				require.NoError(t, err)
-				require.Equal(t, ref.Target, masterOID.String())
+				require.Equal(t, ref.Target, mainCommitID.String())
 			},
 		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.desc, func(t *testing.T) {
-			// Re-create repo for each testcase.
-			repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+			// We need to re-seed the repository every time so that we don't carry over
+			// the state.
+			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 			repo := New(repo.locator, repo.gitCmdFactory, repo.catfileCache, repoProto)
+			seedRepo(t, repoPath)
+
 			err := repo.UpdateRef(ctx, git.ReferenceName(tc.ref), tc.newValue, tc.oldValue)
 			tc.verify(t, repo, err)
 		})
@@ -458,7 +481,10 @@ func TestRepo_UpdateRef(t *testing.T) {
 
 func TestRepo_SetDefaultBranch(t *testing.T) {
 	ctx := testhelper.Context(t)
-	_, repo, _ := setupRepo(t)
+	cfg, repo, repoPath := setupRepo(t)
+
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("feature"))
 
 	txManager := transaction.NewTrackingManager()
 
@@ -620,8 +646,8 @@ func TestRepo_SetDefaultBranch_errors(t *testing.T) {
 func TestGuessHead(t *testing.T) {
 	cfg, repo, repoPath := setupRepo(t)
 
-	commit1 := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/master"))
-	commit2 := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/feature"))
+	commit1 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithMessage("main"))
+	commit2 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("feature"), gittest.WithMessage("feature"))
 
 	for _, tc := range []struct {
 		desc        string
@@ -638,37 +664,37 @@ func TestGuessHead(t *testing.T) {
 		{
 			desc: "matching default branch",
 			cmds: [][]string{
-				{"update-ref", git.DefaultRef.String(), commit1},
-				{"update-ref", git.LegacyDefaultRef.String(), commit2},
-				{"update-ref", "refs/heads/apple", commit1},
-				{"update-ref", "refs/heads/feature", commit1},
-				{"update-ref", "refs/heads/zucchini", commit1},
+				{"update-ref", git.DefaultRef.String(), commit1.String()},
+				{"update-ref", git.LegacyDefaultRef.String(), commit2.String()},
+				{"update-ref", "refs/heads/apple", commit1.String()},
+				{"update-ref", "refs/heads/feature", commit1.String()},
+				{"update-ref", "refs/heads/zucchini", commit1.String()},
 			},
-			head:     git.NewReference("HEAD", commit1),
+			head:     git.NewReference("HEAD", commit1.String()),
 			expected: git.DefaultRef,
 		},
 		{
 			desc: "matching default legacy branch",
 			cmds: [][]string{
-				{"update-ref", git.DefaultRef.String(), commit2},
-				{"update-ref", git.LegacyDefaultRef.String(), commit1},
-				{"update-ref", "refs/heads/apple", commit1},
-				{"update-ref", "refs/heads/feature", commit1},
-				{"update-ref", "refs/heads/zucchini", commit1},
+				{"update-ref", git.DefaultRef.String(), commit2.String()},
+				{"update-ref", git.LegacyDefaultRef.String(), commit1.String()},
+				{"update-ref", "refs/heads/apple", commit1.String()},
+				{"update-ref", "refs/heads/feature", commit1.String()},
+				{"update-ref", "refs/heads/zucchini", commit1.String()},
 			},
-			head:     git.NewReference("HEAD", commit1),
+			head:     git.NewReference("HEAD", commit1.String()),
 			expected: git.LegacyDefaultRef,
 		},
 		{
 			desc: "matching other branch",
 			cmds: [][]string{
-				{"update-ref", git.DefaultRef.String(), commit2},
-				{"update-ref", git.LegacyDefaultRef.String(), commit2},
-				{"update-ref", "refs/heads/apple", commit1},
-				{"update-ref", "refs/heads/feature", commit1},
-				{"update-ref", "refs/heads/zucchini", commit1},
+				{"update-ref", git.DefaultRef.String(), commit2.String()},
+				{"update-ref", git.LegacyDefaultRef.String(), commit2.String()},
+				{"update-ref", "refs/heads/apple", commit1.String()},
+				{"update-ref", "refs/heads/feature", commit1.String()},
+				{"update-ref", "refs/heads/zucchini", commit1.String()},
 			},
-			head:     git.NewReference("HEAD", commit1),
+			head:     git.NewReference("HEAD", commit1.String()),
 			expected: "refs/heads/apple",
 		},
 		{
@@ -676,23 +702,23 @@ func TestGuessHead(t *testing.T) {
 			cmds: [][]string{
 				{"update-ref", "-d", git.DefaultRef.String()},
 				{"update-ref", "-d", git.LegacyDefaultRef.String()},
-				{"update-ref", "refs/heads/apple", commit1},
-				{"update-ref", "refs/heads/feature", commit1},
-				{"update-ref", "refs/heads/zucchini", commit1},
+				{"update-ref", "refs/heads/apple", commit1.String()},
+				{"update-ref", "refs/heads/feature", commit1.String()},
+				{"update-ref", "refs/heads/zucchini", commit1.String()},
 			},
-			head:     git.NewReference("HEAD", commit1),
+			head:     git.NewReference("HEAD", commit1.String()),
 			expected: "refs/heads/apple",
 		},
 		{
 			desc: "no match",
 			cmds: [][]string{
-				{"update-ref", git.DefaultRef.String(), commit2},
-				{"update-ref", git.LegacyDefaultRef.String(), commit2},
-				{"update-ref", "refs/heads/apple", commit2},
-				{"update-ref", "refs/heads/feature", commit2},
-				{"update-ref", "refs/heads/zucchini", commit2},
+				{"update-ref", git.DefaultRef.String(), commit2.String()},
+				{"update-ref", git.LegacyDefaultRef.String(), commit2.String()},
+				{"update-ref", "refs/heads/apple", commit2.String()},
+				{"update-ref", "refs/heads/feature", commit2.String()},
+				{"update-ref", "refs/heads/zucchini", commit2.String()},
 			},
-			head:        git.NewReference("HEAD", commit1),
+			head:        git.NewReference("HEAD", commit1.String()),
 			expectedErr: fmt.Errorf("guess head: %w", git.ErrReferenceNotFound),
 		},
 	} {

@@ -52,22 +52,17 @@ func TestRepo_FetchInternal(t *testing.T) {
 		))
 	}, testserver.WithGitCommandFactory(protocolDetectingFactory))
 
-	remoteRepoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-		Seed: gittest.SeedGitLabTest,
-	})
-
-	remoteRepo := localrepo.NewTestRepo(t, cfg, remoteRepoProto)
 	testcfg.BuildGitalySSH(t, cfg)
 	testcfg.BuildGitalyHooks(t, cfg)
 
-	remoteOID, err := remoteRepo.ResolveRevision(ctx, git.Revision("refs/heads/master"))
-	require.NoError(t, err)
-
-	tagV100OID, err := remoteRepo.ResolveRevision(ctx, git.Revision("refs/tags/v1.0.0"))
-	require.NoError(t, err)
-
-	tagV110OID, err := remoteRepo.ResolveRevision(ctx, git.Revision("refs/tags/v1.1.0"))
-	require.NoError(t, err)
+	remoteRepoProto, remoteRepoPath := gittest.CreateRepository(ctx, t, cfg)
+	remoteOID := gittest.WriteCommit(t, cfg, remoteRepoPath, gittest.WithBranch("master"))
+	tagV100OID := gittest.WriteTag(t, cfg, remoteRepoPath, "v1.0.0", remoteOID.Revision(), gittest.WriteTagConfig{
+		Message: "v1.0.0",
+	})
+	tagV110OID := gittest.WriteTag(t, cfg, remoteRepoPath, "v1.1.0", remoteOID.Revision(), gittest.WriteTagConfig{
+		Message: "v1.1.0",
+	})
 
 	t.Run("refspec with tag", func(t *testing.T) {
 		ctx := testhelper.MergeIncomingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
@@ -205,14 +200,12 @@ func TestRepo_FetchInternal(t *testing.T) {
 	t.Run("pruning", func(t *testing.T) {
 		ctx := testhelper.MergeIncomingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 
-		repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-			Seed: gittest.SeedGitLabTest,
-		})
+		repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg)
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		// Create a local reference. Given that it doesn't exist on the remote side, it
 		// would get pruned if we pass `--prune`.
-		require.NoError(t, repo.UpdateRef(ctx, "refs/heads/prune-me", remoteOID, git.ObjectHashSHA1.ZeroOID))
+		gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("prune-me"))
 
 		// By default, refs are not pruned.
 		require.NoError(t, repo.FetchInternal(

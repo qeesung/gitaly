@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
@@ -97,12 +96,7 @@ func TestFindAllTags_successful(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("commit tag with a commit sha as the name"),
 			MessageSize:  40,
-			Tagger: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     timestamppb.New(gittest.DefaultCommitTime),
-				Timezone: []byte("+0100"),
-			},
+			Tagger:       gittest.DefaultCommitAuthor,
 		},
 		{
 			Name:         []byte("tag-of-tag"),
@@ -110,12 +104,7 @@ func TestFindAllTags_successful(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("tag of a tag"),
 			MessageSize:  12,
-			Tagger: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     timestamppb.New(gittest.DefaultCommitTime),
-				Timezone: []byte("+0100"),
-			},
+			Tagger:       gittest.DefaultCommitAuthor,
 		},
 		{
 			Name:         []byte("v1.0.0"),
@@ -176,12 +165,7 @@ func TestFindAllTags_successful(t *testing.T) {
 			Id:          annotatedTagID.String(),
 			Message:     []byte("Blob tag"),
 			MessageSize: 8,
-			Tagger: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     timestamppb.New(gittest.DefaultCommitTime),
-				Timezone: []byte("+0100"),
-			},
+			Tagger:      gittest.DefaultCommitAuthor,
 		},
 		{
 			Name:         []byte("v1.3.0"),
@@ -208,12 +192,7 @@ func TestFindAllTags_successful(t *testing.T) {
 			Message:      []byte(bigMessage[:helper.MaxCommitOrTagMessageSize]),
 			MessageSize:  int64(len(bigMessage)),
 			TargetCommit: gitCommit,
-			Tagger: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     timestamppb.New(gittest.DefaultCommitTime),
-				Timezone: []byte("+0100"),
-			},
+			Tagger:       gittest.DefaultCommitAuthor,
 		},
 	}
 
@@ -242,23 +221,13 @@ func TestFindAllTags_simpleNestedTags(t *testing.T) {
 				Name: []byte("my/nested/tag"),
 				Id:   tagID.String(),
 				TargetCommit: &gitalypb.GitCommit{
-					Id:       commitID.String(),
-					Body:     []byte("message"),
-					BodySize: 7,
-					Subject:  []byte("message"),
-					TreeId:   git.ObjectHashSHA1.EmptyTreeOID.String(),
-					Author: &gitalypb.CommitAuthor{
-						Name:     []byte(gittest.DefaultCommitterName),
-						Email:    []byte(gittest.DefaultCommitterMail),
-						Date:     timestamppb.New(gittest.DefaultCommitTime),
-						Timezone: []byte("+0100"),
-					},
-					Committer: &gitalypb.CommitAuthor{
-						Name:     []byte(gittest.DefaultCommitterName),
-						Email:    []byte(gittest.DefaultCommitterMail),
-						Date:     timestamppb.New(gittest.DefaultCommitTime),
-						Timezone: []byte("+0100"),
-					},
+					Id:        commitID.String(),
+					Body:      []byte("message"),
+					BodySize:  7,
+					Subject:   []byte("message"),
+					TreeId:    git.ObjectHashSHA1.EmptyTreeOID.String(),
+					Author:    gittest.DefaultCommitAuthor,
+					Committer: gittest.DefaultCommitAuthor,
 				},
 			},
 		},
@@ -303,20 +272,14 @@ func TestFindAllTags_duplicateAnnotatedTags(t *testing.T) {
 		receivedTags = append(receivedTags, r.GetTags()...)
 	}
 
-	commitAuthor := &gitalypb.CommitAuthor{
-		Name:     []byte(gittest.DefaultCommitterName),
-		Email:    []byte(gittest.DefaultCommitterMail),
-		Date:     timestamppb.New(gittest.DefaultCommitTime),
-		Timezone: []byte("+0100"),
-	}
 	commit := &gitalypb.GitCommit{
 		Id:        commitID.String(),
 		TreeId:    "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
 		Body:      []byte("message"),
 		BodySize:  7,
 		Subject:   []byte("message"),
-		Author:    commitAuthor,
-		Committer: commitAuthor,
+		Author:    gittest.DefaultCommitAuthor,
+		Committer: gittest.DefaultCommitAuthor,
 	}
 
 	testhelper.ProtoEqual(t, []*gitalypb.Tag{
@@ -426,12 +389,7 @@ func TestFindAllTags_nestedTags(t *testing.T) {
 					Id:          tagID.String(),
 					Message:     []byte(tagMessage),
 					MessageSize: int64(len([]byte(tagMessage))),
-					Tagger: &gitalypb.CommitAuthor{
-						Name:     []byte(gittest.DefaultCommitterName),
-						Email:    []byte(gittest.DefaultCommitterMail),
-						Date:     timestamppb.New(gittest.DefaultCommitTime),
-						Timezone: []byte("+0100"),
-					},
+					Tagger:      gittest.DefaultCommitAuthor,
 				}
 
 				if info.Type == "commit" {
@@ -460,7 +418,7 @@ func TestFindAllTags_nestedTags(t *testing.T) {
 
 			require.Len(t, receivedTags, len(expectedTags))
 			for _, receivedTag := range receivedTags {
-				assert.Equal(t, expectedTags[string(receivedTag.Name)], receivedTag)
+				testhelper.ProtoEqual(t, expectedTags[string(receivedTag.Name)], receivedTag)
 			}
 		})
 	}

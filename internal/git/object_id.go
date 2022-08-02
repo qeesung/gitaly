@@ -71,6 +71,11 @@ func DetectObjectHash(ctx context.Context, repoExecutor RepositoryExecutor) (Obj
 	}
 }
 
+// EncodedLen returns the length of the hex-encoded string of a full object ID.
+func (h ObjectHash) EncodedLen() int {
+	return hex.EncodedLen(h.Hash().Size())
+}
+
 // FromHex constructs a new ObjectID from the given hex representation of the object ID. Returns
 // ErrInvalidObjectID if the given object ID is not valid.
 func (h ObjectHash) FromHex(hex string) (ObjectID, error) {

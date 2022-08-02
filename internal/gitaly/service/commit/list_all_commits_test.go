@@ -13,7 +13,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestListAllCommits(t *testing.T) {
@@ -126,23 +125,13 @@ func TestListAllCommits(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, []*gitalypb.GitCommit{{
-			Id:       commitID.String(),
-			Subject:  []byte("message"),
-			Body:     []byte("message"),
-			BodySize: 7,
-			TreeId:   "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
-			Author: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
-				Timezone: []byte("+0100"),
-			},
-			Committer: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     &timestamppb.Timestamp{Seconds: 1572776879},
-				Timezone: []byte("+0100"),
-			},
+			Id:        commitID.String(),
+			Subject:   []byte("message"),
+			Body:      []byte("message"),
+			BodySize:  7,
+			TreeId:    "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+			Author:    gittest.DefaultCommitAuthor,
+			Committer: gittest.DefaultCommitAuthor,
 		}}, receiveCommits(t, stream))
 	})
 }

@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package localrepo
 
 import (
@@ -97,9 +95,14 @@ func TestRepo_SetConfig(t *testing.T) {
 			require.Equal(t, tc.expectedErr, repo.SetConfig(ctx, tc.key, tc.value, &transaction.MockManager{}))
 
 			standardEntries := []string{
-				"core.repositoryformatversion=0",
 				"core.filemode=true",
 				"core.bare=true",
+			}
+			if gittest.ObjectHashIsSHA256() {
+				standardEntries = append(standardEntries, "core.repositoryformatversion=1")
+				standardEntries = append(standardEntries, "extensions.objectformat=sha256")
+			} else {
+				standardEntries = append(standardEntries, "core.repositoryformatversion=0")
 			}
 
 			if runtime.GOOS == "darwin" {
@@ -110,7 +113,7 @@ func TestRepo_SetConfig(t *testing.T) {
 			}
 
 			output := gittest.Exec(t, cfg, "-C", repoPath, "config", "--list", "--local")
-			require.Equal(t,
+			require.ElementsMatch(t,
 				append(standardEntries, tc.expectedEntries...),
 				strings.Split(text.ChompBytes(output), "\n"),
 			)
@@ -147,15 +150,11 @@ func TestRepo_UnsetMatchingConfig(t *testing.T) {
 		"core.filemode",
 		"core.bare",
 	}
-
 	if runtime.GOOS == "darwin" {
-		standardKeys = []string{
-			"core.repositoryformatversion",
-			"core.filemode",
-			"core.bare",
-			"core.ignorecase",
-			"core.precomposeunicode",
-		}
+		standardKeys = append(standardKeys, "core.ignorecase", "core.precomposeunicode")
+	}
+	if gittest.ObjectHashIsSHA256() {
+		standardKeys = append(standardKeys, "extensions.objectformat")
 	}
 
 	for _, tc := range []struct {
@@ -179,7 +178,7 @@ func TestRepo_UnsetMatchingConfig(t *testing.T) {
 				"foo.qux": "value2",
 			},
 			regex:        "foo.bar",
-			expectedKeys: append(standardKeys, "foo.qux"),
+			expectedKeys: append([]string{"foo.qux"}, standardKeys...),
 		},
 		{
 			desc: "multiple matches",
@@ -197,7 +196,7 @@ func TestRepo_UnsetMatchingConfig(t *testing.T) {
 				"foo.qux":     "value2",
 			},
 			regex:        "matchme",
-			expectedKeys: append(standardKeys, "foo.qux"),
+			expectedKeys: append([]string{"foo.qux"}, standardKeys...),
 		},
 		{
 			desc: "anchored",
@@ -206,7 +205,7 @@ func TestRepo_UnsetMatchingConfig(t *testing.T) {
 				"matchme.foo": "value2",
 			},
 			regex:        "^matchme",
-			expectedKeys: append(standardKeys, "foo.matchme"),
+			expectedKeys: append([]string{"foo.matchme"}, standardKeys...),
 		},
 		{
 			desc:         "no matches",
@@ -246,7 +245,7 @@ func TestRepo_UnsetMatchingConfig(t *testing.T) {
 			require.Equal(t, tc.expectedErr, repo.UnsetMatchingConfig(ctx, tc.regex, &transaction.MockManager{}))
 
 			output := gittest.Exec(t, cfg, "-C", repoPath, "config", "--list", "--name-only", "--local")
-			require.Equal(t, tc.expectedKeys, strings.Split(text.ChompBytes(output), "\n"))
+			require.ElementsMatch(t, tc.expectedKeys, strings.Split(text.ChompBytes(output), "\n"))
 		})
 	}
 

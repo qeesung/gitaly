@@ -13,6 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -29,6 +30,14 @@ var (
 	DefaultCommitterSignature = fmt.Sprintf(
 		"%s <%s> %d %s", DefaultCommitterName, DefaultCommitterMail, DefaultCommitTime.Unix(), DefaultCommitTime.Format("-0700"),
 	)
+	// DefaultCommitAuthor is the Protobuf message representation of the default committer and
+	// author used to create commits.
+	DefaultCommitAuthor = &gitalypb.CommitAuthor{
+		Name:     []byte(DefaultCommitterName),
+		Email:    []byte(DefaultCommitterMail),
+		Date:     timestamppb.New(DefaultCommitTime),
+		Timezone: []byte("+0100"),
+	}
 )
 
 type writeCommitConfig struct {

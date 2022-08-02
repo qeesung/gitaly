@@ -69,12 +69,7 @@ func TestFindTag_successful(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("commit tag with a commit sha as the name"),
 			MessageSize:  40,
-			Tagger: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     timestamppb.New(gittest.DefaultCommitTime),
-				Timezone: []byte("+0100"),
-			},
+			Tagger:       gittest.DefaultCommitAuthor,
 		},
 		{
 			Name:         []byte("tag-of-tag"),
@@ -82,12 +77,7 @@ func TestFindTag_successful(t *testing.T) {
 			TargetCommit: gitCommit,
 			Message:      []byte("tag of a tag"),
 			MessageSize:  12,
-			Tagger: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     timestamppb.New(gittest.DefaultCommitTime),
-				Timezone: []byte("+0100"),
-			},
+			Tagger:       gittest.DefaultCommitAuthor,
 		},
 		{
 			Name:         []byte("v1.0.0"),
@@ -135,12 +125,7 @@ func TestFindTag_successful(t *testing.T) {
 			Id:          annotatedTagID.String(),
 			Message:     []byte("Blob tag"),
 			MessageSize: 8,
-			Tagger: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     timestamppb.New(gittest.DefaultCommitTime),
-				Timezone: []byte("+0100"),
-			},
+			Tagger:      gittest.DefaultCommitAuthor,
 		},
 		{
 			Name:         []byte("v1.3.0"),
@@ -167,12 +152,7 @@ func TestFindTag_successful(t *testing.T) {
 			Message:      []byte(bigMessage[:helper.MaxCommitOrTagMessageSize]),
 			MessageSize:  int64(len(bigMessage)),
 			TargetCommit: gitCommit,
-			Tagger: &gitalypb.CommitAuthor{
-				Name:     []byte(gittest.DefaultCommitterName),
-				Email:    []byte(gittest.DefaultCommitterMail),
-				Date:     timestamppb.New(gittest.DefaultCommitTime),
-				Timezone: []byte("+0100"),
-			},
+			Tagger:       gittest.DefaultCommitAuthor,
 		},
 	}
 
@@ -263,12 +243,7 @@ func TestFindTag_nestedTag(t *testing.T) {
 				Id:          tagID.String(),
 				Message:     []byte(tagMessage),
 				MessageSize: int64(len([]byte(tagMessage))),
-				Tagger: &gitalypb.CommitAuthor{
-					Name:     []byte(gittest.DefaultCommitterName),
-					Email:    []byte(gittest.DefaultCommitterMail),
-					Date:     timestamppb.New(gittest.DefaultCommitTime),
-					Timezone: []byte("+0100"),
-				},
+				Tagger:      gittest.DefaultCommitAuthor,
 			}
 			if info.Type == "commit" {
 				commit, err := catfile.GetCommit(ctx, objectReader, git.Revision(tc.originalOid))
@@ -279,7 +254,7 @@ func TestFindTag_nestedTag(t *testing.T) {
 
 			resp, err := client.FindTag(ctx, rpcRequest)
 			require.NoError(t, err)
-			require.Equal(t, expectedTag, resp.GetTag())
+			testhelper.ProtoEqual(t, expectedTag, resp.GetTag())
 		})
 	}
 }

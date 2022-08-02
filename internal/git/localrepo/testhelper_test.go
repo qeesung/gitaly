@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package localrepo
 
 import (
@@ -11,7 +9,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
-	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
 func TestMain(m *testing.M) {
@@ -19,20 +16,11 @@ func TestMain(m *testing.M) {
 }
 
 type setupRepoConfig struct {
-	// emptyRepo will cause `setupRepo()` to create a new, empty repository instead of
-	// cloning our test repository.
-	emptyRepo bool
 	// disableHooks will disable the use of hooks.
 	disableHooks bool
 }
 
 type setupRepoOption func(*setupRepoConfig)
-
-func withEmptyRepo() setupRepoOption {
-	return func(cfg *setupRepoConfig) {
-		cfg.emptyRepo = true
-	}
-}
 
 func withDisabledHooks() setupRepoOption {
 	return func(cfg *setupRepoConfig) {
@@ -55,13 +43,7 @@ func setupRepo(t *testing.T, opts ...setupRepoOption) (config.Cfg, *Repo, string
 		commandFactoryOpts = append(commandFactoryOpts, git.WithSkipHooks())
 	}
 
-	var repoProto *gitalypb.Repository
-	var repoPath string
-	if setupRepoCfg.emptyRepo {
-		repoProto, repoPath = gittest.InitRepo(t, cfg, cfg.Storages[0])
-	} else {
-		repoProto, repoPath = gittest.CloneRepo(t, cfg, cfg.Storages[0])
-	}
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg, commandFactoryOpts...)
 	catfileCache := catfile.NewCache(cfg)

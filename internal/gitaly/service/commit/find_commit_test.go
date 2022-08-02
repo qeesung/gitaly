@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -27,15 +26,11 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 	ctx := testhelper.Context(t)
 	cfg, repoProto, repoPath, client := setupCommitServiceWithRepo(ctx, t)
 
-	repo := localrepo.NewTestRepo(t, cfg, repoProto)
-
 	bigMessage := "An empty commit with REALLY BIG message\n\n" + strings.Repeat("MOAR!\n", 20*1024)
 	bigCommitID := gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithBranch("local-big-commits"), gittest.WithMessage(bigMessage),
 		gittest.WithParents("60ecb67744cb56576c30214ff52294f8ce2def98"),
 	)
-	bigCommit, err := repo.ReadCommit(ctx, git.Revision(bigCommitID))
-	require.NoError(t, err)
 
 	testCases := []struct {
 		description string
@@ -200,20 +195,10 @@ func TestSuccessfulFindCommitRequest(t *testing.T) {
 			description: "with a very large message",
 			revision:    bigCommitID.String(),
 			commit: &gitalypb.GitCommit{
-				Id:      bigCommitID.String(),
-				Subject: []byte("An empty commit with REALLY BIG message"),
-				Author: &gitalypb.CommitAuthor{
-					Name:     []byte(gittest.DefaultCommitterName),
-					Email:    []byte(gittest.DefaultCommitterMail),
-					Date:     &timestamppb.Timestamp{Seconds: bigCommit.Author.Date.Seconds},
-					Timezone: []byte("+0100"),
-				},
-				Committer: &gitalypb.CommitAuthor{
-					Name:     []byte(gittest.DefaultCommitterName),
-					Email:    []byte(gittest.DefaultCommitterMail),
-					Date:     &timestamppb.Timestamp{Seconds: bigCommit.Committer.Date.Seconds},
-					Timezone: []byte("+0100"),
-				},
+				Id:        bigCommitID.String(),
+				Subject:   []byte("An empty commit with REALLY BIG message"),
+				Author:    gittest.DefaultCommitAuthor,
+				Committer: gittest.DefaultCommitAuthor,
 				ParentIds: []string{"60ecb67744cb56576c30214ff52294f8ce2def98"},
 				Body:      []byte(bigMessage[:helper.MaxCommitOrTagMessageSize]),
 				BodySize:  int64(len(bigMessage)),

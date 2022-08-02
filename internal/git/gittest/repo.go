@@ -155,6 +155,10 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 		})
 		require.NoError(t, err)
 	} else {
+		if ObjectHashIsSHA256() {
+			require.FailNow(t, "CreateRepository does not yet support creating SHA256 repositories")
+		}
+
 		_, err := client.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{
 			Repository: repository,
 		})
