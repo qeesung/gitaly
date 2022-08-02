@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 
 	git "github.com/libgit2/git2go/v33"
-	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go-v15/git2goutil"
+	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 

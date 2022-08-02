@@ -464,18 +464,9 @@ If the changes needed are not yet released, [create a release candidate](#creati
 
 ### Publishing the go module
 
-If an [updated version](https://golang.org/doc/modules/release-workflow) of the go module is needed, it can be [published](https://golang.org/doc/modules/publishing)
-by tag creation.
-
-If a new [major module version update](https://golang.org/doc/modules/major-version) is needed,
-it can be changed by running `upgrade-module` `make` task with desired parameters:
-
-```bash
-make upgrade-module FROM_MODULE=v15 TO_MODULE=v16
-```
-
-It replaces old imports with the new version in the go source files,
-updates `*.proto` files and modifies `go.mod` file to use a new target version of the module.
+If an [updated version](https://golang.org/doc/modules/release-workflow) of the
+go module is needed, it can be
+[published](https://golang.org/doc/modules/publishing) by tag creation.
 
 ##### Security release
 
