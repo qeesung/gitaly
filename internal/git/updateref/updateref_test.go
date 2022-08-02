@@ -128,7 +128,7 @@ func TestUpdater_concurrentLocking(t *testing.T) {
 	cfg, protoRepo, _ := testcfg.BuildWithRepo(t)
 	ctx := testhelper.Context(t)
 
-	if !gitSupportsStatusFlushing(t, ctx, cfg) {
+	if !gittest.GitSupportsStatusFlushing(t, ctx, cfg) {
 		t.Skip("git does not support flushing yet, which is known to be flaky")
 	}
 
@@ -147,8 +147,11 @@ func TestUpdater_concurrentLocking(t *testing.T) {
 	require.NoError(t, secondUpdater.Update("refs/heads/master", "", commit.Id))
 
 	err = secondUpdater.Prepare()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "fatal: prepare: cannot lock ref 'refs/heads/master'")
+	var errAlreadyLocked *ErrAlreadyLocked
+	require.ErrorAs(t, err, &errAlreadyLocked)
+	require.Equal(t, err, &ErrAlreadyLocked{
+		Ref: "refs/heads/master",
+	})
 
 	require.NoError(t, firstUpdater.Commit())
 }
@@ -204,7 +207,7 @@ func TestUpdater_cancel(t *testing.T) {
 
 	cfg, repo, updater := setupUpdater(t, ctx)
 
-	if !gitSupportsStatusFlushing(t, ctx, cfg) {
+	if !gittest.GitSupportsStatusFlushing(t, ctx, cfg) {
 		t.Skip("git does not support flushing yet, which is known to be flaky")
 	}
 
@@ -267,7 +270,7 @@ func TestUpdater_capturesStderr(t *testing.T) {
 	require.NoError(t, updater.Update(git.ReferenceName(ref), newValue, oldValue))
 
 	var expectedErr string
-	if gitSupportsStatusFlushing(t, ctx, cfg) {
+	if gittest.GitSupportsStatusFlushing(t, ctx, cfg) {
 		expectedErr = fmt.Sprintf("state update to \"commit\" failed: EOF, stderr: \"fatal: commit: cannot update ref '%s': "+
 			"trying to write ref '%s' with nonexistent object %s\\n\"", ref, ref, newValue)
 	} else {
@@ -279,10 +282,4 @@ func TestUpdater_capturesStderr(t *testing.T) {
 	err := updater.Commit()
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), expectedErr)
-}
-
-func gitSupportsStatusFlushing(t *testing.T, ctx context.Context, cfg config.Cfg) bool {
-	version, err := gittest.NewCommandFactory(t, cfg).GitVersion(ctx)
-	require.NoError(t, err)
-	return version.FlushesUpdaterefStatus()
 }

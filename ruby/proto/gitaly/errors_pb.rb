@@ -26,6 +26,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       repeated :conflicting_commit_ids, :string, 2
     end
     add_message "gitaly.ReferencesLockedError" do
+      repeated :refs, :bytes, 1
     end
     add_message "gitaly.ReferenceExistsError" do
       optional :reference_name, :bytes, 1

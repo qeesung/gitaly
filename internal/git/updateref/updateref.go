@@ -5,10 +5,21 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"regexp"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 )
+
+// ErrAlreadyLocked indicates a reference cannot be locked because another
+// process has already locked it.
+type ErrAlreadyLocked struct {
+	Ref string
+}
+
+func (e *ErrAlreadyLocked) Error() string {
+	return fmt.Sprintf("reference is already locked: %q", e.Ref)
+}
 
 // Updater wraps a `git update-ref --stdin` process, presenting an interface
 // that allows references to be easily updated in bulk. It is not suitable for
@@ -114,11 +125,22 @@ func (u *Updater) Delete(reference git.ReferenceName) error {
 	return u.Update(reference, git.ObjectHashSHA1.ZeroOID.String(), "")
 }
 
+var refLockedRegex = regexp.MustCompile("cannot lock ref '(.+?)'")
+
 // Prepare prepares the reference transaction by locking all references and determining their
 // current values. The updates are not yet committed and will be rolled back in case there is no
 // call to `Commit()`. This call is optional.
 func (u *Updater) Prepare() error {
-	return u.setState("prepare")
+	if err := u.setState("prepare"); err != nil {
+		matches := refLockedRegex.FindSubmatch([]byte(err.Error()))
+		if len(matches) > 1 {
+			return &ErrAlreadyLocked{Ref: string(matches[1])}
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 // Commit applies the commands specified in other calls to the Updater

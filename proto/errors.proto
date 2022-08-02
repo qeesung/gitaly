@@ -56,6 +56,8 @@ message MergeConflictError {
 // ReferencesLockedError is an error returned when an ref update fails because
 // the references have already been locked by another process.
 message ReferencesLockedError {
+  // Refs are the references that could not be locked.
+  repeated bytes refs = 1;
 }
 
 // ReferenceExistsError is an error returned when a reference that ought not to exist does exist

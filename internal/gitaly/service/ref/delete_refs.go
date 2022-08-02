@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -38,8 +39,41 @@ func (s *server) DeleteRefs(ctx context.Context, in *gitalypb.DeleteRefsRequest)
 	}
 
 	voteHash := voting.NewVoteHash()
+
+	if featureflag.DeleteRefsStructuredErrors.IsEnabled(ctx) {
+		var invalidRefnames [][]byte
+
+		for _, ref := range refnames {
+			if err := git.ValidateRevision([]byte(ref)); err != nil {
+				invalidRefnames = append(invalidRefnames, []byte(ref))
+			}
+		}
+
+		if len(invalidRefnames) > 0 {
+			detailedErr, err := helper.ErrWithDetails(
+				helper.ErrInvalidArgumentf("invalid references"),
+				&gitalypb.DeleteRefsError{
+					Error: &gitalypb.DeleteRefsError_InvalidFormat{
+						InvalidFormat: &gitalypb.InvalidRefFormatError{
+							Refs: invalidRefnames,
+						},
+					},
+				},
+			)
+			if err != nil {
+				return nil, helper.ErrInternalf("error details: %w", err)
+			}
+
+			return nil, detailedErr
+		}
+	}
+
 	for _, ref := range refnames {
 		if err := updater.Delete(ref); err != nil {
+			if featureflag.DeleteRefsStructuredErrors.IsEnabled(ctx) {
+				return nil, helper.ErrInternalf("unable to delete refs: %w", err)
+			}
+
 			return &gitalypb.DeleteRefsResponse{GitError: err.Error()}, nil
 		}
 
@@ -49,6 +83,26 @@ func (s *server) DeleteRefs(ctx context.Context, in *gitalypb.DeleteRefsRequest)
 	}
 
 	if err := updater.Prepare(); err != nil {
+		var errAlreadyLocked *updateref.ErrAlreadyLocked
+		if featureflag.DeleteRefsStructuredErrors.IsEnabled(ctx) &&
+			errors.As(err, &errAlreadyLocked) {
+			detailedErr, err := helper.ErrWithDetails(
+				helper.ErrFailedPreconditionf("cannot lock references"),
+				&gitalypb.DeleteRefsError{
+					Error: &gitalypb.DeleteRefsError_ReferencesLocked{
+						ReferencesLocked: &gitalypb.ReferencesLockedError{
+							Refs: [][]byte{[]byte(errAlreadyLocked.Ref)},
+						},
+					},
+				},
+			)
+			if err != nil {
+				return nil, helper.ErrInternalf("error details: %w", err)
+			}
+
+			return nil, detailedErr
+		}
+
 		return &gitalypb.DeleteRefsResponse{
 			GitError: fmt.Sprintf("unable to delete refs: %s", err.Error()),
 		}, nil
@@ -68,10 +122,10 @@ func (s *server) DeleteRefs(ctx context.Context, in *gitalypb.DeleteRefsRequest)
 	}
 
 	if err := updater.Commit(); err != nil {
-		// TODO: We should be able to easily drop this error here and return a real error as
-		// soon as we always use proper locking semantics in git-update-ref(1). All locking
-		// issues would be caught when `Prepare()`ing the changes already, so a fail
-		// afterwards would hint at a real unexpected error.
+		if featureflag.DeleteRefsStructuredErrors.IsEnabled(ctx) {
+			return nil, helper.ErrInternalf("unable to commit: %w", err)
+		}
+
 		return &gitalypb.DeleteRefsResponse{GitError: fmt.Sprintf("unable to delete refs: %s", err.Error())}, nil
 	}
 
