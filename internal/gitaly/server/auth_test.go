@@ -28,6 +28,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/limithandler"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
@@ -345,6 +346,10 @@ sleep %vs
 	for i := 0; i < 2; i++ {
 		i := i
 		go func() {
+			// We don't care about the feature flag, but it's required to satisfy our
+			// sanity checks in testing. So let's just explicitly enable it here.
+			ctx := featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.UserCreateTagStructuredErrors, true)
+
 			_, err := client.UserCreateTag(ctx, &gitalypb.UserCreateTagRequest{
 				Repository:     repo,
 				TagName:        []byte(fmt.Sprintf("tag-name-%d", i)),
