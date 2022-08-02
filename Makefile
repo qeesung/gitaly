@@ -530,11 +530,6 @@ no-proto-changes: | ${BUILD_DIR}
 dump-database-schema: build
 	${Q}"${SOURCE_DIR}"/_support/generate-praefect-schema >"${SOURCE_DIR}"/_support/praefect-schema.sql
 
-.PHONY: upgrade-module
-upgrade-module:
-	${Q}go run ${SOURCE_DIR}/tools/module-updater/main.go -dir . -from=${FROM_MODULE} -to=${TO_MODULE}
-	${Q}${MAKE} proto
-
 .PHONY: git
 ## Build Git.
 git: ${GIT_PREFIX}/bin/git
