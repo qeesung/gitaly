@@ -989,7 +989,7 @@ func routerNodesToStorages(nodes []RouterNode) []string {
 }
 
 func (c *Coordinator) newRequestFinalizer(
-	ctx context.Context,
+	originalCtx context.Context,
 	repositoryID int64,
 	virtualStorage string,
 	targetRepo *gitalypb.Repository,
@@ -1006,7 +1006,7 @@ func (c *Coordinator) newRequestFinalizer(
 		// canceled. We need to perform the database updates regardless whether the request was canceled or not as
 		// the primary replica could have been dirtied and secondaries become outdated. Otherwise we'd have no idea of
 		// the possible changes performed on the disk.
-		ctx, cancel := context.WithTimeout(helper.SuppressCancellation(ctx), 30*time.Second)
+		ctx, cancel := context.WithTimeout(helper.SuppressCancellation(originalCtx), 30*time.Second)
 		defer cancel()
 
 		log := ctxlogrus.Extract(ctx).WithFields(logrus.Fields{
@@ -1090,7 +1090,16 @@ func (c *Coordinator) newRequestFinalizer(
 				return nil
 			})
 		}
-		return g.Wait()
+
+		if err := g.Wait(); err != nil {
+			return err
+		}
+
+		// The cancellation signal is suppressed earlier in the function, so we'd return no error if the
+		// orignal context exceeded its deadline while running the request finalizer. If there were
+		// no other errors, return the possible error from the context so we don't return OK code for
+		// failed requests.
+		return originalCtx.Err()
 	}
 }
 
