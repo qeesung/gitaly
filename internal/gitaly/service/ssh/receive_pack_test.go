@@ -780,12 +780,12 @@ func sshPushCommand(ctx context.Context, t *testing.T, cfg config.Cfg, cloneDeta
 	}
 
 	cmd := gittest.NewCommand(t, cfg, "-C", cloneDetails.LocalRepoPath, "push", "-v", "git@localhost:test/test.git", "master")
-	cmd.Env = []string{
+	cmd.Env = append(cmd.Env,
 		fmt.Sprintf("GITALY_PAYLOAD=%s", payload),
 		fmt.Sprintf("GITALY_ADDRESS=%s", serverSocketPath),
 		fmt.Sprintf("GITALY_FEATUREFLAGS=%s", strings.Join(flagsWithValues, ",")),
 		fmt.Sprintf("GIT_SSH_COMMAND=%s receive-pack", cfg.BinaryPath("gitaly-ssh")),
-	}
+	)
 
 	return cmd
 }

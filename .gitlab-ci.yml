@@ -14,6 +14,7 @@ variables:
   SAST_DISABLE_DIND: "true"
   SAST_DEFAULT_ANALYZERS: "gosec"
   DEBIAN_VERSION: "bullseye"
+  UBI_VERSION: "8.6"
   # We use Gitaly's Git version by default.
   GIT_VERSION: "default"
   GO_VERSION: "1.18"
@@ -268,12 +269,9 @@ test:fips:
   <<: *test_definition
   tags:
     - fips
-  image: registry.access.redhat.com/ubi8/ubi:8.5
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images/ubi-${UBI_VERSION}-ruby-${RUBY_VERSION}-golang-${GO_VERSION}:git-2.36
   before_script:
     - test "$(cat /proc/sys/crypto/fips_enabled)" = "1" || (echo "System is not running in FIPS mode" && exit 1)
-    - dnf module enable -y ruby:2.7
-    - dnf install -y bzip2 cmake gcc-c++ git go-toolset libcurl-devel libicu-devel make openssl procps-ng redhat-rpm-config ruby-devel rubygems
-    - gem install bundler:2.3.15
     - *test_before_script
   parallel:
     matrix:
