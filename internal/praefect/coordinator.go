@@ -1095,7 +1095,7 @@ func (c *Coordinator) newRequestFinalizer(
 			return err
 		}
 
-		// The cancellation signal is suppressed in the beginning, so we'd return no error if the
+		// The cancellation signal is suppressed earlier in the function, so we'd return no error if the
 		// orignal context exceeded its deadline while running the request finalizer. If there were
 		// no other errors, return the possible error from the context so we don't return OK code for
 		// failed requests.
