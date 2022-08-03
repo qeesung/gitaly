@@ -53,7 +53,7 @@ func TestQuarantine_lifecycle(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, repo, quarantine.repo)
-		require.Equal(t, &gitalypb.Repository{
+		testhelper.ProtoEqual(t, &gitalypb.Repository{
 			StorageName:        repo.StorageName,
 			RelativePath:       repo.RelativePath,
 			GitObjectDirectory: relativeQuarantinePath,
