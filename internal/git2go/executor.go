@@ -24,8 +24,8 @@ var (
 	// ErrInvalidArgument is returned in case the merge arguments are invalid.
 	ErrInvalidArgument = errors.New("invalid parameters")
 
-	// BinaryName is a binary name with version suffix .
-	BinaryName = "gitaly-git2go-v15"
+	// BinaryName is the name of the gitaly-git2go binary.
+	BinaryName = "gitaly-git2go"
 )
 
 // Executor executes gitaly-git2go.
