@@ -156,8 +156,12 @@ func New(
 		grpc.Creds(lm),
 		grpc.StreamInterceptor(grpcmw.ChainStreamServer(streamServerInterceptors...)),
 		grpc.UnaryInterceptor(grpcmw.ChainUnaryServer(unaryServerInterceptors...)),
+		// We deliberately set the server MinTime to significantly less than the client interval of 20
+		// seconds to allow for network jitter. We can afford to be forgiving as the maximum number of
+		// concurrent clients for a Gitaly server is typically in the hundreds and this volume of
+		// keepalives won't add significant load.
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			MinTime:             20 * time.Second,
+			MinTime:             10 * time.Second,
 			PermitWithoutStream: true,
 		}),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
