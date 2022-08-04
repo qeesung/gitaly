@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -123,7 +124,6 @@ func TestRepo_GetReferenceWithAmbiguousRefs(t *testing.T) {
 
 	for _, ref := range []git.ReferenceName{
 		"refs/heads/something/master",
-		"refs/heads/MASTER",
 		"refs/heads/master2",
 		"refs/heads/masterx",
 		"refs/heads/refs/heads/master",
@@ -132,6 +132,11 @@ func TestRepo_GetReferenceWithAmbiguousRefs(t *testing.T) {
 		"refs/tags/master",
 	} {
 		require.NoError(t, repo.UpdateRef(ctx, ref, prevOID, gittest.DefaultObjectHash.ZeroOID))
+	}
+
+	// core.ignorecase is default-enabled on macOS, causing 'MASTER' to match 'master'
+	if runtime.GOOS != "darwin" {
+		require.NoError(t, repo.UpdateRef(ctx, "refs/heads/MASTER", prevOID, gittest.DefaultObjectHash.ZeroOID))
 	}
 
 	ref, err := repo.GetReference(ctx, "refs/heads/master")
