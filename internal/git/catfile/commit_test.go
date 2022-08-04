@@ -1,8 +1,7 @@
-//go:build !gitaly_test_sha256
-
 package catfile
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,66 +14,81 @@ import (
 
 func TestGetCommit(t *testing.T) {
 	ctx := testhelper.Context(t)
-
-	_, objectReader, _ := setupObjectReader(t, ctx)
-
 	ctx = metadata.NewIncomingContext(ctx, metadata.MD{})
 
-	const commitSha = "2d1db523e11e777e49377cfb22d368deec3f0793"
-	const commitMsg = "Correct test_env.rb path for adding branch\n"
-	const blobSha = "c60514b6d3d6bf4bec1030f70026e34dfbd69ad5"
+	cfg, objectReader, _, repoPath := setupObjectReader(t, ctx)
 
-	testCases := []struct {
-		desc     string
-		revision string
-		errStr   string
+	blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("data"))
+	treeID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{Path: "file", Mode: "100644", OID: blobID},
+	})
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("commit message\n\ncommit body"), gittest.WithTree(treeID))
+
+	for _, tc := range []struct {
+		desc           string
+		revision       string
+		expectedErr    error
+		expectedCommit *gitalypb.GitCommit
 	}{
 		{
 			desc:     "commit",
-			revision: commitSha,
+			revision: commitID.String(),
+			expectedCommit: &gitalypb.GitCommit{
+				Id:        commitID.String(),
+				TreeId:    treeID.String(),
+				Author:    gittest.DefaultCommitAuthor,
+				Committer: gittest.DefaultCommitAuthor,
+				Body:      []byte("commit message\n\ncommit body"),
+				BodySize:  27,
+				Subject:   []byte("commit message"),
+			},
 		},
 		{
-			desc:     "not existing commit",
-			revision: "not existing revision",
-			errStr:   "object not found",
+			desc:        "not existing commit",
+			revision:    "not existing revision",
+			expectedErr: NotFoundError{errors.New("object not found")},
 		},
 		{
-			desc:     "blob sha",
-			revision: blobSha,
-			errStr:   "object not found",
+			desc:        "blob sha",
+			revision:    blobID.String(),
+			expectedErr: NotFoundError{errors.New("object not found")},
 		},
-	}
-
-	for _, tc := range testCases {
+	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			c, err := GetCommit(ctx, objectReader, git.Revision(tc.revision))
-
-			if tc.errStr == "" {
-				require.NoError(t, err)
-				require.Equal(t, commitMsg, string(c.Body))
-			} else {
-				require.EqualError(t, err, tc.errStr)
-			}
+			commit, err := GetCommit(ctx, objectReader, git.Revision(tc.revision))
+			require.Equal(t, tc.expectedErr, err)
+			testhelper.ProtoEqual(t, tc.expectedCommit, commit)
 		})
 	}
 }
 
 func TestGetCommitWithTrailers(t *testing.T) {
 	ctx := testhelper.Context(t)
-
-	cfg, objectReader, testRepo := setupObjectReader(t, ctx)
-
 	ctx = metadata.NewIncomingContext(ctx, metadata.MD{})
 
-	commit, err := GetCommitWithTrailers(ctx, gittest.NewCommandFactory(t, cfg), testRepo,
-		objectReader, "5937ac0a7beb003549fc5fd26fc247adbce4a52e")
+	cfg, objectReader, repo, repoPath := setupObjectReader(t, ctx)
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage(
+		"some header\n"+
+			"\n"+
+			"Commit message.\n"+
+			"\n"+
+			"Signed-off-by: John Doe <john.doe@example.com>\n"+
+			"Signed-off-by: Jane Doe <jane.doe@example.com>\n",
+	))
+
+	commit, err := GetCommitWithTrailers(ctx, gittest.NewCommandFactory(t, cfg), repo, objectReader, commitID.Revision())
 
 	require.NoError(t, err)
 
 	require.Equal(t, commit.Trailers, []*gitalypb.CommitTrailer{
 		{
 			Key:   []byte("Signed-off-by"),
-			Value: []byte("Dmitriy Zaporozhets <dmitriy.zaporozhets@gmail.com>"),
+			Value: []byte("John Doe <john.doe@example.com>"),
+		},
+		{
+			Key:   []byte("Signed-off-by"),
+			Value: []byte("Jane Doe <jane.doe@example.com>"),
 		},
 	})
 }

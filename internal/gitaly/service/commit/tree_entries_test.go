@@ -4,7 +4,6 @@ package commit
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"strconv"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -649,21 +649,68 @@ func TestGetTreeEntries_validation(t *testing.T) {
 	revision := []byte("d42783470dc29fde2cf459eb3199ee1d7e3f3a72")
 	path := []byte("a/b/c")
 
-	rpcRequests := []*gitalypb.GetTreeEntriesRequest{
-		{Repository: &gitalypb.Repository{StorageName: "fake", RelativePath: "path"}, Revision: revision, Path: path}, // Repository doesn't exist
-		{Repository: nil, Revision: revision, Path: path},                                                             // Repository is nil
-		{Repository: repo, Revision: nil, Path: path},                                                                 // Revision is empty
-		{Repository: repo, Revision: revision},                                                                        // Path is empty
-		{Repository: repo, Revision: []byte("--output=/meow"), Path: path},                                            // Revision is invalid
-	}
-
-	for _, rpcRequest := range rpcRequests {
-		t.Run(fmt.Sprintf("%v", rpcRequest), func(t *testing.T) {
-			c, err := client.GetTreeEntries(ctx, rpcRequest)
+	for _, tc := range []struct {
+		desc        string
+		request     *gitalypb.GetTreeEntriesRequest
+		expectedErr error
+	}{
+		{
+			desc: "repository does not exist",
+			request: &gitalypb.GetTreeEntriesRequest{
+				Repository: &gitalypb.Repository{StorageName: "fake", RelativePath: "path"},
+				Revision:   revision,
+				Path:       path,
+			},
+			expectedErr: helper.ErrInvalidArgumentf(gitalyOrPraefect(
+				"GetStorageByName: no such storage: \"fake\"",
+				"repo scoped: invalid Repository",
+			)),
+		},
+		{
+			desc: "repository is nil",
+			request: &gitalypb.GetTreeEntriesRequest{
+				Repository: nil,
+				Revision:   revision,
+				Path:       path,
+			},
+			expectedErr: helper.ErrInvalidArgumentf(gitalyOrPraefect(
+				"GetStorageByName: no such storage: \"\"",
+				"repo scoped: empty Repository",
+			)),
+		},
+		{
+			desc: "revision is empty",
+			request: &gitalypb.GetTreeEntriesRequest{
+				Repository: repo,
+				Revision:   nil,
+				Path:       path,
+			},
+			expectedErr: helper.ErrInvalidArgumentf("TreeEntry: empty revision"),
+		},
+		{
+			desc: "path is empty",
+			request: &gitalypb.GetTreeEntriesRequest{
+				Repository: repo,
+				Revision:   revision,
+			},
+			expectedErr: helper.ErrInvalidArgumentf("TreeEntry: empty Path"),
+		},
+		{
+			desc: "revision is invalid",
+			request: &gitalypb.GetTreeEntriesRequest{
+				Repository: repo,
+				Revision:   []byte("--output=/meow"),
+				Path:       path,
+			},
+			expectedErr: helper.ErrInvalidArgumentf("TreeEntry: revision can't start with '-'"),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			stream, err := client.GetTreeEntries(ctx, tc.request)
 			require.NoError(t, err)
 
-			err = drainTreeEntriesResponse(c)
-			testhelper.RequireGrpcCode(t, err, codes.InvalidArgument)
+			err = drainTreeEntriesResponse(stream)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 		})
 	}
 }

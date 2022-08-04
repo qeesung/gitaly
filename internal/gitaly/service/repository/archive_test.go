@@ -466,10 +466,15 @@ func TestGetArchive_environment(t *testing.T) {
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	gitCmdFactory := gittest.NewInterceptingCommandFactory(ctx, t, cfg, func(git.ExecutionEnvironment) string {
-		return `#!/bin/sh
+	// Intercept commands to git-archive(1) to print the environment. Note that we continue to
+	// execute any other Git commands so that the command factory behaves as expected.
+	gitCmdFactory := gittest.NewInterceptingCommandFactory(ctx, t, cfg, func(execEnv git.ExecutionEnvironment) string {
+		return fmt.Sprintf(`#!/bin/bash
+		if [[ ! "$@" =~ "archive" ]]; then
+			exec %q "$@"
+		fi
 		env | grep -E '^GL_|CORRELATION|GITALY_'
-		`
+		`, execEnv.BinaryPath)
 	})
 
 	testcfg.BuildGitalyHooks(t, cfg)

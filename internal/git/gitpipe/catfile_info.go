@@ -204,7 +204,7 @@ func CatfileInfoAllObjects(
 
 		reader := bufio.NewReader(cmd)
 		for {
-			objectInfo, err := catfile.ParseObjectInfo(reader)
+			objectInfo, err := catfile.ParseObjectInfo(git.ObjectHashSHA1, reader)
 			if err != nil {
 				if errors.Is(err, io.EOF) {
 					break

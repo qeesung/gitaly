@@ -3,13 +3,15 @@
 package commit
 
 import (
+	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
 )
 
 func TestCommitStatsSuccess(t *testing.T) {
@@ -80,44 +82,61 @@ func TestCommitStatsFailure(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _, client := setupCommitServiceWithRepo(ctx, t)
+	cfg, repo, _, client := setupCommitServiceWithRepo(ctx, t)
 
-	tests := []struct {
-		desc     string
-		repo     *gitalypb.Repository
-		revision []byte
-		err      codes.Code
+	for _, tc := range []struct {
+		desc        string
+		request     *gitalypb.CommitStatsRequest
+		expectedErr error
 	}{
 		{
-			desc:     "repo not found",
-			repo:     &gitalypb.Repository{StorageName: repo.GetStorageName(), RelativePath: "bar.git"},
-			revision: []byte("test-do-not-touch"),
-			err:      codes.NotFound,
+			desc: "repo not found",
+			request: &gitalypb.CommitStatsRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  repo.GetStorageName(),
+					RelativePath: "bar.git",
+				},
+				Revision: []byte("test-do-not-touch"),
+			},
+			expectedErr: helper.ErrNotFoundf(gitalyOrPraefect(
+				fmt.Sprintf("GetRepoPath: not a git repository: %q", filepath.Join(cfg.Storages[0].Path, "bar.git")),
+				"accessor call: route repository accessor: consistent storages: repository \"default\"/\"bar.git\" not found",
+			)),
 		},
 		{
-			desc:     "storage not found",
-			repo:     &gitalypb.Repository{StorageName: "foo", RelativePath: "bar.git"},
-			revision: []byte("test-do-not-touch"),
-			err:      codes.InvalidArgument,
+			desc: "storage not found",
+			request: &gitalypb.CommitStatsRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  "foo",
+					RelativePath: "bar.git",
+				},
+				Revision: []byte("test-do-not-touch"),
+			},
+			expectedErr: helper.ErrInvalidArgumentf(gitalyOrPraefect(
+				"GetStorageByName: no such storage: \"foo\"",
+				"repo scoped: invalid Repository",
+			)),
 		},
 		{
-			desc:     "ref not found",
-			repo:     repo,
-			revision: []byte("non/existing"),
-			err:      codes.Internal,
+			desc: "ref not found",
+			request: &gitalypb.CommitStatsRequest{
+				Repository: repo,
+				Revision:   []byte("non/existing"),
+			},
+			expectedErr: helper.ErrInternalf("object not found"),
 		},
 		{
-			desc:     "invalid revision",
-			repo:     repo,
-			revision: []byte("--outpu=/meow"),
-			err:      codes.InvalidArgument,
+			desc: "invalid revision",
+			request: &gitalypb.CommitStatsRequest{
+				Repository: repo,
+				Revision:   []byte("--outpu=/meow"),
+			},
+			expectedErr: helper.ErrInvalidArgumentf("revision can't start with '-'"),
 		},
-	}
-
-	for _, tc := range tests {
+	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			_, err := client.CommitStats(ctx, &gitalypb.CommitStatsRequest{Repository: tc.repo, Revision: tc.revision})
-			testhelper.RequireGrpcCode(t, err, tc.err)
+			_, err := client.CommitStats(ctx, tc.request)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 		})
 	}
 }

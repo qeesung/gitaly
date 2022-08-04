@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
 )
 
 func TestGetRawChanges(t *testing.T) {
@@ -164,51 +164,50 @@ func TestGetRawChangesFailures(t *testing.T) {
 	ctx := testhelper.Context(t)
 	_, repo, _, client := setupRepositoryService(ctx, t)
 
-	testCases := []struct {
-		oldRev         string
-		newRev         string
-		code           codes.Code
-		omitRepository bool
+	for _, tc := range []struct {
+		desc        string
+		request     *gitalypb.GetRawChangesRequest
+		expectedErr error
 	}{
 		{
-			oldRev: "",
-			newRev: "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
-			code:   codes.InvalidArgument,
-		},
-		{
-			oldRev:         "cfe32cf61b73a0d5e9f13e774abde7ff789b1660",
-			newRev:         "913c66a37b4a45b9769037c55c2d238bd0942d2e",
-			code:           codes.InvalidArgument,
-			omitRepository: true,
-		},
-		{
-			// A Gitaly commit, unresolvable in gitlab-test
-			oldRev: "32800ed8206c0087f65e90a1a396b76d3c33f648",
-			newRev: "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
-			code:   codes.InvalidArgument,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("old:%s,new:%s", tc.oldRev, tc.newRev), func(t *testing.T) {
-			req := &gitalypb.GetRawChangesRequest{
+			desc: "missing from-revision",
+			request: &gitalypb.GetRawChangesRequest{
 				Repository:   repo,
-				FromRevision: tc.oldRev,
-				ToRevision:   tc.newRev,
-			}
-
-			if tc.omitRepository {
-				req.Repository = nil
-			}
-
-			resp, err := client.GetRawChanges(ctx, req)
+				FromRevision: "",
+				ToRevision:   "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
+			},
+			expectedErr: helper.ErrInvalidArgumentf("invalid 'from' revision: %q", ""),
+		},
+		{
+			desc: "missing repository",
+			request: &gitalypb.GetRawChangesRequest{
+				FromRevision: "cfe32cf61b73a0d5e9f13e774abde7ff789b1660",
+				ToRevision:   "913c66a37b4a45b9769037c55c2d238bd0942d2e",
+			},
+			expectedErr: helper.ErrInvalidArgumentf(gitalyOrPraefect(
+				"GetStorageByName: no such storage: \"\"",
+				"repo scoped: empty Repository",
+			)),
+		},
+		{
+			desc: "missing commit",
+			request: &gitalypb.GetRawChangesRequest{
+				Repository: repo,
+				// A Gitaly commit, unresolvable in gitlab-test
+				FromRevision: "32800ed8206c0087f65e90a1a396b76d3c33f648",
+				ToRevision:   "1a0b36b3cdad1d2ee32457c102a8c0b7056fa863",
+			},
+			expectedErr: helper.ErrInvalidArgumentf("invalid 'from' revision: %q", "32800ed8206c0087f65e90a1a396b76d3c33f648"),
+		},
+	} {
+		t.Run(fmt.Sprintf(tc.desc), func(t *testing.T) {
+			stream, err := client.GetRawChanges(ctx, tc.request)
 			require.NoError(t, err)
 
 			for err == nil {
-				_, err = resp.Recv()
+				_, err = stream.Recv()
 			}
-
-			testhelper.RequireGrpcCode(t, err, tc.code)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 		})
 	}
 }

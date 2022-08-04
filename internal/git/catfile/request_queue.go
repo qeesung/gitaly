@@ -21,6 +21,10 @@ const (
 )
 
 type requestQueue struct {
+	// objectHash is the object hash used by the repository the request queue has been
+	// spawned for.
+	objectHash git.ObjectHash
+
 	// outstandingRequests is the number of requests which have been queued up. Gets incremented
 	// on request, and decremented when starting to read an object (not when that object has
 	// been fully consumed).
@@ -212,5 +216,5 @@ func (q *requestQueue) readInfo() (*ObjectInfo, error) {
 		return nil, fmt.Errorf("concurrent read on request queue")
 	}
 
-	return ParseObjectInfo(q.stdout)
+	return ParseObjectInfo(q.objectHash, q.stdout)
 }

@@ -517,9 +517,13 @@ func TestEmptyFindLocalBranchesRequest(t *testing.T) {
 		_, recvError = c.Recv()
 	}
 
-	if helper.GrpcCode(recvError) != codes.InvalidArgument {
-		t.Fatal(recvError)
-	}
+	testhelper.RequireGrpcError(t,
+		helper.ErrInvalidArgumentf(gitalyOrPraefect(
+			"GetStorageByName: no such storage: \"\"",
+			"repo scoped: empty Repository",
+		)),
+		recvError,
+	)
 }
 
 func TestSuccessfulFindAllBranchesRequest(t *testing.T) {
@@ -661,13 +665,18 @@ func TestSuccessfulFindAllBranchesRequestWithMergedBranches(t *testing.T) {
 func TestInvalidFindAllBranchesRequest(t *testing.T) {
 	_, client := setupRefServiceWithoutRepo(t)
 
-	testCases := []struct {
+	for _, tc := range []struct {
 		description string
 		request     *gitalypb.FindAllBranchesRequest
+		expectedErr error
 	}{
 		{
 			description: "Empty request",
 			request:     &gitalypb.FindAllBranchesRequest{},
+			expectedErr: helper.ErrInvalidArgumentf(gitalyOrPraefect(
+				"GetStorageByName: no such storage: \"\"",
+				"repo scoped: empty Repository",
+			)),
 		},
 		{
 			description: "Invalid repo",
@@ -677,10 +686,12 @@ func TestInvalidFindAllBranchesRequest(t *testing.T) {
 					RelativePath: "repo",
 				},
 			},
+			expectedErr: helper.ErrInvalidArgumentf(gitalyOrPraefect(
+				"GetStorageByName: no such storage: \"fake\"",
+				"repo scoped: invalid Repository",
+			)),
 		},
-	}
-
-	for _, tc := range testCases {
+	} {
 		t.Run(tc.description, func(t *testing.T) {
 			ctx := testhelper.Context(t)
 			c, err := client.FindAllBranches(ctx, tc.request)
@@ -691,7 +702,7 @@ func TestInvalidFindAllBranchesRequest(t *testing.T) {
 				_, recvError = c.Recv()
 			}
 
-			testhelper.RequireGrpcCode(t, recvError, codes.InvalidArgument)
+			testhelper.RequireGrpcError(t, tc.expectedErr, recvError)
 		})
 	}
 }

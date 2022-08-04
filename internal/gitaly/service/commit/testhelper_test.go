@@ -142,3 +142,10 @@ func getAllCommits(t testing.TB, getter func() (gitCommitsGetter, error)) []*git
 		commits = append(commits, resp.GetCommits()...)
 	}
 }
+
+func gitalyOrPraefect(gitalyMsg, praefectMsg string) string {
+	if testhelper.IsPraefectEnabled() {
+		return praefectMsg
+	}
+	return gitalyMsg
+}

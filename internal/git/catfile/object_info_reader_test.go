@@ -1,12 +1,12 @@
-//go:build !gitaly_test_sha256
-
 package catfile
 
 import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -20,79 +20,114 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
 
-func TestParseObjectInfoSuccess(t *testing.T) {
-	testCases := []struct {
-		desc     string
-		input    string
-		output   *ObjectInfo
-		notFound bool
+func TestParseObjectInfo_success(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		desc               string
+		input              string
+		expectedErr        error
+		expectedObjectInfo *ObjectInfo
 	}{
 		{
 			desc:  "existing object",
-			input: "7c9373883988204e5a9f72c4a5119cbcefc83627 commit 222\n",
-			output: &ObjectInfo{
-				Oid:  "7c9373883988204e5a9f72c4a5119cbcefc83627",
+			input: fmt.Sprintf("%s commit 222\n", gittest.DefaultObjectHash.EmptyTreeOID),
+			expectedObjectInfo: &ObjectInfo{
+				Oid:  gittest.DefaultObjectHash.EmptyTreeOID,
 				Type: "commit",
 				Size: 222,
 			},
 		},
 		{
-			desc:     "non existing object",
-			input:    "bla missing\n",
-			notFound: true,
+			desc:        "non existing object",
+			input:       "bla missing\n",
+			expectedErr: NotFoundError{fmt.Errorf("object not found")},
 		},
-	}
-
-	for _, tc := range testCases {
+	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			reader := bufio.NewReader(strings.NewReader(tc.input))
-			output, err := ParseObjectInfo(reader)
-			if tc.notFound {
-				require.True(t, IsNotFound(err), "expect NotFoundError")
-				return
-			}
 
-			require.NoError(t, err)
-			require.Equal(t, tc.output, output)
+			objectInfo, err := ParseObjectInfo(gittest.DefaultObjectHash, reader)
+			require.Equal(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedObjectInfo, objectInfo)
 		})
 	}
 }
 
-func TestParseObjectInfoErrors(t *testing.T) {
-	testCases := []struct {
-		desc  string
-		input string
-	}{
-		{desc: "missing newline", input: "7c9373883988204e5a9f72c4a5119cbcefc83627 commit 222"},
-		{desc: "too few words", input: "7c9373883988204e5a9f72c4a5119cbcefc83627 commit\n"},
-		{desc: "too many words", input: "7c9373883988204e5a9f72c4a5119cbcefc83627 commit 222 bla\n"},
-		{desc: "parse object size", input: "7c9373883988204e5a9f72c4a5119cbcefc83627 commit bla\n"},
-	}
+func TestParseObjectInfo_errors(t *testing.T) {
+	t.Parallel()
 
-	for _, tc := range testCases {
+	oid := gittest.DefaultObjectHash.EmptyTreeOID
+
+	for _, tc := range []struct {
+		desc        string
+		input       string
+		expectedErr error
+	}{
+		{
+			desc:        "missing newline",
+			input:       fmt.Sprintf("%s commit 222", oid),
+			expectedErr: fmt.Errorf("read info line: %w", io.EOF),
+		},
+		{
+			desc:        "too few words",
+			input:       fmt.Sprintf("%s commit\n", oid),
+			expectedErr: fmt.Errorf("invalid info line: %q", oid+" commit"),
+		},
+		{
+			desc:        "too many words",
+			input:       fmt.Sprintf("%s commit 222 bla\n", oid),
+			expectedErr: fmt.Errorf("invalid info line: %q", oid+" commit 222 bla"),
+		},
+		{
+			desc:        "invalid object hash",
+			input:       "7c9373883988204e5a9f72c4 commit 222 bla\n",
+			expectedErr: fmt.Errorf("invalid info line: %q", "7c9373883988204e5a9f72c4 commit 222 bla"),
+		},
+		{
+			desc:  "parse object size",
+			input: fmt.Sprintf("%s commit bla\n", oid),
+			expectedErr: fmt.Errorf("parse object size: %w", &strconv.NumError{
+				Func: "ParseInt",
+				Num:  "bla",
+				Err:  strconv.ErrSyntax,
+			}),
+		},
+	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			reader := bufio.NewReader(strings.NewReader(tc.input))
-			_, err := ParseObjectInfo(reader)
 
-			require.Error(t, err)
+			_, err := ParseObjectInfo(gittest.DefaultObjectHash, reader)
+			require.Equal(t, tc.expectedErr, err)
 		})
 	}
 }
 
 func TestObjectInfoReader(t *testing.T) {
-	ctx := testhelper.Context(t)
+	t.Parallel()
 
-	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithBranch("main"),
+		gittest.WithMessage("commit message"),
+		gittest.WithTreeEntries(gittest.TreeEntry{Path: "README", Mode: "100644", Content: "something"}),
+	)
+	gittest.WriteTag(t, cfg, repoPath, "v1.1.1", commitID.Revision(), gittest.WriteTagConfig{
+		Message: "annotated tag",
+	})
 
 	oiByRevision := make(map[string]*ObjectInfo)
 	for _, revision := range []string{
-		"refs/heads/master",
-		"refs/heads/master^{tree}",
-		"refs/heads/master:README",
+		"refs/heads/main",
+		"refs/heads/main^{tree}",
+		"refs/heads/main:README",
 		"refs/tags/v1.1.1",
 	} {
 		revParseOutput := gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", revision)
-		objectID, err := git.ObjectHashSHA1.FromHex(text.ChompBytes(revParseOutput))
+		objectID, err := gittest.DefaultObjectHash.FromHex(text.ChompBytes(revParseOutput))
 		require.NoError(t, err)
 
 		objectType := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "cat-file", "-t", revision))
@@ -113,23 +148,23 @@ func TestObjectInfoReader(t *testing.T) {
 	}{
 		{
 			desc:         "commit by ref",
-			revision:     "refs/heads/master",
-			expectedInfo: oiByRevision["refs/heads/master"],
+			revision:     "refs/heads/main",
+			expectedInfo: oiByRevision["refs/heads/main"],
 		},
 		{
 			desc:         "commit by ID",
-			revision:     oiByRevision["refs/heads/master"].Oid.Revision(),
-			expectedInfo: oiByRevision["refs/heads/master"],
+			revision:     oiByRevision["refs/heads/main"].Oid.Revision(),
+			expectedInfo: oiByRevision["refs/heads/main"],
 		},
 		{
 			desc:         "tree",
-			revision:     oiByRevision["refs/heads/master^{tree}"].Oid.Revision(),
-			expectedInfo: oiByRevision["refs/heads/master^{tree}"],
+			revision:     oiByRevision["refs/heads/main^{tree}"].Oid.Revision(),
+			expectedInfo: oiByRevision["refs/heads/main^{tree}"],
 		},
 		{
 			desc:         "blob",
-			revision:     oiByRevision["refs/heads/master:README"].Oid.Revision(),
-			expectedInfo: oiByRevision["refs/heads/master:README"],
+			revision:     oiByRevision["refs/heads/main:README"].Oid.Revision(),
+			expectedInfo: oiByRevision["refs/heads/main:README"],
 		},
 		{
 			desc:         "tag",
@@ -162,7 +197,7 @@ func TestObjectInfoReader(t *testing.T) {
 
 			// Verify that we do another request no matter whether the previous call
 			// succeeded or failed.
-			_, err = reader.Info(ctx, "refs/heads/master")
+			_, err = reader.Info(ctx, "refs/heads/main")
 			require.NoError(t, err)
 
 			require.Equal(t, float64(expectedRequests+1), testutil.ToFloat64(counter.WithLabelValues("info")))
@@ -171,9 +206,11 @@ func TestObjectInfoReader(t *testing.T) {
 }
 
 func TestObjectInfoReader_queue(t *testing.T) {
-	ctx := testhelper.Context(t)
+	t.Parallel()
 
-	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	blobOID := gittest.WriteBlob(t, cfg, repoPath, []byte("foobar"))
 	blobInfo := ObjectInfo{
@@ -182,11 +219,16 @@ func TestObjectInfoReader_queue(t *testing.T) {
 		Size: int64(len("foobar")),
 	}
 
-	commitOID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents("master"))
+	commitOID := gittest.WriteCommit(t, cfg, repoPath)
 	commitInfo := ObjectInfo{
 		Oid:  commitOID,
 		Type: "commit",
-		Size: 225,
+		Size: func() int64 {
+			if gittest.ObjectHashIsSHA256() {
+				return 201
+			}
+			return 177
+		}(),
 	}
 
 	t.Run("read single info", func(t *testing.T) {

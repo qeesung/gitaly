@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package catfile
 
 import (
@@ -57,10 +55,11 @@ func (e *repoExecutor) ObjectHash(ctx context.Context) (git.ObjectHash, error) {
 	return gittest.DefaultObjectHash, nil
 }
 
-func setupObjectReader(t *testing.T, ctx context.Context) (config.Cfg, ObjectReader, *gitalypb.Repository) {
+func setupObjectReader(t *testing.T, ctx context.Context) (config.Cfg, ObjectReader, *gitalypb.Repository, string) {
 	t.Helper()
 
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+	repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repoExecutor := newRepoExecutor(t, cfg, repo)
 
 	cache := newCache(1*time.Hour, 1000, helper.NewTimerTicker(defaultEvictionInterval))
@@ -70,7 +69,7 @@ func setupObjectReader(t *testing.T, ctx context.Context) (config.Cfg, ObjectRea
 	require.NoError(t, err)
 	t.Cleanup(cancel)
 
-	return cfg, objectReader, repo
+	return cfg, objectReader, repo, repoPath
 }
 
 type staticObject struct {

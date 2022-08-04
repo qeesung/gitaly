@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package catfile
 
 import (
@@ -22,17 +20,25 @@ import (
 func TestObjectReader_reader(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
-	commitID, err := git.ObjectHashSHA1.FromHex(text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "refs/heads/master")))
-	require.NoError(t, err)
-	commitContents := gittest.Exec(t, cfg, "-C", repoPath, "cat-file", "-p", "refs/heads/master")
+	commitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithBranch("main"),
+		gittest.WithMessage("commit message"),
+		gittest.WithTreeEntries(gittest.TreeEntry{Path: "README", Mode: "100644", Content: "something"}),
+	)
+	gittest.WriteTag(t, cfg, repoPath, "v1.1.1", commitID.Revision(), gittest.WriteTagConfig{
+		Message: "annotated tag",
+	})
+
+	commitContents := gittest.Exec(t, cfg, "-C", repoPath, "cat-file", "-p", commitID.String())
 
 	t.Run("read existing object by ref", func(t *testing.T) {
 		reader, err := newObjectReader(ctx, newRepoExecutor(t, cfg, repoProto), nil)
 		require.NoError(t, err)
 
-		object, err := reader.Object(ctx, "refs/heads/master")
+		object, err := reader.Object(ctx, "refs/heads/main")
 		require.NoError(t, err)
 
 		data, err := io.ReadAll(object)
@@ -49,8 +55,7 @@ func TestObjectReader_reader(t *testing.T) {
 
 		data, err := io.ReadAll(object)
 		require.NoError(t, err)
-
-		require.Contains(t, string(data), "Merge branch 'cherry-pick-ce369011' into 'master'\n")
+		require.Equal(t, data, commitContents)
 	})
 
 	t.Run("read missing ref", func(t *testing.T) {
@@ -104,9 +109,9 @@ func TestObjectReader_reader(t *testing.T) {
 		require.NoError(t, err)
 
 		for objectType, revision := range map[string]git.Revision{
-			"commit": "refs/heads/master",
-			"tree":   "refs/heads/master^{tree}",
-			"blob":   "refs/heads/master:README",
+			"commit": "refs/heads/main",
+			"tree":   "refs/heads/main^{tree}",
+			"blob":   "refs/heads/main:README",
 			"tag":    "refs/tags/v1.1.1",
 		} {
 			require.Equal(t, float64(0), testutil.ToFloat64(counter.WithLabelValues(objectType)))
@@ -125,7 +130,8 @@ func TestObjectReader_reader(t *testing.T) {
 func TestObjectReader_queue(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	foobarBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("foobar"))
 	barfooBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("barfoo"))
@@ -420,8 +426,10 @@ func TestObjectReader_queue(t *testing.T) {
 }
 
 func TestObjectReader_replaceRefs(t *testing.T) {
-	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 	ctx := testhelper.Context(t)
+
+	cfg := testcfg.Build(t)
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	originalOID := gittest.WriteBlob(t, cfg, repoPath, []byte("original"))
 	replacedOID := gittest.WriteBlob(t, cfg, repoPath, []byte("replaced"))

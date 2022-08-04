@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
 )
 
 func TestSuccessfulLastCommitForPathRequest(t *testing.T) {
@@ -81,39 +81,52 @@ func TestFailedLastCommitForPathRequest(t *testing.T) {
 
 	invalidRepo := &gitalypb.Repository{StorageName: "fake", RelativePath: "path"}
 
-	testCases := []struct {
-		desc    string
-		request *gitalypb.LastCommitForPathRequest
-		code    codes.Code
+	for _, tc := range []struct {
+		desc        string
+		request     *gitalypb.LastCommitForPathRequest
+		expectedErr error
 	}{
 		{
-			desc:    "Invalid repository",
-			request: &gitalypb.LastCommitForPathRequest{Repository: invalidRepo},
-			code:    codes.InvalidArgument,
+			desc: "Invalid repository",
+			request: &gitalypb.LastCommitForPathRequest{
+				Repository: invalidRepo,
+				Revision:   []byte("some-branch"),
+			},
+			expectedErr: helper.ErrInvalidArgumentf(gitalyOrPraefect(
+				"GetStorageByName: no such storage: \"fake\"",
+				"repo scoped: invalid Repository",
+			)),
 		},
 		{
-			desc:    "Repository is nil",
-			request: &gitalypb.LastCommitForPathRequest{Revision: []byte("some-branch")},
-			code:    codes.InvalidArgument,
+			desc: "Repository is nil",
+			request: &gitalypb.LastCommitForPathRequest{
+				Revision: []byte("some-branch"),
+			},
+			expectedErr: helper.ErrInvalidArgumentf(gitalyOrPraefect(
+				"GetStorageByName: no such storage: \"\"",
+				"repo scoped: empty Repository",
+			)),
 		},
 		{
-			desc:    "Revision is missing",
-			request: &gitalypb.LastCommitForPathRequest{Repository: repo, Path: []byte("foo/bar")},
-			code:    codes.InvalidArgument,
+			desc: "Revision is missing",
+			request: &gitalypb.LastCommitForPathRequest{
+				Repository: repo, Path: []byte("foo/bar"),
+			},
+			expectedErr: helper.ErrInvalidArgumentf("empty revision"),
 		},
 		{
 			desc: "Revision is invalid",
 			request: &gitalypb.LastCommitForPathRequest{
-				Repository: repo, Path: []byte("foo/bar"), Revision: []byte("--output=/meow"),
+				Repository: repo,
+				Path:       []byte("foo/bar"),
+				Revision:   []byte("--output=/meow"),
 			},
-			code: codes.InvalidArgument,
+			expectedErr: helper.ErrInvalidArgumentf("revision can't start with '-'"),
 		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.desc, func(t *testing.T) {
-			_, err := client.LastCommitForPath(ctx, testCase.request)
-			testhelper.RequireGrpcCode(t, err, testCase.code)
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err := client.LastCommitForPath(ctx, tc.request)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 		})
 	}
 }

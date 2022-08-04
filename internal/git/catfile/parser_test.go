@@ -1,23 +1,25 @@
-//go:build !gitaly_test_sha256
-
 package catfile
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestParser_ParseCommit(t *testing.T) {
+	t.Parallel()
+
 	info := &ObjectInfo{
-		Oid:  "a984dfa4dee018c6d5f5f57ffec0d0e22763df16",
+		Oid:  gittest.DefaultObjectHash.EmptyTreeOID,
 		Type: "commit",
 	}
 
@@ -28,7 +30,7 @@ func TestParser_ParseCommit(t *testing.T) {
 	// Once a repository contains a pathological object it can be hard to get
 	// rid of it. Because of this I think it's nicer to ignore such objects
 	// than to throw hard errors.
-	testCases := []struct {
+	for _, tc := range []struct {
 		desc string
 		in   string
 		out  *gitalypb.GitCommit
@@ -119,9 +121,7 @@ fF3T79iV8paT4/OfX8Ygg=
 				},
 			},
 		},
-	}
-
-	for _, tc := range testCases {
+	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			info.Size = int64(len(tc.in))
 			out, err := NewParser().ParseCommit(newStaticObject(tc.in, "commit", info.Oid))
@@ -132,6 +132,8 @@ fF3T79iV8paT4/OfX8Ygg=
 }
 
 func TestParseCommitAuthor(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct {
 		desc     string
 		author   string
@@ -177,6 +179,10 @@ func TestParseCommitAuthor(t *testing.T) {
 }
 
 func TestParser_ParseTag(t *testing.T) {
+	t.Parallel()
+
+	oid := gittest.DefaultObjectHash.EmptyTreeOID.String()
+
 	for _, tc := range []struct {
 		desc           string
 		oid            git.ObjectID
@@ -186,7 +192,7 @@ func TestParser_ParseTag(t *testing.T) {
 	}{
 		{
 			desc:     "tag without a message",
-			contents: "object c92faf3e0a557270141be67f206d7cdb99bfc3a2\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200",
+			contents: fmt.Sprintf("object %s\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200", oid),
 			oid:      "1234",
 			expectedTag: &gitalypb.Tag{
 				Id:   "1234",
@@ -201,13 +207,13 @@ func TestParser_ParseTag(t *testing.T) {
 				},
 			},
 			expectedTagged: taggedObject{
-				objectID:   "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
+				objectID:   oid,
 				objectType: "commit",
 			},
 		},
 		{
 			desc:     "tag with message",
-			contents: "object c92faf3e0a557270141be67f206d7cdb99bfc3a2\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200\n\nmessage",
+			contents: fmt.Sprintf("object %s\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200\n\nmessage", oid),
 			oid:      "1234",
 			expectedTag: &gitalypb.Tag{
 				Id:          "1234",
@@ -224,14 +230,14 @@ func TestParser_ParseTag(t *testing.T) {
 				},
 			},
 			expectedTagged: taggedObject{
-				objectID:   "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
+				objectID:   oid,
 				objectType: "commit",
 			},
 		},
 		{
 			desc:     "tag with empty message",
 			oid:      "1234",
-			contents: "object c92faf3e0a557270141be67f206d7cdb99bfc3a2\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200\n\n",
+			contents: fmt.Sprintf("object %s\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200\n\n", oid),
 			expectedTag: &gitalypb.Tag{
 				Id:      "1234",
 				Name:    []byte("v2.6.16.28"),
@@ -246,14 +252,14 @@ func TestParser_ParseTag(t *testing.T) {
 				},
 			},
 			expectedTagged: taggedObject{
-				objectID:   "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
+				objectID:   oid,
 				objectType: "commit",
 			},
 		},
 		{
 			desc:     "tag with message with empty line",
 			oid:      "1234",
-			contents: "object c92faf3e0a557270141be67f206d7cdb99bfc3a2\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200\n\nHello world\n\nThis is a message",
+			contents: fmt.Sprintf("object %s\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200\n\nHello world\n\nThis is a message", oid),
 			expectedTag: &gitalypb.Tag{
 				Id:          "1234",
 				Name:        []byte("v2.6.16.28"),
@@ -269,13 +275,13 @@ func TestParser_ParseTag(t *testing.T) {
 				},
 			},
 			expectedTagged: taggedObject{
-				objectID:   "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
+				objectID:   oid,
 				objectType: "commit",
 			},
 		},
 		{
 			desc:     "tag with message with empty line and right side new line",
-			contents: "object c92faf3e0a557270141be67f206d7cdb99bfc3a2\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200\n\nHello world\n\nThis is a message\n\n",
+			contents: fmt.Sprintf("object %s\ntype commit\ntag v2.6.16.28\ntagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200\n\nHello world\n\nThis is a message\n\n", oid),
 			oid:      "1234",
 			expectedTag: &gitalypb.Tag{
 				Id:          "1234",
@@ -292,13 +298,13 @@ func TestParser_ParseTag(t *testing.T) {
 				},
 			},
 			expectedTagged: taggedObject{
-				objectID:   "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
+				objectID:   oid,
 				objectType: "commit",
 			},
 		},
 		{
 			desc:     "tag with missing date and body",
-			contents: "object 422081655f743e03b01ee29a2eaf26aab0ee7eda\ntype commit\ntag syslinux-3.11-pre6\ntagger hpa <hpa>\n",
+			contents: fmt.Sprintf("object %s\ntype commit\ntag syslinux-3.11-pre6\ntagger hpa <hpa>\n", oid),
 			oid:      "1234",
 			expectedTag: &gitalypb.Tag{
 				Id:   "1234",
@@ -309,14 +315,14 @@ func TestParser_ParseTag(t *testing.T) {
 				},
 			},
 			expectedTagged: taggedObject{
-				objectID:   "422081655f743e03b01ee29a2eaf26aab0ee7eda",
+				objectID:   oid,
 				objectType: "commit",
 			},
 		},
 		{
 			desc: "tag signed with SSH",
 			oid:  "1234",
-			contents: `object c92faf3e0a557270141be67f206d7cdb99bfc3a2
+			contents: fmt.Sprintf(`object %s
 type commit
 tag v2.6.16.28
 tagger Adrian Bunk <bunk@stusta.de> 1156539089 +0200
@@ -327,7 +333,7 @@ U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgtc+Qk8jhMwVZk/jFEFCM16LNQb
 30q5kK30bbetfjyTMAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5
 AAAAQLSyv010gOFwIs9QTtDvlfIEWiAw2iQL/T9usGcxHXn/W5l0cOFCd7O+WaMDg0t0nW
 fF3T79iV8paT4/OfX8Ygg=
------END SSH SIGNATURE-----`,
+-----END SSH SIGNATURE-----`, oid),
 			expectedTag: &gitalypb.Tag{
 				Id:   "1234",
 				Name: []byte("v2.6.16.28"),
@@ -350,7 +356,7 @@ fF3T79iV8paT4/OfX8Ygg=
 				SignatureType: gitalypb.SignatureType_SSH,
 			},
 			expectedTagged: taggedObject{
-				objectID:   "c92faf3e0a557270141be67f206d7cdb99bfc3a2",
+				objectID:   oid,
 				objectType: "commit",
 			},
 		},

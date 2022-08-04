@@ -73,10 +73,16 @@ func newObjectReader(
 		return nil, err
 	}
 
+	objectHash, err := repo.ObjectHash(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("detecting object hash: %w", err)
+	}
+
 	objectReader := &objectReader{
 		cmd:     batchCmd,
 		counter: counter,
 		queue: requestQueue{
+			objectHash:    objectHash,
 			isObjectQueue: true,
 			stdout:        bufio.NewReader(batchCmd),
 			stdin:         bufio.NewWriter(batchCmd),

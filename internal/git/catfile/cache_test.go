@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package catfile
 
 import (
@@ -11,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
@@ -24,7 +23,8 @@ func TestProcesses_add(t *testing.T) {
 	const maxLen = 3
 	p := &processes{maxLen: maxLen}
 
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	key0 := mustCreateKey(t, "0", repo)
 	value0, cancel := mustCreateCacheable(t, cfg, repo)
@@ -56,7 +56,8 @@ func TestProcesses_add(t *testing.T) {
 func TestProcesses_addTwice(t *testing.T) {
 	p := &processes{maxLen: 10}
 
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	key0 := mustCreateKey(t, "0", repo)
 	value0, cancel := mustCreateCacheable(t, cfg, repo)
@@ -83,7 +84,8 @@ func TestProcesses_addTwice(t *testing.T) {
 func TestProcesses_Checkout(t *testing.T) {
 	p := &processes{maxLen: 10}
 
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	key0 := mustCreateKey(t, "0", repo)
 	value0, cancel := mustCreateCacheable(t, cfg, repo)
@@ -110,7 +112,8 @@ func TestProcesses_Checkout(t *testing.T) {
 func TestProcesses_EnforceTTL(t *testing.T) {
 	p := &processes{maxLen: 10}
 
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	cutoff := time.Now()
 
@@ -155,7 +158,8 @@ func TestCache_autoExpiry(t *testing.T) {
 	c := newCache(time.Hour, 10, monitorTicker)
 	defer c.Stop()
 
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
 	// Add a process that has expired already.
 	key0 := mustCreateKey(t, "0", repo)
@@ -179,7 +183,11 @@ func TestCache_autoExpiry(t *testing.T) {
 }
 
 func TestCache_ObjectReader(t *testing.T) {
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+
+	repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
+
 	repoExecutor := newRepoExecutor(t, cfg, repo)
 
 	cache := newCache(time.Hour, 10, helper.NewManualTicker())
@@ -223,7 +231,7 @@ func TestCache_ObjectReader(t *testing.T) {
 		}}, keys)
 
 		// Assert that we can still read from the cached process.
-		_, err = reader.Object(ctx, "refs/heads/master")
+		_, err = reader.Object(ctx, "refs/heads/main")
 		require.NoError(t, err)
 	})
 
@@ -239,7 +247,7 @@ func TestCache_ObjectReader(t *testing.T) {
 
 		// While we request object data, we do not consume it at all. The reader is thus
 		// dirty and cannot be reused and shouldn't be returned to the cache.
-		object, err := reader.Object(ctx, "refs/heads/master")
+		object, err := reader.Object(ctx, "refs/heads/main")
 		require.NoError(t, err)
 
 		// Cancel the process such that it will be considered for return to the cache.
@@ -274,7 +282,11 @@ func TestCache_ObjectReader(t *testing.T) {
 }
 
 func TestCache_ObjectInfoReader(t *testing.T) {
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	cfg := testcfg.Build(t)
+
+	repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
+
 	repoExecutor := newRepoExecutor(t, cfg, repo)
 
 	cache := newCache(time.Hour, 10, helper.NewManualTicker())
@@ -317,7 +329,7 @@ func TestCache_ObjectInfoReader(t *testing.T) {
 		}}, keys)
 
 		// Assert that we can still read from the cached process.
-		_, err = reader.Info(ctx, "refs/heads/master")
+		_, err = reader.Info(ctx, "refs/heads/main")
 		require.NoError(t, err)
 	})
 

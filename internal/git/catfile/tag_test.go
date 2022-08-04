@@ -1,10 +1,7 @@
-//go:build !gitaly_test_sha256
-
 package catfile
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -19,40 +16,33 @@ import (
 func TestGetTag(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	cfg, objectReader, testRepo := setupObjectReader(t, ctx)
+	cfg, objectReader, _, repoPath := setupObjectReader(t, ctx)
+	commitID := gittest.WriteCommit(t, cfg, repoPath)
 
-	testRepoPath := filepath.Join(cfg.Storages[0].Path, testRepo.RelativePath)
-
-	testCases := []struct {
+	for _, tc := range []struct {
 		tagName string
-		rev     git.Revision
 		message string
 	}{
 		{
 			tagName: fmt.Sprintf("%s-v1.0.2", t.Name()),
-			rev:     "master^^^^",
 			message: strings.Repeat("a", helper.MaxCommitOrTagMessageSize+1) + "\n",
 		},
 		{
 			tagName: fmt.Sprintf("%s-v1.0.0", t.Name()),
-			rev:     "master^^^",
 			message: "Prod Release v1.0.0\n",
 		},
 		{
 			tagName: fmt.Sprintf("%s-v1.0.1", t.Name()),
-			rev:     "master^^",
 			message: strings.Repeat("a", helper.MaxCommitOrTagMessageSize+1) + "\n",
 		},
-	}
+	} {
+		t.Run(tc.tagName, func(t *testing.T) {
+			tagID := gittest.WriteTag(t, cfg, repoPath, tc.tagName, commitID.Revision(), gittest.WriteTagConfig{Message: tc.message})
 
-	for _, testCase := range testCases {
-		t.Run(testCase.tagName, func(t *testing.T) {
-			tagID := gittest.WriteTag(t, cfg, testRepoPath, testCase.tagName, testCase.rev, gittest.WriteTagConfig{Message: testCase.message})
-
-			tag, err := GetTag(ctx, objectReader, git.Revision(tagID), testCase.tagName)
+			tag, err := GetTag(ctx, objectReader, git.Revision(tagID), tc.tagName)
 			require.NoError(t, err)
-			require.Equal(t, testCase.message, string(tag.Message))
-			require.Equal(t, testCase.tagName, string(tag.GetName()))
+			require.Equal(t, tc.message, string(tag.Message))
+			require.Equal(t, tc.tagName, string(tag.GetName()))
 		})
 	}
 }

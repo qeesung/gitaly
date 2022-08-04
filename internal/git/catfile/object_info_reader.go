@@ -49,8 +49,9 @@ func IsNotFound(err error) bool {
 	return ok
 }
 
-// ParseObjectInfo reads from a reader and parses the data into an ObjectInfo struct
-func ParseObjectInfo(stdout *bufio.Reader) (*ObjectInfo, error) {
+// ParseObjectInfo reads from a reader and parses the data into an ObjectInfo struct with the given
+// object hash.
+func ParseObjectInfo(objectHash git.ObjectHash, stdout *bufio.Reader) (*ObjectInfo, error) {
 restart:
 	infoLine, err := stdout.ReadString('\n')
 	if err != nil {
@@ -75,7 +76,7 @@ restart:
 		return nil, fmt.Errorf("invalid info line: %q", infoLine)
 	}
 
-	oid, err := git.ObjectHashSHA1.FromHex(info[0])
+	oid, err := objectHash.FromHex(info[0])
 	if err != nil {
 		return nil, fmt.Errorf("parse object ID: %w", err)
 	}
@@ -125,7 +126,8 @@ type ObjectInfoQueue interface {
 // long-lived  `git cat-file --batch-check` process such that we do not have to spawn a separate
 // process per object info we're about to read.
 type objectInfoReader struct {
-	cmd *command.Command
+	cmd        *command.Command
+	objectHash git.ObjectHash
 
 	counter *prometheus.CounterVec
 
@@ -152,12 +154,19 @@ func newObjectInfoReader(
 		return nil, err
 	}
 
+	objectHash, err := repo.ObjectHash(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("detecting object hash: %w", err)
+	}
+
 	objectInfoReader := &objectInfoReader{
-		cmd:     batchCmd,
-		counter: counter,
+		cmd:        batchCmd,
+		objectHash: objectHash,
+		counter:    counter,
 		queue: requestQueue{
-			stdout: bufio.NewReader(batchCmd),
-			stdin:  bufio.NewWriter(batchCmd),
+			objectHash: objectHash,
+			stdout:     bufio.NewReader(batchCmd),
+			stdin:      bufio.NewWriter(batchCmd),
 		},
 	}
 

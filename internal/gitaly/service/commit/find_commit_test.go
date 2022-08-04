@@ -13,9 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -246,26 +244,48 @@ func TestFailedFindCommitRequest(t *testing.T) {
 
 	invalidRepo := &gitalypb.Repository{StorageName: "fake", RelativePath: "path"}
 
-	testCases := []struct {
-		description string
+	for _, tc := range []struct {
+		desc        string
 		revision    []byte
 		repo        *gitalypb.Repository
+		expectedErr error
 	}{
-		{repo: invalidRepo, revision: []byte("master"), description: "Invalid repo"},
-		{repo: repo, revision: []byte(""), description: "Empty revision"},
-		{repo: repo, revision: []byte("-master"), description: "Invalid revision"},
-		{repo: repo, revision: []byte("mas:ter"), description: "Invalid revision"},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.description, func(t *testing.T) {
+		{
+			desc:     "Invalid repo",
+			repo:     invalidRepo,
+			revision: []byte("master"),
+			expectedErr: helper.ErrInvalidArgumentf(gitalyOrPraefect(
+				"GetStorageByName: no such storage: \"fake\"",
+				"repo scoped: invalid Repository",
+			)),
+		},
+		{
+			desc:        "Empty revision",
+			repo:        repo,
+			revision:    []byte(""),
+			expectedErr: helper.ErrInvalidArgumentf("empty revision"),
+		},
+		{
+			desc:        "Invalid revision",
+			repo:        repo,
+			revision:    []byte("-master"),
+			expectedErr: helper.ErrInvalidArgumentf("revision can't start with '-'"),
+		},
+		{
+			desc:        "Invalid revision",
+			repo:        repo,
+			revision:    []byte("mas:ter"),
+			expectedErr: helper.ErrInvalidArgumentf("revision can't contain ':'"),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
 			request := &gitalypb.FindCommitRequest{
-				Repository: testCase.repo,
-				Revision:   testCase.revision,
+				Repository: tc.repo,
+				Revision:   tc.revision,
 			}
 
 			_, err := client.FindCommit(ctx, request)
-			require.Equal(t, codes.InvalidArgument, status.Code(err), "default lookup should fail")
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 		})
 	}
 }
