@@ -241,7 +241,7 @@ func testDeleteRefsRefLocked(t *testing.T, ctx context.Context) {
 	require.NoError(t, updater.Update(
 		git.ReferenceName("refs/heads/master"),
 		"0b4bc9a49b562e85de7cc9e834518ea6828729b9",
-		oldValue.String(),
+		oldValue,
 	))
 	require.NoError(t, updater.Prepare())
 

@@ -259,8 +259,13 @@ func (o *ObjectPool) rescueDanglingObjects(ctx context.Context) error {
 			continue
 		}
 
+		danglingObjectID, err := git.ObjectHashSHA1.FromHex(split[2])
+		if err != nil {
+			return fmt.Errorf("parsing object ID %q: %w", split[2], err)
+		}
+
 		ref := git.ReferenceName(danglingObjectNamespace + split[2])
-		if err := updater.Create(ref, split[2]); err != nil {
+		if err := updater.Create(ref, danglingObjectID); err != nil {
 			return err
 		}
 	}

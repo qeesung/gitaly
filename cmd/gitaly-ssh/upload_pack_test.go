@@ -37,7 +37,7 @@ func TestVisibilityOfHiddenRefs(t *testing.T) {
 	defer clean()
 
 	// Create a keep-around ref
-	existingSha := "1e292f8fedd741b75372e19097c76d327140c312"
+	existingSha := git.ObjectID("1e292f8fedd741b75372e19097c76d327140c312")
 	keepAroundRef := fmt.Sprintf("%s/%s", keepAroundNamespace, existingSha)
 
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)

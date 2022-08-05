@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package updateref_test
 
 import (
@@ -29,20 +27,17 @@ import (
 )
 
 func TestUpdaterWithHooks_UpdateReference_invalidParameters(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 
-	cfg, repo, _ := testcfg.BuildWithRepo(t)
+	revA := git.ObjectID(strings.Repeat("a", gittest.DefaultObjectHash.EncodedLen()))
+	revB := git.ObjectID(strings.Repeat("b", gittest.DefaultObjectHash.EncodedLen()))
 
-	user := &gitalypb.User{
-		GlId:       "1234",
-		GlUsername: "Username",
-		Name:       []byte("Name"),
-		Email:      []byte("mail@example.com"),
-	}
-
-	revA, revB := git.ObjectID(strings.Repeat("a", 40)), git.ObjectID(strings.Repeat("b", 40))
-
-	updater := updateref.NewUpdaterWithHooks(cfg, nil, &hook.MockManager{}, nil, nil)
+	updater := updateref.NewUpdaterWithHooks(cfg, nil, &hook.MockManager{}, gitCmdFactory, nil)
 
 	testCases := []struct {
 		desc           string
@@ -86,16 +81,17 @@ func TestUpdaterWithHooks_UpdateReference_invalidParameters(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			err := updater.UpdateReference(ctx, repo, user, nil, tc.ref, tc.newRev, tc.oldRev)
+			err := updater.UpdateReference(ctx, repo, gittest.TestUser, nil, tc.ref, tc.newRev, tc.oldRev)
 			require.Equal(t, tc.expectedErr, err)
 		})
 	}
 }
 
 func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
-	ctx := testhelper.Context(t)
+	t.Parallel()
 
-	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
 
 	// We need to set up a separate "real" hook service here, as it will be used in
 	// git-update-ref(1) spawned by `updateRefWithHooks()`
@@ -103,21 +99,15 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
 	})
 
-	user := &gitalypb.User{
-		GlId:       "1234",
-		GlUsername: "Username",
-		Name:       []byte("Name"),
-		Email:      []byte("mail@example.com"),
-	}
-
-	oldRev := "1e292f8fedd741b75372e19097c76d327140c312"
+	repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	requirePayload := func(t *testing.T, env []string) {
 		require.Len(t, env, 1)
 
 		expectedPayload := git.NewHooksPayload(cfg, repo, nil, &git.UserDetails{
-			UserID:   "1234",
-			Username: "Username",
+			UserID:   gittest.TestUser.GlId,
+			Username: gittest.TestUser.GlUsername,
 			Protocol: "web",
 		}, git.ReceivePackHooks, featureflag.FromContext(ctx))
 
@@ -147,22 +137,22 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 			preReceive: func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 				changes, err := io.ReadAll(stdin)
 				require.NoError(t, err)
-				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ObjectHashSHA1.ZeroOID.String()), string(changes))
+				require.Equal(t, fmt.Sprintf("%s %s refs/heads/main\n", commitID, gittest.DefaultObjectHash.ZeroOID.String()), string(changes))
 				require.Empty(t, pushOptions)
 				requirePayload(t, env)
 				return nil
 			},
 			update: func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, ref, oldValue, newValue string, env []string, stdout, stderr io.Writer) error {
-				require.Equal(t, "refs/heads/master", ref)
-				require.Equal(t, oldRev, oldValue)
-				require.Equal(t, newValue, git.ObjectHashSHA1.ZeroOID.String())
+				require.Equal(t, "refs/heads/main", ref)
+				require.Equal(t, commitID.String(), oldValue)
+				require.Equal(t, newValue, gittest.DefaultObjectHash.ZeroOID.String())
 				requirePayload(t, env)
 				return nil
 			},
 			postReceive: func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 				changes, err := io.ReadAll(stdin)
 				require.NoError(t, err)
-				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ObjectHashSHA1.ZeroOID.String()), string(changes))
+				require.Equal(t, fmt.Sprintf("%s %s refs/heads/main\n", commitID.String(), gittest.DefaultObjectHash.ZeroOID.String()), string(changes))
 				requirePayload(t, env)
 				require.Empty(t, pushOptions)
 				return nil
@@ -170,7 +160,7 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 			referenceTransaction: func(t *testing.T, ctx context.Context, state hook.ReferenceTransactionState, env []string, stdin io.Reader) error {
 				changes, err := io.ReadAll(stdin)
 				require.NoError(t, err)
-				require.Equal(t, fmt.Sprintf("%s %s refs/heads/master\n", oldRev, git.ObjectHashSHA1.ZeroOID.String()), string(changes))
+				require.Equal(t, fmt.Sprintf("%s %s refs/heads/main\n", commitID.String(), gittest.DefaultObjectHash.ZeroOID.String()), string(changes))
 
 				require.Less(t, referenceTransactionCalls, 2)
 				if referenceTransactionCalls == 0 {
@@ -257,7 +247,7 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 			gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 			updater := updateref.NewUpdaterWithHooks(cfg, config.NewLocator(cfg), hookManager, gitCmdFactory, nil)
 
-			err := updater.UpdateReference(ctx, repo, user, nil, git.ReferenceName("refs/heads/master"), git.ObjectHashSHA1.ZeroOID, git.ObjectID(oldRev))
+			err := updater.UpdateReference(ctx, repo, gittest.TestUser, nil, git.ReferenceName("refs/heads/main"), gittest.DefaultObjectHash.ZeroOID, commitID)
 			if tc.expectedErr == "" {
 				require.NoError(t, err)
 			} else {
@@ -265,24 +255,29 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 			}
 
 			if tc.expectedRefDeletion {
-				contained, err := localrepo.NewTestRepo(t, cfg, repo).HasRevision(ctx, git.Revision("refs/heads/master"))
+				contained, err := localrepo.NewTestRepo(t, cfg, repo).HasRevision(ctx, git.Revision("refs/heads/main"))
 				require.NoError(t, err)
 				require.False(t, contained, "branch should have been deleted")
-				gittest.Exec(t, cfg, "-C", repoPath, "branch", "master", oldRev)
+				gittest.Exec(t, cfg, "-C", repoPath, "branch", "main", commitID.String())
 			} else {
-				ref, err := localrepo.NewTestRepo(t, cfg, repo).GetReference(ctx, "refs/heads/master")
+				ref, err := localrepo.NewTestRepo(t, cfg, repo).GetReference(ctx, "refs/heads/main")
 				require.NoError(t, err)
-				require.Equal(t, ref.Target, oldRev)
+				require.Equal(t, ref.Target, commitID.String())
 			}
 		})
 	}
 }
 
 func TestUpdaterWithHooks_quarantine(t *testing.T) {
-	cfg, repoProto, _ := testcfg.BuildWithRepo(t)
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 	locator := config.NewLocator(cfg)
-	ctx := testhelper.Context(t)
+
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	unquarantinedRepo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -366,9 +361,9 @@ func TestUpdaterWithHooks_quarantine(t *testing.T) {
 			Email:      []byte("mail@example.com"),
 		},
 		quarantine,
-		git.ReferenceName("refs/heads/master"),
-		git.ObjectHashSHA1.ZeroOID,
-		git.ObjectID("1e292f8fedd741b75372e19097c76d327140c312"),
+		git.ReferenceName("refs/heads/main"),
+		gittest.DefaultObjectHash.ZeroOID,
+		commitID,
 	))
 
 	require.Equal(t, map[string]int{
@@ -379,7 +374,7 @@ func TestUpdaterWithHooks_quarantine(t *testing.T) {
 		"commit":      1,
 	}, hookExecutions)
 
-	contained, err := unquarantinedRepo.HasRevision(ctx, git.Revision("refs/heads/master"))
+	contained, err := unquarantinedRepo.HasRevision(ctx, git.Revision("refs/heads/main"))
 	require.NoError(t, err)
 	require.False(t, contained, "branch should have been deleted")
 }

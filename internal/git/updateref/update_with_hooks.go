@@ -146,7 +146,7 @@ func NewUpdaterWithHooks(
 // repository.
 func (u *UpdaterWithHooks) UpdateReference(
 	ctx context.Context,
-	repo *gitalypb.Repository,
+	repoProto *gitalypb.Repository,
 	user *gitalypb.User,
 	quarantineDir *quarantine.Dir,
 	reference git.ReferenceName,
@@ -160,13 +160,20 @@ func (u *UpdaterWithHooks) UpdateReference(
 		return fmt.Errorf("getting transaction: %w", err)
 	}
 
+	repo := u.localrepo(repoProto)
+
+	objectHash, err := repo.ObjectHash(ctx)
+	if err != nil {
+		return fmt.Errorf("detecting object hash: %w", err)
+	}
+
 	if reference == "" {
 		return fmt.Errorf("reference cannot be empty")
 	}
-	if err := git.ObjectHashSHA1.ValidateHex(oldrev.String()); err != nil {
+	if err := objectHash.ValidateHex(oldrev.String()); err != nil {
 		return fmt.Errorf("validating old value: %w", err)
 	}
-	if err := git.ObjectHashSHA1.ValidateHex(newrev.String()); err != nil {
+	if err := objectHash.ValidateHex(newrev.String()); err != nil {
 		return fmt.Errorf("validating new value: %w", err)
 	}
 
@@ -183,7 +190,7 @@ func (u *UpdaterWithHooks) UpdateReference(
 	// repository, which carries information about the quarantined object directory. This is
 	// then subsequently passed to Rails, which can use the quarantine directory to more
 	// efficiently query which objects are new.
-	quarantinedRepo := repo
+	quarantinedRepo := repoProto
 	if quarantineDir != nil {
 		quarantinedRepo = quarantineDir.QuarantinedRepo()
 	}
@@ -210,7 +217,7 @@ func (u *UpdaterWithHooks) UpdateReference(
 		// We only need to update the hooks payload to the unquarantined repo in case we
 		// had a quarantine environment. Otherwise, the initial hooks payload is for the
 		// real repository anyway.
-		hooksPayload, err = git.NewHooksPayload(u.cfg, repo, transaction, &receiveHooksPayload, git.ReceivePackHooks, featureflag.FromContext(ctx)).Env()
+		hooksPayload, err = git.NewHooksPayload(u.cfg, repoProto, transaction, &receiveHooksPayload, git.ReceivePackHooks, featureflag.FromContext(ctx)).Env()
 		if err != nil {
 			return fmt.Errorf("constructing quarantined hooks payload: %w", err)
 		}
@@ -230,12 +237,12 @@ func (u *UpdaterWithHooks) UpdateReference(
 	// is packed, which is obviously a bad thing as Gitaly nodes may be differently packed. We
 	// thus continue to manually drive the reference-transaction hook here, which doesn't have
 	// this problem.
-	updater, err := New(ctx, u.localrepo(repo), WithDisabledTransactions())
+	updater, err := New(ctx, repo, WithDisabledTransactions())
 	if err != nil {
 		return fmt.Errorf("creating updater: %w", err)
 	}
 
-	if err := updater.Update(reference, newrev.String(), oldrev.String()); err != nil {
+	if err := updater.Update(reference, newrev, oldrev); err != nil {
 		return fmt.Errorf("queueing ref update: %w", err)
 	}
 
@@ -268,7 +275,7 @@ func (u *UpdaterWithHooks) UpdateReference(
 		return fmt.Errorf("executing committing reference-transaction hook: %w", err)
 	}
 
-	if err := u.hookManager.PostReceiveHook(ctx, repo, pushOptions, []string{hooksPayload}, strings.NewReader(changes), &stdout, &stderr); err != nil {
+	if err := u.hookManager.PostReceiveHook(ctx, repoProto, pushOptions, []string{hooksPayload}, strings.NewReader(changes), &stdout, &stderr); err != nil {
 		// CustomHook errors are returned in case a custom hook has returned an error code.
 		// The post-receive hook has special semantics though. Quoting githooks(5):
 		//

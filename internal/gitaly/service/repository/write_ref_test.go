@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -18,7 +19,9 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func TestWriteRefSuccessful(t *testing.T) {
+func TestWriteRef_successful(t *testing.T) {
+	t.Parallel()
+
 	txManager := transaction.NewTrackingManager()
 	cfg, repo, repoPath, client := setupRepositoryService(testhelper.Context(t), t, testserver.WithTransactionManager(txManager))
 
@@ -86,7 +89,9 @@ func TestWriteRefSuccessful(t *testing.T) {
 	}
 }
 
-func TestWriteRefValidationError(t *testing.T) {
+func TestWriteRef_validation(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 	_, repo, _, client := setupRepositoryService(ctx, t)
 
@@ -155,6 +160,56 @@ func TestWriteRefValidationError(t *testing.T) {
 			_, err := client.WriteRef(ctx, tc.req)
 
 			testhelper.RequireGrpcCode(t, err, codes.InvalidArgument)
+		})
+	}
+}
+
+func TestWriteRef_missingRevisions(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	cfg, client := setupRepositoryServiceWithoutRepo(t)
+
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
+	commitID := gittest.WriteCommit(t, cfg, repoPath)
+
+	for _, tc := range []struct {
+		desc        string
+		request     *gitalypb.WriteRefRequest
+		expectedErr error
+	}{
+		{
+			desc: "revision refers to missing reference",
+			request: &gitalypb.WriteRefRequest{
+				Repository: repo,
+				Ref:        []byte("refs/heads/main"),
+				Revision:   []byte("refs/heads/missing"),
+			},
+			expectedErr: helper.ErrInternalf("resolving new revision: reference not found"),
+		},
+		{
+			desc: "revision refers to missing object",
+			request: &gitalypb.WriteRefRequest{
+				Repository: repo,
+				Ref:        []byte("refs/heads/main"),
+				Revision:   bytes.Repeat([]byte("1"), gittest.DefaultObjectHash.EncodedLen()),
+			},
+			expectedErr: helper.ErrInternalf("resolving new revision: reference not found"),
+		},
+		{
+			desc: "old revision refers to missing reference",
+			request: &gitalypb.WriteRefRequest{
+				Repository:  repo,
+				Ref:         []byte("refs/heads/main"),
+				Revision:    []byte(commitID),
+				OldRevision: bytes.Repeat([]byte("1"), gittest.DefaultObjectHash.EncodedLen()),
+			},
+			expectedErr: helper.ErrInternalf("resolving old revision: reference not found"),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err := client.WriteRef(ctx, tc.request)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 		})
 	}
 }
