@@ -81,6 +81,11 @@ func (repo *Repo) FetchRemote(ctx context.Context, remoteName string, opts Fetch
 	commandOptions := []git.CmdOpt{
 		git.WithEnv(opts.Env...),
 		git.WithStderr(opts.Stderr),
+		git.WithConfig(git.ConfigPair{
+			// Git is so kind to point out that we asked it to not show forced updates
+			// by default, so we need to ask it not to do that.
+			Key: "advice.fetchShowForcedUpdates", Value: "false",
+		}),
 	}
 	if opts.DisableTransactions {
 		commandOptions = append(commandOptions, git.WithDisabledHooks())
@@ -135,6 +140,11 @@ func (repo *Repo) FetchInternal(
 				GitProtocol:      git.ProtocolV2,
 			},
 		),
+		git.WithConfig(git.ConfigPair{
+			// Git is so kind to point out that we asked it to not show forced updates
+			// by default, so we need to ask it not to do that.
+			Key: "advice.fetchShowForcedUpdates", Value: "false",
+		}),
 	}
 
 	if opts.DisableTransactions {
@@ -186,6 +196,13 @@ func (opts FetchOpts) buildFlags() []git.Option {
 
 	if !opts.DisableTransactions {
 		flags = append(flags, git.Flag{Name: "--atomic"})
+	}
+
+	// Even if we ask Git to not print any output and to force-update branches it will still
+	// compute whether branches have been force-updated only to discard that information again.
+	// Let's ask it not to given that this check can be quite expensive.
+	if !opts.Verbose && opts.Force {
+		flags = append(flags, git.Flag{Name: "--no-show-forced-updates"})
 	}
 
 	return flags

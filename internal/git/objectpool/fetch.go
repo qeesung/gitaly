@@ -79,11 +79,20 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *localrepo.Repo
 				// megabytes when doing a mirror-sync of repos with huge numbers of
 				// references.
 				git.Flag{Name: "--no-write-fetch-head"},
+				// Disable showing forced updates, which may take a considerable
+				// amount of time to compute. We don't display any output anyway,
+				// which makes this computation kind of moot.
+				git.Flag{Name: "--no-show-forced-updates"},
 			},
 			Args: []string{originPath, objectPoolRefspec},
 		},
 		git.WithRefTxHook(o.Repo),
 		git.WithStderr(&stderr),
+		git.WithConfig(git.ConfigPair{
+			// Git is so kind to point out that we asked it to not show forced updates
+			// by default, so we need to ask it not to do that.
+			Key: "advice.fetchShowForcedUpdates", Value: "false",
+		}),
 	); err != nil {
 		return fmt.Errorf("fetch into object pool: %w, stderr: %q", err,
 			stderr.String())
