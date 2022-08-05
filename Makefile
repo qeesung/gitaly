@@ -153,7 +153,7 @@ GIT_VERSION ?=
 # The default version is used in case the caller does not set the variable or
 # if it is either set to the empty string or "default".
 ifeq (${GIT_VERSION:default=},)
-    override GIT_VERSION := v2.35.1
+    override GIT_VERSION := v2.37.1
 
     # This extra version has two intentions: first, it allows us to detect
     # capabilities of the command at runtime. Second, it helps admins to
@@ -166,7 +166,7 @@ ifeq (${GIT_VERSION:default=},)
     # Before adding custom patches, please read doc/PROCESS.md#Patching-git
     # first to make sure your patches meet our acceptance criteria. Patches
     # must be put into `_support/git-patches`.
-    GIT_PATCHES := $(sort $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.35.1.gl1/*))
+    GIT_PATCHES := $(sort $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.37.1.gl1/*))
 else
     # Support both vX.Y.Z and X.Y.Z version patterns, since callers across GitLab
     # use both.
