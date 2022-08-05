@@ -20,7 +20,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	hookPkg "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/streamcache"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
@@ -80,10 +79,10 @@ func TestParsePackObjectsArgs(t *testing.T) {
 
 func TestServer_PackObjectsHook_separateContext(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.PackObjectsMetrics).Run(
+	runTestsWithRuntimeDir(
 		t,
-		runTestsWithRuntimeDir(t, testServerPackObjectsHookSeparateContextWithRuntimeDir),
-	)
+		testServerPackObjectsHookSeparateContextWithRuntimeDir,
+	)(t, testhelper.Context(t))
 }
 
 func testServerPackObjectsHookSeparateContextWithRuntimeDir(t *testing.T, ctx context.Context, runtimeDir string) {
@@ -198,10 +197,10 @@ func testServerPackObjectsHookSeparateContextWithRuntimeDir(t *testing.T, ctx co
 
 func TestServer_PackObjectsHook_usesCache(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.PackObjectsMetrics).Run(
+	runTestsWithRuntimeDir(
 		t,
-		runTestsWithRuntimeDir(t, testServerPackObjectsHookUsesCache),
-	)
+		testServerPackObjectsHookUsesCache,
+	)(t, testhelper.Context(t))
 }
 
 func testServerPackObjectsHookUsesCache(t *testing.T, ctx context.Context, runtimeDir string) {
@@ -283,10 +282,10 @@ func testServerPackObjectsHookUsesCache(t *testing.T, ctx context.Context, runti
 func TestServer_PackObjectsHookWithSidechannel(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.PackObjectsMetrics).Run(
+	runTestsWithRuntimeDir(
 		t,
-		runTestsWithRuntimeDir(t, testServerPackObjectsHookWithSidechannelWithRuntimeDir),
-	)
+		testServerPackObjectsHookWithSidechannelWithRuntimeDir,
+	)(t, testhelper.Context(t))
 }
 
 func testServerPackObjectsHookWithSidechannelWithRuntimeDir(t *testing.T, ctx context.Context, runtimeDir string) {
@@ -410,8 +409,7 @@ func testServerPackObjectsHookWithSidechannelWithRuntimeDir(t *testing.T, ctx co
 				require.False(t, strings.Contains(total, "\n"))
 			})
 
-			if featureflag.PackObjectsMetrics.IsEnabled(ctx) {
-				expectedMetrics := `# HELP gitaly_pack_objects_concurrent_processes Number of concurrent processes
+			expectedMetrics := `# HELP gitaly_pack_objects_concurrent_processes Number of concurrent processes
 # TYPE gitaly_pack_objects_concurrent_processes histogram
 gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="0"} 0
 gitaly_pack_objects_concurrent_processes_bucket{segment="repository",le="5"} 1
@@ -468,15 +466,10 @@ gitaly_pack_objects_process_active_callers{segment="user_id"} 0
 gitaly_pack_objects_process_active_callers_total{segment="repository"} 1
 gitaly_pack_objects_process_active_callers_total{segment="user_id"} 1
 `
-				require.NoError(t, testutil.CollectAndCompare(
-					concurrencyTracker,
-					bytes.NewBufferString(expectedMetrics),
-				))
-			} else {
-				require.Equal(t, 0, testutil.CollectAndCount(
-					concurrencyTracker,
-				))
-			}
+			require.NoError(t, testutil.CollectAndCompare(
+				concurrencyTracker,
+				bytes.NewBufferString(expectedMetrics),
+			))
 		})
 	}
 }
@@ -524,10 +517,10 @@ func TestServer_PackObjectsHookWithSidechannel_invalidArgument(t *testing.T) {
 func TestServer_PackObjectsHookWithSidechannel_Canceled(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.PackObjectsMetrics).Run(
+	runTestsWithRuntimeDir(
 		t,
-		runTestsWithRuntimeDir(t, testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir),
-	)
+		testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir,
+	)(t, testhelper.Context(t))
 }
 
 func testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir(t *testing.T, ctx context.Context, runtimeDir string) {
