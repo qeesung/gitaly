@@ -176,3 +176,9 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+exclude (
+	// CVE-2020-28483
+	github.com/gin-gonic/gin v1.4.0
+	github.com/gin-gonic/gin v1.6.3
+)
