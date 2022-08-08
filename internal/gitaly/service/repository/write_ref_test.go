@@ -8,9 +8,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -58,6 +60,26 @@ func TestWriteRef_successful(t *testing.T) {
 			},
 			expectedVotes: 2,
 		},
+		{
+			desc: "race-free creation of reference",
+			req: &gitalypb.WriteRefRequest{
+				Repository:  repo,
+				Ref:         []byte("refs/heads/branch"),
+				Revision:    []byte("498214de67004b1da3d820901307bed2a68a8ef6"),
+				OldRevision: []byte("0000000000000000000000000000000000000000"),
+			},
+			expectedVotes: 2,
+		},
+		{
+			desc: "race-free delete of reference",
+			req: &gitalypb.WriteRefRequest{
+				Repository:  repo,
+				Ref:         []byte("refs/heads/branch"),
+				Revision:    []byte("0000000000000000000000000000000000000000"),
+				OldRevision: []byte("498214de67004b1da3d820901307bed2a68a8ef6"),
+			},
+			expectedVotes: 2,
+		},
 	}
 
 	ctx, err := txinfo.InjectTransaction(testhelper.Context(t), 1, "node", true)
@@ -80,11 +102,21 @@ func TestWriteRef_successful(t *testing.T) {
 				require.EqualValues(t, refRevision, content)
 				return
 			}
-			rev := gittest.Exec(t, cfg, "--git-dir", repoPath, "log", "--pretty=%H", "-1", string(tc.req.Ref))
 
-			rev = bytes.Replace(rev, []byte("\n"), nil, 1)
+			revParseCmd := gittest.NewCommand(t, cfg, "-C", repoPath, "rev-parse", "--verify", string(tc.req.Ref))
+			output, err := revParseCmd.CombinedOutput()
 
-			require.Equal(t, string(tc.req.Revision), string(rev))
+			if git.ObjectHashSHA1.IsZeroOID(git.ObjectID(tc.req.GetRevision())) {
+				// If the new OID is the all-zeroes object ID then it indicates we
+				// should delete the branch. It's thus expected to get an error when
+				// we try to resolve the reference here given that it should not
+				// exist anymore.
+				require.Error(t, err)
+				require.Equal(t, "fatal: Needed a single revision\n", string(output))
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, string(tc.req.Revision), text.ChompBytes(output))
+			}
 		})
 	}
 }
