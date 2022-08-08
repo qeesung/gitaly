@@ -80,7 +80,7 @@ func LsTree(
 			return
 		}
 
-		parser := lstree.NewParser(cmd)
+		parser := lstree.NewParser(cmd, git.ObjectHashSHA1)
 		for {
 			entry, err := parser.NextEntry()
 			if err != nil {

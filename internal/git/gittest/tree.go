@@ -88,6 +88,8 @@ func WriteTree(t testing.TB, cfg config.Cfg, repoPath string, entries []TreeEntr
 			entryType = "blob"
 		case "040000":
 			entryType = "tree"
+		case "160000":
+			entryType = "commit"
 		default:
 			t.Fatalf("invalid entry type %q", entry.Mode)
 		}

@@ -14,13 +14,15 @@ var ErrParse = errors.New("failed to parse git ls-tree response")
 
 // Parser holds the necessary state for parsing the ls-tree output
 type Parser struct {
-	reader *bufio.Reader
+	reader     *bufio.Reader
+	objectHash git.ObjectHash
 }
 
 // NewParser returns a new Parser
-func NewParser(src io.Reader) *Parser {
+func NewParser(src io.Reader, objectHash git.ObjectHash) *Parser {
 	return &Parser{
-		reader: bufio.NewReader(src),
+		reader:     bufio.NewReader(src),
+		objectHash: objectHash,
 	}
 }
 
@@ -61,7 +63,7 @@ func (p *Parser) NextEntry() (*Entry, error) {
 		return nil, err
 	}
 
-	objectID, err := git.ObjectHashSHA1.FromHex(string(treeEntryID))
+	objectID, err := p.objectHash.FromHex(string(treeEntryID))
 	if err != nil {
 		return nil, err
 	}

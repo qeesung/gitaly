@@ -60,7 +60,12 @@ func ListEntries(
 		return nil, fmt.Errorf("spawning git-ls-tree: %w", err)
 	}
 
-	parser := NewParser(cmd)
+	objectHash, err := repo.ObjectHash(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("detecting object hash: %w", err)
+	}
+
+	parser := NewParser(cmd, objectHash)
 	var entries []*Entry
 	for {
 		entry, err := parser.NextEntry()

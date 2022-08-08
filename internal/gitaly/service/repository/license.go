@@ -123,7 +123,7 @@ func (f *gitFiler) ReadDir(string) ([]filer.File, error) {
 		return nil, err
 	}
 
-	tree := lstree.NewParser(cmd)
+	tree := lstree.NewParser(cmd, git.ObjectHashSHA1)
 
 	var files []filer.File
 	for {

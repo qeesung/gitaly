@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package lstree
 
 import (
@@ -14,10 +12,12 @@ import (
 )
 
 func TestListEntries(t *testing.T) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 	ctx := testhelper.Context(t)
 
-	repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("blob contents"))
@@ -151,8 +151,8 @@ func TestListEntries(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			results, err := ListEntries(ctx, repo, tc.treeish, tc.cfg)
-			require.Equal(t, tc.expectedResults, results)
 			require.Equal(t, tc.expectedErr, err)
+			require.Equal(t, tc.expectedResults, results)
 		})
 	}
 }

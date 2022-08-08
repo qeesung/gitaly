@@ -119,7 +119,7 @@ func TestSubmodule(t *testing.T) {
 				fmt.Sprintf("%s^{tree}:", response.CommitID),
 				tc.command.Submodule,
 			)
-			parser := lstree.NewParser(bytes.NewReader(entry))
+			parser := lstree.NewParser(bytes.NewReader(entry), git.ObjectHashSHA1)
 			parsedEntry, err := parser.NextEntry()
 			require.NoError(t, err)
 			require.Equal(t, tc.command.Submodule, parsedEntry.Path)

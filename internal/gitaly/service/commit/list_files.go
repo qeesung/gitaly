@@ -81,7 +81,7 @@ func (s *server) listFiles(repo git.RepositoryExecutor, revision string, stream 
 
 	sender := chunk.New(&listFilesSender{stream: stream})
 
-	for parser := lstree.NewParser(cmd); ; {
+	for parser := lstree.NewParser(cmd, git.ObjectHashSHA1); ; {
 		entry, err := parser.NextEntry()
 		if err == io.EOF {
 			break

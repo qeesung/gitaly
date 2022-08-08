@@ -123,7 +123,7 @@ func (s *server) newLSTreeParser(in *gitalypb.ListLastCommitsForTreeRequest, str
 		return nil, nil, err
 	}
 
-	return cmd, lstree.NewParser(cmd), nil
+	return cmd, lstree.NewParser(cmd, git.ObjectHashSHA1), nil
 }
 
 func sendCommitsForTree(batch []*gitalypb.ListLastCommitsForTreeResponse_CommitForTree, stream gitalypb.CommitService_ListLastCommitsForTreeServer) error {

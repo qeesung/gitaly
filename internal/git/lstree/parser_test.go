@@ -1,93 +1,74 @@
-//go:build !gitaly_test_sha256
-
 package lstree
 
 import (
+	"bytes"
 	"io"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
 
 func TestParser(t *testing.T) {
-	testCases := []struct {
-		desc     string
-		filename string
-		entries  Entries
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+	_, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+	gitignoreBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("gitignore"))
+	gitmodulesBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("gitmodules"))
+	submoduleCommitID := gittest.WriteCommit(t, cfg, repoPath)
+
+	regularEntriesTreeID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{Path: ".gitignore", Mode: "100644", OID: gitignoreBlobID},
+		{Path: ".gitmodules", Mode: "100644", OID: gitmodulesBlobID},
+		{Path: "entry with space", Mode: "040000", OID: gittest.DefaultObjectHash.EmptyTreeOID},
+		{Path: "gitlab-shell", Mode: "160000", OID: submoduleCommitID},
+	})
+
+	for _, tc := range []struct {
+		desc            string
+		treeID          git.ObjectID
+		expectedEntries Entries
 	}{
 		{
-			desc:     "regular entries",
-			filename: "testdata/z-lstree.txt",
-			entries: Entries{
+			desc:   "regular entries",
+			treeID: regularEntriesTreeID,
+			expectedEntries: Entries{
 				{
 					Mode:     []byte("100644"),
 					Type:     Blob,
-					ObjectID: "dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82",
+					ObjectID: gitignoreBlobID,
 					Path:     ".gitignore",
 				},
 				{
 					Mode:     []byte("100644"),
 					Type:     Blob,
-					ObjectID: "0792c58905eff3432b721f8c4a64363d8e28d9ae",
+					ObjectID: gitmodulesBlobID,
 					Path:     ".gitmodules",
 				},
 				{
 					Mode:     []byte("040000"),
 					Type:     Tree,
-					ObjectID: "3c122d2b7830eca25235131070602575cf8b41a1",
-					Path:     "encoding",
+					ObjectID: gittest.DefaultObjectHash.EmptyTreeOID,
+					Path:     "entry with space",
 				},
 				{
 					Mode:     []byte("160000"),
 					Type:     Submodule,
-					ObjectID: "79bceae69cb5750d6567b223597999bfa91cb3b9",
+					ObjectID: submoduleCommitID,
 					Path:     "gitlab-shell",
 				},
 			},
 		},
-		{
-			desc:     "irregular path",
-			filename: "testdata/z-lstree-irregular.txt",
-			entries: Entries{
-				{
-					Mode:     []byte("100644"),
-					Type:     Blob,
-					ObjectID: "dfaa3f97ca337e20154a98ac9d0be76ddd1fcc82",
-					Path:     ".gitignore",
-				},
-				{
-					Mode:     []byte("100644"),
-					Type:     Blob,
-					ObjectID: "0792c58905eff3432b721f8c4a64363d8e28d9ae",
-					Path:     ".gitmodules",
-				},
-				{
-					Mode:     []byte("040000"),
-					Type:     Tree,
-					ObjectID: "3c122d2b7830eca25235131070602575cf8b41a1",
-					Path:     "some encoding",
-				},
-				{
-					Mode:     []byte("160000"),
-					Type:     Submodule,
-					ObjectID: "79bceae69cb5750d6567b223597999bfa91cb3b9",
-					Path:     "gitlab-shell",
-				},
-			},
-		},
-	}
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			treeData := gittest.Exec(t, cfg, "-C", repoPath, "ls-tree", "-z", tc.treeID.String())
 
-	for _, testCase := range testCases {
-		t.Run(testCase.desc, func(t *testing.T) {
-			file, err := os.Open(testCase.filename)
-
-			require.NoError(t, err)
-			defer file.Close()
-
+			parser := NewParser(bytes.NewReader(treeData), gittest.DefaultObjectHash)
 			parsedEntries := Entries{}
-
-			parser := NewParser(file)
 			for {
 				entry, err := parser.NextEntry()
 				if err == io.EOF {
@@ -98,14 +79,7 @@ func TestParser(t *testing.T) {
 				parsedEntries = append(parsedEntries, *entry)
 			}
 
-			expectedEntries := testCase.entries
-			require.Len(t, expectedEntries, len(parsedEntries))
-
-			for index, parsedEntry := range parsedEntries {
-				expectedEntry := expectedEntries[index]
-
-				require.Equal(t, expectedEntry, parsedEntry)
-			}
+			require.Equal(t, tc.expectedEntries, parsedEntries)
 		})
 	}
 }
