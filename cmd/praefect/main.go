@@ -88,6 +88,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/reconciler"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/repocleaner"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/service"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/service/transaction"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/transactions"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/sidechannel"
@@ -435,6 +436,7 @@ func run(
 			protoregistry.GitalyProtoPreregistered,
 			nodeSet.Connections(),
 			primaryGetter,
+			service.AllChecks(),
 		)
 	)
 	metricsCollectors = append(metricsCollectors, transactionManager, coordinator, repl)

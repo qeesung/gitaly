@@ -568,7 +568,7 @@ func TestStreamDirector_maintenanceRPCs(t *testing.T) {
 		t, testcfg.WithStorages(secondaryStorage)),
 	)
 
-	cc, _, cleanup := runPraefectServer(t, ctx, config.Config{
+	cc, _, cleanup := RunPraefectServer(t, ctx, config.Config{
 		VirtualStorages: []*config.VirtualStorage{
 			{
 				Name: "default",
@@ -584,7 +584,7 @@ func TestStreamDirector_maintenanceRPCs(t *testing.T) {
 				},
 			},
 		},
-	}, buildOptions{})
+	}, BuildOptions{})
 	defer cleanup()
 
 	repository := &gitalypb.Repository{
@@ -1569,10 +1569,10 @@ func TestCoordinatorEnqueueFailure(t *testing.T) {
 	require.NoError(t, err)
 	ctx := testhelper.Context(t)
 
-	cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
-		withAnnotations: r,
-		withQueue:       queueInterceptor,
-		withBackends: withMockBackends(t, map[string]mock.SimpleServiceServer{
+	cc, _, cleanup := RunPraefectServer(t, ctx, conf, BuildOptions{
+		WithAnnotations: r,
+		WithQueue:       queueInterceptor,
+		WithBackends: WithMockBackends(t, map[string]mock.SimpleServiceServer{
 			conf.VirtualStorages[0].Nodes[0].Storage: ms,
 			conf.VirtualStorages[0].Nodes[1].Storage: ms,
 		}),
@@ -1946,10 +1946,10 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 				})
 			}
 
-			praefectConn, _, cleanup := runPraefectServer(t, ctx, praefectConfig, buildOptions{
+			praefectConn, _, cleanup := RunPraefectServer(t, ctx, praefectConfig, BuildOptions{
 				// Set up a mock manager which sets up primary/secondaries and pretends that all nodes are
 				// healthy. We need fixed roles and unhealthy nodes will not take part in transactions.
-				withNodeMgr: &nodes.MockManager{
+				WithNodeMgr: &nodes.MockManager{
 					Storage: testhelper.DefaultStorageName,
 					GetShardFunc: func(shardName string) (nodes.Shard, error) {
 						require.Equal(t, testhelper.DefaultStorageName, shardName)
@@ -1964,7 +1964,7 @@ func TestCoordinator_grpcErrorHandling(t *testing.T) {
 				},
 				// Set up a mock repsoitory store pretending that all nodes are consistent. Only consistent
 				// nodes will take part in transactions.
-				withRepoStore: datastore.MockRepositoryStore{
+				WithRepoStore: datastore.MockRepositoryStore{
 					GetReplicaPathFunc: func(ctx context.Context, repositoryID int64) (string, error) {
 						return repoProto.GetRelativePath(), nil
 					},

@@ -9,6 +9,7 @@ package gitalypb
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	reflect "reflect"
 	sync "sync"
 )
@@ -322,6 +323,139 @@ func (x *ClockSyncedResponse) GetSynced() bool {
 	return false
 }
 
+// ReadinessCheckRequest is used to verify if the service is in operational state.
+type ReadinessCheckRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Timeout is an amount of milliseconds for the check to run before give up and mark as failed.
+	Timeout *durationpb.Duration `protobuf:"bytes,1,opt,name=timeout,proto3" json:"timeout,omitempty"`
+}
+
+func (x *ReadinessCheckRequest) Reset() {
+	*x = ReadinessCheckRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_server_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReadinessCheckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadinessCheckRequest) ProtoMessage() {}
+
+func (x *ReadinessCheckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_server_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadinessCheckRequest.ProtoReflect.Descriptor instead.
+func (*ReadinessCheckRequest) Descriptor() ([]byte, []int) {
+	return file_server_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ReadinessCheckRequest) GetTimeout() *durationpb.Duration {
+	if x != nil {
+		return x.Timeout
+	}
+	return nil
+}
+
+// ReadinessCheckResponse is just a stub now and contains no information.
+// If the service is not in the operational state the error will be returned instead.
+type ReadinessCheckResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Types that are assignable to Result:
+	//	*ReadinessCheckResponse_OkResponse
+	//	*ReadinessCheckResponse_FailureResponse
+	Result isReadinessCheckResponse_Result `protobuf_oneof:"Result"`
+}
+
+func (x *ReadinessCheckResponse) Reset() {
+	*x = ReadinessCheckResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_server_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReadinessCheckResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadinessCheckResponse) ProtoMessage() {}
+
+func (x *ReadinessCheckResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_server_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadinessCheckResponse.ProtoReflect.Descriptor instead.
+func (*ReadinessCheckResponse) Descriptor() ([]byte, []int) {
+	return file_server_proto_rawDescGZIP(), []int{7}
+}
+
+func (m *ReadinessCheckResponse) GetResult() isReadinessCheckResponse_Result {
+	if m != nil {
+		return m.Result
+	}
+	return nil
+}
+
+func (x *ReadinessCheckResponse) GetOkResponse() *ReadinessCheckResponse_Ok {
+	if x, ok := x.GetResult().(*ReadinessCheckResponse_OkResponse); ok {
+		return x.OkResponse
+	}
+	return nil
+}
+
+func (x *ReadinessCheckResponse) GetFailureResponse() *ReadinessCheckResponse_Failure {
+	if x, ok := x.GetResult().(*ReadinessCheckResponse_FailureResponse); ok {
+		return x.FailureResponse
+	}
+	return nil
+}
+
+type isReadinessCheckResponse_Result interface {
+	isReadinessCheckResponse_Result()
+}
+
+type ReadinessCheckResponse_OkResponse struct {
+	// OkResponse is set when all checks pass.
+	OkResponse *ReadinessCheckResponse_Ok `protobuf:"bytes,1,opt,name=ok_response,json=okResponse,proto3,oneof"`
+}
+
+type ReadinessCheckResponse_FailureResponse struct {
+	// FailureResponse is set if at least one check failed.
+	FailureResponse *ReadinessCheckResponse_Failure `protobuf:"bytes,2,opt,name=failure_response,json=failureResponse,proto3,oneof"`
+}
+
+func (*ReadinessCheckResponse_OkResponse) isReadinessCheckResponse_Result() {}
+
+func (*ReadinessCheckResponse_FailureResponse) isReadinessCheckResponse_Result() {}
+
 // This comment is left unintentionally blank.
 type ServerInfoResponse_StorageStatus struct {
 	state         protoimpl.MessageState
@@ -345,7 +479,7 @@ type ServerInfoResponse_StorageStatus struct {
 func (x *ServerInfoResponse_StorageStatus) Reset() {
 	*x = ServerInfoResponse_StorageStatus{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_server_proto_msgTypes[6]
+		mi := &file_server_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -358,7 +492,7 @@ func (x *ServerInfoResponse_StorageStatus) String() string {
 func (*ServerInfoResponse_StorageStatus) ProtoMessage() {}
 
 func (x *ServerInfoResponse_StorageStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_server_proto_msgTypes[6]
+	mi := &file_server_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +568,7 @@ type DiskStatisticsResponse_StorageStatus struct {
 func (x *DiskStatisticsResponse_StorageStatus) Reset() {
 	*x = DiskStatisticsResponse_StorageStatus{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_server_proto_msgTypes[7]
+		mi := &file_server_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -447,7 +581,7 @@ func (x *DiskStatisticsResponse_StorageStatus) String() string {
 func (*DiskStatisticsResponse_StorageStatus) ProtoMessage() {}
 
 func (x *DiskStatisticsResponse_StorageStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_server_proto_msgTypes[7]
+	mi := &file_server_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -484,11 +618,159 @@ func (x *DiskStatisticsResponse_StorageStatus) GetUsed() int64 {
 	return 0
 }
 
+// Ok represents response if none checks failed.
+type ReadinessCheckResponse_Ok struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *ReadinessCheckResponse_Ok) Reset() {
+	*x = ReadinessCheckResponse_Ok{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_server_proto_msgTypes[10]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReadinessCheckResponse_Ok) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadinessCheckResponse_Ok) ProtoMessage() {}
+
+func (x *ReadinessCheckResponse_Ok) ProtoReflect() protoreflect.Message {
+	mi := &file_server_proto_msgTypes[10]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadinessCheckResponse_Ok.ProtoReflect.Descriptor instead.
+func (*ReadinessCheckResponse_Ok) Descriptor() ([]byte, []int) {
+	return file_server_proto_rawDescGZIP(), []int{7, 0}
+}
+
+// Failure represents response if at least one check failed.
+type ReadinessCheckResponse_Failure struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// FailedChecks is a list of failed checks.
+	FailedChecks []*ReadinessCheckResponse_Failure_Response `protobuf:"bytes,1,rep,name=failed_checks,json=failedChecks,proto3" json:"failed_checks,omitempty"`
+}
+
+func (x *ReadinessCheckResponse_Failure) Reset() {
+	*x = ReadinessCheckResponse_Failure{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_server_proto_msgTypes[11]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReadinessCheckResponse_Failure) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadinessCheckResponse_Failure) ProtoMessage() {}
+
+func (x *ReadinessCheckResponse_Failure) ProtoReflect() protoreflect.Message {
+	mi := &file_server_proto_msgTypes[11]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadinessCheckResponse_Failure.ProtoReflect.Descriptor instead.
+func (*ReadinessCheckResponse_Failure) Descriptor() ([]byte, []int) {
+	return file_server_proto_rawDescGZIP(), []int{7, 1}
+}
+
+func (x *ReadinessCheckResponse_Failure) GetFailedChecks() []*ReadinessCheckResponse_Failure_Response {
+	if x != nil {
+		return x.FailedChecks
+	}
+	return nil
+}
+
+// Response contains information about failed check.
+type ReadinessCheckResponse_Failure_Response struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Name is a name of the check that was performed.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// ErrorMessage is a cause of the check failure.
+	ErrorMessage string `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+}
+
+func (x *ReadinessCheckResponse_Failure_Response) Reset() {
+	*x = ReadinessCheckResponse_Failure_Response{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_server_proto_msgTypes[12]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReadinessCheckResponse_Failure_Response) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadinessCheckResponse_Failure_Response) ProtoMessage() {}
+
+func (x *ReadinessCheckResponse_Failure_Response) ProtoReflect() protoreflect.Message {
+	mi := &file_server_proto_msgTypes[12]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadinessCheckResponse_Failure_Response.ProtoReflect.Descriptor instead.
+func (*ReadinessCheckResponse_Failure_Response) Descriptor() ([]byte, []int) {
+	return file_server_proto_rawDescGZIP(), []int{7, 1, 0}
+}
+
+func (x *ReadinessCheckResponse_Failure_Response) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ReadinessCheckResponse_Failure_Response) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 var File_server_proto protoreflect.FileDescriptor
 
 var file_server_proto_rawDesc = []byte{
 	0x0a, 0x0c, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x06,
-	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x1a, 0x0a, 0x6c, 0x69, 0x6e, 0x74, 0x2e, 0x70, 0x72, 0x6f,
+	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x1a, 0x1e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x64, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x0a, 0x6c, 0x69, 0x6e, 0x74, 0x2e, 0x70, 0x72, 0x6f,
 	0x74, 0x6f, 0x22, 0x13, 0x0a, 0x11, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f,
 	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x8d, 0x03, 0x0a, 0x12, 0x53, 0x65, 0x72, 0x76,
 	0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x25,
@@ -540,26 +822,58 @@ var file_server_proto_rawDesc = []byte{
 	0x73, 0x22, 0x2d, 0x0a, 0x13, 0x43, 0x6c, 0x6f, 0x63, 0x6b, 0x53, 0x79, 0x6e, 0x63, 0x65, 0x64,
 	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x79, 0x6e, 0x63,
 	0x65, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x73, 0x79, 0x6e, 0x63, 0x65, 0x64,
-	0x32, 0xf3, 0x01, 0x0a, 0x0d, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69,
-	0x63, 0x65, 0x12, 0x43, 0x0a, 0x0a, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f,
-	0x12, 0x19, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72,
-	0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x67, 0x69,
+	0x22, 0x4c, 0x0a, 0x15, 0x52, 0x65, 0x61, 0x64, 0x69, 0x6e, 0x65, 0x73, 0x73, 0x43, 0x68, 0x65,
+	0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x33, 0x0a, 0x07, 0x74, 0x69, 0x6d,
+	0x65, 0x6f, 0x75, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x19, 0x2e, 0x67, 0x6f, 0x6f,
+	0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x44, 0x75, 0x72,
+	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x07, 0x74, 0x69, 0x6d, 0x65, 0x6f, 0x75, 0x74, 0x22, 0xea,
+	0x02, 0x0a, 0x16, 0x52, 0x65, 0x61, 0x64, 0x69, 0x6e, 0x65, 0x73, 0x73, 0x43, 0x68, 0x65, 0x63,
+	0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x44, 0x0a, 0x0b, 0x6f, 0x6b, 0x5f,
+	0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x21,
+	0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x65, 0x61, 0x64, 0x69, 0x6e, 0x65, 0x73,
+	0x73, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x4f,
+	0x6b, 0x48, 0x00, 0x52, 0x0a, 0x6f, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x53, 0x0a, 0x10, 0x66, 0x61, 0x69, 0x6c, 0x75, 0x72, 0x65, 0x5f, 0x72, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x26, 0x2e, 0x67, 0x69, 0x74, 0x61,
+	0x6c, 0x79, 0x2e, 0x52, 0x65, 0x61, 0x64, 0x69, 0x6e, 0x65, 0x73, 0x73, 0x43, 0x68, 0x65, 0x63,
+	0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x46, 0x61, 0x69, 0x6c, 0x75, 0x72,
+	0x65, 0x48, 0x00, 0x52, 0x0f, 0x66, 0x61, 0x69, 0x6c, 0x75, 0x72, 0x65, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x1a, 0x04, 0x0a, 0x02, 0x4f, 0x6b, 0x1a, 0xa4, 0x01, 0x0a, 0x07, 0x46,
+	0x61, 0x69, 0x6c, 0x75, 0x72, 0x65, 0x12, 0x54, 0x0a, 0x0d, 0x66, 0x61, 0x69, 0x6c, 0x65, 0x64,
+	0x5f, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x2f, 0x2e,
+	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x65, 0x61, 0x64, 0x69, 0x6e, 0x65, 0x73, 0x73,
+	0x43, 0x68, 0x65, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x46, 0x61,
+	0x69, 0x6c, 0x75, 0x72, 0x65, 0x2e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x52, 0x0c,
+	0x66, 0x61, 0x69, 0x6c, 0x65, 0x64, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x73, 0x1a, 0x43, 0x0a, 0x08,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x23, 0x0a, 0x0d,
+	0x65, 0x72, 0x72, 0x6f, 0x72, 0x5f, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x0c, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67,
+	0x65, 0x42, 0x08, 0x0a, 0x06, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x32, 0xc4, 0x02, 0x0a, 0x0d,
+	0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x43, 0x0a,
+	0x0a, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x19, 0x2e, 0x67, 0x69,
 	0x74, 0x61, 0x6c, 0x79, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0e, 0x44, 0x69, 0x73, 0x6b, 0x53,
-	0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73, 0x12, 0x1d, 0x2e, 0x67, 0x69, 0x74, 0x61,
-	0x6c, 0x79, 0x2e, 0x44, 0x69, 0x73, 0x6b, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63,
-	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c,
-	0x79, 0x2e, 0x44, 0x69, 0x73, 0x6b, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x46, 0x0a, 0x0b, 0x43, 0x6c, 0x6f, 0x63,
-	0x6b, 0x53, 0x79, 0x6e, 0x63, 0x65, 0x64, 0x12, 0x1a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79,
-	0x2e, 0x43, 0x6c, 0x6f, 0x63, 0x6b, 0x53, 0x79, 0x6e, 0x63, 0x65, 0x64, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x43, 0x6c, 0x6f,
-	0x63, 0x6b, 0x53, 0x79, 0x6e, 0x63, 0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x1a, 0x04, 0xf0, 0x97, 0x28, 0x01, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62,
-	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2d, 0x6f, 0x72, 0x67, 0x2f,
-	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x35, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x2f, 0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e,
+	0x53, 0x65, 0x72, 0x76, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0e, 0x44, 0x69, 0x73, 0x6b, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73,
+	0x74, 0x69, 0x63, 0x73, 0x12, 0x1d, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44, 0x69,
+	0x73, 0x6b, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44, 0x69, 0x73,
+	0x6b, 0x53, 0x74, 0x61, 0x74, 0x69, 0x73, 0x74, 0x69, 0x63, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x46, 0x0a, 0x0b, 0x43, 0x6c, 0x6f, 0x63, 0x6b, 0x53, 0x79, 0x6e, 0x63,
+	0x65, 0x64, 0x12, 0x1a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x43, 0x6c, 0x6f, 0x63,
+	0x6b, 0x53, 0x79, 0x6e, 0x63, 0x65, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1b,
+	0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x43, 0x6c, 0x6f, 0x63, 0x6b, 0x53, 0x79, 0x6e,
+	0x63, 0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4f, 0x0a, 0x0e, 0x52,
+	0x65, 0x61, 0x64, 0x69, 0x6e, 0x65, 0x73, 0x73, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x12, 0x1d, 0x2e,
+	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x65, 0x61, 0x64, 0x69, 0x6e, 0x65, 0x73, 0x73,
+	0x43, 0x68, 0x65, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x67,
+	0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x65, 0x61, 0x64, 0x69, 0x6e, 0x65, 0x73, 0x73, 0x43,
+	0x68, 0x65, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x1a, 0x04, 0xf0, 0x97,
+	0x28, 0x01, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2e, 0x63, 0x6f, 0x6d,
+	0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2d, 0x6f, 0x72, 0x67, 0x2f, 0x67, 0x69, 0x74, 0x61,
+	0x6c, 0x79, 0x2f, 0x76, 0x31, 0x35, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x2f,
+	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -574,31 +888,43 @@ func file_server_proto_rawDescGZIP() []byte {
 	return file_server_proto_rawDescData
 }
 
-var file_server_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_server_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_server_proto_goTypes = []interface{}{
-	(*ServerInfoRequest)(nil),                    // 0: gitaly.ServerInfoRequest
-	(*ServerInfoResponse)(nil),                   // 1: gitaly.ServerInfoResponse
-	(*DiskStatisticsRequest)(nil),                // 2: gitaly.DiskStatisticsRequest
-	(*DiskStatisticsResponse)(nil),               // 3: gitaly.DiskStatisticsResponse
-	(*ClockSyncedRequest)(nil),                   // 4: gitaly.ClockSyncedRequest
-	(*ClockSyncedResponse)(nil),                  // 5: gitaly.ClockSyncedResponse
-	(*ServerInfoResponse_StorageStatus)(nil),     // 6: gitaly.ServerInfoResponse.StorageStatus
-	(*DiskStatisticsResponse_StorageStatus)(nil), // 7: gitaly.DiskStatisticsResponse.StorageStatus
+	(*ServerInfoRequest)(nil),                       // 0: gitaly.ServerInfoRequest
+	(*ServerInfoResponse)(nil),                      // 1: gitaly.ServerInfoResponse
+	(*DiskStatisticsRequest)(nil),                   // 2: gitaly.DiskStatisticsRequest
+	(*DiskStatisticsResponse)(nil),                  // 3: gitaly.DiskStatisticsResponse
+	(*ClockSyncedRequest)(nil),                      // 4: gitaly.ClockSyncedRequest
+	(*ClockSyncedResponse)(nil),                     // 5: gitaly.ClockSyncedResponse
+	(*ReadinessCheckRequest)(nil),                   // 6: gitaly.ReadinessCheckRequest
+	(*ReadinessCheckResponse)(nil),                  // 7: gitaly.ReadinessCheckResponse
+	(*ServerInfoResponse_StorageStatus)(nil),        // 8: gitaly.ServerInfoResponse.StorageStatus
+	(*DiskStatisticsResponse_StorageStatus)(nil),    // 9: gitaly.DiskStatisticsResponse.StorageStatus
+	(*ReadinessCheckResponse_Ok)(nil),               // 10: gitaly.ReadinessCheckResponse.Ok
+	(*ReadinessCheckResponse_Failure)(nil),          // 11: gitaly.ReadinessCheckResponse.Failure
+	(*ReadinessCheckResponse_Failure_Response)(nil), // 12: gitaly.ReadinessCheckResponse.Failure.Response
+	(*durationpb.Duration)(nil),                     // 13: google.protobuf.Duration
 }
 var file_server_proto_depIdxs = []int32{
-	6, // 0: gitaly.ServerInfoResponse.storage_statuses:type_name -> gitaly.ServerInfoResponse.StorageStatus
-	7, // 1: gitaly.DiskStatisticsResponse.storage_statuses:type_name -> gitaly.DiskStatisticsResponse.StorageStatus
-	0, // 2: gitaly.ServerService.ServerInfo:input_type -> gitaly.ServerInfoRequest
-	2, // 3: gitaly.ServerService.DiskStatistics:input_type -> gitaly.DiskStatisticsRequest
-	4, // 4: gitaly.ServerService.ClockSynced:input_type -> gitaly.ClockSyncedRequest
-	1, // 5: gitaly.ServerService.ServerInfo:output_type -> gitaly.ServerInfoResponse
-	3, // 6: gitaly.ServerService.DiskStatistics:output_type -> gitaly.DiskStatisticsResponse
-	5, // 7: gitaly.ServerService.ClockSynced:output_type -> gitaly.ClockSyncedResponse
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	8,  // 0: gitaly.ServerInfoResponse.storage_statuses:type_name -> gitaly.ServerInfoResponse.StorageStatus
+	9,  // 1: gitaly.DiskStatisticsResponse.storage_statuses:type_name -> gitaly.DiskStatisticsResponse.StorageStatus
+	13, // 2: gitaly.ReadinessCheckRequest.timeout:type_name -> google.protobuf.Duration
+	10, // 3: gitaly.ReadinessCheckResponse.ok_response:type_name -> gitaly.ReadinessCheckResponse.Ok
+	11, // 4: gitaly.ReadinessCheckResponse.failure_response:type_name -> gitaly.ReadinessCheckResponse.Failure
+	12, // 5: gitaly.ReadinessCheckResponse.Failure.failed_checks:type_name -> gitaly.ReadinessCheckResponse.Failure.Response
+	0,  // 6: gitaly.ServerService.ServerInfo:input_type -> gitaly.ServerInfoRequest
+	2,  // 7: gitaly.ServerService.DiskStatistics:input_type -> gitaly.DiskStatisticsRequest
+	4,  // 8: gitaly.ServerService.ClockSynced:input_type -> gitaly.ClockSyncedRequest
+	6,  // 9: gitaly.ServerService.ReadinessCheck:input_type -> gitaly.ReadinessCheckRequest
+	1,  // 10: gitaly.ServerService.ServerInfo:output_type -> gitaly.ServerInfoResponse
+	3,  // 11: gitaly.ServerService.DiskStatistics:output_type -> gitaly.DiskStatisticsResponse
+	5,  // 12: gitaly.ServerService.ClockSynced:output_type -> gitaly.ClockSyncedResponse
+	7,  // 13: gitaly.ServerService.ReadinessCheck:output_type -> gitaly.ReadinessCheckResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_server_proto_init() }
@@ -681,7 +1007,7 @@ func file_server_proto_init() {
 			}
 		}
 		file_server_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ServerInfoResponse_StorageStatus); i {
+			switch v := v.(*ReadinessCheckRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -693,6 +1019,30 @@ func file_server_proto_init() {
 			}
 		}
 		file_server_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReadinessCheckResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_server_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ServerInfoResponse_StorageStatus); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_server_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*DiskStatisticsResponse_StorageStatus); i {
 			case 0:
 				return &v.state
@@ -704,6 +1054,46 @@ func file_server_proto_init() {
 				return nil
 			}
 		}
+		file_server_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReadinessCheckResponse_Ok); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_server_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReadinessCheckResponse_Failure); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_server_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReadinessCheckResponse_Failure_Response); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+	}
+	file_server_proto_msgTypes[7].OneofWrappers = []interface{}{
+		(*ReadinessCheckResponse_OkResponse)(nil),
+		(*ReadinessCheckResponse_FailureResponse)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -711,7 +1101,7 @@ func file_server_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_server_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

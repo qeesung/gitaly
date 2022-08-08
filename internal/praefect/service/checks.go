@@ -1,4 +1,4 @@
-package praefect
+package service
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	migrate "github.com/rubenv/sql-migrate"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
@@ -47,6 +48,17 @@ type Check struct {
 
 // CheckFunc is a function type that takes a praefect config and returns a Check
 type CheckFunc func(conf config.Config, w io.Writer, quiet bool) *Check
+
+// AllChecks returns slice of all checks that can be executed for praefect.
+func AllChecks() []CheckFunc {
+	return []CheckFunc{
+		NewPraefectMigrationCheck,
+		NewGitalyNodeConnectivityCheck,
+		NewPostgresReadWriteCheck,
+		NewUnavailableReposCheck,
+		NewClockSyncCheck(helper.CheckClockSync),
+	}
+}
 
 // NewPraefectMigrationCheck returns a Check that checks if all praefect migrations have run
 func NewPraefectMigrationCheck(conf config.Config, w io.Writer, quiet bool) *Check {

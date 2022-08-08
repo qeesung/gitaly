@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/grpc-proxy/proxy"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/nodes"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/protoregistry"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/service"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/transactions"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -30,6 +31,7 @@ func NewServerFactory(
 	registry *protoregistry.Registry,
 	conns Connections,
 	primaryGetter PrimaryGetter,
+	checks []service.CheckFunc,
 ) *ServerFactory {
 	return &ServerFactory{
 		conf:            conf,
@@ -43,6 +45,7 @@ func NewServerFactory(
 		registry:        registry,
 		conns:           conns,
 		primaryGetter:   primaryGetter,
+		checks:          checks,
 	}
 }
 
@@ -61,6 +64,7 @@ type ServerFactory struct {
 	secure, insecure []*grpc.Server
 	conns            Connections
 	primaryGetter    PrimaryGetter
+	checks           []service.CheckFunc
 }
 
 // Serve starts serving on the provided listener with newly created grpc.Server
@@ -131,6 +135,7 @@ func (s *ServerFactory) createGRPC(creds credentials.TransportCredentials) *grpc
 		s.conns,
 		s.primaryGetter,
 		creds,
+		s.checks,
 	)
 }
 

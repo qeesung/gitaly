@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/service"
 )
 
 func TestCheckSubcommand_Exec(t *testing.T) {
@@ -20,36 +20,36 @@ func TestCheckSubcommand_Exec(t *testing.T) {
 
 	testCases := []struct {
 		desc                string
-		checks              []praefect.CheckFunc
+		checks              []service.CheckFunc
 		expectedQuietOutput string
 		expectedOutput      string
 		expectedError       error
 	}{
 		{
 			desc: "all checks pass",
-			checks: []praefect.CheckFunc{
-				func(cfg config.Config, w io.Writer, quiet bool) *praefect.Check {
-					return &praefect.Check{
+			checks: []service.CheckFunc{
+				func(cfg config.Config, w io.Writer, quiet bool) *service.Check {
+					return &service.Check{
 						Name:        "check 1",
 						Description: "checks a",
 						Run:         func(ctx context.Context) error { return nil },
-						Severity:    praefect.Fatal,
+						Severity:    service.Fatal,
 					}
 				},
-				func(cfg config.Config, w io.Writer, quiet bool) *praefect.Check {
-					return &praefect.Check{
+				func(cfg config.Config, w io.Writer, quiet bool) *service.Check {
+					return &service.Check{
 						Name:        "check 2",
 						Description: "checks b",
 						Run:         func(ctx context.Context) error { return nil },
-						Severity:    praefect.Fatal,
+						Severity:    service.Fatal,
 					}
 				},
-				func(cfg config.Config, w io.Writer, quiet bool) *praefect.Check {
-					return &praefect.Check{
+				func(cfg config.Config, w io.Writer, quiet bool) *service.Check {
+					return &service.Check{
 						Name:        "check 3",
 						Description: "checks c",
 						Run:         func(ctx context.Context) error { return nil },
-						Severity:    praefect.Fatal,
+						Severity:    service.Fatal,
 					}
 				},
 			},
@@ -72,29 +72,29 @@ All checks passed.
 		},
 		{
 			desc: "a fatal check fails",
-			checks: []praefect.CheckFunc{
-				func(cfg config.Config, w io.Writer, quiet bool) *praefect.Check {
-					return &praefect.Check{
+			checks: []service.CheckFunc{
+				func(cfg config.Config, w io.Writer, quiet bool) *service.Check {
+					return &service.Check{
 						Name:        "check 1",
 						Description: "checks a",
 						Run:         func(ctx context.Context) error { return nil },
-						Severity:    praefect.Fatal,
+						Severity:    service.Fatal,
 					}
 				},
-				func(cfg config.Config, w io.Writer, quiet bool) *praefect.Check {
-					return &praefect.Check{
+				func(cfg config.Config, w io.Writer, quiet bool) *service.Check {
+					return &service.Check{
 						Name:        "check 2",
 						Description: "checks b",
 						Run:         func(ctx context.Context) error { return errors.New("i failed") },
-						Severity:    praefect.Fatal,
+						Severity:    service.Fatal,
 					}
 				},
-				func(cfg config.Config, w io.Writer, quiet bool) *praefect.Check {
-					return &praefect.Check{
+				func(cfg config.Config, w io.Writer, quiet bool) *service.Check {
+					return &service.Check{
 						Name:        "check 3",
 						Description: "checks c",
 						Run:         func(ctx context.Context) error { return nil },
-						Severity:    praefect.Fatal,
+						Severity:    service.Fatal,
 					}
 				},
 			},
@@ -117,29 +117,29 @@ Checking check 3...Passed
 		},
 		{
 			desc: "only warning checks fail",
-			checks: []praefect.CheckFunc{
-				func(cfg config.Config, w io.Writer, quiet bool) *praefect.Check {
-					return &praefect.Check{
+			checks: []service.CheckFunc{
+				func(cfg config.Config, w io.Writer, quiet bool) *service.Check {
+					return &service.Check{
 						Name:        "check 1",
 						Description: "checks a",
 						Run:         func(ctx context.Context) error { return nil },
-						Severity:    praefect.Fatal,
+						Severity:    service.Fatal,
 					}
 				},
-				func(cfg config.Config, w io.Writer, quiet bool) *praefect.Check {
-					return &praefect.Check{
+				func(cfg config.Config, w io.Writer, quiet bool) *service.Check {
+					return &service.Check{
 						Name:        "check 2",
 						Description: "checks b",
 						Run:         func(ctx context.Context) error { return errors.New("i failed but not too badly") },
-						Severity:    praefect.Warning,
+						Severity:    service.Warning,
 					}
 				},
-				func(cfg config.Config, w io.Writer, quiet bool) *praefect.Check {
-					return &praefect.Check{
+				func(cfg config.Config, w io.Writer, quiet bool) *service.Check {
+					return &service.Check{
 						Name:        "check 3",
 						Description: "checks c",
 						Run:         func(ctx context.Context) error { return errors.New("i failed but not too badly") },
-						Severity:    praefect.Warning,
+						Severity:    service.Warning,
 					}
 				},
 			},

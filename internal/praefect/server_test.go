@@ -159,8 +159,8 @@ func TestGitalyServerInfo(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(nodeSet.Close)
 
-		cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
-			withConnections: nodeSet.Connections(),
+		cc, _, cleanup := RunPraefectServer(t, ctx, conf, BuildOptions{
+			WithConnections: nodeSet.Connections(),
 		})
 		t.Cleanup(cleanup)
 
@@ -225,8 +225,8 @@ func TestGitalyServerInfo(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(nodeSet.Close)
 
-		cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
-			withConnections: nodeSet.Connections(),
+		cc, _, cleanup := RunPraefectServer(t, ctx, conf, BuildOptions{
+			WithConnections: nodeSet.Connections(),
 		})
 		t.Cleanup(cleanup)
 
@@ -262,8 +262,8 @@ func TestGitalyServerInfoBadNode(t *testing.T) {
 	require.NoError(t, err)
 	defer nodes.Close()
 
-	cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
-		withConnections: nodes.Connections(),
+	cc, _, cleanup := RunPraefectServer(t, ctx, conf, BuildOptions{
+		WithConnections: nodes.Connections(),
 	})
 	defer cleanup()
 
@@ -294,8 +294,8 @@ func TestDiskStatistics(t *testing.T) {
 	require.NoError(t, err)
 	defer nodes.Close()
 
-	cc, _, cleanup := runPraefectServer(t, ctx, praefectCfg, buildOptions{
-		withConnections: nodes.Connections(),
+	cc, _, cleanup := RunPraefectServer(t, ctx, praefectCfg, BuildOptions{
+		WithConnections: nodes.Connections(),
 	})
 	defer cleanup()
 
@@ -314,12 +314,12 @@ func TestHealthCheck(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
-	cc, _, cleanup := runPraefectServer(t, ctx, config.Config{VirtualStorages: []*config.VirtualStorage{
+	cc, _, cleanup := RunPraefectServer(t, ctx, config.Config{VirtualStorages: []*config.VirtualStorage{
 		{
 			Name:  "praefect",
 			Nodes: []*config.Node{{Storage: "stub", Address: "unix:///stub-address", Token: ""}},
 		},
-	}}, buildOptions{})
+	}}, BuildOptions{})
 	defer cleanup()
 
 	client := grpc_health_v1.NewHealthClient(cc)
@@ -344,7 +344,7 @@ func TestRejectBadStorage(t *testing.T) {
 	}
 	ctx := testhelper.Context(t)
 
-	cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{})
+	cc, _, cleanup := RunPraefectServer(t, ctx, conf, BuildOptions{})
 	defer cleanup()
 
 	req := &gitalypb.GarbageCollectRequest{
@@ -396,9 +396,9 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 	tLogger, hook := test.NewNullLogger()
 
 	// instantiate a praefect server and trigger warning
-	_, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
-		withLogger:  logrus.NewEntry(tLogger),
-		withNodeMgr: nullNodeMgr{}, // to suppress node address issues
+	_, _, cleanup := RunPraefectServer(t, ctx, conf, BuildOptions{
+		WithLogger:  logrus.NewEntry(tLogger),
+		WithNodeMgr: nullNodeMgr{}, // to suppress node address issues
 	})
 	defer cleanup()
 
@@ -427,9 +427,9 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 	tLogger, hook = test.NewNullLogger()
 
 	// instantiate a praefect server and trigger warning
-	_, _, cleanup = runPraefectServer(t, ctx, conf, buildOptions{
-		withLogger:  logrus.NewEntry(tLogger),
-		withNodeMgr: nullNodeMgr{}, // to suppress node address issues
+	_, _, cleanup = RunPraefectServer(t, ctx, conf, BuildOptions{
+		WithLogger:  logrus.NewEntry(tLogger),
+		WithNodeMgr: nullNodeMgr{}, // to suppress node address issues
 	})
 	defer cleanup()
 
@@ -476,9 +476,9 @@ func TestWarnDuplicateAddrs(t *testing.T) {
 	tLogger, hook = test.NewNullLogger()
 
 	// instantiate a praefect server and trigger warning
-	_, _, cleanup = runPraefectServer(t, ctx, conf, buildOptions{
-		withLogger:  logrus.NewEntry(tLogger),
-		withNodeMgr: nullNodeMgr{}, // to suppress node address issues
+	_, _, cleanup = RunPraefectServer(t, ctx, conf, BuildOptions{
+		WithLogger:  logrus.NewEntry(tLogger),
+		WithNodeMgr: nullNodeMgr{}, // to suppress node address issues
 	})
 	defer cleanup()
 
@@ -535,15 +535,15 @@ func TestRemoveRepository(t *testing.T) {
 	nodeMgr.Start(0, time.Hour)
 	defer nodeMgr.Stop()
 
-	cc, _, cleanup := runPraefectServer(t, ctx, praefectCfg, buildOptions{
-		withQueue: queueInterceptor,
-		withRepoStore: datastore.MockRepositoryStore{
+	cc, _, cleanup := RunPraefectServer(t, ctx, praefectCfg, BuildOptions{
+		WithQueue: queueInterceptor,
+		WithRepoStore: datastore.MockRepositoryStore{
 			GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (string, map[string]struct{}, error) {
 				return relativePath, nil, nil
 			},
 		},
-		withNodeMgr: nodeMgr,
-		withTxMgr:   txMgr,
+		WithNodeMgr: nodeMgr,
+		WithTxMgr:   txMgr,
 	})
 	defer cleanup()
 
@@ -612,10 +612,10 @@ func testRenameRepository(t *testing.T, ctx context.Context) {
 	require.NoError(t, err)
 	defer nodeSet.Close()
 
-	cc, _, cleanup := runPraefectServer(t, ctx, praefectCfg, buildOptions{
-		withQueue:     evq,
-		withRepoStore: rs,
-		withRouter: NewPerRepositoryRouter(
+	cc, _, cleanup := RunPraefectServer(t, ctx, praefectCfg, BuildOptions{
+		WithQueue:     evq,
+		WithRepoStore: rs,
+		WithRouter: NewPerRepositoryRouter(
 			nodeSet.Connections(),
 			nodes.NewPerRepositoryElector(db),
 			StaticHealthChecker(praefectCfg.StorageNames()),
@@ -625,7 +625,7 @@ func testRenameRepository(t *testing.T, ctx context.Context) {
 			rs,
 			nil,
 		),
-		withTxMgr: txManager,
+		WithTxMgr: txManager,
 	})
 	t.Cleanup(cleanup)
 

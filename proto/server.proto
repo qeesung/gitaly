@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package gitaly;
 
+import "google/protobuf/duration.proto";
 import "lint.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb";
@@ -20,6 +21,8 @@ service ServerService {
   // (the offset is less that the one passed in the request).
   rpc ClockSynced(ClockSyncedRequest) returns (ClockSyncedResponse);
 
+  // ReadinessCheck runs the set of the checks to make sure service is in operational state.
+  rpc ReadinessCheck(ReadinessCheckRequest) returns (ReadinessCheckResponse);
 }
 
 // This comment is left unintentionally blank.
@@ -86,4 +89,37 @@ message ClockSyncedRequest {
 message ClockSyncedResponse {
   // synced is set to true if system clock has an affordable drift compared to NTP service.
   bool synced = 1;
+}
+
+// ReadinessCheckRequest is used to verify if the service is in operational state.
+message ReadinessCheckRequest {
+  // Timeout is an amount of milliseconds for the check to run before give up and mark as failed.
+  google.protobuf.Duration timeout = 1;
+}
+
+// ReadinessCheckResponse is just a stub now and contains no information.
+// If the service is not in the operational state the error will be returned instead.
+message ReadinessCheckResponse {
+  // Ok represents response if none checks failed.
+  message Ok {
+  }
+  // Failure represents response if at least one check failed.
+  message Failure {
+    // Response contains information about failed check.
+    message Response {
+      // Name is a name of the check that was performed.
+      string name = 1;
+      // ErrorMessage is a cause of the check failure.
+      string error_message = 2;
+    }
+    // FailedChecks is a list of failed checks.
+    repeated Response failed_checks = 1;
+  }
+
+  oneof Result {
+    // OkResponse is set when all checks pass.
+    Ok ok_response = 1;
+    // FailureResponse is set if at least one check failed.
+    Failure failure_response = 2;
+  }
 }

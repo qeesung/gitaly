@@ -8,8 +8,8 @@ import (
 	"io"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/service"
 )
 
 const (
@@ -19,10 +19,10 @@ const (
 type checkSubcommand struct {
 	w          io.Writer
 	quiet      bool
-	checkFuncs []praefect.CheckFunc
+	checkFuncs []service.CheckFunc
 }
 
-func newCheckSubcommand(writer io.Writer, checkFuncs ...praefect.CheckFunc) *checkSubcommand {
+func newCheckSubcommand(writer io.Writer, checkFuncs ...service.CheckFunc) *checkSubcommand {
 	return &checkSubcommand{
 		w:          writer,
 		checkFuncs: checkFuncs,
@@ -43,8 +43,8 @@ func (cmd *checkSubcommand) FlagSet() *flag.FlagSet {
 
 var errFatalChecksFailed = errors.New("checks failed")
 
-func (cmd *checkSubcommand) Exec(flags *flag.FlagSet, cfg config.Config) error {
-	var allChecks []*praefect.Check
+func (cmd *checkSubcommand) Exec(_ *flag.FlagSet, cfg config.Config) error {
+	var allChecks []*service.Check
 	for _, checkFunc := range cmd.checkFuncs {
 		allChecks = append(allChecks, checkFunc(cfg, cmd.w, cmd.quiet))
 	}
@@ -60,7 +60,7 @@ func (cmd *checkSubcommand) Exec(flags *flag.FlagSet, cfg config.Config) error {
 
 		if err := check.Run(ctx); err != nil {
 			failedChecks++
-			if check.Severity == praefect.Fatal {
+			if check.Severity == service.Fatal {
 				passed = false
 			}
 			fmt.Fprintf(cmd.w, "Failed (%s) error: %s\n", check.Severity, err.Error())
@@ -85,7 +85,7 @@ func (cmd *checkSubcommand) Exec(flags *flag.FlagSet, cfg config.Config) error {
 	return nil
 }
 
-func (cmd *checkSubcommand) printCheckDetails(check *praefect.Check) {
+func (cmd *checkSubcommand) printCheckDetails(check *service.Check) {
 	if cmd.quiet {
 		fmt.Fprintf(cmd.w, "Checking %s...", check.Name)
 		return

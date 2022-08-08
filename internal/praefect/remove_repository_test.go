@@ -120,6 +120,7 @@ func TestRemoveRepositoryHandler(t *testing.T) {
 				nodeSet.Connections(),
 				nil,
 				nil,
+				nil,
 			)
 			defer srv.Stop()
 

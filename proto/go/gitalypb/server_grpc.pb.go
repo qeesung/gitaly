@@ -29,6 +29,8 @@ type ServerServiceClient interface {
 	// ClockSynced checks if machine clock is synced
 	// (the offset is less that the one passed in the request).
 	ClockSynced(ctx context.Context, in *ClockSyncedRequest, opts ...grpc.CallOption) (*ClockSyncedResponse, error)
+	// ReadinessCheck runs the set of the checks to make sure service is in operational state.
+	ReadinessCheck(ctx context.Context, in *ReadinessCheckRequest, opts ...grpc.CallOption) (*ReadinessCheckResponse, error)
 }
 
 type serverServiceClient struct {
@@ -66,6 +68,15 @@ func (c *serverServiceClient) ClockSynced(ctx context.Context, in *ClockSyncedRe
 	return out, nil
 }
 
+func (c *serverServiceClient) ReadinessCheck(ctx context.Context, in *ReadinessCheckRequest, opts ...grpc.CallOption) (*ReadinessCheckResponse, error) {
+	out := new(ReadinessCheckResponse)
+	err := c.cc.Invoke(ctx, "/gitaly.ServerService/ReadinessCheck", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServerServiceServer is the server API for ServerService service.
 // All implementations must embed UnimplementedServerServiceServer
 // for forward compatibility
@@ -77,6 +88,8 @@ type ServerServiceServer interface {
 	// ClockSynced checks if machine clock is synced
 	// (the offset is less that the one passed in the request).
 	ClockSynced(context.Context, *ClockSyncedRequest) (*ClockSyncedResponse, error)
+	// ReadinessCheck runs the set of the checks to make sure service is in operational state.
+	ReadinessCheck(context.Context, *ReadinessCheckRequest) (*ReadinessCheckResponse, error)
 	mustEmbedUnimplementedServerServiceServer()
 }
 
@@ -92,6 +105,9 @@ func (UnimplementedServerServiceServer) DiskStatistics(context.Context, *DiskSta
 }
 func (UnimplementedServerServiceServer) ClockSynced(context.Context, *ClockSyncedRequest) (*ClockSyncedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClockSynced not implemented")
+}
+func (UnimplementedServerServiceServer) ReadinessCheck(context.Context, *ReadinessCheckRequest) (*ReadinessCheckResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadinessCheck not implemented")
 }
 func (UnimplementedServerServiceServer) mustEmbedUnimplementedServerServiceServer() {}
 
@@ -160,6 +176,24 @@ func _ServerService_ClockSynced_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ServerService_ReadinessCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadinessCheckRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServerServiceServer).ReadinessCheck(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gitaly.ServerService/ReadinessCheck",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServerServiceServer).ReadinessCheck(ctx, req.(*ReadinessCheckRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ServerService_ServiceDesc is the grpc.ServiceDesc for ServerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -178,6 +212,10 @@ var ServerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ClockSynced",
 			Handler:    _ServerService_ClockSynced_Handler,
+		},
+		{
+			MethodName: "ReadinessCheck",
+			Handler:    _ServerService_ReadinessCheck_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

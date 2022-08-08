@@ -100,10 +100,10 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 	conns := nodeSet.Connections()
 	rs := datastore.NewPostgresRepositoryStore(db, conf.StorageNames())
 
-	cc, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
-		withConnections: conns,
-		withRepoStore:   rs,
-		withRouter: NewPerRepositoryRouter(
+	cc, _, cleanup := RunPraefectServer(t, ctx, conf, BuildOptions{
+		WithConnections: conns,
+		WithRepoStore:   rs,
+		WithRouter: NewPerRepositoryRouter(
 			conns,
 			elector,
 			StaticHealthChecker{virtualStorage: storages},
@@ -113,8 +113,8 @@ func TestInfoService_RepositoryReplicas(t *testing.T) {
 			rs,
 			conf.DefaultReplicationFactors(),
 		),
-		withPrimaryGetter: elector,
-		withTxMgr:         txManager,
+		WithPrimaryGetter: elector,
+		WithTxMgr:         txManager,
 	})
 	// use cleanup to close the connections as gittest.CreateRepository will still use the connection
 	// for clean up after the test.

@@ -12,10 +12,9 @@ import (
 
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/service"
 	"google.golang.org/grpc"
 )
 
@@ -43,17 +42,10 @@ var subcommands = map[string]subcmd{
 	removeRepositoryCmdName:       newRemoveRepository(logger, os.Stdout),
 	trackRepositoryCmdName:        newTrackRepository(logger, os.Stdout),
 	listUntrackedRepositoriesName: newListUntrackedRepositories(logger, os.Stdout),
-	checkCmdName: newCheckSubcommand(
-		os.Stdout,
-		praefect.NewPraefectMigrationCheck,
-		praefect.NewGitalyNodeConnectivityCheck,
-		praefect.NewPostgresReadWriteCheck,
-		praefect.NewUnavailableReposCheck,
-		praefect.NewClockSyncCheck(helper.CheckClockSync),
-	),
-	metadataCmdName:     newMetadataSubcommand(os.Stdout),
-	verifyCmdName:       newVerifySubcommand(os.Stdout),
-	listStoragesCmdName: newListStorages(os.Stdout),
+	checkCmdName:                  newCheckSubcommand(os.Stdout, service.AllChecks()...),
+	metadataCmdName:               newMetadataSubcommand(os.Stdout),
+	verifyCmdName:                 newVerifySubcommand(os.Stdout),
+	listStoragesCmdName:           newListStorages(os.Stdout),
 }
 
 // subCommand returns an exit code, to be fed into os.Exit.

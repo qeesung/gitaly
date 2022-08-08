@@ -528,8 +528,8 @@ func TestVerifier(t *testing.T) {
 			conns := nodeSet.Connections()
 			rs := datastore.NewPostgresRepositoryStore(db, conf.StorageNames())
 
-			conn, _, cleanup := runPraefectServer(t, ctx, conf, buildOptions{
-				withRouter: NewPerRepositoryRouter(
+			conn, _, cleanup := RunPraefectServer(t, ctx, conf, BuildOptions{
+				WithRouter: NewPerRepositoryRouter(
 					conns,
 					elector,
 					StaticHealthChecker(conf.StorageNames()),
@@ -539,8 +539,8 @@ func TestVerifier(t *testing.T) {
 					rs,
 					conf.DefaultReplicationFactors(),
 				),
-				withRepoStore: rs,
-				withTxMgr:     txManager,
+				WithRepoStore: rs,
+				WithTxMgr:     txManager,
 			})
 			t.Cleanup(cleanup)
 

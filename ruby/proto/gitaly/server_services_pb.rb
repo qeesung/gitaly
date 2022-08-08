@@ -22,6 +22,8 @@ module Gitaly
       # ClockSynced checks if machine clock is synced
       # (the offset is less that the one passed in the request).
       rpc :ClockSynced, ::Gitaly::ClockSyncedRequest, ::Gitaly::ClockSyncedResponse
+      # ReadinessCheck runs the set of the checks to make sure service is in operational state.
+      rpc :ReadinessCheck, ::Gitaly::ReadinessCheckRequest, ::Gitaly::ReadinessCheckResponse
     end
 
     Stub = Service.rpc_stub_class

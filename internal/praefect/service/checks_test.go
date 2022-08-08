@@ -1,6 +1,6 @@
 //go:build !gitaly_test_sha256
 
-package praefect
+package service
 
 import (
 	"bytes"
