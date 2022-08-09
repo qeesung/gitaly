@@ -3,6 +3,9 @@
 package linguist
 
 import (
+	"compress/zlib"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,41 +20,80 @@ func TestNewLanguageStats(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	t.Run("non-existing cache", func(t *testing.T) {
-		s, err := newLanguageStats(repo)
-		require.NoError(t, err)
-		require.Empty(t, s.Totals)
-		require.Empty(t, s.ByFile)
-	})
+	for _, tc := range []struct {
+		desc string
+		run  func(*testing.T, *localrepo.Repo, string)
+	}{
+		{
+			desc: "non-existing cache",
+			run: func(t *testing.T, repo *localrepo.Repo, repoPath string) {
+				stats, err := newLanguageStats(repo)
+				require.NoError(t, err)
+				require.Empty(t, stats.Totals)
+				require.Empty(t, stats.ByFile)
+			},
+		},
+		{
+			desc: "pre-existing cache",
+			run: func(t *testing.T, repo *localrepo.Repo, repoPath string) {
+				stats, err := newLanguageStats(repo)
+				require.NoError(t, err)
 
-	t.Run("pre-existing cache", func(t *testing.T) {
-		s, err := newLanguageStats(repo)
-		require.NoError(t, err)
+				stats.Totals["C"] = 555
+				require.NoError(t, stats.save(repo, "badcafe"))
 
-		s.Totals["C"] = 555
-		require.NoError(t, s.save(repo, "badcafe"))
+				require.Equal(t, ByteCountPerLanguage{"C": 555}, stats.Totals)
+			},
+		},
+		{
+			desc: "corrupt cache",
+			run: func(t *testing.T, repo *localrepo.Repo, repoPath string) {
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, languageStatsFilename), []byte("garbage"), 0o644))
 
-		require.Equal(t, ByteCountPerLanguage{"C": 555}, s.Totals)
-	})
+				stats, err := newLanguageStats(repo)
+				require.Errorf(t, err, "new language stats zlib reader: invalid header")
+				require.Empty(t, stats.Totals)
+				require.Empty(t, stats.ByFile)
+			},
+		},
+		{
+			desc: "incorrect version cache",
+			run: func(t *testing.T, repo *localrepo.Repo, repoPath string) {
+				stats, err := newLanguageStats(repo)
+				require.NoError(t, err)
 
-	t.Run("corrupt cache", func(t *testing.T) {
-		require.NoError(t, os.WriteFile(filepath.Join(repoPath, languageStatsFilename), []byte("garbage"), 0o644))
+				stats.Totals["C"] = 555
+				stats.Version = "faulty"
 
-		s, err := newLanguageStats(repo)
-		require.Errorf(t, err, "new language stats zlib reader: invalid header")
-		require.Empty(t, s.Totals)
-		require.Empty(t, s.ByFile)
-	})
+				// Copy save() behavior, but with a faulty version
+				file, err := os.OpenFile(filepath.Join(repoPath, languageStatsFilename), os.O_WRONLY|os.O_CREATE, 0o755)
+				require.NoError(t, err)
+				w := zlib.NewWriter(file)
+				require.NoError(t, json.NewEncoder(w).Encode(stats))
+				require.NoError(t, w.Close())
+				require.NoError(t, file.Sync())
+				require.NoError(t, file.Close())
+
+				newStats, err := newLanguageStats(repo)
+				require.Error(t, err, fmt.Errorf("new language stats version mismatch %s vs %s", languageStatsVersion, "faulty"))
+				require.Empty(t, newStats.Totals)
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+			repo := localrepo.NewTestRepo(t, cfg, repoProto)
+			tc.run(t, repo, repoPath)
+		})
+	}
 }
 
 func TestLanguageStats_add(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
-	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	for _, tc := range []struct {
@@ -118,7 +160,7 @@ func TestLanguageStats_drop(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
-	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	for _, tc := range []struct {
@@ -173,7 +215,7 @@ func TestLanguageStats_save(t *testing.T) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	s, err := newLanguageStats(repo)

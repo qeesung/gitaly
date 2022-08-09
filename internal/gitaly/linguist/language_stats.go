@@ -16,7 +16,7 @@ const (
 	// a cached version of the language statistics. The name is
 	// intentionally different from what the linguist gem uses.
 	languageStatsFilename = "gitaly-language.stats"
-	languageStatsVersion  = "v1:gitaly"
+	languageStatsVersion  = "v2:gitaly"
 )
 
 // languageStats takes care of accumulating and caching language statistics for
@@ -89,7 +89,9 @@ func (c *languageStats) add(filename, language string, size uint64) {
 	}
 
 	c.ByFile[filename] = ByteCountPerLanguage{language: size}
-	c.Totals[language] += size
+	if size > 0 {
+		c.Totals[language] += size
+	}
 }
 
 // drop statistics for the given files

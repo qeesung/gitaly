@@ -94,7 +94,7 @@ func WriteTree(t testing.TB, cfg config.Cfg, repoPath string, entries []TreeEntr
 			t.Fatalf("invalid entry type %q", entry.Mode)
 		}
 
-		require.True(t, len(entry.OID) > 0 || len(entry.Content) > 0,
+		require.False(t, len(entry.OID) > 0 && len(entry.Content) > 0,
 			"entry cannot have both OID and content")
 		require.False(t, len(entry.OID) == 0 && len(entry.Content) == 0,
 			"entry must have either an OID or content")
