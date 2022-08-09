@@ -596,7 +596,7 @@ func TestExecCommandFactory_GitVersion(t *testing.T) {
 
 func TestExecCommandFactory_config(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.LowerBigFileThreshold).Run(t, testExecCommandFactoryConfig)
+	testhelper.NewFeatureSets(featureflag.LowerBigFileThreshold, featureflag.AutocrlfConfig).Run(t, testExecCommandFactoryConfig)
 }
 
 func testExecCommandFactoryConfig(t *testing.T, ctx context.Context) {
@@ -611,9 +611,15 @@ func testExecCommandFactoryConfig(t *testing.T, ctx context.Context) {
 	})
 	require.NoError(t, os.Remove(filepath.Join(repoDir, "config")))
 
+	// Feature flag to change the default global configuration of autocrlf.
+	autocrlf := "input"
+	if featureflag.AutocrlfConfig.IsEnabled(ctx) {
+		autocrlf = "false"
+	}
+
 	expectedEnv := []string{
 		"gc.auto=0",
-		"core.autocrlf=input",
+		"core.autocrlf=" + autocrlf,
 		"core.usereplacerefs=false",
 		"core.fsync=objects,derived-metadata,reference",
 		"core.fsyncmethod=fsync",
