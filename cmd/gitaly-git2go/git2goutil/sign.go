@@ -17,7 +17,7 @@ func ReadKeyAndSign(contentToSign string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("get home dir: %w", err)
 	}
-	file, err := os.Open(filepath.Join(homeDir, "key.pem"))
+	file, err := os.Open(filepath.Join(homeDir, "key.der"))
 	if err != nil {
 		return "", fmt.Errorf("open file: %w", err)
 	}
