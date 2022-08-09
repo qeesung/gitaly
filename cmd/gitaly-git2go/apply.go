@@ -126,30 +126,44 @@ func (cmd *applySubcommand) applyPatch(
 		}
 	}
 
-	patchedTree, err := patchedIndex.WriteTreeTo(repo)
+	patchedTreeOID, err := patchedIndex.WriteTreeTo(repo)
 	if err != nil {
 		return nil, fmt.Errorf("write patched tree: %w", err)
 	}
+	patchedTree, err := repo.LookupTree(patchedTreeOID)
+	if err != nil {
+		return nil, fmt.Errorf("lookup tree: %w", err)
+	}
 
 	author := git.Signature(patch.Author)
-	patchedCommitOID, err := repo.CreateCommitFromIds("", &author, committer, patch.Message, patchedTree, parentCommitOID)
+	commitBytes, err := repo.CreateCommitBuffer(&author, committer, git.MessageEncodingUTF8, patch.Message, patchedTree, parentCommit)
+	if err != nil {
+		return nil, fmt.Errorf("create commit buffer: %w", err)
+	}
+
+	signature, err := git2goutil.ReadKeyAndSign(string(commitBytes))
+	if err != nil {
+		return nil, fmt.Errorf("read openpgp key: %w", err)
+	}
+
+	patchedCommitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
 	if err != nil {
 		return nil, fmt.Errorf("create commit: %w", err)
 	}
 
-	return patchedCommitOID, nil
+	return patchedCommitID, nil
 }
 
 // threeWayMerge attempts a three-way merge as a fallback if applying the patch fails.
 // Fallback three-way merge is only possible if the patch records the pre-image blobs
 // and the repository contains them. It works as follows:
 //
-// 1. An index that contains only the pre-image blobs of the patch is built. This is done
-//    by calling `git apply --build-fake-ancestor`. The tree of the index is the fake
-//    ancestor tree.
-// 2. The fake ancestor tree is patched to produce the post-image tree of the patch.
-// 3. Three-way merge is performed with fake ancestor tree as the common ancestor, the
-//    base commit's tree as our tree and the patched fake ancestor tree as their tree.
+//  1. An index that contains only the pre-image blobs of the patch is built. This is done
+//     by calling `git apply --build-fake-ancestor`. The tree of the index is the fake
+//     ancestor tree.
+//  2. The fake ancestor tree is patched to produce the post-image tree of the patch.
+//  3. Three-way merge is performed with fake ancestor tree as the common ancestor, the
+//     base commit's tree as our tree and the patched fake ancestor tree as their tree.
 func (cmd *applySubcommand) threeWayMerge(
 	ctx context.Context,
 	repo *git.Repository,

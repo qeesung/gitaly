@@ -118,7 +118,7 @@ func (cmd resolveSubcommand) Run(_ context.Context, decoder *gob.Decoder, encode
 		}
 
 		if r.Content != "" && bytes.Equal([]byte(r.Content), mfr.Contents) {
-			return fmt.Errorf("Resolved content has no changes for file %s", r.NewPath) //nolint
+			return fmt.Errorf("Resolved content has no changes for file %s", r.NewPath) // nolint
 		}
 
 		conflictFile, err := conflict.Parse(
@@ -177,29 +177,43 @@ func (cmd resolveSubcommand) Run(_ context.Context, decoder *gob.Decoder, encode
 			conflictPaths = append(conflictPaths, conflictingPath)
 		}
 
-		return fmt.Errorf("Missing resolutions for the following files: %s", strings.Join(conflictPaths, ", ")) //nolint
+		return fmt.Errorf("Missing resolutions for the following files: %s", strings.Join(conflictPaths, ", ")) // nolint
 	}
 
-	tree, err := index.WriteTreeTo(repo)
+	treeOID, err := index.WriteTreeTo(repo)
 	if err != nil {
 		return fmt.Errorf("write tree to repo: %w", err)
 	}
+	tree, err := repo.LookupTree(treeOID)
+	if err != nil {
+		return fmt.Errorf("lookup tree: %w", err)
+	}
 
-	signature := git2go.NewSignature(request.AuthorName, request.AuthorMail, request.AuthorDate)
+	sign := git2go.NewSignature(request.AuthorName, request.AuthorMail, request.AuthorDate)
 	committer := &git.Signature{
-		Name:  signature.Name,
-		Email: signature.Email,
+		Name:  sign.Name,
+		Email: sign.Email,
 		When:  request.AuthorDate,
 	}
 
-	commit, err := repo.CreateCommitFromIds("", committer, committer, request.Message, tree, ours.Id(), theirs.Id())
+	commitBytes, err := repo.CreateCommitBuffer(committer, committer, git.MessageEncodingUTF8, request.Message, tree, ours, theirs)
 	if err != nil {
 		return fmt.Errorf("could not create resolve conflict commit: %w", err)
 	}
 
+	signature, err := git2goutil.ReadKeyAndSign(string(commitBytes))
+	if err != nil {
+		return fmt.Errorf("read openpgp key: %w", err)
+	}
+
+	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
+	if err != nil {
+		return fmt.Errorf("create commit: %w", err)
+	}
+
 	response := git2go.ResolveResult{
 		MergeResult: git2go.MergeResult{
-			CommitID: commit.String(),
+			CommitID: commitID.String(),
 		},
 	}
 

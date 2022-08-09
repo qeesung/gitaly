@@ -35,6 +35,7 @@ require (
 	gitlab.com/gitlab-org/labkit v1.16.0
 	go.uber.org/goleak v1.1.12
 	gocloud.dev v0.25.0
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858
@@ -160,7 +161,6 @@ require (
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5 // indirect
 	golang.org/x/net v0.0.0-20220531201128-c960675eff93 // indirect
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a // indirect

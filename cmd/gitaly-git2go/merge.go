@@ -86,9 +86,13 @@ func merge(request git2go.MergeCommand) (string, error) {
 		}
 	}
 
-	tree, err := index.WriteTreeTo(repo)
+	treeOID, err := index.WriteTreeTo(repo)
 	if err != nil {
 		return "", fmt.Errorf("could not write tree: %w", err)
+	}
+	tree, err := repo.LookupTree(treeOID)
+	if err != nil {
+		return "", fmt.Errorf("lookup tree: %w", err)
 	}
 
 	author := git.Signature(git2go.NewSignature(request.AuthorName, request.AuthorMail, request.AuthorDate))
@@ -97,18 +101,29 @@ func merge(request git2go.MergeCommand) (string, error) {
 		committer = git.Signature(git2go.NewSignature(request.CommitterName, request.CommitterMail, request.CommitterDate))
 	}
 
-	var parents []*git.Oid
+	var parents []*git.Commit
 	if request.Squash {
-		parents = []*git.Oid{ours.Id()}
+		parents = []*git.Commit{ours}
 	} else {
-		parents = []*git.Oid{ours.Id(), theirs.Id()}
-	}
-	commit, err := repo.CreateCommitFromIds("", &author, &committer, request.Message, tree, parents...)
-	if err != nil {
-		return "", fmt.Errorf("could not create merge commit: %w", err)
+		parents = []*git.Commit{ours, theirs}
 	}
 
-	return commit.String(), nil
+	commitBytes, err := repo.CreateCommitBuffer(&author, &committer, git.MessageEncodingUTF8, request.Message, tree, parents...)
+	if err != nil {
+		return "", fmt.Errorf("create commit buffer: %w", err)
+	}
+
+	signature, err := git2goutil.ReadKeyAndSign(string(commitBytes))
+	if err != nil {
+		return "", fmt.Errorf("read openpgp key: %w", err)
+	}
+
+	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
+	if err != nil {
+		return "", fmt.Errorf("create commit: %w", err)
+	}
+
+	return commitID.String(), nil
 }
 
 func resolveConflicts(repo *git.Repository, index *git.Index) error {

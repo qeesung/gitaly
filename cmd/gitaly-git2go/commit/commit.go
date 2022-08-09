@@ -38,19 +38,19 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 		return "", fmt.Errorf("new index: %w", err)
 	}
 
-	var parents []*git.Oid
+	var parents []*git.Commit
 	if params.Parent != "" {
 		parentOID, err := git.NewOid(params.Parent)
 		if err != nil {
 			return "", fmt.Errorf("parse base commit oid: %w", err)
 		}
 
-		parents = []*git.Oid{parentOID}
-
 		baseCommit, err := repo.LookupCommit(parentOID)
 		if err != nil {
 			return "", fmt.Errorf("lookup commit: %w", err)
 		}
+
+		parents = []*git.Commit{baseCommit}
 
 		baseTree, err := baseCommit.Tree()
 		if err != nil {
@@ -76,15 +76,25 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("write tree: %w", err)
 	}
+	tree, err := repo.LookupTree(treeOID)
+	if err != nil {
+		return "", fmt.Errorf("lookup tree: %w", err)
+	}
 
 	author := git.Signature(params.Author)
 	committer := git.Signature(params.Committer)
-	commitID, err := repo.CreateCommitFromIds("", &author, &committer, params.Message, treeOID, parents...)
+	commitBytes, err := repo.CreateCommitBuffer(&author, &committer, git.MessageEncodingUTF8, params.Message, tree, parents...)
 	if err != nil {
-		if git.IsErrorClass(err, git.ErrorClassInvalid) {
-			return "", git2go.InvalidArgumentError(err.Error())
-		}
+		return "", fmt.Errorf("create commit buffer: %w", err)
+	}
 
+	signature, err := git2goutil.ReadKeyAndSign(string(commitBytes))
+	if err != nil {
+		return "", fmt.Errorf("read openpgp key: %w", err)
+	}
+
+	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
+	if err != nil {
 		return "", fmt.Errorf("create commit: %w", err)
 	}
 
