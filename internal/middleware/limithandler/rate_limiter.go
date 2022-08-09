@@ -44,7 +44,7 @@ func (r *RateLimiter) Limit(ctx context.Context, lockKey string, f LimitedFunc) 
 		// of traffic.
 		r.requestsDroppedMetric.Inc()
 		if featureflag.RateLimit.IsEnabled(ctx) {
-			err := helper.ErrUnavailable(ErrRateLimit)
+			err := helper.ErrResourceExhausted(ErrRateLimit)
 
 			detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
 				err,

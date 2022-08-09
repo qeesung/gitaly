@@ -336,7 +336,7 @@ func TestStreamLimitHandler_error(t *testing.T) {
 	}
 
 	err := <-errChan
-	testhelper.RequireGrpcCode(t, err, codes.Unavailable)
+	testhelper.RequireGrpcCode(t, err, codes.ResourceExhausted)
 	// ensure it is a structured error
 	st, ok := status.FromError(err)
 	require.True(t, ok)
