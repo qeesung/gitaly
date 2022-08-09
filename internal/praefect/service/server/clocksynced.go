@@ -10,7 +10,11 @@ import (
 
 // ClockSynced checks if system clock is synced.
 func (s *Server) ClockSynced(_ context.Context, req *gitalypb.ClockSyncedRequest) (*gitalypb.ClockSyncedResponse, error) {
-	synced, err := helper.CheckClockSync(req.NtpHost, time.Duration(req.DriftThresholdMillis*int64(time.Millisecond)))
+	driftThreshold := req.DriftThreshold.AsDuration()
+	if !req.DriftThreshold.IsValid() || driftThreshold == time.Duration(0) {
+		driftThreshold = time.Duration(req.DriftThresholdMillis * int64(time.Millisecond)) //nolint:staticcheck
+	}
+	synced, err := helper.CheckClockSync(req.NtpHost, driftThreshold)
 	if err != nil {
 		return nil, err
 	}

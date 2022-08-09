@@ -76,18 +76,21 @@ message DiskStatisticsResponse {
   repeated StorageStatus storage_statuses = 1;
 }
 
-// This comment is left unintentionally blank.
+// ClockSyncedRequest contains settings to be used for the system clock synchronisation check.
 message ClockSyncedRequest {
-  // ntp_host is a URL to the external NTP service that should be used for clock sync check.
-  // Default is ntp.pool.org
+  // NtpHost is a URL to the external NTP service that should be used for clock sync check.
+  // Default is "ntp.pool.org"
   string ntp_host = 1;
-  // drift_threshold_millis is an allowed drift from the NTP service in milliseconds.
-  int64 drift_threshold_millis = 2;
+  // DriftThresholdMillis is an allowed drift from the NTP service in milliseconds.
+  // Deprecated: DriftThreshold field should be used instead. See https://gitlab.com/gitlab-org/gitaly/-/issues/4417.
+  int64 drift_threshold_millis = 2 [deprecated = true];
+  // DriftThreshold is an allowed drift from the NTP service.
+  google.protobuf.Duration drift_threshold = 3;
 }
 
-// This comment is left unintentionally blank.
+// ClockSyncedRequest represents result of the system clock synchronisation check.
 message ClockSyncedResponse {
-  // synced is set to true if system clock has an affordable drift compared to NTP service.
+  // Synced is set to true if system clock has an affordable drift compared to NTP service.
   bool synced = 1;
 }
 

@@ -23,6 +23,7 @@ import (
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Severity is a type that indicates the severity of a check
@@ -257,7 +258,7 @@ func NewClockSyncCheck(clockDriftCheck func(ntpHost string, driftThreshold time.
 
 							serverServiceClient := gitalypb.NewServerServiceClient(cc)
 							resp, err := serverServiceClient.ClockSynced(ctx, &gitalypb.ClockSyncedRequest{
-								NtpHost: ntpHost, DriftThresholdMillis: driftThreshold.Milliseconds(),
+								NtpHost: ntpHost, DriftThreshold: durationpb.New(driftThreshold),
 							})
 							if err != nil {
 								return fmt.Errorf("gitaly node at %s: %w", node.Address, err)
