@@ -9,7 +9,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/log"
 	"golang.org/x/time/rate"
@@ -43,26 +42,25 @@ func (r *RateLimiter) Limit(ctx context.Context, lockKey string, f LimitedFunc) 
 		// For now, we are only emitting this metric to get an idea of the shape
 		// of traffic.
 		r.requestsDroppedMetric.Inc()
-		if featureflag.RateLimit.IsEnabled(ctx) {
-			err := helper.ErrUnavailable(ErrRateLimit)
 
-			detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
-				err,
-				&gitalypb.LimitError{
-					ErrorMessage: ErrRateLimit.Error(),
-					RetryAfter:   durationpb.New(0),
-				},
-			)
-			if errGeneratingDetailedErr != nil {
-				log.WithField("rate_limit_error", err).
-					WithError(errGeneratingDetailedErr).
-					Error("failed to generate detailed error")
+		err := helper.ErrUnavailable(ErrRateLimit)
 
-				return nil, err
-			}
+		detailedErr, errGeneratingDetailedErr := helper.ErrWithDetails(
+			err,
+			&gitalypb.LimitError{
+				ErrorMessage: ErrRateLimit.Error(),
+				RetryAfter:   durationpb.New(0),
+			},
+		)
+		if errGeneratingDetailedErr != nil {
+			log.WithField("rate_limit_error", err).
+				WithError(errGeneratingDetailedErr).
+				Error("failed to generate detailed error")
 
-			return nil, detailedErr
+			return nil, err
 		}
+
+		return nil, detailedErr
 	}
 
 	return f()
