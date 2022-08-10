@@ -21,6 +21,14 @@ func validateMergeBranchRequest(request *gitalypb.UserMergeBranchRequest) error 
 		return fmt.Errorf("empty user")
 	}
 
+	if len(request.User.Email) == 0 {
+		return fmt.Errorf("empty user email")
+	}
+
+	if len(request.User.Name) == 0 {
+		return fmt.Errorf("empty user name")
+	}
+
 	if len(request.Branch) == 0 {
 		return fmt.Errorf("empty branch name")
 	}
