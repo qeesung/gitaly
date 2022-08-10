@@ -123,7 +123,7 @@ func (cmd *cherryPickSubcommand) cherryPick(ctx context.Context, r *git2go.Cherr
 
 	commitBytes, err := repo.CreateCommitBuffer(pick.Author(), &committer, git.MessageEncodingUTF8, r.Message, tree, ours)
 	if err != nil {
-		return "", fmt.Errorf("could not create cherry-pick commit: %w", err)
+		return "", fmt.Errorf("could not create cherry-pick commit buffer: %w", err)
 	}
 
 	var signature string
@@ -136,7 +136,7 @@ func (cmd *cherryPickSubcommand) cherryPick(ctx context.Context, r *git2go.Cherr
 
 	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
 	if err != nil {
-		return "", fmt.Errorf("create commit: %w", err)
+		return "", fmt.Errorf("create not create cherry-pick commit: %w", err)
 	}
 
 	return commitID.String(), nil

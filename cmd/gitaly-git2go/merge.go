@@ -113,7 +113,7 @@ func (cmd *mergeSubcommand) merge(request git2go.MergeCommand) (string, error) {
 
 	commitBytes, err := repo.CreateCommitBuffer(&author, &committer, git.MessageEncodingUTF8, request.Message, tree, parents...)
 	if err != nil {
-		return "", fmt.Errorf("create commit buffer: %w", err)
+		return "", fmt.Errorf("could not create merge commit buffer: %w", err)
 	}
 
 	var signature string
@@ -126,7 +126,7 @@ func (cmd *mergeSubcommand) merge(request git2go.MergeCommand) (string, error) {
 
 	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
 	if err != nil {
-		return "", fmt.Errorf("create commit: %w", err)
+		return "", fmt.Errorf("could not create merge commit: %w", err)
 	}
 
 	return commitID.String(), nil
