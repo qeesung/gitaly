@@ -42,12 +42,14 @@ func (iter *patchIterator) Value() git2go.Patch { return iter.value }
 func (iter *patchIterator) Err() error { return iter.error }
 
 type applySubcommand struct {
-	gitBinaryPath string
+	gitBinaryPath  string
+	signingKeyPath string
 }
 
 func (cmd *applySubcommand) Flags() *flag.FlagSet {
 	fs := flag.NewFlagSet("apply", flag.ExitOnError)
 	fs.StringVar(&cmd.gitBinaryPath, "git-binary-path", "", "Path to the Git binary.")
+	fs.StringVar(&cmd.signingKeyPath, "signing-key", "", "Path to the OpenPGP signing key.")
 	return fs
 }
 
@@ -141,9 +143,12 @@ func (cmd *applySubcommand) applyPatch(
 		return nil, fmt.Errorf("create commit buffer: %w", err)
 	}
 
-	signature, err := git2goutil.ReadKeyAndSign(string(commitBytes))
-	if err != nil {
-		return nil, fmt.Errorf("read openpgp key: %w", err)
+	var signature string
+	if cmd.signingKeyPath != "" {
+		signature, err = git2goutil.ReadSigningKeyAndSign(cmd.signingKeyPath, string(commitBytes))
+		if err != nil {
+			return nil, fmt.Errorf("read openpgp key: %w", err)
+		}
 	}
 
 	patchedCommitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")

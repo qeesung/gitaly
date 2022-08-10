@@ -15,11 +15,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 
-type mergeSubcommand struct{}
+type mergeSubcommand struct {
+	signingKeyPath string
+}
 
 func (cmd *mergeSubcommand) Flags() *flag.FlagSet {
-	flags := flag.NewFlagSet("merge", flag.ExitOnError)
-	return flags
+	fs := flag.NewFlagSet("merge", flag.ExitOnError)
+	fs.StringVar(&cmd.signingKeyPath, "signing-key", "", "Path to the OpenPGP signing key.")
+	return fs
 }
 
 func (cmd *mergeSubcommand) Run(_ context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
@@ -32,7 +35,7 @@ func (cmd *mergeSubcommand) Run(_ context.Context, decoder *gob.Decoder, encoder
 		request.AuthorDate = time.Now()
 	}
 
-	commitID, err := merge(request)
+	commitID, err := cmd.merge(request)
 
 	return encoder.Encode(git2go.Result{
 		CommitID: commitID,
@@ -40,7 +43,7 @@ func (cmd *mergeSubcommand) Run(_ context.Context, decoder *gob.Decoder, encoder
 	})
 }
 
-func merge(request git2go.MergeCommand) (string, error) {
+func (cmd *mergeSubcommand) merge(request git2go.MergeCommand) (string, error) {
 	repo, err := git2goutil.OpenRepository(request.Repository)
 	if err != nil {
 		return "", fmt.Errorf("could not open repository: %w", err)
@@ -113,9 +116,12 @@ func merge(request git2go.MergeCommand) (string, error) {
 		return "", fmt.Errorf("create commit buffer: %w", err)
 	}
 
-	signature, err := git2goutil.ReadKeyAndSign(string(commitBytes))
-	if err != nil {
-		return "", fmt.Errorf("read openpgp key: %w", err)
+	var signature string
+	if cmd.signingKeyPath != "" {
+		signature, err = git2goutil.ReadSigningKeyAndSign(cmd.signingKeyPath, string(commitBytes))
+		if err != nil {
+			return "", fmt.Errorf("read openpgp key: %w", err)
+		}
 	}
 
 	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")

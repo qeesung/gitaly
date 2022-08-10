@@ -92,7 +92,7 @@ type Hooks struct {
 	CustomHooksDir string `toml:"custom_hooks_dir" json:"custom_hooks_dir"`
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+// nolint: revive,stylecheck // This is unintentionally missing documentation.
 type HTTPSettings struct {
 	ReadTimeout int    `toml:"read_timeout" json:"read_timeout"`
 	User        string `toml:"user" json:"user"`
@@ -108,6 +108,7 @@ type Git struct {
 	CatfileCacheSize   int         `toml:"catfile_cache_size"`
 	Config             []GitConfig `toml:"config"`
 	IgnoreGitconfig    bool        `toml:"ignore_gitconfig"`
+	WebSigningKey      string      `toml:"web_signing_key"`
 }
 
 // GitConfig contains a key-value pair which is to be passed to git as configuration.
@@ -174,7 +175,8 @@ type StreamCacheConfig struct {
 }
 
 // Load initializes the Config variable from file and the environment.
-//  Environment variables take precedence over the file.
+//
+//	Environment variables take precedence over the file.
 func Load(file io.Reader) (Cfg, error) {
 	cfg := Cfg{
 		Prometheus: prometheus.DefaultConfig(),

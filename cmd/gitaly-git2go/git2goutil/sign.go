@@ -4,20 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/packet"
 )
 
-// ReadKeyAndSign reads OpenPGP key and produces PKCS#7 detached signature.
-func ReadKeyAndSign(contentToSign string) (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("get home dir: %w", err)
-	}
-	file, err := os.Open(filepath.Join(homeDir, "key.der"))
+// ReadSigningKeyAndSign reads OpenPGP key and produces PKCS#7 detached signature.
+func ReadSigningKeyAndSign(signingKeyPath, contentToSign string) (string, error) {
+	file, err := os.Open(signingKeyPath)
 	if err != nil {
 		return "", fmt.Errorf("open file: %w", err)
 	}

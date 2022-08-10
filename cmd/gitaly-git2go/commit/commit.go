@@ -88,9 +88,13 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 		return "", fmt.Errorf("create commit buffer: %w", err)
 	}
 
-	signature, err := git2goutil.ReadKeyAndSign(string(commitBytes))
-	if err != nil {
-		return "", fmt.Errorf("read openpgp key: %w", err)
+	var signature string
+	signingKeyPath := signingKeyPathFromContext(ctx)
+	if signingKeyPath != "" {
+		signature, err = git2goutil.ReadSigningKeyAndSign(signingKeyPath, string(commitBytes))
+		if err != nil {
+			return "", fmt.Errorf("read openpgp key: %w", err)
+		}
 	}
 
 	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
@@ -118,4 +122,12 @@ func apply(action git2go.Action, repo *git.Repository, index *git.Index) error {
 	default:
 		return errors.New("unsupported action")
 	}
+}
+
+func signingKeyPathFromContext(ctx context.Context) string {
+	signingKeyPath, ok := ctx.Value(git2goutil.SigningKeyPathKey{}).(string)
+	if !ok {
+		return ""
+	}
+	return signingKeyPath
 }
