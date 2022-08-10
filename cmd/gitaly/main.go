@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -117,7 +118,14 @@ func configure(configPath string) (config.Cfg, error) {
 
 	glog.Configure(glog.Loggers, cfg.Logging.Format, cfg.Logging.Level)
 
-	if err := cgroups.NewManager(cfg.Cgroups).Setup(); err != nil {
+	cgroupMgr := cgroups.NewManager(cfg.Cgroups)
+	if err := cgroupMgr.Cleanup(); err != nil {
+		if !errors.Is(err, cgroups.ErrProcessesExist) {
+			log.WithError(err).Warn("error cleaning up cgroups")
+		}
+	}
+
+	if err := cgroupMgr.Setup(); err != nil {
 		return config.Cfg{}, fmt.Errorf("failed setting up cgroups: %w", err)
 	}
 
@@ -374,12 +382,6 @@ func run(cfg config.Cfg) error {
 		return fmt.Errorf("initialize auxiliary workers: %v", err)
 	}
 	defer shutdownWorkers()
-
-	defer func() {
-		if err := cgroups.NewManager(cfg.Cgroups).Cleanup(); err != nil {
-			log.WithError(err).Warn("error cleaning up cgroups")
-		}
-	}()
 
 	gracefulStopTicker := helper.NewTimerTicker(cfg.GracefulRestartTimeout.Duration())
 	defer gracefulStopTicker.Stop()

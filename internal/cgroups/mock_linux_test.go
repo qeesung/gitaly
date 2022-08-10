@@ -65,7 +65,7 @@ func (m *mockCgroup) setupMockCgroupFiles(
 	memFailCount int,
 ) {
 	for _, s := range m.subsystems {
-		cgroupPath := filepath.Join(m.root, string(s.Name()), manager.currentProcessCgroup())
+		cgroupPath := filepath.Join(m.root, string(s.Name()), manager.cfg.HierarchyRoot)
 		require.NoError(t, os.MkdirAll(cgroupPath, 0o755))
 
 		contentByFilename := map[string]string{

@@ -1,9 +1,9 @@
 package cgroups
 
 import (
+	"errors"
 	"fmt"
 	"hash/crc32"
-	"os"
 	"strings"
 
 	"github.com/containerd/cgroups"
@@ -67,7 +67,7 @@ func (cg *CGroupV1Manager) Setup() error {
 
 	if _, err := cgroups.New(
 		cg.hierarchy,
-		cgroups.StaticPath(cg.currentProcessCgroup()),
+		cgroups.StaticPath(cg.cfg.HierarchyRoot),
 		&parentResources,
 	); err != nil {
 		return fmt.Errorf("failed creating parent cgroup: %w", err)
@@ -197,28 +197,40 @@ func (cg *CGroupV1Manager) Describe(ch chan<- *prometheus.Desc) {
 	prometheus.DescribeByCollect(cg, ch)
 }
 
+// ErrProcessesExist is returned from Cleanup and indicates there are existing
+// processes in the cgroup
+var ErrProcessesExist = errors.New("processes exist")
+
 //nolint: revive,stylecheck // This is unintentionally missing documentation.
 func (cg *CGroupV1Manager) Cleanup() error {
-	processCgroupPath := cg.currentProcessCgroup()
-
-	control, err := cgroups.Load(cg.hierarchy, cgroups.StaticPath(processCgroupPath))
+	control, err := cgroups.Load(cg.hierarchy, cgroups.StaticPath(cg.cfg.HierarchyRoot))
 	if err != nil {
-		return fmt.Errorf("failed loading cgroup %s: %w", processCgroupPath, err)
+		return fmt.Errorf("failed loading cgroup %s: %w", cg.cfg.HierarchyRoot, err)
+	}
+
+	memProcesses, err := control.Processes("memory", true)
+	if err != nil {
+		return fmt.Errorf("failed getting cgroup processes %s: %w", cg.cfg.HierarchyRoot, err)
+	}
+
+	cpuProcesses, err := control.Processes("cpu", true)
+	if err != nil {
+		return fmt.Errorf("failed getting cgroup processes %s: %w", cg.cfg.HierarchyRoot, err)
+	}
+
+	if len(memProcesses)+len(cpuProcesses) > 0 {
+		return ErrProcessesExist
 	}
 
 	if err := control.Delete(); err != nil {
-		return fmt.Errorf("failed cleaning up cgroup %s: %w", processCgroupPath, err)
+		return fmt.Errorf("failed cleaning up cgroup %s: %w", cg.cfg.HierarchyRoot, err)
 	}
 
 	return nil
 }
 
 func (cg *CGroupV1Manager) repoPath(groupID int) string {
-	return fmt.Sprintf("%s/repos-%d", cg.currentProcessCgroup(), groupID)
-}
-
-func (cg *CGroupV1Manager) currentProcessCgroup() string {
-	return fmt.Sprintf("/%s/gitaly-%d", cg.cfg.HierarchyRoot, os.Getpid())
+	return fmt.Sprintf("%s/repos-%d", cg.cfg.HierarchyRoot, groupID)
 }
 
 func defaultSubsystems(root string) ([]cgroups.Subsystem, error) {
