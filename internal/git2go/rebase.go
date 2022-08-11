@@ -34,5 +34,10 @@ type RebaseCommand struct {
 
 // Rebase performs the rebase via gitaly-git2go
 func (b *Executor) Rebase(ctx context.Context, repo repository.GitRepo, r RebaseCommand) (git.ObjectID, error) {
-	return b.runWithGob(ctx, repo, "rebase", r)
+	var args []string
+	if b.signingKey != "" {
+		args = []string{"-signing-key", b.signingKey}
+	}
+
+	return b.runWithGob(ctx, repo, "rebase", r, args...)
 }

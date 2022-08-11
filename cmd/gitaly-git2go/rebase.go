@@ -14,10 +14,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 
-type rebaseSubcommand struct{}
+type rebaseSubcommand struct {
+	signingKeyPath string
+}
 
 func (cmd *rebaseSubcommand) Flags() *flag.FlagSet {
-	return flag.NewFlagSet("rebase", flag.ExitOnError)
+	fs := flag.NewFlagSet("rebase", flag.ExitOnError)
+	fs.StringVar(&cmd.signingKeyPath, "signing-key", "", "Path to the OpenPGP signing key.")
+	return fs
 }
 
 func (cmd *rebaseSubcommand) Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
@@ -73,6 +77,27 @@ func (cmd *rebaseSubcommand) rebase(ctx context.Context, request *git2go.RebaseC
 		return "", fmt.Errorf("get rebase options: %w", err)
 	}
 	opts.InMemory = 1
+	opts.CommitCreateCallback = func(author, committer *git.Signature, messageEncoding git.MessageEncoding, message string, tree *git.Tree, parents ...*git.Commit) (oid *git.Oid, err error) {
+		commitBytes, err := repo.CreateCommitBuffer(author, committer, messageEncoding, message, tree, parents...)
+		if err != nil {
+			return nil, fmt.Errorf("create commit buffer: %w", err)
+		}
+
+		var signature string
+		if cmd.signingKeyPath != "" {
+			signature, err = git2goutil.ReadSigningKeyAndSign(cmd.signingKeyPath, string(commitBytes))
+			if err != nil {
+				return nil, fmt.Errorf("read openpgp key: %w", err)
+			}
+		}
+
+		commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
+		if err != nil {
+			return nil, fmt.Errorf("create commit: %w", err)
+		}
+
+		return commitID, nil
+	}
 
 	var commit *git.AnnotatedCommit
 	if request.BranchName != "" {
