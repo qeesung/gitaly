@@ -35,7 +35,6 @@ var (
 			Suffix: "-v2.35.1.gl1",
 		},
 		DistributedGitEnvironmentConstructor{},
-		FallbackGitEnvironmentConstructor{},
 	}
 )
 
@@ -246,10 +245,6 @@ func (c FallbackGitEnvironmentConstructor) Construct(config.Cfg) (ExecutionEnvir
 
 		return ExecutionEnvironment{}, fmt.Errorf("resolving git executable: %w", err)
 	}
-
-	logrus.WithFields(logrus.Fields{
-		"resolvedPath": resolvedPath,
-	}).Warn("git path not configured. Using default path resolution")
 
 	return ExecutionEnvironment{
 		BinaryPath: resolvedPath,

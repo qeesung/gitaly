@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/alternates"
@@ -193,7 +194,17 @@ func setupGitExecutionEnvironments(cfg config.Cfg, factoryCfg execCommandFactory
 	}
 
 	if len(execEnvs) == 0 {
-		return nil, nil, fmt.Errorf("could not set up any Git execution environments")
+		execEnv, err := FallbackGitEnvironmentConstructor{}.Construct(cfg)
+		if err != nil {
+			return nil, nil, fmt.Errorf("could not set up any Git execution environments")
+		}
+		execEnv.EnvironmentVariables = append(execEnv.EnvironmentVariables, sharedEnvironment...)
+
+		logrus.WithFields(logrus.Fields{
+			"resolvedPath": execEnv.BinaryPath,
+		}).Warn("Git has not been properly configured, falling back to Git found on PATH")
+
+		execEnvs = append(execEnvs, execEnv)
 	}
 
 	return execEnvs, func() {
