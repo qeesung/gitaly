@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/packet"
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
 
 // ReadSigningKeyAndSign reads OpenPGP key and produces PKCS#7 detached signature.
