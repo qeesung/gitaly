@@ -34,7 +34,6 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	gitlab.com/gitlab-org/gitaly/v14 v14.9.0-rc5.0.20220329111719-51da8bc17059
-	gitlab.com/gitlab-org/gitlab-shell/v14 v14.10.0
 	gitlab.com/gitlab-org/labkit v1.16.0
 	go.uber.org/goleak v1.1.12
 	gocloud.dev v0.25.0
