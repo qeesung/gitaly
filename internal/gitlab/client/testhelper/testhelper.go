@@ -15,20 +15,6 @@ var (
 	TestRoot, _ = os.MkdirTemp("", "test-gitlab-shell")
 )
 
-func TempEnv(env map[string]string) func() {
-	var original = make(map[string]string)
-	for key, value := range env {
-		original[key] = os.Getenv(key)
-		os.Setenv(key, value)
-	}
-
-	return func() {
-		for key, originalValue := range original {
-			os.Setenv(key, originalValue)
-		}
-	}
-}
-
 func PrepareTestRootDir(t *testing.T) {
 	t.Helper()
 
@@ -64,10 +50,4 @@ func getTestDataDir() (string, error) {
 	}
 
 	return path.Join(path.Dir(currentFile), "testdata"), nil
-}
-
-func Setenv(key, value string) (func(), error) {
-	oldValue := os.Getenv(key)
-	err := os.Setenv(key, value)
-	return func() { os.Setenv(key, oldValue) }, err
 }
