@@ -16,10 +16,12 @@ import (
 )
 
 func TestRepositoryProfile(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	testRepo, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-	ctx := testhelper.Context(t)
+	testRepo, testRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	hasBitmap, err := HasBitmap(testRepoPath)
 	require.NoError(t, err)

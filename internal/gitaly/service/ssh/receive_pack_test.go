@@ -731,7 +731,11 @@ type SSHCloneDetails struct {
 
 // setupSSHClone sets up a test clone
 func setupSSHClone(t *testing.T, cfg config.Cfg, remoteRepo *gitalypb.Repository, remoteRepoPath string) (SSHCloneDetails, func()) {
-	_, localRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	ctx := testhelper.Context(t)
+
+	_, localRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
 
 	oldHead := text.ChompBytes(gittest.Exec(t, cfg, "-C", localRepoPath, "rev-parse", "HEAD"))
 	newHead := gittest.WriteCommit(t, cfg, localRepoPath,

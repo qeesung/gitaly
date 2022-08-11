@@ -8,14 +8,18 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
 
 func TestParser(t *testing.T) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
-	_, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	_, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	gitignoreBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("gitignore"))
 	gitmodulesBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("gitmodules"))

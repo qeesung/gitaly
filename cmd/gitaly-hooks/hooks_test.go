@@ -273,7 +273,9 @@ func TestHooksUpdate(t *testing.T) {
 }
 
 func testHooksUpdate(t *testing.T, ctx context.Context, cfg config.Cfg, glValues glHookValues) {
-	repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	refval, oldval, newval := "refval", strings.Repeat("a", 40), strings.Repeat("b", 40)
 

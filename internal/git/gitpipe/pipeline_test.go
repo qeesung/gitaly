@@ -19,9 +19,13 @@ import (
 )
 
 func TestPipeline_revlist(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	for _, tc := range []struct {
@@ -221,8 +225,6 @@ func TestPipeline_revlist(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := testhelper.Context(t)
-
 			catfileCache := catfile.NewCache(cfg)
 			defer catfileCache.Stop()
 
@@ -371,11 +373,14 @@ func TestPipeline_revlist(t *testing.T) {
 }
 
 func TestPipeline_forEachRef(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	repoProto, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
-	ctx := testhelper.Context(t)
 
 	catfileCache := catfile.NewCache(cfg)
 	defer catfileCache.Stop()

@@ -32,7 +32,9 @@ func TestUpdaterWithHooks_UpdateReference_invalidParameters(t *testing.T) {
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
-	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	revA := git.ObjectID(strings.Repeat("a", gittest.DefaultObjectHash.EncodedLen()))
 	revB := git.ObjectID(strings.Repeat("b", gittest.DefaultObjectHash.EncodedLen()))
@@ -99,7 +101,9 @@ func TestUpdaterWithHooks_UpdateReference(t *testing.T) {
 		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
 	})
 
-	repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	requirePayload := func(t *testing.T, env []string) {
@@ -276,7 +280,9 @@ func TestUpdaterWithHooks_quarantine(t *testing.T) {
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 	locator := config.NewLocator(cfg)
 
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	unquarantinedRepo := localrepo.NewTestRepo(t, cfg, repoProto)

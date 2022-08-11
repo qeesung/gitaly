@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
 
@@ -34,8 +35,13 @@ func TestIsMissingBloomFilters(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
+			ctx := testhelper.Context(t)
 			cfg := testcfg.Build(t)
-			_, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+
+			_, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+				SkipCreationViaService: true,
+				Seed:                   gittest.SeedGitLabTest,
+			})
 
 			if len(tc.args) > 0 {
 				gittest.Exec(t, cfg, append([]string{"-C", repoPath}, tc.args...)...)

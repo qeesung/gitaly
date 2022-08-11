@@ -42,7 +42,10 @@ func TestPerformHTTPPush(t *testing.T) {
 		{
 			desc: "single revision",
 			preparePush: func(t *testing.T, cfg config.Cfg) ([]PushCommand, io.Reader) {
-				_, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+				_, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+					Seed:                   gittest.SeedGitLabTest,
+				})
 
 				commit := gittest.WriteCommit(t, cfg, repoPath)
 				revisions := strings.NewReader(commit.String())
@@ -76,7 +79,10 @@ func TestPerformHTTPPush(t *testing.T) {
 		{
 			desc: "many revisions",
 			preparePush: func(t *testing.T, cfg config.Cfg) ([]PushCommand, io.Reader) {
-				_, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+				_, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+					Seed:                   gittest.SeedGitLabTest,
+				})
 
 				commands := make([]PushCommand, 1000)
 				commits := make([]string, len(commands))

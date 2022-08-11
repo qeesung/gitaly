@@ -157,13 +157,17 @@ func (gc *GitalyCfgBuilder) Build(t testing.TB) config.Cfg {
 func (gc *GitalyCfgBuilder) BuildWithRepoAt(t testing.TB, relativePath string) (config.Cfg, []*gitalypb.Repository) {
 	t.Helper()
 
+	ctx := testhelper.Context(t)
 	cfg := gc.Build(t)
 
 	// clone the test repo to the each storage
 	repos := make([]*gitalypb.Repository, len(cfg.Storages))
 	for i, gitalyStorage := range cfg.Storages {
-		repo, _ := gittest.CloneRepo(t, cfg, gitalyStorage, gittest.CloneRepoOpts{
-			RelativePath: relativePath,
+		repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+			Storage:                gitalyStorage,
+			RelativePath:           relativePath,
+			Seed:                   gittest.SeedGitLabTest,
 		})
 
 		repos[i] = repo

@@ -105,7 +105,10 @@ func testInstanceStats(t *testing.T, ctx context.Context) {
 		{
 			desc: "successful",
 			setup: func(t *testing.T) (*gitalypb.Repository, string, git.ObjectID) {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
+
 				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "webpack.coffee", Mode: "100644", Content: strings.Repeat("a", 107)},
 					gittest.TreeEntry{Path: "show_user.html", Mode: "100644", Content: strings.Repeat("a", 349)},
@@ -125,7 +128,10 @@ func testInstanceStats(t *testing.T, ctx context.Context) {
 		{
 			desc: "empty code files",
 			setup: func(t *testing.T) (*gitalypb.Repository, string, git.ObjectID) {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
+
 				emptyBlob := gittest.WriteBlob(t, cfg, repoPath, []byte{})
 				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "Hello world!"},
@@ -140,7 +146,10 @@ func testInstanceStats(t *testing.T, ctx context.Context) {
 		{
 			desc: "preexisting cache",
 			setup: func(t *testing.T) (*gitalypb.Repository, string, git.ObjectID) {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
+
 				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "webpack.coffee", Mode: "100644", Content: strings.Repeat("a", 107)},
 					gittest.TreeEntry{Path: "show_user.html", Mode: "100644", Content: strings.Repeat("a", 349)},
@@ -170,7 +179,10 @@ func testInstanceStats(t *testing.T, ctx context.Context) {
 		{
 			desc: "corrupted cache",
 			setup: func(t *testing.T) (*gitalypb.Repository, string, git.ObjectID) {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
+
 				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
 					gittest.TreeEntry{Path: "webpack.coffee", Mode: "100644", Content: strings.Repeat("a", 107)},
 					gittest.TreeEntry{Path: "show_user.html", Mode: "100644", Content: strings.Repeat("a", 349)},
@@ -192,7 +204,9 @@ func testInstanceStats(t *testing.T, ctx context.Context) {
 		{
 			desc: "old cache",
 			setup: func(t *testing.T) (*gitalypb.Repository, string, git.ObjectID) {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 				repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 				oldCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
@@ -230,7 +244,9 @@ func testInstanceStats(t *testing.T, ctx context.Context) {
 		{
 			desc: "missing commit",
 			setup: func(t *testing.T) (*gitalypb.Repository, string, git.ObjectID) {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				return repoProto, repoPath, git.ObjectID("b1bb1d1b0b1d1b00")
 			},
@@ -322,8 +338,9 @@ func benchmarkInstanceStats(b *testing.B, ctx context.Context) {
 	catfileCache := catfile.NewCache(cfg)
 	b.Cleanup(catfileCache.Stop)
 
-	repoProto, repoPath := gittest.CloneRepo(b, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
-		SourceRepo: "benchmark.git",
+	repoProto, repoPath := gittest.CreateRepository(ctx, b, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   "benchmark.git",
 	})
 	repo := localrepo.NewTestRepo(b, cfg, repoProto)
 

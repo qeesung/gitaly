@@ -108,7 +108,9 @@ func TestObjectInfoReader(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	commitID := gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithBranch("main"),
@@ -210,7 +212,9 @@ func TestObjectInfoReader_queue(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	blobOID := gittest.WriteBlob(t, cfg, repoPath, []byte("foobar"))
 	blobInfo := ObjectInfo{

@@ -474,7 +474,9 @@ func TestRepo_UpdateRef(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			// We need to re-seed the repository every time so that we don't carry over
 			// the state.
-			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+			repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+				SkipCreationViaService: true,
+			})
 			repo := New(repo.locator, repo.gitCmdFactory, repo.catfileCache, repoProto)
 			seedRepo(t, repoPath)
 

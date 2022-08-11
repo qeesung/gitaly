@@ -33,8 +33,9 @@ func TestDetectObjectHash(t *testing.T) {
 		{
 			desc: "defaults to SHA1",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
-					ObjectFormat: "sha1",
+				repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+					ObjectFormat:           "sha1",
 				})
 
 				// Verify that the repo doesn't explicitly mention it's using SHA1
@@ -49,8 +50,9 @@ func TestDetectObjectHash(t *testing.T) {
 		{
 			desc: "explicitly set to SHA1",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
-					ObjectFormat: "sha1",
+				repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+					ObjectFormat:           "sha1",
 				})
 
 				// Explicitly set the object format to SHA1. Note that setting the
@@ -66,8 +68,9 @@ func TestDetectObjectHash(t *testing.T) {
 		{
 			desc: "explicitly set to SHA256",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
-					ObjectFormat: "sha256",
+				repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+					ObjectFormat:           "sha256",
 				})
 
 				require.Equal(t,
@@ -82,8 +85,9 @@ func TestDetectObjectHash(t *testing.T) {
 		{
 			desc: "invalid repository configuration",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0], gittest.InitRepoOpts{
-					ObjectFormat: "sha1",
+				repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+					ObjectFormat:           "sha1",
 				})
 
 				gittest.Exec(t, cfg, "-C", repoPath, "config", "extensions.objectFormat", "sha1")
@@ -98,7 +102,9 @@ func TestDetectObjectHash(t *testing.T) {
 		{
 			desc: "unknown hash",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				// Explicitly set the object format to something unknown.
 				gittest.Exec(t, cfg, "-C", repoPath, "config", "extensions.objectFormat", "blake2")

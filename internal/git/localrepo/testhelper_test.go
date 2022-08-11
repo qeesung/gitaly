@@ -36,6 +36,7 @@ func setupRepo(t *testing.T, opts ...setupRepoOption) (config.Cfg, *Repo, string
 		opt(&setupRepoCfg)
 	}
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
 	var commandFactoryOpts []git.ExecCommandFactoryOption
@@ -43,7 +44,9 @@ func setupRepo(t *testing.T, opts ...setupRepoOption) (config.Cfg, *Repo, string
 		commandFactoryOpts = append(commandFactoryOpts, git.WithSkipHooks())
 	}
 
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg, commandFactoryOpts...)
 	catfileCache := catfile.NewCache(cfg)

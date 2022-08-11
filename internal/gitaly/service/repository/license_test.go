@@ -108,11 +108,7 @@ SOFTWARE.`,
 
 func testFindLicenseRequestEmptyRepo(t *testing.T, cfg config.Cfg, client gitalypb.RepositoryServiceClient, rubySrv *rubyserver.Server) {
 	testhelper.NewFeatureSets(featureflag.GoFindLicense).Run(t, func(t *testing.T, ctx context.Context) {
-		repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-		require.NoError(t, os.RemoveAll(repoPath))
-
-		_, err := client.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{Repository: repo})
-		require.NoError(t, err)
+		repo, _ := gittest.CreateRepository(ctx, t, cfg)
 
 		resp, err := client.FindLicense(ctx, &gitalypb.FindLicenseRequest{Repository: repo})
 		require.NoError(t, err)

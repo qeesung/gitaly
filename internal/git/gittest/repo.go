@@ -94,6 +94,13 @@ type CreateRepositoryConfig struct {
 	// Seed determines which repository is used to seed the created repository. If unset, the repository
 	// is just created. The value should be one of the test repositories in _build/testrepos.
 	Seed string
+	// SkipCreationViaService skips creation of the repository by calling the respective RPC call.
+	// In general, this should not be skipped so that we end up in a state that is consistent
+	// and expected by both Gitaly and Praefect. It may be required though when testing at a
+	// level where there are no gRPC services available.
+	SkipCreationViaService bool
+	// ObjectFormat overrides the object format used by the repository.
+	ObjectFormat string
 }
 
 func dialService(ctx context.Context, t testing.TB, cfg config.Cfg) *grpc.ClientConn {
@@ -118,13 +125,10 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 		opts = configs[0]
 	}
 
-	conn := opts.ClientConn
-	if conn == nil {
-		conn = dialService(ctx, t, cfg)
-		t.Cleanup(func() { conn.Close() })
+	if ObjectHashIsSHA256() || opts.ObjectFormat != "" {
+		require.Empty(t, opts.Seed, "seeded repository creation not supported with non-default object format")
+		require.True(t, opts.SkipCreationViaService, "repository creation via service not supported with non-default object format")
 	}
-
-	client := gitalypb.NewRepositoryServiceClient(conn)
 
 	storage := cfg.Storages[0]
 	if (opts.Storage != config.Storage{}) {
@@ -143,47 +147,69 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 		GlProjectPath: GlProjectPath,
 	}
 
-	if opts.Seed != "" {
-		if ObjectHashIsSHA256() {
-			require.FailNow(t, "seeded repository creation not supported with SHA256")
+	var repoPath string
+	if !opts.SkipCreationViaService {
+		conn := opts.ClientConn
+		if conn == nil {
+			conn = dialService(ctx, t, cfg)
+			t.Cleanup(func() { testhelper.MustClose(t, conn) })
+		}
+		client := gitalypb.NewRepositoryServiceClient(conn)
+
+		if opts.Seed != "" {
+			_, err := client.CreateRepositoryFromURL(ctx, &gitalypb.CreateRepositoryFromURLRequest{
+				Repository: repository,
+				Url:        testRepositoryPath(t, opts.Seed),
+				Mirror:     true,
+			})
+			require.NoError(t, err)
+		} else {
+			_, err := client.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{
+				Repository: repository,
+			})
+			require.NoError(t, err)
 		}
 
-		_, err := client.CreateRepositoryFromURL(ctx, &gitalypb.CreateRepositoryFromURLRequest{
-			Repository: repository,
-			Url:        testRepositoryPath(t, opts.Seed),
-			Mirror:     true,
+		t.Cleanup(func() {
+			// The ctx parameter would be canceled by now as the tests defer the cancellation.
+			_, err := client.RemoveRepository(context.TODO(), &gitalypb.RemoveRepositoryRequest{
+				Repository: repository,
+			})
+
+			if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+				// The tests may delete the repository, so this is not a failure.
+				return
+			}
+
+			require.NoError(t, err)
 		})
-		require.NoError(t, err)
+
+		repoPath = filepath.Join(storage.Path, getReplicaPath(ctx, t, conn, repository))
 	} else {
-		if ObjectHashIsSHA256() {
-			require.FailNow(t, "CreateRepository does not yet support creating SHA256 repositories")
+		repoPath = filepath.Join(storage.Path, repository.RelativePath)
+
+		if opts.Seed != "" {
+			Exec(t, cfg, "clone", "--no-hardlinks", "--dissociate", "--bare", testRepositoryPath(t, opts.Seed), repoPath)
+			Exec(t, cfg, "-C", repoPath, "remote", "remove", "origin")
+		} else {
+			args := []string{"init", "--bare"}
+			args = append(args, initRepoExtraArgs...)
+			args = append(args, repoPath)
+			if opts.ObjectFormat != "" {
+				args = append(args, "--object-format", opts.ObjectFormat)
+			}
+
+			Exec(t, cfg, args...)
 		}
 
-		_, err := client.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{
-			Repository: repository,
-		})
-		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, os.RemoveAll(repoPath)) })
 	}
-
-	t.Cleanup(func() {
-		// The ctx parameter would be canceled by now as the tests defer the cancellation.
-		_, err := client.RemoveRepository(context.TODO(), &gitalypb.RemoveRepositoryRequest{
-			Repository: repository,
-		})
-
-		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			// The tests may delete the repository, so this is not a failure.
-			return
-		}
-
-		require.NoError(t, err)
-	})
 
 	// Return a cloned repository so the above clean up function still targets the correct repository
 	// if the tests modify the returned repository.
 	clonedRepo := proto.Clone(repository).(*gitalypb.Repository)
 
-	return clonedRepo, filepath.Join(storage.Path, getReplicaPath(ctx, t, conn, repository))
+	return clonedRepo, repoPath
 }
 
 // GetReplicaPathConfig allows for configuring the GetReplicaPath call.
@@ -241,96 +267,6 @@ func RewrittenRepository(ctx context.Context, t testing.TB, cfg config.Cfg, repo
 	rewritten := proto.Clone(repository).(*gitalypb.Repository)
 	rewritten.RelativePath = GetReplicaPath(ctx, t, cfg, repository)
 	return rewritten
-}
-
-// InitRepoOpts contains options for InitRepo.
-type InitRepoOpts struct {
-	// WithRelativePath determines the relative path of this repository.
-	WithRelativePath string
-	// ObjectFormat overrides the object format used by the repository.
-	ObjectFormat string
-}
-
-// InitRepo creates a new empty repository in the given storage. You can either pass no or exactly
-// one InitRepoOpts.
-func InitRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...InitRepoOpts) (*gitalypb.Repository, string) {
-	require.Less(t, len(opts), 2, "you must either pass no or exactly one option")
-
-	opt := InitRepoOpts{}
-	if len(opts) == 1 {
-		opt = opts[0]
-	}
-
-	relativePath := opt.WithRelativePath
-	if relativePath == "" {
-		relativePath = NewRepositoryName(t, true)
-	}
-	repoPath := filepath.Join(storage.Path, relativePath)
-
-	args := []string{"init", "--bare"}
-	args = append(args, initRepoExtraArgs...)
-	args = append(args, repoPath)
-	if opt.ObjectFormat != "" {
-		args = append(args, "--object-format", opt.ObjectFormat)
-	}
-
-	Exec(t, cfg, args...)
-
-	repo := InitRepoDir(t, storage.Path, relativePath)
-	repo.StorageName = storage.Name
-
-	t.Cleanup(func() { require.NoError(t, os.RemoveAll(repoPath)) })
-
-	return repo, repoPath
-}
-
-// CloneRepoOpts is an option for CloneRepo.
-type CloneRepoOpts struct {
-	// RelativePath determines the relative path of newly created Git repository. If unset, the
-	// relative path is computed via NewRepositoryName.
-	RelativePath string
-	// SourceRepo determines the name of the source repository which shall be cloned. The source
-	// repository is assumed to be relative to "_build/testrepos". If unset, defaults to
-	// "gitlab-test.git".
-	SourceRepo string
-}
-
-// CloneRepo clones a new copy of test repository under a subdirectory in the storage root. You can
-// either pass no or exactly one CloneRepoOpts.
-func CloneRepo(t testing.TB, cfg config.Cfg, storage config.Storage, opts ...CloneRepoOpts) (*gitalypb.Repository, string) {
-	if ObjectHashIsSHA256() {
-		require.FailNow(t, "seeded repository creation not supported with SHA256")
-	}
-
-	require.Less(t, len(opts), 2, "you must either pass no or exactly one option")
-
-	opt := CloneRepoOpts{}
-	if len(opts) == 1 {
-		opt = opts[0]
-	}
-
-	relativePath := opt.RelativePath
-	if relativePath == "" {
-		relativePath = NewRepositoryName(t, true)
-	}
-
-	sourceRepo := opt.SourceRepo
-	if sourceRepo == "" {
-		sourceRepo = "gitlab-test.git"
-	}
-
-	repo := InitRepoDir(t, storage.Path, relativePath)
-	repo.StorageName = storage.Name
-
-	args := []string{"clone", "--no-hardlinks", "--dissociate", "--bare"}
-
-	absolutePath := filepath.Join(storage.Path, relativePath)
-	Exec(t, cfg, append(args, testRepositoryPath(t, sourceRepo), absolutePath)...)
-	Exec(t, cfg, "-C", absolutePath, "remote", "remove", "origin")
-
-	t.Cleanup(func() { require.NoError(t, os.RemoveAll(absolutePath)) })
-
-	return repo, absolutePath
 }
 
 // BundleRepo creates a bundle of a repository. `patterns` define the bundle contents as per

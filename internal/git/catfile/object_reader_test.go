@@ -21,7 +21,9 @@ func TestObjectReader_reader(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	commitID := gittest.WriteCommit(t, cfg, repoPath,
 		gittest.WithBranch("main"),
@@ -131,7 +133,9 @@ func TestObjectReader_queue(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	foobarBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("foobar"))
 	barfooBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("barfoo"))
@@ -429,7 +433,9 @@ func TestObjectReader_replaceRefs(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	originalOID := gittest.WriteBlob(t, cfg, repoPath, []byte("original"))
 	replacedOID := gittest.WriteBlob(t, cfg, repoPath, []byte("replaced"))

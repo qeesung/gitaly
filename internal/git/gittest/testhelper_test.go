@@ -23,6 +23,7 @@ func setup(t testing.TB) (config.Cfg, *gitalypb.Repository, string) {
 
 	rootDir := testhelper.TempDir(t)
 
+	ctx := testhelper.Context(t)
 	var cfg config.Cfg
 
 	cfg.SocketPath = "it is a stub to bypass Validate method"
@@ -52,7 +53,9 @@ func setup(t testing.TB) (config.Cfg, *gitalypb.Repository, string) {
 
 	require.NoError(t, cfg.Validate())
 
-	repo, repoPath := InitRepo(t, cfg, cfg.Storages[0])
+	repo, repoPath := CreateRepository(ctx, t, cfg, CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	return cfg, repo, repoPath
 }

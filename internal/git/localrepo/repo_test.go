@@ -25,7 +25,9 @@ func TestRepo(t *testing.T) {
 	gittest.TestRepository(t, cfg, func(ctx context.Context, t testing.TB) (git.Repository, string) {
 		t.Helper()
 
-		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 
 		gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 		catfileCache := catfile.NewCache(cfg)
@@ -69,7 +71,9 @@ func TestSize(t *testing.T) {
 			desc:         "empty repository",
 			expectedSize: 0,
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 				return repoProto
 			},
 			expectedUseBitmap: true,
@@ -77,7 +81,9 @@ func TestSize(t *testing.T) {
 		{
 			desc: "referenced commit",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
@@ -94,7 +100,9 @@ func TestSize(t *testing.T) {
 		{
 			desc: "unreferenced commit",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
@@ -110,7 +118,9 @@ func TestSize(t *testing.T) {
 		{
 			desc: "modification to blob without repack",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				rootCommitID := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
@@ -135,7 +145,9 @@ func TestSize(t *testing.T) {
 		{
 			desc: "modification to blob after repack",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				rootCommitID := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
@@ -162,7 +174,9 @@ func TestSize(t *testing.T) {
 		{
 			desc: "excluded single ref",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
@@ -189,7 +203,9 @@ func TestSize(t *testing.T) {
 		{
 			desc: "excluded everything",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
@@ -209,8 +225,12 @@ func TestSize(t *testing.T) {
 		{
 			desc: "repo with alternate",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-				_, poolPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
+				_, poolPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				require.NoError(t, os.WriteFile(
 					filepath.Join(repoPath, "objects", "info", "alternates"),
@@ -239,8 +259,12 @@ func TestSize(t *testing.T) {
 		{
 			desc: "exclude alternate with identical contents",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-				_, poolPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
+				_, poolPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				require.NoError(t, os.WriteFile(
 					filepath.Join(repoPath, "objects", "info", "alternates"),
@@ -270,8 +294,12 @@ func TestSize(t *testing.T) {
 		{
 			desc: "exclude alternate with additional contents",
 			setup: func(t *testing.T) *gitalypb.Repository {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-				_, poolPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
+				_, poolPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 
 				require.NoError(t, os.WriteFile(
 					filepath.Join(repoPath, "objects", "info", "alternates"),
@@ -332,13 +360,17 @@ func TestSize(t *testing.T) {
 }
 
 func TestRepo_StorageTempDir(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
+
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 	catfileCache := catfile.NewCache(cfg)
 	t.Cleanup(catfileCache.Stop)
 	locator := config.NewLocator(cfg)
 
-	repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repo := New(locator, gitCmdFactory, catfileCache, repoProto)
 
 	expected, err := locator.TempDir(cfg.Storages[0].Name)
@@ -372,7 +404,9 @@ func TestRepo_ObjectHash(t *testing.T) {
 		exec %q "$@"`, outputFile, execEnv.BinaryPath)
 	})
 
-	repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repo := New(locator, gitCmdFactory, catfileCache, repoProto)
 
 	objectHash, err := repo.ObjectHash(ctx)

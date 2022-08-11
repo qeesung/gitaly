@@ -28,7 +28,9 @@ func TestRepo_FetchRemote(t *testing.T) {
 	defer catfileCache.Stop()
 	locator := config.NewLocator(cfg)
 
-	_, remoteRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	_, remoteRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	commitID := gittest.WriteCommit(t, cfg, remoteRepoPath, gittest.WithBranch("main"))
 	tagID := gittest.WriteTag(t, cfg, remoteRepoPath, "v1.0.0", commitID.Revision(), gittest.WriteTagConfig{
 		Message: "annotated tag",
@@ -37,7 +39,9 @@ func TestRepo_FetchRemote(t *testing.T) {
 	initBareWithRemote := func(t *testing.T, remote string) (*Repo, string) {
 		t.Helper()
 
-		clientRepo, clientRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		clientRepo, clientRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 
 		cmd := gittest.NewCommand(t, cfg, "-C", clientRepoPath, "remote", "add", remote, remoteRepoPath)
 		err := cmd.Run()
@@ -57,7 +61,9 @@ func TestRepo_FetchRemote(t *testing.T) {
 	})
 
 	t.Run("unknown remote", func(t *testing.T) {
-		repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 
 		repo := New(locator, gitCmdFactory, catfileCache, repoProto)
 		var stderr bytes.Buffer
@@ -87,7 +93,9 @@ func TestRepo_FetchRemote(t *testing.T) {
 	})
 
 	t.Run("with env", func(t *testing.T) {
-		testRepo, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		testRepo, testRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 
 		repo := New(locator, gitCmdFactory, catfileCache, testRepo)
 		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", remoteRepoPath)
@@ -98,7 +106,9 @@ func TestRepo_FetchRemote(t *testing.T) {
 	})
 
 	t.Run("with disabled transactions", func(t *testing.T) {
-		testRepo, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		testRepo, testRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 
 		repo := New(locator, gitCmdFactory, catfileCache, testRepo)
 		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", remoteRepoPath)
@@ -113,7 +123,9 @@ func TestRepo_FetchRemote(t *testing.T) {
 	})
 
 	t.Run("with globals", func(t *testing.T) {
-		testRepo, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		testRepo, testRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 
 		repo := New(locator, gitCmdFactory, catfileCache, testRepo)
 		gittest.Exec(t, cfg, "-C", testRepoPath, "remote", "add", "source", remoteRepoPath)
@@ -140,7 +152,9 @@ func TestRepo_FetchRemote(t *testing.T) {
 	})
 
 	t.Run("with prune", func(t *testing.T) {
-		testRepo, testRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		testRepo, testRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 
 		repo := New(locator, gitCmdFactory, catfileCache, testRepo)
 
@@ -247,18 +261,24 @@ func TestRepo_Push(t *testing.T) {
 	t.Cleanup(catfileCache.Stop)
 	locator := config.NewLocator(cfg)
 
-	sourceRepoProto, sourceRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	sourceRepoProto, sourceRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	sourceRepo := New(locator, gitCmdFactory, catfileCache, sourceRepoProto)
 	gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
 	gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("feature"))
 
 	setupPushRepo := func(t testing.TB) (*Repo, string, []git.ConfigPair) {
-		repoProto, repopath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repoProto, repopath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 		return New(locator, gitCmdFactory, catfileCache, repoProto), repopath, nil
 	}
 
 	setupDivergedRepo := func(t testing.TB) (*Repo, string, []git.ConfigPair) {
-		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 		repo := New(locator, gitCmdFactory, catfileCache, repoProto)
 
 		// set up master as a diverging ref in push repo
@@ -332,7 +352,9 @@ func TestRepo_Push(t *testing.T) {
 		{
 			desc: "invalid remote",
 			setupPushRepo: func(t testing.TB) (*Repo, string, []git.ConfigPair) {
-				repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 				return New(locator, gitCmdFactory, catfileCache, repoProto), "", nil
 			},
 			refspecs:     []string{"refs/heads/master"},
@@ -341,7 +363,9 @@ func TestRepo_Push(t *testing.T) {
 		{
 			desc: "in-memory remote",
 			setupPushRepo: func(testing.TB) (*Repo, string, []git.ConfigPair) {
-				repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 				return New(locator, gitCmdFactory, catfileCache, repoProto), "inmemory", []git.ConfigPair{
 					{Key: "remote.inmemory.url", Value: repoPath},
 				}

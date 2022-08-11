@@ -95,9 +95,15 @@ func TestListUntrackedRepositories_Exec(t *testing.T) {
 	require.NoError(t, fs.Parse([]string{"-older-than", "4h"}))
 
 	// Repositories not managed by praefect.
-	repo1, repo1Path := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
-	repo2, repo2Path := gittest.InitRepo(t, g1Cfg, g1Cfg.Storages[0])
-	_, _ = gittest.InitRepo(t, g2Cfg, g2Cfg.Storages[0])
+	repo1, repo1Path := gittest.CreateRepository(ctx, t, g1Cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
+	repo2, repo2Path := gittest.CreateRepository(ctx, t, g1Cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
+	_, _ = gittest.CreateRepository(ctx, t, g2Cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	require.NoError(t, os.Chtimes(
 		repo1Path,

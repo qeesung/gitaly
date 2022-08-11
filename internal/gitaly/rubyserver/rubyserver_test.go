@@ -206,7 +206,9 @@ func TestServer_gitconfig(t *testing.T) {
 				`[`,
 			), 0o666))
 
-			repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+			repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+				SkipCreationViaService: true,
+			})
 
 			// We now do any random RPC request that hits the Ruby server...
 			client, err := rubyServer.WikiServiceClient(ctx)

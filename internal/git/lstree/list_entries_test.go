@@ -17,7 +17,9 @@ func TestListEntries(t *testing.T) {
 	cfg := testcfg.Build(t)
 	ctx := testhelper.Context(t)
 
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("blob contents"))

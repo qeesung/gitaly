@@ -39,20 +39,28 @@ func (w *streamWrapper) Send(resp *gitalypb.WalkReposResponse) error {
 }
 
 func TestWalkRepos(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
+
 	storageName := cfg.Storages[0].Name
 	storageRoot := cfg.Storages[0].Path
 
 	// file walk happens lexicographically, so we delete repository in the middle
 	// of the sequence to ensure the walk proceeds normally
-	testRepo1, testRepo1Path := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
-		RelativePath: "a",
+	testRepo1, testRepo1Path := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+		RelativePath:           "a",
 	})
-	deletedRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
-		RelativePath: "b",
+	deletedRepo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+		RelativePath:           "b",
 	})
-	testRepo2, testRepo2Path := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
-		RelativePath: "c",
+	testRepo2, testRepo2Path := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+		RelativePath:           "c",
 	})
 
 	modifiedDate := time.Now().Add(-1 * time.Hour)
@@ -87,7 +95,6 @@ func TestWalkRepos(t *testing.T) {
 	}
 
 	client := setupInternalGitalyService(t, cfg, wsrv)
-	ctx := testhelper.Context(t)
 
 	stream, err := client.WalkRepos(ctx, &gitalypb.WalkReposRequest{
 		StorageName: "invalid storage name",

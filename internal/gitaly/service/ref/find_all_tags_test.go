@@ -690,7 +690,9 @@ func BenchmarkFindAllTags(b *testing.B) {
 
 	cfg, client := setupRefServiceWithoutRepo(b)
 
-	repoProto, repoPath := gittest.CloneRepo(b, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, b, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
 
 	for i := 0; i < 1000; i++ {
 		gittest.WriteTag(b, cfg, repoPath, fmt.Sprintf("%d", i), "HEAD", gittest.WriteTagConfig{

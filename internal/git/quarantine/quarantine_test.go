@@ -88,7 +88,11 @@ func TestQuarantine_Migrate(t *testing.T) {
 	t.Run("no changes", func(t *testing.T) {
 		ctx := testhelper.Context(t)
 
-		repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		repo, repoPath := gittest.CreateRepository(ctx, t, cfg,
+			gittest.CreateRepositoryConfig{
+				SkipCreationViaService: true,
+				Seed:                   gittest.SeedGitLabTest,
+			})
 
 		oldContents := listEntries(t, repoPath)
 
@@ -103,7 +107,10 @@ func TestQuarantine_Migrate(t *testing.T) {
 	t.Run("simple change", func(t *testing.T) {
 		ctx := testhelper.Context(t)
 
-		repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+			Seed:                   gittest.SeedGitLabTest,
+		})
 
 		oldContents := listEntries(t, repoPath)
 		require.NotContains(t, oldContents, "objects/file")

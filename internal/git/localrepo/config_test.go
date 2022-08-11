@@ -78,7 +78,10 @@ func TestRepo_SetConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+			repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg,
+				gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+				})
 			repo := NewTestRepo(t, cfg, repoProto)
 
 			for _, entry := range tc.preexistingEntries {
@@ -121,7 +124,9 @@ func TestRepo_SetConfig(t *testing.T) {
 	}
 
 	t.Run("transactional", func(t *testing.T) {
-		repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 		repo := NewTestRepo(t, cfg, repoProto)
 
 		backchannelPeer := &peer.Peer{
@@ -228,7 +233,9 @@ func TestRepo_UnsetMatchingConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+			repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+				SkipCreationViaService: true,
+			})
 			repo := NewTestRepo(t, cfg, repoProto)
 
 			for key, value := range tc.addEntries {
@@ -250,7 +257,9 @@ func TestRepo_UnsetMatchingConfig(t *testing.T) {
 	}
 
 	t.Run("transactional", func(t *testing.T) {
-		repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
 		repo := NewTestRepo(t, cfg, repoProto)
 
 		gittest.Exec(t, cfg, "-C", repoPath, "config", "--add", "some.key", "value")
