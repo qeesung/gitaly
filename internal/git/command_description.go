@@ -58,7 +58,7 @@ var commandDescriptions = map[string]commandDescription{
 			ConfigPair{Key: "init.templateDir", Value: ""},
 			// See "fetch" for why we disable following redirects.
 			ConfigPair{Key: "http.followRedirects", Value: "false"},
-		}, packConfiguration()...), fsckConfiguration("fetch")...),
+		}, packConfiguration()...), fetchFsckConfiguration()...),
 	},
 	"commit": {
 		flags: 0,
@@ -118,7 +118,7 @@ var commandDescriptions = map[string]commandDescription{
 			// of time though because we never populate submodules at all. We thus
 			// disable recursion into submodules.
 			ConfigPair{Key: "fetch.recurseSubmodules", Value: "no"},
-		}, fsckConfiguration("fetch")...), packConfiguration()...),
+		}, fetchFsckConfiguration()...), packConfiguration()...),
 	},
 	"for-each-ref": {
 		flags: scNoRefUpdates,
@@ -128,6 +128,7 @@ var commandDescriptions = map[string]commandDescription{
 	},
 	"fsck": {
 		flags: scNoRefUpdates,
+		opts:  fsckConfiguration(),
 	},
 	"gc": {
 		flags: scNoRefUpdates,
@@ -225,7 +226,7 @@ var commandDescriptions = map[string]commandDescription{
 			// Make git-receive-pack(1) advertise the push options
 			// capability to clients.
 			ConfigPair{Key: "receive.advertisePushOptions", Value: "true"},
-		}, hiddenReceivePackRefPrefixes()...), fsckConfiguration("receive")...), packConfiguration()...),
+		}, hiddenReceivePackRefPrefixes()...), receiveFsckConfiguration()...), packConfiguration()...),
 	},
 	"remote": {
 		// While git-remote(1)'s `add` subcommand does support `--end-of-options`,
@@ -409,38 +410,57 @@ func hiddenUploadPackRefPrefixes() []GlobalOption {
 	return config
 }
 
-// fsckConfiguration generates our fsck configuration, including ignored checks. The prefix must
-// either be "receive" or "fetch" and indicates whether it should apply to git-receive-pack(1) or to
-// git-fetch-pack(1).
-func fsckConfiguration(prefix string) []GlobalOption {
-	var configPairs []GlobalOption
+// fsckConfiguration generates default fsck options used by git-fsck(1).
+func fsckConfiguration() []GlobalOption {
+	return templateFsckConfiguration("fsck")
+}
+
+// fetchFsckConfiguration generates default fsck options used by git-fetch-pack(1).
+func fetchFsckConfiguration() []GlobalOption {
+	return templateFsckConfiguration("fetch.fsck")
+}
+
+// receiveFsckConfiguration generates default fsck options used by git-receive-pack(1).
+func receiveFsckConfiguration() []GlobalOption {
+	return templateFsckConfiguration("receive.fsck")
+}
+
+// templateFsckConfiguration generates our fsck configuration, including ignored checks.
+// The prefix must either be "fsck", "receive.fsck" or "fetch.fsck" and indicates whether
+// it should apply to git-fsck(1), git-receive-pack(1) or to git-fetch-pack(1).
+func templateFsckConfiguration(prefix string) []GlobalOption {
+	configPairs := []GlobalOption{
+		// When receiving objects from an untrusted source, we want to always assert that
+		// all objects are valid. When fetch.fsckObjects or receive.fsckObjects are not set,
+		// the value of transfer.fsckObjects is used instead. Since the fsck configuration
+		// of git-fetch-pack(1) and git-receive-pack(1) is coupled, transfer.fsckObjects can
+		// be used for both.
+		ConfigPair{Key: "transfer.fsckObjects", Value: "true"},
+	}
+
 	for _, config := range []struct {
 		key   string
 		value string
 	}{
-		// When receiving objects from an untrusted source, we want to always assert that
-		// all objects are valid.
-		{key: "fsckObjects", value: "true"},
-
 		// In the past, there was a bug in git that caused users to create commits with
 		// invalid timezones. As a result, some histories contain commits that do not match
 		// the spec. As we fsck received packfiles by default, any push containing such
 		// a commit will be rejected. As this is a mostly harmless issue, we add the
 		// following flag to ignore this check.
-		{key: "fsck.badTimezone", value: "ignore"},
+		{key: "badTimezone", value: "ignore"},
 
 		// git-fsck(1) complains in case a signature does not have a space
 		// between mail and date. The most common case where this can be hit
 		// is in case the date is missing completely. This error is harmless
 		// enough and we cope just fine parsing such signatures, so we can
 		// ignore this error.
-		{key: "fsck.missingSpaceBeforeDate", value: "ignore"},
+		{key: "missingSpaceBeforeDate", value: "ignore"},
 
 		// Oldish Git versions used to zero-pad some filemodes, e.g. instead of a
 		// file mode of 40000 the tree object would have encoded the filemode as
 		// 04000. This doesn't cause any and Git can cope with it alright, so let's
 		// ignore it.
-		{key: "fsck.zeroPaddedFilemode", value: "ignore"},
+		{key: "zeroPaddedFilemode", value: "ignore"},
 	} {
 		configPairs = append(configPairs, ConfigPair{
 			Key:   fmt.Sprintf("%s.%s", prefix, config.key),

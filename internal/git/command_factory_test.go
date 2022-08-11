@@ -589,3 +589,74 @@ func TestExecCommandFactory_SidecarGitConfiguration(t *testing.T) {
 		})
 	}
 }
+
+// TestFsckConfiguration tests the hardcoded configuration of the
+// git fsck subcommand generated through the command factory.
+func TestFsckConfiguration(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		desc string
+		data string
+	}{
+		{
+			desc: "with valid commit",
+			data: strings.Join([]string{
+				"tree " + gittest.DefaultObjectHash.EmptyTreeOID.String(),
+				"author " + gittest.DefaultCommitterSignature,
+				"committer " + gittest.DefaultCommitterSignature,
+				"",
+				"message",
+			}, "\n"),
+		},
+		{
+			desc: "with missing space",
+			data: strings.Join([]string{
+				"tree " + gittest.DefaultObjectHash.EmptyTreeOID.String(),
+				"author Scrooge McDuck <scrooge@mcduck.com>1659043074 -0500",
+				"committer Scrooge McDuck <scrooge@mcduck.com>1659975573 -0500",
+				"",
+				"message",
+			}, "\n"),
+		},
+		{
+			desc: "with bad timezone",
+			data: strings.Join([]string{
+				"tree " + gittest.DefaultObjectHash.EmptyTreeOID.String(),
+				"author Scrooge McDuck <scrooge@mcduck.com> 1659043074 -0500BAD",
+				"committer Scrooge McDuck <scrooge@mcduck.com> 1659975573 -0500BAD",
+				"",
+				"message",
+			}, "\n"),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := testhelper.Context(t)
+			cfg := testcfg.Build(t)
+			repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg,
+				gittest.CreateRepositoryConfig{SkipCreationViaService: true},
+			)
+
+			// Create commit object.
+			commitOut := gittest.ExecOpts(t, cfg, gittest.ExecConfig{Stdin: bytes.NewBufferString(tc.data)},
+				"-C", repoPath, "hash-object", "-w", "-t", "commit", "--stdin", "--literally",
+			)
+			_, err := gittest.DefaultObjectHash.FromHex(text.ChompBytes(commitOut))
+			require.NoError(t, err)
+
+			gitCmdFactory, cleanup, err := git.NewExecCommandFactory(cfg)
+			require.NoError(t, err)
+			defer cleanup()
+
+			// Create fsck command with configured ignore rules options.
+			cmd, err := gitCmdFactory.New(ctx, repoProto,
+				git.SubCmd{Name: "fsck"},
+			)
+			require.NoError(t, err)
+
+			// Execute git fsck command.
+			err = cmd.Wait()
+			require.NoError(t, err)
+		})
+	}
+}
