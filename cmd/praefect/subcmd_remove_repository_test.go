@@ -109,11 +109,11 @@ func TestRemoveRepository_Exec(t *testing.T) {
 
 	praefectStorage := conf.VirtualStorages[0].Name
 
-	repositoryExists := func(t testing.TB, repo *gitalypb.Repository) bool {
+	repositoryExists := func(tb testing.TB, repo *gitalypb.Repository) bool {
 		response, err := gitalypb.NewRepositoryServiceClient(cc).RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
 			Repository: repo,
 		})
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		return response.GetExists()
 	}
 

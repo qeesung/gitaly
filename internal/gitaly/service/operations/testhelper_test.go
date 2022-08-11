@@ -38,29 +38,29 @@ func TestMain(m *testing.M) {
 	testhelper.Run(m)
 }
 
-func setupOperationsService(t testing.TB, ctx context.Context, options ...testserver.GitalyServerOpt) (context.Context, config.Cfg, *gitalypb.Repository, string, gitalypb.OperationServiceClient) {
-	cfg := testcfg.Build(t)
-	ctx, cfg, repo, repoPath, client := setupOperationsServiceWithCfg(t, ctx, cfg, options...)
+func setupOperationsService(tb testing.TB, ctx context.Context, options ...testserver.GitalyServerOpt) (context.Context, config.Cfg, *gitalypb.Repository, string, gitalypb.OperationServiceClient) {
+	cfg := testcfg.Build(tb)
+	ctx, cfg, repo, repoPath, client := setupOperationsServiceWithCfg(tb, ctx, cfg, options...)
 	return ctx, cfg, repo, repoPath, client
 }
 
 func setupOperationsServiceWithCfg(
-	t testing.TB, ctx context.Context, cfg config.Cfg, options ...testserver.GitalyServerOpt,
+	tb testing.TB, ctx context.Context, cfg config.Cfg, options ...testserver.GitalyServerOpt,
 ) (context.Context, config.Cfg, *gitalypb.Repository, string, gitalypb.OperationServiceClient) {
-	testcfg.BuildGitalySSH(t, cfg)
-	testcfg.BuildGitalyGit2Go(t, cfg)
-	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(tb, cfg)
+	testcfg.BuildGitalyGit2Go(tb, cfg)
+	testcfg.BuildGitalyHooks(tb, cfg)
 
-	serverSocketPath := runOperationServiceServer(t, cfg, options...)
+	serverSocketPath := runOperationServiceServer(tb, cfg, options...)
 	cfg.SocketPath = serverSocketPath
 
-	client, conn := newOperationClient(t, serverSocketPath)
-	t.Cleanup(func() { conn.Close() })
+	client, conn := newOperationClient(tb, serverSocketPath)
+	tb.Cleanup(func() { conn.Close() })
 
-	md := testcfg.GitalyServersMetadataFromCfg(t, cfg)
+	md := testcfg.GitalyServersMetadataFromCfg(tb, cfg)
 	ctx = testhelper.MergeOutgoingMetadata(ctx, md)
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	repo, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
 
@@ -68,30 +68,30 @@ func setupOperationsServiceWithCfg(
 }
 
 func setupOperationsServiceWithoutRepo(
-	t testing.TB, ctx context.Context, options ...testserver.GitalyServerOpt,
+	tb testing.TB, ctx context.Context, options ...testserver.GitalyServerOpt,
 ) (context.Context, config.Cfg, gitalypb.OperationServiceClient) {
-	cfg := testcfg.Build(t)
+	cfg := testcfg.Build(tb)
 
-	testcfg.BuildGitalySSH(t, cfg)
-	testcfg.BuildGitalyGit2Go(t, cfg)
-	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalySSH(tb, cfg)
+	testcfg.BuildGitalyGit2Go(tb, cfg)
+	testcfg.BuildGitalyHooks(tb, cfg)
 
-	serverSocketPath := runOperationServiceServer(t, cfg, options...)
+	serverSocketPath := runOperationServiceServer(tb, cfg, options...)
 	cfg.SocketPath = serverSocketPath
 
-	client, conn := newOperationClient(t, serverSocketPath)
-	t.Cleanup(func() { conn.Close() })
+	client, conn := newOperationClient(tb, serverSocketPath)
+	tb.Cleanup(func() { conn.Close() })
 
-	md := testcfg.GitalyServersMetadataFromCfg(t, cfg)
+	md := testcfg.GitalyServersMetadataFromCfg(tb, cfg)
 	ctx = testhelper.MergeOutgoingMetadata(ctx, md)
 
 	return ctx, cfg, client
 }
 
-func runOperationServiceServer(t testing.TB, cfg config.Cfg, options ...testserver.GitalyServerOpt) string {
-	t.Helper()
+func runOperationServiceServer(tb testing.TB, cfg config.Cfg, options ...testserver.GitalyServerOpt) string {
+	tb.Helper()
 
-	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+	return testserver.RunGitalyServer(tb, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		operationServer := NewServer(
 			deps.GetHookManager(),
 			deps.GetTxManager(),
@@ -136,13 +136,13 @@ func runOperationServiceServer(t testing.TB, cfg config.Cfg, options ...testserv
 	}, options...)
 }
 
-func newOperationClient(t testing.TB, serverSocketPath string) (gitalypb.OperationServiceClient, *grpc.ClientConn) {
+func newOperationClient(tb testing.TB, serverSocketPath string) (gitalypb.OperationServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	return gitalypb.NewOperationServiceClient(conn), conn
@@ -155,8 +155,8 @@ func newMuxedOperationClient(t *testing.T, ctx context.Context, serverSocketPath
 	return gitalypb.NewOperationServiceClient(conn)
 }
 
-func setupAndStartGitlabServer(t testing.TB, glID, glRepository string, cfg config.Cfg, gitPushOptions ...string) string {
-	url, cleanup := gitlab.SetupAndStartGitlabServer(t, cfg.GitlabShell.Dir, &gitlab.TestServerOptions{
+func setupAndStartGitlabServer(tb testing.TB, glID, glRepository string, cfg config.Cfg, gitPushOptions ...string) string {
+	url, cleanup := gitlab.SetupAndStartGitlabServer(tb, cfg.GitlabShell.Dir, &gitlab.TestServerOptions{
 		SecretToken:                 "secretToken",
 		GLID:                        glID,
 		GLRepository:                glRepository,
@@ -165,7 +165,7 @@ func setupAndStartGitlabServer(t testing.TB, glID, glRepository string, cfg conf
 		GitPushOptions:              gitPushOptions,
 	})
 
-	t.Cleanup(cleanup)
+	tb.Cleanup(cleanup)
 
 	return url
 }

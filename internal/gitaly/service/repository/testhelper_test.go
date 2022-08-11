@@ -66,22 +66,22 @@ func TestWithRubySidecar(t *testing.T) {
 	}
 }
 
-func newRepositoryClient(t testing.TB, cfg config.Cfg, serverSocketPath string) gitalypb.RepositoryServiceClient {
+func newRepositoryClient(tb testing.TB, cfg config.Cfg, serverSocketPath string) gitalypb.RepositoryServiceClient {
 	var connOpts []grpc.DialOption
 	if cfg.Auth.Token != "" {
 		connOpts = append(connOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(cfg.Auth.Token)))
 	}
 	conn, err := gclient.Dial(serverSocketPath, connOpts)
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, conn.Close()) })
+	require.NoError(tb, err)
+	tb.Cleanup(func() { require.NoError(tb, conn.Close()) })
 
 	return gitalypb.NewRepositoryServiceClient(conn)
 }
 
-func newObjectPoolClient(t testing.TB, cfg config.Cfg, serverSocketPath string) gitalypb.ObjectPoolServiceClient {
+func newObjectPoolClient(tb testing.TB, cfg config.Cfg, serverSocketPath string) gitalypb.ObjectPoolServiceClient {
 	conn, err := gclient.Dial(serverSocketPath, nil)
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, conn.Close()) })
+	require.NoError(tb, err)
+	tb.Cleanup(func() { require.NoError(tb, conn.Close()) })
 
 	return gitalypb.NewObjectPoolServiceClient(conn)
 }
@@ -111,8 +111,8 @@ func assertModTimeAfter(t *testing.T, afterTime time.Time, paths ...string) bool
 	return t.Failed()
 }
 
-func runRepositoryService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server, opts ...testserver.GitalyServerOpt) (gitalypb.RepositoryServiceClient, string) {
-	serverSocketPath := testserver.RunGitalyServer(t, cfg, rubySrv, func(srv *grpc.Server, deps *service.Dependencies) {
+func runRepositoryService(tb testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server, opts ...testserver.GitalyServerOpt) (gitalypb.RepositoryServiceClient, string) {
+	serverSocketPath := testserver.RunGitalyServer(tb, cfg, rubySrv, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterRepositoryServiceServer(srv, NewServer(
 			cfg,
 			deps.GetRubyServer(),
@@ -158,35 +158,35 @@ func runRepositoryService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Serv
 		))
 	}, opts...)
 
-	return newRepositoryClient(t, cfg, serverSocketPath), serverSocketPath
+	return newRepositoryClient(tb, cfg, serverSocketPath), serverSocketPath
 }
 
-func setupRepositoryService(ctx context.Context, t testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
-	cfg, client := setupRepositoryServiceWithoutRepo(t, opts...)
+func setupRepositoryService(ctx context.Context, tb testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
+	cfg, client := setupRepositoryServiceWithoutRepo(tb, opts...)
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	repo, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
 	return cfg, repo, repoPath, client
 }
 
 // Sets up a repository that has been cloned using `--mirror` which contains GitLab internal references
-func setupRepositoryServiceFromMirror(ctx context.Context, t testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
-	cfg, client := setupRepositoryServiceWithoutRepo(t, opts...)
+func setupRepositoryServiceFromMirror(ctx context.Context, tb testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.RepositoryServiceClient) {
+	cfg, client := setupRepositoryServiceWithoutRepo(tb, opts...)
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	repo, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTestMirror,
 	})
 	return cfg, repo, repoPath, client
 }
 
-func setupRepositoryServiceWithoutRepo(t testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, gitalypb.RepositoryServiceClient) {
-	cfg := testcfg.Build(t)
+func setupRepositoryServiceWithoutRepo(tb testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, gitalypb.RepositoryServiceClient) {
+	cfg := testcfg.Build(tb)
 
-	testcfg.BuildGitalyHooks(t, cfg)
-	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyHooks(tb, cfg)
+	testcfg.BuildGitalySSH(tb, cfg)
 
-	client, serverSocketPath := runRepositoryService(t, cfg, nil, opts...)
+	client, serverSocketPath := runRepositoryService(tb, cfg, nil, opts...)
 	cfg.SocketPath = serverSocketPath
 
 	return cfg, client

@@ -18,12 +18,12 @@ func TestMain(m *testing.M) {
 
 // setup sets up a test configuration and repository. Ideally we'd use our central test helpers to
 // do this, but because of an import cycle we can't.
-func setup(t testing.TB) (config.Cfg, *gitalypb.Repository, string) {
-	t.Helper()
+func setup(tb testing.TB) (config.Cfg, *gitalypb.Repository, string) {
+	tb.Helper()
 
-	rootDir := testhelper.TempDir(t)
+	rootDir := testhelper.TempDir(tb)
 
-	ctx := testhelper.Context(t)
+	ctx := testhelper.Context(tb)
 	var cfg config.Cfg
 
 	cfg.SocketPath = "it is a stub to bypass Validate method"
@@ -35,25 +35,25 @@ func setup(t testing.TB) (config.Cfg, *gitalypb.Repository, string) {
 			Path: filepath.Join(rootDir, "storage.d"),
 		},
 	}
-	require.NoError(t, os.Mkdir(cfg.Storages[0].Path, 0o755))
+	require.NoError(tb, os.Mkdir(cfg.Storages[0].Path, 0o755))
 
 	_, currentFile, _, ok := runtime.Caller(0)
-	require.True(t, ok, "could not get caller info")
+	require.True(tb, ok, "could not get caller info")
 	cfg.Ruby.Dir = filepath.Join(filepath.Dir(currentFile), "../../../ruby")
 
 	cfg.GitlabShell.Dir = filepath.Join(rootDir, "shell.d")
-	require.NoError(t, os.Mkdir(cfg.GitlabShell.Dir, 0o755))
+	require.NoError(tb, os.Mkdir(cfg.GitlabShell.Dir, 0o755))
 
 	cfg.BinDir = filepath.Join(rootDir, "bin.d")
-	require.NoError(t, os.Mkdir(cfg.BinDir, 0o755))
+	require.NoError(tb, os.Mkdir(cfg.BinDir, 0o755))
 
 	cfg.RuntimeDir = filepath.Join(rootDir, "run.d")
-	require.NoError(t, os.Mkdir(cfg.RuntimeDir, 0o700))
-	require.NoError(t, os.Mkdir(cfg.InternalSocketDir(), 0o700))
+	require.NoError(tb, os.Mkdir(cfg.RuntimeDir, 0o700))
+	require.NoError(tb, os.Mkdir(cfg.InternalSocketDir(), 0o700))
 
-	require.NoError(t, cfg.Validate())
+	require.NoError(tb, cfg.Validate())
 
-	repo, repoPath := CreateRepository(ctx, t, cfg, CreateRepositoryConfig{
+	repo, repoPath := CreateRepository(ctx, tb, cfg, CreateRepositoryConfig{
 		SkipCreationViaService: true,
 	})
 

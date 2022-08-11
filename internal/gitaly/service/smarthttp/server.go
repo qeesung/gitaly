@@ -47,7 +47,7 @@ func NewServer(
 // ServerOpt is a self referential option for server
 type ServerOpt func(s *server)
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func WithPackfileNegotiationMetrics(c *prometheus.CounterVec) ServerOpt {
 	return func(s *server) {
 		s.packfileNegotiationMetrics = c

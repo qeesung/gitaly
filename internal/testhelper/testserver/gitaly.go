@@ -44,13 +44,13 @@ import (
 // It accepts addition Registrar to register all required service instead of
 // calling service.RegisterAll explicitly because it creates a circular dependency
 // when the function is used in on of internal/gitaly/service/... packages.
-func RunGitalyServer(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, registrar func(srv *grpc.Server, deps *service.Dependencies), opts ...GitalyServerOpt) string {
-	return StartGitalyServer(t, cfg, rubyServer, registrar, opts...).Address()
+func RunGitalyServer(tb testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, registrar func(srv *grpc.Server, deps *service.Dependencies), opts ...GitalyServerOpt) string {
+	return StartGitalyServer(tb, cfg, rubyServer, registrar, opts...).Address()
 }
 
 // StartGitalyServer creates and runs gitaly (and praefect as a proxy) server.
-func StartGitalyServer(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, registrar func(srv *grpc.Server, deps *service.Dependencies), opts ...GitalyServerOpt) GitalyServer {
-	gitalySrv, gitalyAddr, disablePraefect := runGitaly(t, cfg, rubyServer, registrar, opts...)
+func StartGitalyServer(tb testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, registrar func(srv *grpc.Server, deps *service.Dependencies), opts ...GitalyServerOpt) GitalyServer {
+	gitalySrv, gitalyAddr, disablePraefect := runGitaly(tb, cfg, rubyServer, registrar, opts...)
 
 	if !testhelper.IsPraefectEnabled() || disablePraefect {
 		return GitalyServer{
@@ -60,7 +60,7 @@ func StartGitalyServer(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Serv
 		}
 	}
 
-	praefectServer := runPraefectProxy(t, cfg, gitalyAddr)
+	praefectServer := runPraefectProxy(tb, cfg, gitalyAddr)
 	return GitalyServer{
 		Server: gitalySrv,
 		shutdown: func() {
@@ -71,13 +71,13 @@ func StartGitalyServer(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Serv
 	}
 }
 
-func runPraefectProxy(t testing.TB, gitalyCfg config.Cfg, gitalyAddr string) PraefectServer {
-	return StartPraefect(t, praefectconfig.Config{
-		SocketPath: testhelper.GetTemporaryGitalySocketFileName(t),
+func runPraefectProxy(tb testing.TB, gitalyCfg config.Cfg, gitalyAddr string) PraefectServer {
+	return StartPraefect(tb, praefectconfig.Config{
+		SocketPath: testhelper.GetTemporaryGitalySocketFileName(tb),
 		Auth: auth.Config{
 			Token: gitalyCfg.Auth.Token,
 		},
-		DB: testdb.GetConfig(t, testdb.New(t).Name),
+		DB: testdb.GetConfig(tb, testdb.New(tb).Name),
 		Failover: praefectconfig.Failover{
 			Enabled:          true,
 			ElectionStrategy: praefectconfig.ElectionStrategyLocal,
@@ -124,7 +124,7 @@ func (gs GitalyServer) Address() string {
 }
 
 // waitHealthy waits until the server hosted at address becomes healthy.
-func waitHealthy(ctx context.Context, t testing.TB, addr string, authToken string) {
+func waitHealthy(ctx context.Context, tb testing.TB, addr string, authToken string) {
 	grpcOpts := []grpc.DialOption{
 		grpc.WithBlock(),
 	}
@@ -133,30 +133,30 @@ func waitHealthy(ctx context.Context, t testing.TB, addr string, authToken strin
 	}
 
 	conn, err := client.DialContext(ctx, addr, grpcOpts)
-	require.NoError(t, err)
-	defer testhelper.MustClose(t, conn)
+	require.NoError(tb, err)
+	defer testhelper.MustClose(tb, conn)
 
 	healthClient := healthpb.NewHealthClient(conn)
 
 	resp, err := healthClient.Check(ctx, &healthpb.HealthCheckRequest{}, grpc.WaitForReady(true))
-	require.NoError(t, err)
-	require.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status, "server not yet ready to serve")
+	require.NoError(tb, err)
+	require.Equal(tb, healthpb.HealthCheckResponse_SERVING, resp.Status, "server not yet ready to serve")
 }
 
-func runGitaly(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, registrar func(srv *grpc.Server, deps *service.Dependencies), opts ...GitalyServerOpt) (*grpc.Server, string, bool) {
-	t.Helper()
+func runGitaly(tb testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, registrar func(srv *grpc.Server, deps *service.Dependencies), opts ...GitalyServerOpt) (*grpc.Server, string, bool) {
+	tb.Helper()
 
 	var gsd gitalyServerDeps
 	for _, opt := range opts {
 		gsd = opt(gsd)
 	}
 
-	deps := gsd.createDependencies(t, cfg, rubyServer)
-	t.Cleanup(func() { gsd.conns.Close() })
+	deps := gsd.createDependencies(tb, cfg, rubyServer)
+	tb.Cleanup(func() { gsd.conns.Close() })
 
 	serverFactory := server.NewGitalyServerFactory(
 		cfg,
-		gsd.logger.WithField("test", t.Name()),
+		gsd.logger.WithField("test", tb.Name()),
 		deps.GetBackchannelRegistry(),
 		deps.GetDiskCache(),
 		[]*limithandler.LimiterMiddleware{deps.GetLimitHandler()},
@@ -164,28 +164,28 @@ func runGitaly(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, regi
 
 	if cfg.RuntimeDir != "" {
 		internalServer, err := serverFactory.CreateInternal()
-		require.NoError(t, err)
-		t.Cleanup(internalServer.Stop)
+		require.NoError(tb, err)
+		tb.Cleanup(internalServer.Stop)
 
 		registrar(internalServer, deps)
 		registerHealthServerIfNotRegistered(internalServer)
 
-		require.NoError(t, os.MkdirAll(cfg.InternalSocketDir(), 0o700))
-		t.Cleanup(func() { require.NoError(t, os.RemoveAll(cfg.InternalSocketDir())) })
+		require.NoError(tb, os.MkdirAll(cfg.InternalSocketDir(), 0o700))
+		tb.Cleanup(func() { require.NoError(tb, os.RemoveAll(cfg.InternalSocketDir())) })
 
 		internalListener, err := net.Listen("unix", cfg.InternalSocketPath())
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		go func() {
-			assert.NoError(t, internalServer.Serve(internalListener), "failure to serve internal gRPC")
+			assert.NoError(tb, internalServer.Serve(internalListener), "failure to serve internal gRPC")
 		}()
 
-		ctx := testhelper.Context(t)
-		waitHealthy(ctx, t, "unix://"+internalListener.Addr().String(), cfg.Auth.Token)
+		ctx := testhelper.Context(tb)
+		waitHealthy(ctx, tb, "unix://"+internalListener.Addr().String(), cfg.Auth.Token)
 	}
 
 	externalServer, err := serverFactory.CreateExternal(cfg.TLS.CertPath != "" && cfg.TLS.KeyPath != "")
-	require.NoError(t, err)
-	t.Cleanup(externalServer.Stop)
+	require.NoError(tb, err)
+	tb.Cleanup(externalServer.Stop)
 
 	registrar(externalServer, deps)
 	registerHealthServerIfNotRegistered(externalServer)
@@ -195,27 +195,27 @@ func runGitaly(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server, regi
 	switch {
 	case cfg.TLSListenAddr != "":
 		listener, err = net.Listen("tcp", cfg.TLSListenAddr)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		_, port, err := net.SplitHostPort(listener.Addr().String())
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		addr = "tls://localhost:" + port
 	case cfg.ListenAddr != "":
 		listener, err = net.Listen("tcp", cfg.ListenAddr)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		addr = "tcp://" + listener.Addr().String()
 	default:
-		serverSocketPath := testhelper.GetTemporaryGitalySocketFileName(t)
+		serverSocketPath := testhelper.GetTemporaryGitalySocketFileName(tb)
 		listener, err = net.Listen("unix", serverSocketPath)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		addr = "unix://" + serverSocketPath
 	}
 
 	go func() {
-		assert.NoError(t, externalServer.Serve(listener), "failure to serve external gRPC")
+		assert.NoError(tb, externalServer.Serve(listener), "failure to serve external gRPC")
 	}()
 
-	ctx := testhelper.Context(t)
-	waitHealthy(ctx, t, addr, cfg.Auth.Token)
+	ctx := testhelper.Context(tb)
+	waitHealthy(ctx, tb, addr, cfg.Auth.Token)
 
 	return externalServer, addr, gsd.disablePraefect
 }
@@ -249,9 +249,9 @@ type gitalyServerDeps struct {
 	housekeepingManager           housekeeping.Manager
 }
 
-func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server) *service.Dependencies {
+func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg, rubyServer *rubyserver.Server) *service.Dependencies {
 	if gsd.logger == nil {
-		gsd.logger = testhelper.NewDiscardingLogger(t)
+		gsd.logger = testhelper.NewDiscardingLogger(tb)
 	}
 
 	if gsd.conns == nil {
@@ -264,7 +264,7 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 
 	if gsd.gitlabClient == nil {
 		gsd.gitlabClient = gitlab.NewMockClient(
-			t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
+			tb, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
 		)
 	}
 
@@ -277,7 +277,7 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 	}
 
 	if gsd.gitCmdFactory == nil {
-		gsd.gitCmdFactory = gittest.NewCommandFactory(t, cfg)
+		gsd.gitCmdFactory = gittest.NewCommandFactory(tb, cfg)
 	}
 
 	if gsd.hookMgr == nil {
@@ -287,13 +287,13 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 	if gsd.linguist == nil {
 		var err error
 		gsd.linguist, err = linguist.New(cfg, gsd.gitCmdFactory)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 	}
 
 	if gsd.catfileCache == nil {
 		cache := catfile.NewCache(cfg)
 		gsd.catfileCache = cache
-		t.Cleanup(cache.Stop)
+		tb.Cleanup(cache.Stop)
 	}
 
 	if gsd.diskCache == nil {
@@ -302,7 +302,7 @@ func (gsd *gitalyServerDeps) createDependencies(t testing.TB, cfg config.Cfg, ru
 
 	if gsd.packObjectsCache == nil {
 		gsd.packObjectsCache = streamcache.New(cfg.PackObjectsCache, gsd.logger)
-		t.Cleanup(gsd.packObjectsCache.Stop)
+		tb.Cleanup(gsd.packObjectsCache.Stop)
 	}
 
 	if gsd.packObjectsConcurrencyTracker == nil {

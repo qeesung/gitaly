@@ -394,16 +394,16 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 		{
 			desc:          "source invalid",
 			invalidSource: true,
-			error: func(t testing.TB, actual error) {
-				testhelper.RequireGrpcError(t, ErrInvalidSourceRepository, actual)
+			error: func(tb testing.TB, actual error) {
+				testhelper.RequireGrpcError(tb, ErrInvalidSourceRepository, actual)
 			},
 		},
 		{
 			desc:          "both invalid",
 			invalidSource: true,
 			invalidTarget: true,
-			error: func(t testing.TB, actual error) {
-				testhelper.RequireGrpcError(t, ErrInvalidSourceRepository, actual)
+			error: func(tb testing.TB, actual error) {
+				testhelper.RequireGrpcError(tb, ErrInvalidSourceRepository, actual)
 			},
 		},
 	} {

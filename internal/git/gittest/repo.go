@@ -41,9 +41,9 @@ const (
 )
 
 // InitRepoDir creates a temporary directory for a repo, without initializing it
-func InitRepoDir(t testing.TB, storagePath, relativePath string) *gitalypb.Repository {
+func InitRepoDir(tb testing.TB, storagePath, relativePath string) *gitalypb.Repository {
 	repoPath := filepath.Join(storagePath, relativePath, "..")
-	require.NoError(t, os.MkdirAll(repoPath, 0o755), "making repo parent dir")
+	require.NoError(tb, os.MkdirAll(repoPath, 0o755), "making repo parent dir")
 	return &gitalypb.Repository{
 		StorageName:   "default",
 		RelativePath:  relativePath,
@@ -54,29 +54,29 @@ func InitRepoDir(t testing.TB, storagePath, relativePath string) *gitalypb.Repos
 
 // NewObjectPoolName returns a random pool repository name in format
 // '@pools/[0-9a-z]{2}/[0-9a-z]{2}/[0-9a-z]{64}.git'.
-func NewObjectPoolName(t testing.TB) string {
-	return filepath.Join("@pools", newDiskHash(t)+".git")
+func NewObjectPoolName(tb testing.TB) string {
+	return filepath.Join("@pools", newDiskHash(tb)+".git")
 }
 
 // NewRepositoryName returns a random repository hash
 // in format '@hashed/[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{64}(.git)?'.
-func NewRepositoryName(t testing.TB, bare bool) string {
+func NewRepositoryName(tb testing.TB, bare bool) string {
 	suffix := ""
 	if bare {
 		suffix = ".git"
 	}
 
-	return filepath.Join("@hashed", newDiskHash(t)+suffix)
+	return filepath.Join("@hashed", newDiskHash(tb)+suffix)
 }
 
 // newDiskHash generates a random directory path following the Rails app's
 // approach in the hashed storage module, formatted as '[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{64}'.
 // https://gitlab.com/gitlab-org/gitlab/-/blob/f5c7d8eb1dd4eee5106123e04dec26d277ff6a83/app/models/storage/hashed.rb#L38-43
-func newDiskHash(t testing.TB) string {
+func newDiskHash(tb testing.TB) string {
 	// rails app calculates a sha256 and uses its hex representation
 	// as the directory path
 	b, err := text.RandomHex(sha256.Size)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return filepath.Join(b[0:2], b[2:4], b)
 }
 
@@ -103,22 +103,22 @@ type CreateRepositoryConfig struct {
 	ObjectFormat string
 }
 
-func dialService(ctx context.Context, t testing.TB, cfg config.Cfg) *grpc.ClientConn {
+func dialService(ctx context.Context, tb testing.TB, cfg config.Cfg) *grpc.ClientConn {
 	dialOptions := []grpc.DialOption{}
 	if cfg.Auth.Token != "" {
 		dialOptions = append(dialOptions, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(cfg.Auth.Token)))
 	}
 
 	conn, err := client.DialContext(ctx, cfg.SocketPath, dialOptions)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return conn
 }
 
 // CreateRepository creates a new repository and returns it and its absolute path.
-func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs ...CreateRepositoryConfig) (*gitalypb.Repository, string) {
-	t.Helper()
+func CreateRepository(ctx context.Context, tb testing.TB, cfg config.Cfg, configs ...CreateRepositoryConfig) (*gitalypb.Repository, string) {
+	tb.Helper()
 
-	require.Less(t, len(configs), 2, "you must either pass no or exactly one option")
+	require.Less(tb, len(configs), 2, "you must either pass no or exactly one option")
 
 	opts := CreateRepositoryConfig{}
 	if len(configs) == 1 {
@@ -126,8 +126,8 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 	}
 
 	if ObjectHashIsSHA256() || opts.ObjectFormat != "" {
-		require.Empty(t, opts.Seed, "seeded repository creation not supported with non-default object format")
-		require.True(t, opts.SkipCreationViaService, "repository creation via service not supported with non-default object format")
+		require.Empty(tb, opts.Seed, "seeded repository creation not supported with non-default object format")
+		require.True(tb, opts.SkipCreationViaService, "repository creation via service not supported with non-default object format")
 	}
 
 	storage := cfg.Storages[0]
@@ -135,7 +135,7 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 		storage = opts.Storage
 	}
 
-	relativePath := NewRepositoryName(t, true)
+	relativePath := NewRepositoryName(tb, true)
 	if opts.RelativePath != "" {
 		relativePath = opts.RelativePath
 	}
@@ -151,26 +151,26 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 	if !opts.SkipCreationViaService {
 		conn := opts.ClientConn
 		if conn == nil {
-			conn = dialService(ctx, t, cfg)
-			t.Cleanup(func() { testhelper.MustClose(t, conn) })
+			conn = dialService(ctx, tb, cfg)
+			tb.Cleanup(func() { testhelper.MustClose(tb, conn) })
 		}
 		client := gitalypb.NewRepositoryServiceClient(conn)
 
 		if opts.Seed != "" {
 			_, err := client.CreateRepositoryFromURL(ctx, &gitalypb.CreateRepositoryFromURLRequest{
 				Repository: repository,
-				Url:        testRepositoryPath(t, opts.Seed),
+				Url:        testRepositoryPath(tb, opts.Seed),
 				Mirror:     true,
 			})
-			require.NoError(t, err)
+			require.NoError(tb, err)
 		} else {
 			_, err := client.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{
 				Repository: repository,
 			})
-			require.NoError(t, err)
+			require.NoError(tb, err)
 		}
 
-		t.Cleanup(func() {
+		tb.Cleanup(func() {
 			// The ctx parameter would be canceled by now as the tests defer the cancellation.
 			_, err := client.RemoveRepository(context.TODO(), &gitalypb.RemoveRepositoryRequest{
 				Repository: repository,
@@ -181,16 +181,16 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 				return
 			}
 
-			require.NoError(t, err)
+			require.NoError(tb, err)
 		})
 
-		repoPath = filepath.Join(storage.Path, getReplicaPath(ctx, t, conn, repository))
+		repoPath = filepath.Join(storage.Path, getReplicaPath(ctx, tb, conn, repository))
 	} else {
 		repoPath = filepath.Join(storage.Path, repository.RelativePath)
 
 		if opts.Seed != "" {
-			Exec(t, cfg, "clone", "--no-hardlinks", "--dissociate", "--bare", testRepositoryPath(t, opts.Seed), repoPath)
-			Exec(t, cfg, "-C", repoPath, "remote", "remove", "origin")
+			Exec(tb, cfg, "clone", "--no-hardlinks", "--dissociate", "--bare", testRepositoryPath(tb, opts.Seed), repoPath)
+			Exec(tb, cfg, "-C", repoPath, "remote", "remove", "origin")
 		} else {
 			args := []string{"init", "--bare"}
 			args = append(args, initRepoExtraArgs...)
@@ -199,10 +199,10 @@ func CreateRepository(ctx context.Context, t testing.TB, cfg config.Cfg, configs
 				args = append(args, "--object-format", opts.ObjectFormat)
 			}
 
-			Exec(t, cfg, args...)
+			Exec(tb, cfg, args...)
 		}
 
-		t.Cleanup(func() { require.NoError(t, os.RemoveAll(repoPath)) })
+		tb.Cleanup(func() { require.NoError(tb, os.RemoveAll(repoPath)) })
 	}
 
 	// Return a cloned repository so the above clean up function still targets the correct repository
@@ -223,8 +223,8 @@ type GetReplicaPathConfig struct {
 // run with Praefect in front of it. This is necessary if the test creates a repository
 // through Praefect and peeks into the filesystem afterwards. Conn should be pointing to
 // Praefect.
-func GetReplicaPath(ctx context.Context, t testing.TB, cfg config.Cfg, repo repository.GitRepo, opts ...GetReplicaPathConfig) string {
-	require.Less(t, len(opts), 2, "you must either pass no or exactly one option")
+func GetReplicaPath(ctx context.Context, tb testing.TB, cfg config.Cfg, repo repository.GitRepo, opts ...GetReplicaPathConfig) string {
+	require.Less(tb, len(opts), 2, "you must either pass no or exactly one option")
 
 	var opt GetReplicaPathConfig
 	if len(opts) > 0 {
@@ -233,14 +233,14 @@ func GetReplicaPath(ctx context.Context, t testing.TB, cfg config.Cfg, repo repo
 
 	conn := opt.ClientConn
 	if conn == nil {
-		conn = dialService(ctx, t, cfg)
+		conn = dialService(ctx, tb, cfg)
 		defer conn.Close()
 	}
 
-	return getReplicaPath(ctx, t, conn, repo)
+	return getReplicaPath(ctx, tb, conn, repo)
 }
 
-func getReplicaPath(ctx context.Context, t testing.TB, conn *grpc.ClientConn, repo repository.GitRepo) string {
+func getReplicaPath(ctx context.Context, tb testing.TB, conn *grpc.ClientConn, repo repository.GitRepo) string {
 	metadata, err := gitalypb.NewPraefectInfoServiceClient(conn).GetRepositoryMetadata(
 		ctx, &gitalypb.GetRepositoryMetadataRequest{
 			Query: &gitalypb.GetRepositoryMetadataRequest_Path_{
@@ -254,7 +254,7 @@ func getReplicaPath(ctx context.Context, t testing.TB, conn *grpc.ClientConn, re
 		// The repository is stored at relative path if the test is running without Praefect in front.
 		return repo.GetRelativePath()
 	}
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return metadata.ReplicaPath
 }
@@ -262,26 +262,26 @@ func getReplicaPath(ctx context.Context, t testing.TB, conn *grpc.ClientConn, re
 // RewrittenRepository returns the repository as it would be received by a Gitaly after being rewritten by Praefect.
 // This should be used when the repository is being accessed through the filesystem to ensure the access path is
 // correct. If the test is not running with Praefect in front, it returns the an unaltered copy of repository.
-func RewrittenRepository(ctx context.Context, t testing.TB, cfg config.Cfg, repository *gitalypb.Repository) *gitalypb.Repository {
-	// Don't modify the original repository.
+func RewrittenRepository(ctx context.Context, tb testing.TB, cfg config.Cfg, repository *gitalypb.Repository) *gitalypb.Repository {
+	// Don'tb modify the original repository.
 	rewritten := proto.Clone(repository).(*gitalypb.Repository)
-	rewritten.RelativePath = GetReplicaPath(ctx, t, cfg, repository)
+	rewritten.RelativePath = GetReplicaPath(ctx, tb, cfg, repository)
 	return rewritten
 }
 
 // BundleRepo creates a bundle of a repository. `patterns` define the bundle contents as per
 // `git-rev-list-args`. If there are no patterns then `--all` is assumed.
-func BundleRepo(t testing.TB, cfg config.Cfg, repoPath, bundlePath string, patterns ...string) {
+func BundleRepo(tb testing.TB, cfg config.Cfg, repoPath, bundlePath string, patterns ...string) {
 	if len(patterns) == 0 {
 		patterns = []string{"--all"}
 	}
-	Exec(t, cfg, append([]string{"-C", repoPath, "bundle", "create", bundlePath}, patterns...)...)
+	Exec(tb, cfg, append([]string{"-C", repoPath, "bundle", "create", bundlePath}, patterns...)...)
 }
 
 // ChecksumRepo calculates the checksum of a repository.
-func ChecksumRepo(t testing.TB, cfg config.Cfg, repoPath string) *git.Checksum {
+func ChecksumRepo(tb testing.TB, cfg config.Cfg, repoPath string) *git.Checksum {
 	var checksum git.Checksum
-	lines := bytes.Split(Exec(t, cfg, "-C", repoPath, "show-ref", "--head"), []byte("\n"))
+	lines := bytes.Split(Exec(tb, cfg, "-C", repoPath, "show-ref", "--head"), []byte("\n"))
 	for _, line := range lines {
 		checksum.AddBytes(line)
 	}
@@ -290,10 +290,10 @@ func ChecksumRepo(t testing.TB, cfg config.Cfg, repoPath string) *git.Checksum {
 
 // testRepositoryPath returns the absolute path of local 'gitlab-org/gitlab-test.git' clone.
 // It is cloned under the path by the test preparing step of make.
-func testRepositoryPath(t testing.TB, repo string) string {
+func testRepositoryPath(tb testing.TB, repo string) string {
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
-		require.Fail(t, "could not get caller info")
+		require.Fail(tb, "could not get caller info")
 	}
 
 	path := filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "_build", "testrepos", repo)
@@ -301,7 +301,7 @@ func testRepositoryPath(t testing.TB, repo string) string {
 		makePath := filepath.Join(filepath.Dir(currentFile), "..", "..", "..")
 		makeTarget := "prepare-test-repos"
 		log.Printf("local clone of test repository %q not found in %q, running `make %v`", repo, path, makeTarget)
-		testhelper.MustRunCommand(t, nil, "make", "-C", makePath, makeTarget)
+		testhelper.MustRunCommand(tb, nil, "make", "-C", makePath, makeTarget)
 	}
 
 	return path
@@ -323,8 +323,8 @@ func AddWorktreeArgs(repoPath, worktreeName string) []string {
 }
 
 // AddWorktree creates a worktree in the repository path for tests
-func AddWorktree(t testing.TB, cfg config.Cfg, repoPath string, worktreeName string) {
-	Exec(t, cfg, AddWorktreeArgs(repoPath, worktreeName)...)
+func AddWorktree(tb testing.TB, cfg config.Cfg, repoPath string, worktreeName string) {
+	Exec(tb, cfg, AddWorktreeArgs(repoPath, worktreeName)...)
 }
 
 // FixGitLabTestRepoForCommitGraphs fixes the "gitlab-test.git" repository so that it can be used in

@@ -59,19 +59,19 @@ type BuildOptions struct {
 }
 
 // WithMockBackends mocks backends with a set of passed in stubs.
-func WithMockBackends(t testing.TB, backends map[string]mock.SimpleServiceServer) func([]*config.VirtualStorage) []testhelper.Cleanup {
+func WithMockBackends(tb testing.TB, backends map[string]mock.SimpleServiceServer) func([]*config.VirtualStorage) []testhelper.Cleanup {
 	return func(virtualStorages []*config.VirtualStorage) []testhelper.Cleanup {
 		var cleanups []testhelper.Cleanup
 
 		for _, vs := range virtualStorages {
-			require.Equal(t, len(backends), len(vs.Nodes),
+			require.Equal(tb, len(backends), len(vs.Nodes),
 				"mock server count doesn't match config nodes")
 
 			for i, node := range vs.Nodes {
 				backend, ok := backends[node.Storage]
-				require.True(t, ok, "missing backend server for node %s", node.Storage)
+				require.True(tb, ok, "missing backend server for node %s", node.Storage)
 
-				backendAddr, cleanup := newMockDownstream(t, node.Token, backend)
+				backendAddr, cleanup := newMockDownstream(tb, node.Token, backend)
 				cleanups = append(cleanups, cleanup)
 
 				node.Address = backendAddr
@@ -83,19 +83,19 @@ func WithMockBackends(t testing.TB, backends map[string]mock.SimpleServiceServer
 	}
 }
 
-func defaultQueue(t testing.TB) datastore.ReplicationEventQueue {
-	return datastore.NewPostgresReplicationEventQueue(testdb.New(t))
+func defaultQueue(tb testing.TB) datastore.ReplicationEventQueue {
+	return datastore.NewPostgresReplicationEventQueue(testdb.New(tb))
 }
 
 func defaultTxMgr(conf config.Config) *transactions.Manager {
 	return transactions.NewManager(conf)
 }
 
-func defaultNodeMgr(t testing.TB, conf config.Config, rs datastore.RepositoryStore) nodes.Manager {
-	nodeMgr, err := nodes.NewManager(testhelper.NewDiscardingLogEntry(t), conf, nil, rs, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
-	require.NoError(t, err)
+func defaultNodeMgr(tb testing.TB, conf config.Config, rs datastore.RepositoryStore) nodes.Manager {
+	nodeMgr, err := nodes.NewManager(testhelper.NewDiscardingLogEntry(tb), conf, nil, rs, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
+	require.NoError(tb, err)
 	nodeMgr.Start(0, time.Hour)
-	t.Cleanup(nodeMgr.Stop)
+	tb.Cleanup(nodeMgr.Stop)
 	return nodeMgr
 }
 
@@ -181,10 +181,8 @@ func startProcessBacklog(ctx context.Context, replMgr ReplMgr) <-chan struct{} {
 // The caller is responsible to call returned testhelper.Cleanup in order to stop the service
 // and release all acquired resources.
 // The function should be used only for testing purposes and not as part of the production code.
-//
-//nolint:revive
 func RunPraefectServer(
-	t testing.TB,
+	tb testing.TB,
 	ctx context.Context,
 	conf config.Config,
 	opt BuildOptions,
@@ -192,7 +190,7 @@ func RunPraefectServer(
 	var cleanups []testhelper.Cleanup
 
 	if opt.WithQueue == nil {
-		opt.WithQueue = defaultQueue(t)
+		opt.WithQueue = defaultQueue(tb)
 	}
 	if opt.WithRepoStore == nil {
 		opt.WithRepoStore = defaultRepoStore(conf)
@@ -210,7 +208,7 @@ func RunPraefectServer(
 		opt.WithLogger = log.Default()
 	}
 	if opt.WithNodeMgr == nil {
-		opt.WithNodeMgr = defaultNodeMgr(t, conf, opt.WithRepoStore)
+		opt.WithNodeMgr = defaultNodeMgr(tb, conf, opt.WithRepoStore)
 	}
 	if opt.WithAssignmentStore == nil {
 		opt.WithAssignmentStore = NewDisabledAssignmentStore(conf.StorageNames())
@@ -255,7 +253,7 @@ func RunPraefectServer(
 		opt.WithChecks,
 	)
 
-	listener, port := listenAvailPort(t)
+	listener, port := listenAvailPort(tb)
 
 	errQ := make(chan error)
 	ctx, cancel := context.WithCancel(ctx)
@@ -267,7 +265,7 @@ func RunPraefectServer(
 	replMgrDone := startProcessBacklog(ctx, replmgr)
 
 	// dial client to praefect
-	cc := dialLocalPort(t, port, false)
+	cc := dialLocalPort(tb, port, false)
 
 	cleanup := func() {
 		cc.Close()
@@ -280,7 +278,7 @@ func RunPraefectServer(
 
 		cancel()
 		<-replMgrDone
-		require.NoError(t, <-errQ)
+		require.NoError(tb, <-errQ)
 	}
 
 	return cc, prf, cleanup

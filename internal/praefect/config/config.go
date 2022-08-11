@@ -40,7 +40,7 @@ const (
 	minimalSyncRunInterval   = time.Minute
 )
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 type Failover struct {
 	Enabled bool `toml:"enabled,omitempty"`
 	// ElectionStrategy is the strategy to use for electing primaries nodes.

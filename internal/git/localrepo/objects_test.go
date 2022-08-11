@@ -441,26 +441,26 @@ func TestRepo_IsAncestor(t *testing.T) {
 			desc:   "parent is not valid commit",
 			parent: gittest.DefaultObjectHash.ZeroOID.Revision(),
 			child:  childCommitID.Revision(),
-			errorMatcher: func(t testing.TB, err error) {
-				require.Equal(t, InvalidCommitError(gittest.DefaultObjectHash.ZeroOID), err)
+			errorMatcher: func(tb testing.TB, err error) {
+				require.Equal(tb, InvalidCommitError(gittest.DefaultObjectHash.ZeroOID), err)
 			},
 		},
 		{
 			desc:   "child is not valid commit",
 			parent: childCommitID.Revision(),
 			child:  gittest.DefaultObjectHash.ZeroOID.Revision(),
-			errorMatcher: func(t testing.TB, err error) {
-				require.Equal(t, InvalidCommitError(gittest.DefaultObjectHash.ZeroOID), err)
+			errorMatcher: func(tb testing.TB, err error) {
+				require.Equal(tb, InvalidCommitError(gittest.DefaultObjectHash.ZeroOID), err)
 			},
 		},
 		{
 			desc:   "child points to a tree",
 			parent: childCommitID.Revision(),
 			child:  childCommitID.Revision() + "^{tree}",
-			errorMatcher: func(t testing.TB, actualErr error) {
+			errorMatcher: func(tb testing.TB, actualErr error) {
 				treeOID, err := repo.ResolveRevision(ctx, childCommitID.Revision()+"^{tree}")
-				require.NoError(t, err)
-				require.EqualError(t, actualErr, fmt.Sprintf(
+				require.NoError(tb, err)
+				require.EqualError(tb, actualErr, fmt.Sprintf(
 					`determine ancestry: exit status 128, stderr: "error: object %s is a tree, not a commit\nfatal: Not a valid commit name %s^{tree}\n"`,
 					treeOID, childCommitID,
 				))

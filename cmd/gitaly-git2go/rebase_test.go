@@ -115,17 +115,17 @@ func TestRebase_rebase(t *testing.T) {
 		{
 			desc:   "Partially merged branch",
 			branch: "branch-merged-plus-one",
-			setupRepo: func(t testing.TB, repo *git.Repository) {
+			setupRepo: func(tb testing.TB, repo *git.Repository) {
 				head, err := lookupCommit(repo, "branch-merged")
-				require.NoError(t, err)
+				require.NoError(tb, err)
 
 				other, err := lookupCommit(repo, "gitaly-rename-test")
-				require.NoError(t, err)
+				require.NoError(tb, err)
 				tree, err := other.Tree()
-				require.NoError(t, err)
+				require.NoError(tb, err)
 				newOid, err := repo.CreateCommitFromIds("refs/heads/branch-merged-plus-one", &DefaultAuthor, &DefaultAuthor, "Message", tree.Object.Id(), head.Object.Id())
-				require.NoError(t, err)
-				require.Equal(t, "8665d9b4b56f6b8ab8c4128a5549d1820bf68bf5", newOid.String())
+				require.NoError(tb, err)
+				require.Equal(tb, "8665d9b4b56f6b8ab8c4128a5549d1820bf68bf5", newOid.String())
 			},
 			commitsAhead: 1,
 			expected:     "56bafb70922008232d171b78930be6cdb722bb39",
@@ -133,20 +133,20 @@ func TestRebase_rebase(t *testing.T) {
 		{
 			desc:   "With upstream merged into",
 			branch: "csv-plus-merge",
-			setupRepo: func(t testing.TB, repo *git.Repository) {
+			setupRepo: func(tb testing.TB, repo *git.Repository) {
 				ours, err := lookupCommit(repo, "csv")
-				require.NoError(t, err)
+				require.NoError(tb, err)
 				theirs, err := lookupCommit(repo, "b83d6e391c22777fca1ed3012fce84f633d7fed0")
-				require.NoError(t, err)
+				require.NoError(tb, err)
 
 				index, err := repo.MergeCommits(ours, theirs, nil)
-				require.NoError(t, err)
+				require.NoError(tb, err)
 				tree, err := index.WriteTreeTo(repo)
-				require.NoError(t, err)
+				require.NoError(tb, err)
 
 				newOid, err := repo.CreateCommitFromIds("refs/heads/csv-plus-merge", &DefaultAuthor, &DefaultAuthor, "Message", tree, ours.Object.Id(), theirs.Object.Id())
-				require.NoError(t, err)
-				require.Equal(t, "5b2d6bd7be0b1b9f7e46b64d02fe9882c133a128", newOid.String())
+				require.NoError(tb, err)
+				require.Equal(tb, "5b2d6bd7be0b1b9f7e46b64d02fe9882c133a128", newOid.String())
 			},
 			commitsAhead: 5, // Same as "Multiple commits"
 			expected:     "2f8365edc69d3683e22c4209ae9641642d84dd4a",

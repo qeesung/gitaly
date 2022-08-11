@@ -230,10 +230,10 @@ func TestRepo_FetchRemote(t *testing.T) {
 // captureGitSSHCommand creates a new intercepting command factory which captures the
 // GIT_SSH_COMMAND environment variable. The returned function can be used to read the variable's
 // value.
-func captureGitSSHCommand(ctx context.Context, t testing.TB, cfg config.Cfg) (git.CommandFactory, func() ([]byte, error)) {
-	envPath := filepath.Join(testhelper.TempDir(t), "GIT_SSH_PATH")
+func captureGitSSHCommand(ctx context.Context, tb testing.TB, cfg config.Cfg) (git.CommandFactory, func() ([]byte, error)) {
+	envPath := filepath.Join(testhelper.TempDir(tb), "GIT_SSH_PATH")
 
-	gitCmdFactory := gittest.NewInterceptingCommandFactory(ctx, t, cfg, func(execEnv git.ExecutionEnvironment) string {
+	gitCmdFactory := gittest.NewInterceptingCommandFactory(ctx, tb, cfg, func(execEnv git.ExecutionEnvironment) string {
 		return fmt.Sprintf(
 			`#!/usr/bin/env bash
 			if test -z "${GIT_SSH_COMMAND+x}"
@@ -268,32 +268,32 @@ func TestRepo_Push(t *testing.T) {
 	gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
 	gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("feature"))
 
-	setupPushRepo := func(t testing.TB) (*Repo, string, []git.ConfigPair) {
-		repoProto, repopath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	setupPushRepo := func(tb testing.TB) (*Repo, string, []git.ConfigPair) {
+		repoProto, repopath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 			SkipCreationViaService: true,
 		})
 		return New(locator, gitCmdFactory, catfileCache, repoProto), repopath, nil
 	}
 
-	setupDivergedRepo := func(t testing.TB) (*Repo, string, []git.ConfigPair) {
-		repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	setupDivergedRepo := func(tb testing.TB) (*Repo, string, []git.ConfigPair) {
+		repoProto, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 			SkipCreationViaService: true,
 		})
 		repo := New(locator, gitCmdFactory, catfileCache, repoProto)
 
 		// set up master as a diverging ref in push repo
 		sourceMaster, err := sourceRepo.GetReference(ctx, "refs/heads/master")
-		require.NoError(t, err)
+		require.NoError(tb, err)
 
-		require.NoError(t, sourceRepo.Push(ctx, repoPath, []string{"refs/*"}, PushOptions{}))
-		divergedMaster := gittest.WriteCommit(t, cfg, repoPath,
+		require.NoError(tb, sourceRepo.Push(ctx, repoPath, []string{"refs/*"}, PushOptions{}))
+		divergedMaster := gittest.WriteCommit(tb, cfg, repoPath,
 			gittest.WithBranch("master"),
 			gittest.WithParents(git.ObjectID(sourceMaster.Target)),
 		)
 
 		master, err := repo.GetReference(ctx, "refs/heads/master")
-		require.NoError(t, err)
-		require.Equal(t, master.Target, divergedMaster.String())
+		require.NoError(tb, err)
+		require.Equal(tb, master.Target, divergedMaster.String())
 
 		return repo, repoPath, nil
 	}
@@ -351,8 +351,8 @@ func TestRepo_Push(t *testing.T) {
 		},
 		{
 			desc: "invalid remote",
-			setupPushRepo: func(t testing.TB) (*Repo, string, []git.ConfigPair) {
-				repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			setupPushRepo: func(tb testing.TB) (*Repo, string, []git.ConfigPair) {
+				repoProto, _ := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 				})
 				return New(locator, gitCmdFactory, catfileCache, repoProto), "", nil
@@ -362,8 +362,8 @@ func TestRepo_Push(t *testing.T) {
 		},
 		{
 			desc: "in-memory remote",
-			setupPushRepo: func(testing.TB) (*Repo, string, []git.ConfigPair) {
-				repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			setupPushRepo: func(tb testing.TB) (*Repo, string, []git.ConfigPair) {
+				repoProto, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 				})
 				return New(locator, gitCmdFactory, catfileCache, repoProto), "inmemory", []git.ConfigPair{

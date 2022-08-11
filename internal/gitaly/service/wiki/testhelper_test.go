@@ -73,8 +73,8 @@ func TestWithRubySidecar(t *testing.T) {
 	}
 }
 
-func setupWikiService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server) (gitalypb.WikiServiceClient, string) {
-	addr := testserver.RunGitalyServer(t, cfg, rubySrv, func(srv *grpc.Server, deps *service.Dependencies) {
+func setupWikiService(tb testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server) (gitalypb.WikiServiceClient, string) {
+	addr := testserver.RunGitalyServer(tb, cfg, rubySrv, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(
 			deps.GetHookManager(),
 			deps.GetGitCmdFactory(),
@@ -92,17 +92,17 @@ func setupWikiService(t testing.TB, cfg config.Cfg, rubySrv *rubyserver.Server) 
 			deps.GetHousekeepingManager(),
 		))
 	})
-	testcfg.BuildGitalyHooks(t, cfg)
-	client := newWikiClient(t, addr)
+	testcfg.BuildGitalyHooks(tb, cfg)
+	client := newWikiClient(tb, addr)
 	return client, addr
 }
 
-func newWikiClient(t testing.TB, serverSocketPath string) gitalypb.WikiServiceClient {
-	t.Helper()
+func newWikiClient(tb testing.TB, serverSocketPath string) gitalypb.WikiServiceClient {
+	tb.Helper()
 
 	conn, err := grpc.Dial(serverSocketPath, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-	t.Cleanup(func() { conn.Close() })
+	require.NoError(tb, err)
+	tb.Cleanup(func() { conn.Close() })
 	return gitalypb.NewWikiServiceClient(conn)
 }
 

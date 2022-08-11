@@ -10,15 +10,15 @@ import (
 )
 
 // WriteRef writes a reference into the repository pointing to the given object ID.
-func WriteRef(t testing.TB, cfg config.Cfg, repoPath string, ref git.ReferenceName, oid git.ObjectID) {
-	Exec(t, cfg, "-C", repoPath, "update-ref", ref.String(), oid.String())
+func WriteRef(tb testing.TB, cfg config.Cfg, repoPath string, ref git.ReferenceName, oid git.ObjectID) {
+	Exec(tb, cfg, "-C", repoPath, "update-ref", ref.String(), oid.String())
 }
 
 // ResolveRevision resolves the revision to an object ID.
-func ResolveRevision(t testing.TB, cfg config.Cfg, repoPath string, revision string) git.ObjectID {
-	t.Helper()
-	output := Exec(t, cfg, "-C", repoPath, "rev-parse", "--verify", revision)
+func ResolveRevision(tb testing.TB, cfg config.Cfg, repoPath string, revision string) git.ObjectID {
+	tb.Helper()
+	output := Exec(tb, cfg, "-C", repoPath, "rev-parse", "--verify", revision)
 	objectID, err := DefaultObjectHash.FromHex(text.ChompBytes(output))
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return objectID
 }

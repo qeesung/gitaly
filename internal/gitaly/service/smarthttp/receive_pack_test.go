@@ -957,8 +957,8 @@ func drainPostReceivePackResponse(stream gitalypb.SmartHTTPService_PostReceivePa
 // requireSideband compares the actual sideband data to expected sideband data. This function is
 // required to filter out any keep-alive packets which Git may send over the sideband and which are
 // kind of unpredictable for us.
-func requireSideband(t testing.TB, expectedSidebandMessages []string, actualInput string) {
-	t.Helper()
+func requireSideband(tb testing.TB, expectedSidebandMessages []string, actualInput string) {
+	tb.Helper()
 
 	scanner := pktline.NewScanner(strings.NewReader(actualInput))
 
@@ -969,7 +969,7 @@ func requireSideband(t testing.TB, expectedSidebandMessages []string, actualInpu
 		// Flush packets terminate the communication via side-channels, so we expect them to
 		// come.
 		if pktline.IsFlush(payload) {
-			require.Equal(t, expectedSidebandMessages, actualSidebandMessages)
+			require.Equal(tb, expectedSidebandMessages, actualSidebandMessages)
 			return
 		}
 
@@ -983,5 +983,5 @@ func requireSideband(t testing.TB, expectedSidebandMessages []string, actualInpu
 		actualSidebandMessages = append(actualSidebandMessages, string(payload))
 	}
 
-	require.FailNow(t, "expected to receive a flush to terminate the protocol")
+	require.FailNow(tb, "expected to receive a flush to terminate the protocol")
 }

@@ -98,9 +98,9 @@ func TestExecutor_Apply(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	diffBetween := func(t testing.TB, fromCommit, toCommit git.ObjectID) []byte {
-		t.Helper()
-		return gittest.Exec(t, cfg, "-C", repoPath, "format-patch", "--stdout", fromCommit.String()+".."+toCommit.String())
+	diffBetween := func(tb testing.TB, fromCommit, toCommit git.ObjectID) []byte {
+		tb.Helper()
+		return gittest.Exec(tb, cfg, "-C", repoPath, "format-patch", "--stdout", fromCommit.String()+".."+toCommit.String())
 	}
 
 	for _, tc := range []struct {

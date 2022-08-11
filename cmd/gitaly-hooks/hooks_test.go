@@ -58,13 +58,13 @@ func featureFlags(ctx context.Context) map[featureflag.FeatureFlag]bool {
 }
 
 // envForHooks generates a set of environment variables for gitaly hooks
-func envForHooks(t testing.TB, ctx context.Context, cfg config.Cfg, repo *gitalypb.Repository, glHookValues glHookValues, proxyValues proxyValues, gitPushOptions ...string) []string {
+func envForHooks(tb testing.TB, ctx context.Context, cfg config.Cfg, repo *gitalypb.Repository, glHookValues glHookValues, proxyValues proxyValues, gitPushOptions ...string) []string {
 	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.UserDetails{
 		UserID:   glHookValues.GLID,
 		Username: glHookValues.GLUsername,
 		Protocol: glHookValues.GLProtocol,
 	}, git.AllHooks, featureFlags(ctx)).Env()
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	env := append(command.AllowedEnvironment(os.Environ()), []string{
 		payload,

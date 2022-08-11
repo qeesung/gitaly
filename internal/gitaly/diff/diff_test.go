@@ -487,8 +487,8 @@ func TestDiffLimitsBeingEnforcedByUpperBound(t *testing.T) {
 	require.Equal(t, diffParser.limits.MaxPatchBytes, 0)
 }
 
-func getDiffs(t testing.TB, rawDiff string, limits Limits) []*Diff {
-	t.Helper()
+func getDiffs(tb testing.TB, rawDiff string, limits Limits) []*Diff {
+	tb.Helper()
 
 	diffParser := NewDiffParser(strings.NewReader(rawDiff), limits)
 
@@ -502,7 +502,7 @@ func getDiffs(t testing.TB, rawDiff string, limits Limits) []*Diff {
 
 		diffs = append(diffs, &d)
 	}
-	require.NoError(t, diffParser.Err())
+	require.NoError(tb, diffParser.Err())
 
 	return diffs
 }

@@ -13,7 +13,7 @@ import (
 
 // GitalyServersMetadataFromCfg returns a metadata pair for gitaly-servers to be used in
 // inter-gitaly operations.
-func GitalyServersMetadataFromCfg(t testing.TB, cfg config.Cfg) metadata.MD {
+func GitalyServersMetadataFromCfg(tb testing.TB, cfg config.Cfg) metadata.MD {
 	gitalyServers := storage.GitalyServers{}
 storages:
 	for _, s := range cfg.Storages {
@@ -27,12 +27,12 @@ storages:
 				continue storages
 			}
 		}
-		require.FailNow(t, "no address found on the config")
+		require.FailNow(tb, "no address found on the config")
 	}
 
 	gitalyServersJSON, err := json.Marshal(gitalyServers)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	return metadata.Pairs("gitaly-servers", base64.StdEncoding.EncodeToString(gitalyServersJSON))

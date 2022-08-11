@@ -34,6 +34,7 @@ linters:
     - staticcheck
     - structcheck
     - stylecheck
+    - thelper
     - unconvert
     - unused
     - varcheck
@@ -63,10 +64,29 @@ linters-settings:
       # checks to verify we don't use `t.Parallel()` when setting envvars.
       - ^os.Setenv$
       - ^os.Unsetenv$
+  revive:
+    rules:
+      - name: context-as-argument
+        arguments:
+          # The context should always be first, except in our testing packages.
+          allowTypesBefore: "*testing.T,*testing.B,testing.TB"
   stylecheck:
     # ST1000 checks for missing package comments. We don't use these for most
     # packages, so let's disable this check.
     checks: [ "all", "-ST1000" ]
+  thelper:
+    test:
+      # The following linter would check whether we always call `t.Helper()` in
+      # functions that are not the top-level testcase. While this is nice in
+      # theory, in practice it would also impact e.g. usecases like
+      # `testhelper.NewFeatureSets(...).Run(t, testWithFeatures)`. This isn't
+      # really what we want, so we just leave these as disabled for the time
+      # being.
+      begin: false
+    benchmark:
+      begin: false
+    tb:
+      begin: false
 
 issues:
   exclude-use-default: false
@@ -75,10 +95,6 @@ issues:
         - forbidigo
       # This fine thing excludes all paths which don't end with "_test.go".
       path: "^([^_]|_([^t]|t([^e]|e([^s]|s([^t]|t([^\\.]|\\.([^g]|g[^o])))))))*$"
-    - linters:
-        - revive
-      text: "context.Context should be the first parameter of a function"
-      path: "_test.go"
     - linters:
         - errcheck
       text: "Error return value of `[^`]+.(Close|Serve)` is not checked"

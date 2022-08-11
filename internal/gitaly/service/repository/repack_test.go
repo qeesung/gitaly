@@ -219,23 +219,23 @@ func TestRepackFullCollectLogStatistics(t *testing.T) {
 	mustCountObjectLog(t, hook.AllEntries()...)
 }
 
-func mustCountObjectLog(t testing.TB, entries ...*logrus.Entry) {
-	t.Helper()
+func mustCountObjectLog(tb testing.TB, entries ...*logrus.Entry) {
+	tb.Helper()
 
 	const key = "count_objects"
 	for _, entry := range entries {
 		if entry.Message == "git repo statistic" {
-			require.Contains(t, entry.Data, "grpc.request.glProjectPath")
-			require.Contains(t, entry.Data, "grpc.request.glRepository")
-			require.Contains(t, entry.Data, key, "statistics not found")
+			require.Contains(tb, entry.Data, "grpc.request.glProjectPath")
+			require.Contains(tb, entry.Data, "grpc.request.glRepository")
+			require.Contains(tb, entry.Data, key, "statistics not found")
 
 			objectStats, ok := entry.Data[key].(map[string]interface{})
-			require.True(t, ok, "expected count_objects to be a map")
-			require.Contains(t, objectStats, "count")
+			require.True(tb, ok, "expected count_objects to be a map")
+			require.Contains(tb, objectStats, "count")
 			return
 		}
 	}
-	require.FailNow(t, "no info about statistics")
+	require.FailNow(tb, "no info about statistics")
 }
 
 func doBitmapsContainHashCache(t *testing.T, bitmapPaths []string) {

@@ -49,11 +49,11 @@ func New(locator storage.Locator, gitCmdFactory git.CommandFactory, catfileCache
 
 // NewTestRepo constructs a Repo. It is intended as a helper function for tests which assembles
 // dependencies ad-hoc from the given config.
-func NewTestRepo(t testing.TB, cfg config.Cfg, repo repository.GitRepo, factoryOpts ...git.ExecCommandFactoryOption) *Repo {
-	t.Helper()
+func NewTestRepo(tb testing.TB, cfg config.Cfg, repo repository.GitRepo, factoryOpts ...git.ExecCommandFactoryOption) *Repo {
+	tb.Helper()
 
 	if cfg.SocketPath != testcfg.UnconfiguredSocketPath {
-		repo = gittest.RewrittenRepository(testhelper.Context(t), t, cfg, &gitalypb.Repository{
+		repo = gittest.RewrittenRepository(testhelper.Context(tb), tb, cfg, &gitalypb.Repository{
 			StorageName:                   repo.GetStorageName(),
 			RelativePath:                  repo.GetRelativePath(),
 			GitObjectDirectory:            repo.GetGitObjectDirectory(),
@@ -62,11 +62,11 @@ func NewTestRepo(t testing.TB, cfg config.Cfg, repo repository.GitRepo, factoryO
 	}
 
 	gitCmdFactory, cleanup, err := git.NewExecCommandFactory(cfg, factoryOpts...)
-	t.Cleanup(cleanup)
-	require.NoError(t, err)
+	tb.Cleanup(cleanup)
+	require.NoError(tb, err)
 
 	catfileCache := catfile.NewCache(cfg)
-	t.Cleanup(catfileCache.Stop)
+	tb.Cleanup(catfileCache.Stop)
 
 	locator := config.NewLocator(cfg)
 

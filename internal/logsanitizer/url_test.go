@@ -106,7 +106,7 @@ func BenchmarkUrlSanitizerWithoutSanitization(b *testing.B) {
 	logger.Out = io.Discard
 	logger.Hooks.Add(urlSanitizer)
 
-	benchmarkLogging(logger, b)
+	benchmarkLogging(b, logger)
 }
 
 func BenchmarkUrlSanitizerWithSanitization(b *testing.B) {
@@ -120,10 +120,10 @@ func BenchmarkUrlSanitizerWithSanitization(b *testing.B) {
 	logger.Out = io.Discard
 	logger.Hooks.Add(urlSanitizer)
 
-	benchmarkLogging(logger, b)
+	benchmarkLogging(b, logger)
 }
 
-func benchmarkLogging(logger *log.Logger, b *testing.B) {
+func benchmarkLogging(b *testing.B, logger *log.Logger) {
 	for n := 0; n < b.N; n++ {
 		logger.WithFields(log.Fields{
 			"grpc.method": "CreateRepositoryFromURL",

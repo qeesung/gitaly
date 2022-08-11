@@ -25,12 +25,12 @@ var changeLineRegex = regexp.MustCompile("^[a-f0-9]{40} [a-f0-9]{40} refs/[^ ]+$
 const secretHeaderName = "Gitlab-Shared-Secret"
 
 // WriteShellSecretFile writes a .gitlab_shell_secret file in the specified directory
-func WriteShellSecretFile(t testing.TB, dir, secretToken string) string {
-	t.Helper()
+func WriteShellSecretFile(tb testing.TB, dir, secretToken string) string {
+	tb.Helper()
 
-	require.NoError(t, os.MkdirAll(dir, os.ModeDir))
+	require.NoError(tb, os.MkdirAll(dir, os.ModeDir))
 	filePath := filepath.Join(dir, ".gitlab_shell_secret")
-	require.NoError(t, os.WriteFile(filePath, []byte(secretToken), 0o644))
+	require.NoError(tb, os.WriteFile(filePath, []byte(secretToken), 0o644))
 	return filePath
 }
 
@@ -60,27 +60,27 @@ type TestServerOptions struct {
 }
 
 // NewTestServer returns a mock gitlab server that responds to the hook api endpoints
-func NewTestServer(t testing.TB, options TestServerOptions) (url string, cleanup func()) {
-	t.Helper()
+func NewTestServer(tb testing.TB, options TestServerOptions) (url string, cleanup func()) {
+	tb.Helper()
 
 	mux := http.NewServeMux()
 	prefix := strings.TrimRight(options.RelativeURLRoot, "/") + "/api/v4/internal"
-	mux.Handle(prefix+"/allowed", http.HandlerFunc(handleAllowed(t, options)))
-	mux.Handle(prefix+"/pre_receive", http.HandlerFunc(handlePreReceive(t, options)))
+	mux.Handle(prefix+"/allowed", http.HandlerFunc(handleAllowed(tb, options)))
+	mux.Handle(prefix+"/pre_receive", http.HandlerFunc(handlePreReceive(tb, options)))
 	mux.Handle(prefix+"/post_receive", http.HandlerFunc(handlePostReceive(options)))
-	mux.Handle(prefix+"/check", http.HandlerFunc(handleCheck(t, options)))
-	mux.Handle(prefix+"/lfs", http.HandlerFunc(handleLfs(t, options)))
+	mux.Handle(prefix+"/check", http.HandlerFunc(handleCheck(tb, options)))
+	mux.Handle(prefix+"/lfs", http.HandlerFunc(handleLfs(tb, options)))
 
 	var tlsCfg *tls.Config
 	if options.ClientCACertPath != "" {
 		caCertPEM, err := os.ReadFile(options.ClientCACertPath)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 
 		certPool := x509.NewCertPool()
-		require.True(t, certPool.AppendCertsFromPEM(caCertPEM))
+		require.True(tb, certPool.AppendCertsFromPEM(caCertPEM))
 
 		serverCert, err := tls.LoadX509KeyPair(options.ServerCertPath, options.ServerKeyPath)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 
 		tlsCfg = &tls.Config{
 			ClientCAs:    certPool,
@@ -91,7 +91,7 @@ func NewTestServer(t testing.TB, options TestServerOptions) (url string, cleanup
 	}
 
 	if options.UnixSocket {
-		return startSocketHTTPServer(t, mux, tlsCfg)
+		return startSocketHTTPServer(tb, mux, tlsCfg)
 	}
 
 	var server *httptest.Server
@@ -137,7 +137,7 @@ func parsePostReceiveForm(u url.Values) postReceiveForm {
 	}
 }
 
-func handleAllowed(t testing.TB, options TestServerOptions) func(w http.ResponseWriter, r *http.Request) {
+func handleAllowed(tb testing.TB, options TestServerOptions) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "could not parse form", http.StatusBadRequest)
@@ -260,7 +260,7 @@ func handleAllowed(t testing.TB, options TestServerOptions) func(w http.Response
 			}
 			if relObjectDir != gitVars.GitObjectDirRel {
 				_, err := w.Write([]byte(`{"status":false}`))
-				require.NoError(t, err)
+				require.NoError(tb, err)
 				return
 			}
 		}
@@ -280,7 +280,7 @@ func handleAllowed(t testing.TB, options TestServerOptions) func(w http.Response
 
 				if relAltObjectDir != gitVars.GitAlternateObjectDirsRel[i] {
 					_, err := w.Write([]byte(`{"status":false}`))
-					require.NoError(t, err)
+					require.NoError(tb, err)
 					return
 				}
 			}
@@ -300,17 +300,17 @@ func handleAllowed(t testing.TB, options TestServerOptions) func(w http.Response
 
 		if authenticated {
 			_, err := w.Write([]byte(`{"status":true}`))
-			require.NoError(t, err)
+			require.NoError(tb, err)
 			return
 		}
 		w.WriteHeader(http.StatusUnauthorized)
 
 		_, err = w.Write([]byte(`{"message":"401 Unauthorized\n"}`))
-		require.NoError(t, err)
+		require.NoError(tb, err)
 	}
 }
 
-func handlePreReceive(t testing.TB, options TestServerOptions) func(w http.ResponseWriter, r *http.Request) {
+func handlePreReceive(tb testing.TB, options TestServerOptions) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "could not parse form", http.StatusBadRequest)
@@ -387,7 +387,7 @@ func handlePreReceive(t testing.TB, options TestServerOptions) func(w http.Respo
 		w.WriteHeader(http.StatusOK)
 
 		_, err = w.Write([]byte(`{"reference_counter_increased": true}`))
-		require.NoError(t, err)
+		require.NoError(tb, err)
 	}
 }
 
@@ -502,12 +502,12 @@ func handlePostReceive(options TestServerOptions) func(w http.ResponseWriter, r 
 	}
 }
 
-func handleCheck(t testing.TB, options TestServerOptions) func(w http.ResponseWriter, r *http.Request) {
+func handleCheck(tb testing.TB, options TestServerOptions) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, p, ok := r.BasicAuth()
 		if !ok || u != options.User || p != options.Password {
 			w.WriteHeader(http.StatusUnauthorized)
-			require.NoError(t, json.NewEncoder(w).Encode(struct {
+			require.NoError(tb, json.NewEncoder(w).Encode(struct {
 				Message string `json:"message"`
 			}{Message: "authorization failed"}))
 			return
@@ -518,7 +518,7 @@ func handleCheck(t testing.TB, options TestServerOptions) func(w http.ResponseWr
 	}
 }
 
-func handleLfs(t testing.TB, options TestServerOptions) func(w http.ResponseWriter, r *http.Request) {
+func handleLfs(tb testing.TB, options TestServerOptions) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "couldn't parse form", http.StatusBadRequest)
@@ -552,17 +552,17 @@ func handleLfs(t testing.TB, options TestServerOptions) func(w http.ResponseWrit
 
 		if options.LfsBody != "" {
 			_, err := w.Write([]byte(options.LfsBody))
-			require.NoError(t, err)
+			require.NoError(tb, err)
 		}
 	}
 }
 
-func startSocketHTTPServer(t testing.TB, mux *http.ServeMux, tlsCfg *tls.Config) (string, func()) {
-	tempDir := testhelper.TempDir(t)
+func startSocketHTTPServer(tb testing.TB, mux *http.ServeMux, tlsCfg *tls.Config) (string, func()) {
+	tempDir := testhelper.TempDir(tb)
 
 	filename := filepath.Join(tempDir, "http-test-server")
 	socketListener, err := net.Listen("unix", filename)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	server := http.Server{
 		Handler:   mux,
@@ -573,7 +573,7 @@ func startSocketHTTPServer(t testing.TB, mux *http.ServeMux, tlsCfg *tls.Config)
 
 	url := "http+unix://" + filename
 	cleanup := func() {
-		require.NoError(t, server.Close())
+		require.NoError(tb, server.Close())
 	}
 
 	return url, cleanup
@@ -581,10 +581,10 @@ func startSocketHTTPServer(t testing.TB, mux *http.ServeMux, tlsCfg *tls.Config)
 
 // SetupAndStartGitlabServer creates a new GitlabTestServer, starts it and sets
 // up the gitlab-shell secret.
-func SetupAndStartGitlabServer(t testing.TB, shellDir string, c *TestServerOptions) (string, func()) {
-	url, cleanup := NewTestServer(t, *c)
+func SetupAndStartGitlabServer(tb testing.TB, shellDir string, c *TestServerOptions) (string, func()) {
+	url, cleanup := NewTestServer(tb, *c)
 
-	WriteShellSecretFile(t, shellDir, c.SecretToken)
+	WriteShellSecretFile(tb, shellDir, c.SecretToken)
 
 	return url, cleanup
 }

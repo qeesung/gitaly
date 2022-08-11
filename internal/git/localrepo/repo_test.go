@@ -22,16 +22,16 @@ import (
 func TestRepo(t *testing.T) {
 	cfg := testcfg.Build(t)
 
-	gittest.TestRepository(t, cfg, func(ctx context.Context, t testing.TB) (git.Repository, string) {
-		t.Helper()
+	gittest.TestRepository(t, cfg, func(ctx context.Context, tb testing.TB) (git.Repository, string) {
+		tb.Helper()
 
-		repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		repoProto, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 			SkipCreationViaService: true,
 		})
 
-		gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+		gitCmdFactory := gittest.NewCommandFactory(tb, cfg)
 		catfileCache := catfile.NewCache(cfg)
-		t.Cleanup(catfileCache.Stop)
+		tb.Cleanup(catfileCache.Stop)
 		return New(config.NewLocator(cfg), gitCmdFactory, catfileCache, repoProto), repoPath
 	})
 }

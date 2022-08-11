@@ -291,14 +291,14 @@ func TestFailedFindCommitRequest(t *testing.T) {
 }
 
 func BenchmarkFindCommitNoCache(b *testing.B) {
-	benchmarkFindCommit(false, b)
+	benchmarkFindCommit(b, false)
 }
 
 func BenchmarkFindCommitWithCache(b *testing.B) {
-	benchmarkFindCommit(true, b)
+	benchmarkFindCommit(b, true)
 }
 
-func benchmarkFindCommit(withCache bool, b *testing.B) {
+func benchmarkFindCommit(b *testing.B, withCache bool) {
 	ctx := testhelper.Context(b)
 
 	cfg, repo, _, client := setupCommitServiceWithRepo(ctx, b)

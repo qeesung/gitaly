@@ -16,17 +16,17 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func setupNamespaceService(t testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, gitalypb.NamespaceServiceClient) {
+func setupNamespaceService(tb testing.TB, opts ...testserver.GitalyServerOpt) (config.Cfg, gitalypb.NamespaceServiceClient) {
 	cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages("default", "other"))
-	cfg := cfgBuilder.Build(t)
+	cfg := cfgBuilder.Build(tb)
 
-	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+	addr := testserver.RunGitalyServer(tb, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterNamespaceServiceServer(srv, NewServer(deps.GetLocator()))
 	}, opts...)
 
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-	t.Cleanup(func() { testhelper.MustClose(t, conn) })
+	require.NoError(tb, err)
+	tb.Cleanup(func() { testhelper.MustClose(tb, conn) })
 
 	return cfg, gitalypb.NewNamespaceServiceClient(conn)
 }

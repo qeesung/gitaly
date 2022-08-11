@@ -25,14 +25,14 @@ type WriteTagConfig struct {
 // created. Takes either no WriteTagConfig, in which case the default values will be used, or
 // exactly one.
 func WriteTag(
-	t testing.TB,
+	tb testing.TB,
 	cfg config.Cfg,
 	repoPath string,
 	tagName string,
 	targetRevision git.Revision,
 	optionalConfig ...WriteTagConfig,
 ) git.ObjectID {
-	require.Less(t, len(optionalConfig), 2, "only a single config may be passed")
+	require.Less(tb, len(optionalConfig), 2, "only a single config may be passed")
 
 	var config WriteTagConfig
 	if len(optionalConfig) == 1 {
@@ -57,12 +57,12 @@ func WriteTag(
 	}
 	args = append(args, tagName, targetRevision.String())
 
-	ExecOpts(t, cfg, ExecConfig{Stdin: stdin}, args...)
+	ExecOpts(tb, cfg, ExecConfig{Stdin: stdin}, args...)
 
-	tagID := Exec(t, cfg, "-C", repoPath, "show-ref", "-s", tagName)
+	tagID := Exec(tb, cfg, "-C", repoPath, "show-ref", "-s", tagName)
 
 	objectID, err := DefaultObjectHash.FromHex(text.ChompBytes(tagID))
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return objectID
 }

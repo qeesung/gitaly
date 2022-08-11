@@ -33,13 +33,13 @@ func registerServerService(impl gitalypb.ServerServiceServer) svcRegistrar {
 	}
 }
 
-func listenAndServe(t testing.TB, svcs []svcRegistrar) (net.Listener, testhelper.Cleanup) {
-	t.Helper()
+func listenAndServe(tb testing.TB, svcs []svcRegistrar) (net.Listener, testhelper.Cleanup) {
+	tb.Helper()
 
-	tmp := testhelper.TempDir(t)
+	tmp := testhelper.TempDir(tb)
 
 	ln, err := net.Listen("unix", filepath.Join(tmp, "gitaly"))
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	srv := grpc.NewServer()
 
@@ -47,14 +47,14 @@ func listenAndServe(t testing.TB, svcs []svcRegistrar) (net.Listener, testhelper
 		s(srv)
 	}
 
-	go func() { require.NoError(t, srv.Serve(ln)) }()
-	ctx := testhelper.Context(t)
+	go func() { require.NoError(tb, srv.Serve(ln)) }()
+	ctx := testhelper.Context(tb)
 
 	// verify the service is up
 	addr := fmt.Sprintf("%s://%s", ln.Addr().Network(), ln.Addr())
 	cc, err := grpc.DialContext(ctx, addr, grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-	require.NoError(t, cc.Close())
+	require.NoError(tb, err)
+	require.NoError(tb, cc.Close())
 
 	return ln, func() {
 		srv.Stop()

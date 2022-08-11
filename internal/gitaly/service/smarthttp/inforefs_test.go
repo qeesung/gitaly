@@ -527,25 +527,25 @@ func withInfoRefCache(cache infoRefCache) ServerOpt {
 	}
 }
 
-func createInvalidRepo(t testing.TB, repoDir string) func() {
+func createInvalidRepo(tb testing.TB, repoDir string) func() {
 	for _, subDir := range []string{"objects", "refs", "HEAD"} {
-		require.NoError(t, os.MkdirAll(filepath.Join(repoDir, subDir), 0o755))
+		require.NoError(tb, os.MkdirAll(filepath.Join(repoDir, subDir), 0o755))
 	}
-	return func() { require.NoError(t, os.RemoveAll(repoDir)) }
+	return func() { require.NoError(tb, os.RemoveAll(repoDir)) }
 }
 
-func replaceCachedResponse(t testing.TB, ctx context.Context, cache *cache.DiskCache, req *gitalypb.InfoRefsRequest, newContents string) {
-	path := pathToCachedResponse(t, ctx, cache, req)
-	require.NoError(t, os.WriteFile(path, []byte(newContents), 0o644))
+func replaceCachedResponse(tb testing.TB, ctx context.Context, cache *cache.DiskCache, req *gitalypb.InfoRefsRequest, newContents string) {
+	path := pathToCachedResponse(tb, ctx, cache, req)
+	require.NoError(tb, os.WriteFile(path, []byte(newContents), 0o644))
 }
 
 func setInfoRefsUploadPackMethod(ctx context.Context) context.Context {
 	return testhelper.SetCtxGrpcMethod(ctx, "/gitaly.SmartHTTPService/InfoRefsUploadPack")
 }
 
-func pathToCachedResponse(t testing.TB, ctx context.Context, cache *cache.DiskCache, req *gitalypb.InfoRefsRequest) string {
+func pathToCachedResponse(tb testing.TB, ctx context.Context, cache *cache.DiskCache, req *gitalypb.InfoRefsRequest) string {
 	ctx = setInfoRefsUploadPackMethod(ctx)
 	path, err := cache.KeyPath(ctx, req.GetRepository(), req)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return path
 }

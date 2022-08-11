@@ -744,7 +744,7 @@ gitaly_praefect_verification_jobs_dequeued_total{storage="gitaly-2",virtual_stor
 
 // getAllReplicas gets all replicas from the database except for the locked-repository which is created
 // by the test suite to ensure non-blocking queries.
-func getAllReplicas(ctx context.Context, t testing.TB, db glsql.Querier) map[string]map[string][]string {
+func getAllReplicas(ctx context.Context, tb testing.TB, db glsql.Querier) map[string]map[string][]string {
 	rows, err := db.QueryContext(ctx, `
 		SELECT repositories.virtual_storage, repositories.relative_path, storage
 		FROM repositories
@@ -752,13 +752,13 @@ func getAllReplicas(ctx context.Context, t testing.TB, db glsql.Querier) map[str
 		WHERE repositories.relative_path != 'locked-repository'
 		ORDER BY virtual_storage, relative_path, storage
 	`)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	defer rows.Close()
 
 	results := map[string]map[string][]string{}
 	for rows.Next() {
 		var virtualStorage, relativePath, storage string
-		require.NoError(t, rows.Scan(&virtualStorage, &relativePath, &storage))
+		require.NoError(tb, rows.Scan(&virtualStorage, &relativePath, &storage))
 
 		if results[virtualStorage] == nil {
 			results[virtualStorage] = map[string][]string{}
@@ -766,7 +766,7 @@ func getAllReplicas(ctx context.Context, t testing.TB, db glsql.Querier) map[str
 
 		results[virtualStorage][relativePath] = append(results[virtualStorage][relativePath], storage)
 	}
-	require.NoError(t, rows.Err())
+	require.NoError(tb, rows.Err())
 
 	return results
 }

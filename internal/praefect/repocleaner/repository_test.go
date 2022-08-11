@@ -360,11 +360,11 @@ func (as actionStub) Perform(ctx context.Context, virtualStorage, storage string
 	return nil
 }
 
-func waitReceive(t testing.TB, waitChan <-chan struct{}) {
-	t.Helper()
+func waitReceive(tb testing.TB, waitChan <-chan struct{}) {
+	tb.Helper()
 	select {
 	case <-waitChan:
 	case <-time.After(time.Minute):
-		require.FailNow(t, "waiting for too long")
+		require.FailNow(tb, "waiting for too long")
 	}
 }

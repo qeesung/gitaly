@@ -47,7 +47,7 @@ func TestStreamInterceptor(t *testing.T) {
 }
 
 func callUnary(ctx context.Context) {
-	// nolint: errcheck
+	//nolint: errcheck
 	UnaryInterceptor(ctx, nil, nil, func(context.Context, interface{}) (interface{}, error) {
 		ctxlogrus.Extract(ctx).Info("verify")
 		return nil, nil
@@ -55,7 +55,7 @@ func callUnary(ctx context.Context) {
 }
 
 func callStream(ctx context.Context) {
-	// nolint: errcheck
+	//nolint: errcheck
 	StreamInterceptor(ctx, &grpcmw.WrappedServerStream{WrappedContext: ctx}, nil, func(interface{}, grpc.ServerStream) error {
 		ctxlogrus.Extract(ctx).Info("verify")
 		return nil

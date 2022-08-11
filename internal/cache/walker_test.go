@@ -137,10 +137,10 @@ func TestCleanWalkEmptyDirs(t *testing.T) {
 	require.Equal(t, expect, actual)
 }
 
-func findFiles(t testing.TB, path string) string {
+func findFiles(tb testing.TB, path string) string {
 	cmd := exec.Command("find", ".")
 	cmd.Dir = path
 	out, err := cmd.Output()
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return string(out)
 }

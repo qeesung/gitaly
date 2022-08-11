@@ -20,47 +20,47 @@ import (
 var buildOnceByName sync.Map
 
 // BuildGitalyGit2Go builds the gitaly-git2go command and installs it into the binary directory.
-func BuildGitalyGit2Go(t testing.TB, cfg config.Cfg) string {
-	return buildGitalyCommand(t, cfg, "gitaly-git2go")
+func BuildGitalyGit2Go(tb testing.TB, cfg config.Cfg) string {
+	return buildGitalyCommand(tb, cfg, "gitaly-git2go")
 }
 
 // BuildGitalyWrapper builds the gitaly-wrapper command and installs it into the binary directory.
-func BuildGitalyWrapper(t *testing.T, cfg config.Cfg) string {
-	return buildGitalyCommand(t, cfg, "gitaly-wrapper")
+func BuildGitalyWrapper(tb testing.TB, cfg config.Cfg) string {
+	return buildGitalyCommand(tb, cfg, "gitaly-wrapper")
 }
 
 // BuildGitalyLFSSmudge builds the gitaly-lfs-smudge command and installs it into the binary
 // directory.
-func BuildGitalyLFSSmudge(t *testing.T, cfg config.Cfg) string {
-	return buildGitalyCommand(t, cfg, "gitaly-lfs-smudge")
+func BuildGitalyLFSSmudge(tb testing.TB, cfg config.Cfg) string {
+	return buildGitalyCommand(tb, cfg, "gitaly-lfs-smudge")
 }
 
 // BuildGitalyHooks builds the gitaly-hooks command and installs it into the binary directory.
-func BuildGitalyHooks(t testing.TB, cfg config.Cfg) string {
-	return buildGitalyCommand(t, cfg, "gitaly-hooks")
+func BuildGitalyHooks(tb testing.TB, cfg config.Cfg) string {
+	return buildGitalyCommand(tb, cfg, "gitaly-hooks")
 }
 
 // BuildGitalySSH builds the gitaly-ssh command and installs it into the binary directory.
-func BuildGitalySSH(t testing.TB, cfg config.Cfg) string {
-	return buildGitalyCommand(t, cfg, "gitaly-ssh")
+func BuildGitalySSH(tb testing.TB, cfg config.Cfg) string {
+	return buildGitalyCommand(tb, cfg, "gitaly-ssh")
 }
 
 // BuildPraefect builds the praefect command and installs it into the binary directory.
-func BuildPraefect(t testing.TB, cfg config.Cfg) string {
-	return buildGitalyCommand(t, cfg, "praefect")
+func BuildPraefect(tb testing.TB, cfg config.Cfg) string {
+	return buildGitalyCommand(tb, cfg, "praefect")
 }
 
 // BuildGitaly builds the gitaly binary and installs it into the binary directory. The gitaly binary
 // embeds other binaries it needs to use when servicing requests. The packed binaries are not built
 // prior to building this gitaly binary and thus cannot be guaranteed to be from the same build.
-func BuildGitaly(t testing.TB, cfg config.Cfg) string {
-	return buildGitalyCommand(t, cfg, "gitaly")
+func BuildGitaly(tb testing.TB, cfg config.Cfg) string {
+	return buildGitalyCommand(tb, cfg, "gitaly")
 }
 
 // buildGitalyCommand builds an executable and places it in the correct directory depending
 // whether it is packed in the production build or not.
-func buildGitalyCommand(t testing.TB, cfg config.Cfg, executableName string) string {
-	return BuildBinary(t, filepath.Dir(cfg.BinaryPath(executableName)), gitalyCommandPath(executableName))
+func buildGitalyCommand(tb testing.TB, cfg config.Cfg, executableName string) string {
+	return BuildBinary(tb, filepath.Dir(cfg.BinaryPath(executableName)), gitalyCommandPath(executableName))
 }
 
 var (
@@ -71,11 +71,11 @@ var (
 // BuildBinary builds a Go binary once and copies it into the target directory. The source path can
 // either be a ".go" file or a directory containing Go files. Returns the path to the executable in
 // the destination directory.
-func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
+func BuildBinary(tb testing.TB, targetDir, sourcePath string) string {
 	createGlobalBinaryDirectoryOnce.Do(func() {
-		sharedBinariesDir = testhelper.CreateGlobalDirectory(t, "bins")
+		sharedBinariesDir = testhelper.CreateGlobalDirectory(tb, "bins")
 	})
-	require.NotEmpty(t, sharedBinariesDir, "creation of shared binary directory failed")
+	require.NotEmpty(tb, sharedBinariesDir, "creation of shared binary directory failed")
 
 	var (
 		// executableName is the name of the executable.
@@ -88,13 +88,13 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 
 	buildOnceInterface, _ := buildOnceByName.LoadOrStore(executableName, &sync.Once{})
 	buildOnce, ok := buildOnceInterface.(*sync.Once)
-	require.True(t, ok)
+	require.True(tb, ok)
 
 	buildOnce.Do(func() {
-		require.NoFileExists(t, sharedBinaryPath, "binary has already been built")
+		require.NoFileExists(tb, sharedBinaryPath, "binary has already been built")
 
-		cfg := Build(t)
-		gitCommandFactory := gittest.NewCommandFactory(t, cfg)
+		cfg := Build(tb)
+		gitCommandFactory := gittest.NewCommandFactory(tb, cfg)
 		gitExecEnv := gitCommandFactory.GetExecutionEnvironment(context.TODO())
 
 		// Unfortunately, Go has started to execute Git as parts of its build process in
@@ -145,9 +145,9 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 		// Instead, we just override the system-level gitconfig to point to a temporary file
 		// that contains this setting.
 		_, currentFile, _, ok := runtime.Caller(0)
-		require.True(t, ok)
-		gitconfigPath := filepath.Join(testhelper.TempDir(t), "gitconfig")
-		require.NoError(t, os.WriteFile(gitconfigPath, []byte(
+		require.True(tb, ok)
+		gitconfigPath := filepath.Join(testhelper.TempDir(tb), "gitconfig")
+		require.NoError(tb, os.WriteFile(gitconfigPath, []byte(
 			"[safe]\ndirectory = "+filepath.Join(filepath.Dir(currentFile), "..", "..", "..")+"\n"), 0o400),
 		)
 		gitEnvironment = append(gitEnvironment,
@@ -171,20 +171,20 @@ func BuildBinary(t testing.TB, targetDir, sourcePath string) string {
 		cmd.Env = gitEnvironment
 
 		output, err := cmd.CombinedOutput()
-		require.NoError(t, err, "building Go executable: %v, output: %q", err, output)
+		require.NoError(tb, err, "building Go executable: %v, output: %q", err, output)
 	})
 
-	require.FileExists(t, sharedBinaryPath, "%s does not exist", executableName)
-	require.NoFileExists(t, targetPath, "%s exists already -- do you try to build it twice?", executableName)
+	require.FileExists(tb, sharedBinaryPath, "%s does not exist", executableName)
+	require.NoFileExists(tb, targetPath, "%s exists already -- do you try to build it twice?", executableName)
 
-	require.NoError(t, os.MkdirAll(targetDir, os.ModePerm))
+	require.NoError(tb, os.MkdirAll(targetDir, os.ModePerm))
 
 	// We hard-link the file into place instead of copying it because copying used to cause
 	// ETXTBSY errors in CI. This is likely caused by a bug in the overlay filesystem used by
 	// Docker, so we just work around this by linking the file instead. It's more efficient
 	// anyway, the only thing is that no test must modify the binary directly. But let's count
 	// on that.
-	require.NoError(t, os.Link(sharedBinaryPath, targetPath))
+	require.NoError(tb, os.Link(sharedBinaryPath, targetPath))
 
 	return targetPath
 }

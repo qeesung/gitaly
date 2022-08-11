@@ -16,11 +16,11 @@ import (
 // HTTPServer starts an HTTP server with git-http-backend(1) as CGI handler. The repository is
 // prepared such that git-http-backend(1) will serve it by creating the "git-daemon-export-ok" magic
 // file.
-func HTTPServer(ctx context.Context, t testing.TB, gitCmdFactory git.CommandFactory, repoPath string, middleware func(http.ResponseWriter, *http.Request, http.Handler)) (int, func() error) {
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "git-daemon-export-ok"), nil, 0o644))
+func HTTPServer(ctx context.Context, tb testing.TB, gitCmdFactory git.CommandFactory, repoPath string, middleware func(http.ResponseWriter, *http.Request, http.Handler)) (int, func() error) {
+	require.NoError(tb, os.WriteFile(filepath.Join(repoPath, "git-daemon-export-ok"), nil, 0o644))
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	gitExecEnv := gitCmdFactory.GetExecutionEnvironment(ctx)
 

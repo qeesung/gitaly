@@ -27,18 +27,18 @@ func TestPerRepositoryElector(t *testing.T) {
 
 	type state map[string]map[string]map[string]storageRecord
 
-	type matcher func(t testing.TB, primary string)
+	type matcher func(tb testing.TB, primary string)
 	any := func(expected ...string) matcher {
-		return func(t testing.TB, primary string) {
-			t.Helper()
-			require.Contains(t, expected, primary)
+		return func(tb testing.TB, primary string) {
+			tb.Helper()
+			require.Contains(tb, expected, primary)
 		}
 	}
 
 	noPrimary := func() matcher {
-		return func(t testing.TB, primary string) {
-			t.Helper()
-			require.Empty(t, primary)
+		return func(tb testing.TB, primary string) {
+			tb.Helper()
+			require.Empty(tb, primary)
 		}
 	}
 

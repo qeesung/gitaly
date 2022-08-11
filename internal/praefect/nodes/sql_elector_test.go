@@ -258,21 +258,21 @@ func TestElectDemotedPrimary(t *testing.T) {
 
 // predateLastSeenActiveAt shifts the last_seen_active_at column to an earlier time. This avoids
 // waiting for the node's status to become unhealthy.
-func predateLastSeenActiveAt(t testing.TB, db testdb.DB, shardName, nodeName string, amount time.Duration) {
-	t.Helper()
+func predateLastSeenActiveAt(tb testing.TB, db testdb.DB, shardName, nodeName string, amount time.Duration) {
+	tb.Helper()
 
 	_, err := db.Exec(`
 UPDATE node_status SET last_seen_active_at = last_seen_active_at - INTERVAL '1 MICROSECOND' * $1
 WHERE shard_name = $2 AND node_name = $3`, amount.Microseconds(), shardName, nodeName,
 	)
 
-	require.NoError(t, err)
+	require.NoError(tb, err)
 }
 
 // predateElection shifts the election to an earlier time. This avoids waiting for the failover timeout to trigger
 // a new election.
-func predateElection(t testing.TB, ctx context.Context, db glsql.Querier, shardName string, amount time.Duration) {
-	t.Helper()
+func predateElection(tb testing.TB, ctx context.Context, db glsql.Querier, shardName string, amount time.Duration) {
+	tb.Helper()
 
 	_, err := db.ExecContext(ctx,
 		"UPDATE shard_primaries SET elected_at = elected_at - INTERVAL '1 MICROSECOND' * $1 WHERE shard_name = $2",
@@ -280,7 +280,7 @@ func predateElection(t testing.TB, ctx context.Context, db glsql.Querier, shardN
 		shardName,
 	)
 
-	require.NoError(t, err)
+	require.NoError(tb, err)
 }
 
 func TestElectNewPrimary(t *testing.T) {

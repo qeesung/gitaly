@@ -28,8 +28,8 @@ func TestMain(m *testing.M) {
 }
 
 // setupCommitService makes a basic configuration and starts the service with the client.
-func setupCommitService(ctx context.Context, t testing.TB) (config.Cfg, gitalypb.CommitServiceClient) {
-	cfg, _, _, client := setupCommitServiceCreateRepo(ctx, t, func(ctx context.Context, tb testing.TB, cfg config.Cfg) (*gitalypb.Repository, string) {
+func setupCommitService(ctx context.Context, tb testing.TB) (config.Cfg, gitalypb.CommitServiceClient) {
+	cfg, _, _, client := setupCommitServiceCreateRepo(ctx, tb, func(ctx context.Context, tb testing.TB, cfg config.Cfg) (*gitalypb.Repository, string) {
 		return nil, ""
 	})
 	return cfg, client
@@ -37,9 +37,9 @@ func setupCommitService(ctx context.Context, t testing.TB) (config.Cfg, gitalypb
 
 // setupCommitServiceWithRepo makes a basic configuration, creates a test repository and starts the service with the client.
 func setupCommitServiceWithRepo(
-	ctx context.Context, t testing.TB,
+	ctx context.Context, tb testing.TB,
 ) (config.Cfg, *gitalypb.Repository, string, gitalypb.CommitServiceClient) {
-	return setupCommitServiceCreateRepo(ctx, t, func(ctx context.Context, tb testing.TB, cfg config.Cfg) (*gitalypb.Repository, string) {
+	return setupCommitServiceCreateRepo(ctx, tb, func(ctx context.Context, tb testing.TB, cfg config.Cfg) (*gitalypb.Repository, string) {
 		repo, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 			Seed: gittest.SeedGitLabTest,
 		})
@@ -49,22 +49,22 @@ func setupCommitServiceWithRepo(
 
 func setupCommitServiceCreateRepo(
 	ctx context.Context,
-	t testing.TB,
+	tb testing.TB,
 	createRepo func(context.Context, testing.TB, config.Cfg) (*gitalypb.Repository, string),
 ) (config.Cfg, *gitalypb.Repository, string, gitalypb.CommitServiceClient) {
-	cfg := testcfg.Build(t)
+	cfg := testcfg.Build(tb)
 
-	cfg.SocketPath = startTestServices(t, cfg)
-	client := newCommitServiceClient(t, cfg.SocketPath)
+	cfg.SocketPath = startTestServices(tb, cfg)
+	client := newCommitServiceClient(tb, cfg.SocketPath)
 
-	repo, repoPath := createRepo(ctx, t, cfg)
+	repo, repoPath := createRepo(ctx, tb, cfg)
 
 	return cfg, repo, repoPath, client
 }
 
-func startTestServices(t testing.TB, cfg config.Cfg) string {
-	t.Helper()
-	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+func startTestServices(tb testing.TB, cfg config.Cfg) string {
+	tb.Helper()
+	return testserver.RunGitalyServer(tb, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterCommitServiceServer(srv, NewServer(
 			deps.GetLocator(),
 			deps.GetGitCmdFactory(),
@@ -85,15 +85,15 @@ func startTestServices(t testing.TB, cfg config.Cfg) string {
 	})
 }
 
-func newCommitServiceClient(t testing.TB, serviceSocketPath string) gitalypb.CommitServiceClient {
-	t.Helper()
+func newCommitServiceClient(tb testing.TB, serviceSocketPath string) gitalypb.CommitServiceClient {
+	tb.Helper()
 
 	connOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	conn, err := grpc.Dial(serviceSocketPath, connOpts...)
-	require.NoError(t, err)
-	t.Cleanup(func() { conn.Close() })
+	require.NoError(tb, err)
+	tb.Cleanup(func() { conn.Close() })
 
 	return gitalypb.NewCommitServiceClient(conn)
 }
@@ -111,14 +111,14 @@ type gitCommitsGetter interface {
 	GetCommits() []*gitalypb.GitCommit
 }
 
-func createCommits(t testing.TB, cfg config.Cfg, repoPath, branch string, commitCount int, parent git.ObjectID) git.ObjectID {
+func createCommits(tb testing.TB, cfg config.Cfg, repoPath, branch string, commitCount int, parent git.ObjectID) git.ObjectID {
 	for i := 0; i < commitCount; i++ {
 		var parents []git.ObjectID
 		if parent != "" {
 			parents = append(parents, parent)
 		}
 
-		parent = gittest.WriteCommit(t, cfg, repoPath,
+		parent = gittest.WriteCommit(tb, cfg, repoPath,
 			gittest.WithBranch(branch),
 			gittest.WithMessage(fmt.Sprintf("%s branch Empty commit %d", branch, i)),
 			gittest.WithParents(parents...),
@@ -128,8 +128,8 @@ func createCommits(t testing.TB, cfg config.Cfg, repoPath, branch string, commit
 	return parent
 }
 
-func getAllCommits(t testing.TB, getter func() (gitCommitsGetter, error)) []*gitalypb.GitCommit {
-	t.Helper()
+func getAllCommits(tb testing.TB, getter func() (gitCommitsGetter, error)) []*gitalypb.GitCommit {
+	tb.Helper()
 
 	var commits []*gitalypb.GitCommit
 	for {
@@ -137,7 +137,7 @@ func getAllCommits(t testing.TB, getter func() (gitCommitsGetter, error)) []*git
 		if err == io.EOF {
 			return commits
 		}
-		require.NoError(t, err)
+		require.NoError(tb, err)
 
 		commits = append(commits, resp.GetCommits()...)
 	}

@@ -326,13 +326,13 @@ func TestUpdateRemoteMirror(t *testing.T) {
 				"refs/heads/non-diverging": {"commit-3"},
 			},
 			keepDivergentRefs: true,
-			wrapCommandFactory: func(t testing.TB, original git.CommandFactory) git.CommandFactory {
+			wrapCommandFactory: func(tb testing.TB, original git.CommandFactory) git.CommandFactory {
 				return commandFactoryWrapper{
 					CommandFactory: original,
 					newFunc: func(ctx context.Context, repo repository.GitRepo, sc git.Cmd, opts ...git.CmdOpt) (*command.Command, error) {
 						if sc.Subcommand() == "push" {
 							subCmd, ok := sc.(git.SubCmd)
-							require.True(t, ok)
+							require.True(tb, ok)
 
 							// This is really hacky: we extract the
 							// remote name from the subcommands
@@ -340,7 +340,7 @@ func TestUpdateRemoteMirror(t *testing.T) {
 							// how we hijack the command factory is kind
 							// of hacky in the first place.
 							remoteName := subCmd.Args[0]
-							require.Contains(t, remoteName, "inmemory-")
+							require.Contains(tb, remoteName, "inmemory-")
 
 							// Make the branch diverge on the remote before actually performing the pushes the RPC
 							// is attempting to perform to simulate a ref diverging after the RPC has performed
@@ -350,10 +350,10 @@ func TestUpdateRemoteMirror(t *testing.T) {
 								Flags: []git.Option{git.Flag{Name: "--force"}},
 								Args:  []string{remoteName, "refs/heads/non-diverging:refs/heads/diverging"},
 							}, opts...)
-							if !assert.NoError(t, err) {
+							if !assert.NoError(tb, err) {
 								return nil, err
 							}
-							assert.NoError(t, cmd.Wait())
+							assert.NoError(tb, cmd.Wait())
 						}
 
 						return original.New(ctx, repo, sc, opts...)
@@ -427,7 +427,7 @@ func TestUpdateRemoteMirror(t *testing.T) {
 		},
 		{
 			desc: "pushes default branch in the first batch",
-			wrapCommandFactory: func(t testing.TB, original git.CommandFactory) git.CommandFactory {
+			wrapCommandFactory: func(tb testing.TB, original git.CommandFactory) git.CommandFactory {
 				firstPush := true
 				return commandFactoryWrapper{
 					CommandFactory: original,
@@ -435,8 +435,8 @@ func TestUpdateRemoteMirror(t *testing.T) {
 						if sc.Subcommand() == "push" && firstPush {
 							firstPush = false
 							args, err := sc.CommandArgs()
-							assert.NoError(t, err)
-							assert.Contains(t, args, "refs/heads/master", "first push should contain the default branch")
+							assert.NoError(tb, err)
+							assert.Contains(tb, args, "refs/heads/master", "first push should contain the default branch")
 						}
 
 						return original.New(ctx, repo, sc, opts...)

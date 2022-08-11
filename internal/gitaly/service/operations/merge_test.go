@@ -1217,8 +1217,8 @@ func TestUserMergeToRef_conflicts(t *testing.T) {
 	})
 }
 
-func buildUserMergeToRefRequest(t testing.TB, cfg config.Cfg, repo *gitalypb.Repository, repoPath string, sourceSha string, targetSha string, mergeBranchName string) *gitalypb.UserMergeToRefRequest {
-	gittest.Exec(t, cfg, "-C", repoPath, "branch", mergeBranchName, targetSha)
+func buildUserMergeToRefRequest(tb testing.TB, cfg config.Cfg, repo *gitalypb.Repository, repoPath string, sourceSha string, targetSha string, mergeBranchName string) *gitalypb.UserMergeToRefRequest {
+	gittest.Exec(tb, cfg, "-C", repoPath, "branch", mergeBranchName, targetSha)
 
 	return &gitalypb.UserMergeToRefRequest{
 		Repository:     repo,

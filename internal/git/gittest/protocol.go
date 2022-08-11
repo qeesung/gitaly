@@ -21,10 +21,10 @@ type ProtocolDetectingCommandFactory struct {
 }
 
 // NewProtocolDetectingCommandFactory returns a new ProtocolDetectingCommandFactory.
-func NewProtocolDetectingCommandFactory(ctx context.Context, t testing.TB, cfg config.Cfg) ProtocolDetectingCommandFactory {
-	envPath := filepath.Join(testhelper.TempDir(t), "git-env")
+func NewProtocolDetectingCommandFactory(ctx context.Context, tb testing.TB, cfg config.Cfg) ProtocolDetectingCommandFactory {
+	envPath := filepath.Join(testhelper.TempDir(tb), "git-env")
 
-	gitCmdFactory := NewInterceptingCommandFactory(ctx, t, cfg, func(execEnv git.ExecutionEnvironment) string {
+	gitCmdFactory := NewInterceptingCommandFactory(ctx, tb, cfg, func(execEnv git.ExecutionEnvironment) string {
 		return fmt.Sprintf(
 			`#!/usr/bin/env bash
 			env | grep ^GIT_PROTOCOL= >>%q

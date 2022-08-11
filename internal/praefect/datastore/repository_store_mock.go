@@ -28,7 +28,7 @@ type MockRepositoryStore struct {
 	GetRepositoryMetadataByPathFunc         func(ctx context.Context, virtualStorage, relativePath string) (RepositoryMetadata, error)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (m MockRepositoryStore) GetGeneration(ctx context.Context, repositoryID int64, storage string) (int, error) {
 	if m.GetGenerationFunc == nil {
 		return GenerationUnknown, nil
@@ -37,7 +37,7 @@ func (m MockRepositoryStore) GetGeneration(ctx context.Context, repositoryID int
 	return m.GetGenerationFunc(ctx, repositoryID, storage)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (m MockRepositoryStore) IncrementGeneration(ctx context.Context, repositoryID int64, primary string, secondaries []string) error {
 	if m.IncrementGenerationFunc == nil {
 		return nil
@@ -46,7 +46,7 @@ func (m MockRepositoryStore) IncrementGeneration(ctx context.Context, repository
 	return m.IncrementGenerationFunc(ctx, repositoryID, primary, secondaries)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (m MockRepositoryStore) GetReplicatedGeneration(ctx context.Context, repositoryID int64, source, target string) (int, error) {
 	if m.GetReplicatedGenerationFunc == nil {
 		return GenerationUnknown, nil
@@ -55,7 +55,7 @@ func (m MockRepositoryStore) GetReplicatedGeneration(ctx context.Context, reposi
 	return m.GetReplicatedGenerationFunc(ctx, repositoryID, source, target)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (m MockRepositoryStore) SetGeneration(ctx context.Context, repositoryID int64, storage, relativePath string, generation int) error {
 	if m.SetGenerationFunc == nil {
 		return nil
@@ -82,7 +82,7 @@ func (m MockRepositoryStore) SetAuthoritativeReplica(ctx context.Context, virtua
 	return m.SetAuthoritativeReplicaFunc(ctx, virtualStorage, relativePath, storage)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (m MockRepositoryStore) DeleteRepository(ctx context.Context, virtualStorage, relativePath string) (string, []string, error) {
 	if m.DeleteRepositoryFunc == nil {
 		return "", nil, nil
@@ -105,7 +105,7 @@ func (m MockRepositoryStore) RenameRepositoryInPlace(ctx context.Context, virtua
 	return m.RenameRepositoryInPlaceFunc(ctx, virtualStorage, relativePath, newRelativePath)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (m MockRepositoryStore) RenameRepository(ctx context.Context, virtualStorage, relativePath, storage, newRelativePath string) error {
 	if m.RenameRepositoryFunc == nil {
 		return nil
@@ -141,7 +141,7 @@ func (m MockRepositoryStore) GetPartiallyAvailableRepositories(ctx context.Conte
 	return m.GetPartiallyAvailableRepositoriesFunc(ctx, virtualStorage)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (m MockRepositoryStore) DeleteInvalidRepository(ctx context.Context, repositoryID int64, storage string) error {
 	if m.DeleteInvalidRepositoryFunc == nil {
 		return nil
@@ -150,7 +150,7 @@ func (m MockRepositoryStore) DeleteInvalidRepository(ctx context.Context, reposi
 	return m.DeleteInvalidRepositoryFunc(ctx, repositoryID, storage)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (m MockRepositoryStore) RepositoryExists(ctx context.Context, virtualStorage, relativePath string) (bool, error) {
 	if m.RepositoryExistsFunc == nil {
 		return true, nil

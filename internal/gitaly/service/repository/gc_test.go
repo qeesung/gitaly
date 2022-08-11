@@ -522,12 +522,12 @@ func TestCleanupInvalidKeepAroundRefs(t *testing.T) {
 	}
 }
 
-func mustCreateFileWithTimes(t testing.TB, path string, mTime time.Time) {
-	t.Helper()
+func mustCreateFileWithTimes(tb testing.TB, path string, mTime time.Time) {
+	tb.Helper()
 
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
-	require.NoError(t, os.WriteFile(path, nil, 0o644))
-	require.NoError(t, os.Chtimes(path, mTime, mTime))
+	require.NoError(tb, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(tb, os.WriteFile(path, nil, 0o644))
+	require.NoError(tb, os.Chtimes(path, mTime, mTime))
 }
 
 func TestGarbageCollectDeltaIslands(t *testing.T) {

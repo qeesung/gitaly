@@ -64,14 +64,14 @@ func NewRepositoryStoreCollector(
 	}
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (c *RepositoryStoreCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, desc := range descriptions {
 		ch <- desc
 	}
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (c *RepositoryStoreCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.TODO(), c.timeout)
 	defer cancel()
@@ -129,7 +129,7 @@ type QueueDepthCollector struct {
 	db      glsql.Querier
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (q *QueueDepthCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descReplicationQueueDepth
 }

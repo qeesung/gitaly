@@ -80,8 +80,8 @@ func BenchmarkConcurrency(b *testing.B) {
 	})
 }
 
-func makeRequest(t testing.TB, s *Server) error {
-	ctx := testhelper.Context(t)
+func makeRequest(tb testing.TB, s *Server) error {
+	ctx := testhelper.Context(tb)
 
 	conn, err := s.getConnection(ctx)
 	if err != nil {

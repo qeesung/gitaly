@@ -24,8 +24,8 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func getSnapshot(t testing.TB, client gitalypb.RepositoryServiceClient, req *gitalypb.GetSnapshotRequest) ([]byte, error) {
-	ctx := testhelper.Context(t)
+func getSnapshot(tb testing.TB, client gitalypb.RepositoryServiceClient, req *gitalypb.GetSnapshotRequest) ([]byte, error) {
+	ctx := testhelper.Context(tb)
 
 	stream, err := client.GetSnapshot(ctx, req)
 	if err != nil {

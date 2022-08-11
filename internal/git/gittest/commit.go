@@ -145,8 +145,8 @@ func WithAlternateObjectDirectory(alternateObjectDir string) WriteCommitOption {
 }
 
 // WriteCommit writes a new commit into the target repository.
-func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCommitOption) git.ObjectID {
-	t.Helper()
+func WriteCommit(tb testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCommitOption) git.ObjectID {
+	tb.Helper()
 
 	var writeCommitConfig writeCommitConfig
 	for _, opt := range opts {
@@ -160,12 +160,12 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 	stdin := bytes.NewBufferString(message)
 
 	if len(writeCommitConfig.treeEntries) > 0 && writeCommitConfig.treeID != "" {
-		require.FailNow(t, "cannot set tree entries and tree ID at the same time")
+		require.FailNow(tb, "cannot set tree entries and tree ID at the same time")
 	}
 
 	var tree string
 	if len(writeCommitConfig.treeEntries) > 0 {
-		tree = WriteTree(t, cfg, repoPath, writeCommitConfig.treeEntries).String()
+		tree = WriteTree(tb, cfg, repoPath, writeCommitConfig.treeEntries).String()
 	} else if writeCommitConfig.treeID != "" {
 		tree = writeCommitConfig.treeID.String()
 	} else if len(writeCommitConfig.parents) == 0 {
@@ -203,9 +203,9 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 
 	var env []string
 	if writeCommitConfig.alternateObjectDir != "" {
-		require.True(t, filepath.IsAbs(writeCommitConfig.alternateObjectDir),
+		require.True(tb, filepath.IsAbs(writeCommitConfig.alternateObjectDir),
 			"alternate object directory must be an absolute path")
-		require.NoError(t, os.MkdirAll(writeCommitConfig.alternateObjectDir, 0o755))
+		require.NoError(tb, os.MkdirAll(writeCommitConfig.alternateObjectDir, 0o755))
 
 		env = append(env,
 			fmt.Sprintf("GIT_OBJECT_DIRECTORY=%s", writeCommitConfig.alternateObjectDir),
@@ -226,15 +226,15 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 		commitArgs = append(commitArgs, "-p", parent.String())
 	}
 
-	stdout := ExecOpts(t, cfg, ExecConfig{
+	stdout := ExecOpts(tb, cfg, ExecConfig{
 		Stdin: stdin,
 		Env:   env,
 	}, commitArgs...)
 	oid, err := DefaultObjectHash.FromHex(text.ChompBytes(stdout))
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	if writeCommitConfig.reference != "" {
-		ExecOpts(t, cfg, ExecConfig{
+		ExecOpts(tb, cfg, ExecConfig{
 			Env: env,
 		}, "-C", repoPath, "update-ref", writeCommitConfig.reference, oid.String())
 	}
@@ -242,20 +242,20 @@ func WriteCommit(t testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCom
 	return oid
 }
 
-func authorEqualIgnoringDate(t testing.TB, expected *gitalypb.CommitAuthor, actual *gitalypb.CommitAuthor) {
-	t.Helper()
-	require.Equal(t, expected.GetName(), actual.GetName(), "author name does not match")
-	require.Equal(t, expected.GetEmail(), actual.GetEmail(), "author mail does not match")
+func authorEqualIgnoringDate(tb testing.TB, expected *gitalypb.CommitAuthor, actual *gitalypb.CommitAuthor) {
+	tb.Helper()
+	require.Equal(tb, expected.GetName(), actual.GetName(), "author name does not match")
+	require.Equal(tb, expected.GetEmail(), actual.GetEmail(), "author mail does not match")
 }
 
 // CommitEqual tests if two `GitCommit`s are equal
-func CommitEqual(t testing.TB, expected, actual *gitalypb.GitCommit) {
-	t.Helper()
+func CommitEqual(tb testing.TB, expected, actual *gitalypb.GitCommit) {
+	tb.Helper()
 
-	authorEqualIgnoringDate(t, expected.GetAuthor(), actual.GetAuthor())
-	authorEqualIgnoringDate(t, expected.GetCommitter(), actual.GetCommitter())
-	require.Equal(t, expected.GetBody(), actual.GetBody(), "body does not match")
-	require.Equal(t, expected.GetSubject(), actual.GetSubject(), "subject does not match")
-	require.Equal(t, expected.GetId(), actual.GetId(), "object ID does not match")
-	require.Equal(t, expected.GetParentIds(), actual.GetParentIds(), "parent IDs do not match")
+	authorEqualIgnoringDate(tb, expected.GetAuthor(), actual.GetAuthor())
+	authorEqualIgnoringDate(tb, expected.GetCommitter(), actual.GetCommitter())
+	require.Equal(tb, expected.GetBody(), actual.GetBody(), "body does not match")
+	require.Equal(tb, expected.GetSubject(), actual.GetSubject(), "subject does not match")
+	require.Equal(tb, expected.GetId(), actual.GetId(), "object ID does not match")
+	require.Equal(tb, expected.GetParentIds(), actual.GetParentIds(), "parent IDs do not match")
 }

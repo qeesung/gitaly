@@ -58,7 +58,7 @@ var (
 )
 
 func TestSuccessfulResolveConflictsRequestHelper(t *testing.T) {
-	var verifyFunc func(t testing.TB, pushOptions []string, stdin io.Reader)
+	var verifyFunc func(tb testing.TB, pushOptions []string, stdin io.Reader)
 	verifyFuncProxy := func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		// We use a proxy func here as we need to provide the hookManager dependency while creating the service but we only
 		// know the commit IDs after the service is created. The proxy allows us to modify the verifyFunc after the service
@@ -139,12 +139,12 @@ func TestSuccessfulResolveConflictsRequestHelper(t *testing.T) {
 	theirCommitOID = commitConflict(theirCommitOID, targetBranch, "content-2")
 	hookCount := 0
 
-	verifyFunc = func(t testing.TB, pushOptions []string, stdin io.Reader) {
+	verifyFunc = func(tb testing.TB, pushOptions []string, stdin io.Reader) {
 		changes, err := io.ReadAll(stdin)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		pattern := fmt.Sprintf("%s .* refs/heads/%s\n", ourCommitOID, sourceBranch)
-		require.Regexp(t, regexp.MustCompile(pattern), string(changes))
-		require.Empty(t, pushOptions)
+		require.Regexp(tb, regexp.MustCompile(pattern), string(changes))
+		require.Empty(tb, pushOptions)
 		hookCount++
 	}
 
