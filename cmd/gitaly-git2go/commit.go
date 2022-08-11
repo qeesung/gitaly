@@ -8,10 +8,8 @@ import (
 	"flag"
 
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go/commit"
+	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go/git2goutil"
 )
-
-// SigningKeyPathKey is a key for a value in context
-type SigningKeyPathKey struct{}
 
 type commitSubcommand struct {
 	signingKeyPath string
@@ -24,6 +22,6 @@ func (cmd *commitSubcommand) Flags() *flag.FlagSet {
 }
 
 func (cmd *commitSubcommand) Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
-	ctx = context.WithValue(ctx, SigningKeyPathKey{}, cmd.signingKeyPath)
+	ctx = context.WithValue(ctx, git2goutil.SigningKeyPathKey{}, cmd.signingKeyPath)
 	return commit.Run(ctx, decoder, encoder)
 }
