@@ -88,7 +88,7 @@ func (cmd *submoduleSubcommand) run(request git2go.SubmoduleCommand) (*git2go.Su
 	}
 
 	if smEntry.Id.Cmp(smCommitOID) == 0 {
-		// nolint
+		//nolint
 		return nil, fmt.Errorf(
 			"The submodule %s is already at %s",
 			request.Submodule, request.CommitSHA,

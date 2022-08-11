@@ -122,7 +122,7 @@ func (cmd resolveSubcommand) Run(_ context.Context, decoder *gob.Decoder, encode
 		}
 
 		if r.Content != "" && bytes.Equal([]byte(r.Content), mfr.Contents) {
-			return fmt.Errorf("Resolved content has no changes for file %s", r.NewPath) // nolint
+			return fmt.Errorf("Resolved content has no changes for file %s", r.NewPath) //nolint
 		}
 
 		conflictFile, err := conflict.Parse(
@@ -181,7 +181,7 @@ func (cmd resolveSubcommand) Run(_ context.Context, decoder *gob.Decoder, encode
 			conflictPaths = append(conflictPaths, conflictingPath)
 		}
 
-		return fmt.Errorf("Missing resolutions for the following files: %s", strings.Join(conflictPaths, ", ")) // nolint
+		return fmt.Errorf("Missing resolutions for the following files: %s", strings.Join(conflictPaths, ", ")) //nolint
 	}
 
 	treeOID, err := index.WriteTreeTo(repo)
