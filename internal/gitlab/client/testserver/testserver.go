@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitlab-shell/v14/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab/client/testhelper"
 )
 
 var (

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitlab-shell/v14/client/testserver"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab/client/testserver"
 )
 
 func TestReadTimeout(t *testing.T) {
