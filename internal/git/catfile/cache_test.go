@@ -20,11 +20,15 @@ import (
 )
 
 func TestProcesses_add(t *testing.T) {
+	ctx := testhelper.Context(t)
+
 	const maxLen = 3
 	p := &processes{maxLen: maxLen}
 
 	cfg := testcfg.Build(t)
-	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	key0 := mustCreateKey(t, "0", repo)
 	value0, cancel := mustCreateCacheable(t, cfg, repo)
@@ -54,10 +58,14 @@ func TestProcesses_add(t *testing.T) {
 }
 
 func TestProcesses_addTwice(t *testing.T) {
+	ctx := testhelper.Context(t)
+
 	p := &processes{maxLen: 10}
 
 	cfg := testcfg.Build(t)
-	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	key0 := mustCreateKey(t, "0", repo)
 	value0, cancel := mustCreateCacheable(t, cfg, repo)
@@ -82,10 +90,14 @@ func TestProcesses_addTwice(t *testing.T) {
 }
 
 func TestProcesses_Checkout(t *testing.T) {
+	ctx := testhelper.Context(t)
+
 	p := &processes{maxLen: 10}
 
 	cfg := testcfg.Build(t)
-	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	key0 := mustCreateKey(t, "0", repo)
 	value0, cancel := mustCreateCacheable(t, cfg, repo)
@@ -110,10 +122,14 @@ func TestProcesses_Checkout(t *testing.T) {
 }
 
 func TestProcesses_EnforceTTL(t *testing.T) {
+	ctx := testhelper.Context(t)
+
 	p := &processes{maxLen: 10}
 
 	cfg := testcfg.Build(t)
-	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	cutoff := time.Now()
 
@@ -153,13 +169,17 @@ func TestProcesses_EnforceTTL(t *testing.T) {
 }
 
 func TestCache_autoExpiry(t *testing.T) {
+	ctx := testhelper.Context(t)
+
 	monitorTicker := helper.NewManualTicker()
 
 	c := newCache(time.Hour, 10, monitorTicker)
 	defer c.Stop()
 
 	cfg := testcfg.Build(t)
-	repo, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	// Add a process that has expired already.
 	key0 := mustCreateKey(t, "0", repo)
@@ -183,17 +203,18 @@ func TestCache_autoExpiry(t *testing.T) {
 }
 
 func TestCache_ObjectReader(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	repoExecutor := newRepoExecutor(t, cfg, repo)
 
 	cache := newCache(time.Hour, 10, helper.NewManualTicker())
 	defer cache.Stop()
-
-	ctx := testhelper.Context(t)
 
 	t.Run("uncacheable", func(t *testing.T) {
 		// The context doesn't carry a session ID and is thus uncacheable.
@@ -282,17 +303,18 @@ func TestCache_ObjectReader(t *testing.T) {
 }
 
 func TestCache_ObjectInfoReader(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
 	repoExecutor := newRepoExecutor(t, cfg, repo)
 
 	cache := newCache(time.Hour, 10, helper.NewManualTicker())
 	defer cache.Stop()
-
-	ctx := testhelper.Context(t)
 
 	t.Run("uncacheable", func(t *testing.T) {
 		// The context doesn't carry a session ID and is thus uncacheable.

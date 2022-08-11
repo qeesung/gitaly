@@ -50,32 +50,32 @@ func (ps PraefectServer) Shutdown() {
 
 // StartPraefect creates and runs a Praefect proxy. This server is created by running the external
 // Praefect executable.
-func StartPraefect(t testing.TB, cfg config.Config) PraefectServer {
-	t.Helper()
+func StartPraefect(tb testing.TB, cfg config.Config) PraefectServer {
+	tb.Helper()
 
 	praefectSpawnTokens <- struct{}{}
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		<-praefectSpawnTokens
 	})
 
 	// We're precreating the Unix socket which we pass to Praefect. This closes a race where
 	// the Unix socket didn't yet exist when we tried to dial the Praefect server.
 	praefectServerSocket, err := net.Listen("unix", cfg.SocketPath)
-	require.NoError(t, err)
-	testhelper.MustClose(t, praefectServerSocket)
-	t.Cleanup(func() { require.NoError(t, os.RemoveAll(praefectServerSocket.Addr().String())) })
+	require.NoError(tb, err)
+	testhelper.MustClose(tb, praefectServerSocket)
+	tb.Cleanup(func() { require.NoError(tb, os.RemoveAll(praefectServerSocket.Addr().String())) })
 
-	tempDir := testhelper.TempDir(t)
+	tempDir := testhelper.TempDir(tb)
 
 	configFilePath := filepath.Join(tempDir, "config.toml")
 	configFile, err := os.Create(configFilePath)
-	require.NoError(t, err)
-	defer testhelper.MustClose(t, configFile)
+	require.NoError(tb, err)
+	defer testhelper.MustClose(tb, configFile)
 
-	require.NoError(t, toml.NewEncoder(configFile).Encode(&cfg))
-	require.NoError(t, configFile.Sync())
+	require.NoError(tb, toml.NewEncoder(configFile).Encode(&cfg))
+	require.NoError(tb, configFile.Sync())
 
-	binaryPath := testcfg.BuildPraefect(t, gitalycfg.Cfg{
+	binaryPath := testcfg.BuildPraefect(tb, gitalycfg.Cfg{
 		BinDir: tempDir,
 	})
 
@@ -85,7 +85,7 @@ func StartPraefect(t testing.TB, cfg config.Config) PraefectServer {
 	cmd.Stderr = &stderr
 	cmd.Stdout = os.Stdout
 
-	require.NoError(t, cmd.Start())
+	require.NoError(tb, cmd.Start())
 
 	var waitErr error
 	var waitOnce sync.Once
@@ -103,7 +103,7 @@ func StartPraefect(t testing.TB, cfg config.Config) PraefectServer {
 			_ = wait()
 		},
 	}
-	t.Cleanup(praefectServer.Shutdown)
+	tb.Cleanup(praefectServer.Shutdown)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
@@ -120,7 +120,7 @@ func StartPraefect(t testing.TB, cfg config.Config) PraefectServer {
 		// up in order to connect to it.
 		select {
 		case <-processExitedCh:
-			require.FailNowf(t, "Praefect has died", "%s", stderr.String())
+			require.FailNowf(tb, "Praefect has died", "%s", stderr.String())
 		default:
 		}
 
@@ -129,13 +129,13 @@ func StartPraefect(t testing.TB, cfg config.Config) PraefectServer {
 			switch ctx.Err() {
 			case context.DeadlineExceeded:
 				// Capture Praefect logs when waitHealthy takes too long.
-				require.FailNowf(t, "Connecting to Praefect exceeded deadline", "%s", stderr.String())
+				require.FailNowf(tb, "Connecting to Praefect exceeded deadline", "%s", stderr.String())
 			}
 		default:
 		}
 	}()
 
-	waitHealthy(ctx, t, praefectServer.Address(), cfg.Auth.Token)
+	waitHealthy(ctx, tb, praefectServer.Address(), cfg.Auth.Token)
 
 	return praefectServer
 }

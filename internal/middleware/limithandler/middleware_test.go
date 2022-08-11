@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/limithandler"
 	pb "gitlab.com/gitlab-org/gitaly/v15/internal/middleware/limithandler/testdata"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
@@ -482,10 +481,9 @@ gitaly_requests_dropped_total{grpc_method="Unary",grpc_service="test.limithandle
 
 func TestRateLimitHandler(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.RateLimit).Run(t, testRateLimitHandler)
-}
 
-func testRateLimitHandler(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
+
 	methodName := "/test.limithandler.Test/Unary"
 	cfg := config.Cfg{
 		RateLimiting: []config.RateLimiting{
@@ -519,21 +517,16 @@ func testRateLimitHandler(t *testing.T, ctx context.Context) {
 		for i := 0; i < 10; i++ {
 			_, err := client.Unary(ctx, &pb.UnaryRequest{})
 
-			if featureflag.RateLimit.IsEnabled(ctx) {
-				s, ok := status.FromError(err)
-				require.True(t, ok)
-				details := s.Details()
-				require.Len(t, details, 1)
+			s, ok := status.FromError(err)
+			require.True(t, ok)
+			details := s.Details()
+			require.Len(t, details, 1)
 
-				limitErr, ok := details[0].(*gitalypb.LimitError)
-				require.True(t, ok)
+			limitErr, ok := details[0].(*gitalypb.LimitError)
+			require.True(t, ok)
 
-				assert.Equal(t, limithandler.ErrRateLimit.Error(), limitErr.ErrorMessage)
-				assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
-
-			} else {
-				require.NoError(t, err)
-			}
+			assert.Equal(t, limithandler.ErrRateLimit.Error(), limitErr.ErrorMessage)
+			assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
 		}
 
 		expectedMetrics := `# HELP gitaly_requests_dropped_total Number of requests dropped from the queue

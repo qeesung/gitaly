@@ -169,8 +169,8 @@ func dial(serverSocketPath string, opts []grpc.DialOption) (*grpc.ClientConn, er
 	return grpc.Dial(serverSocketPath, opts...)
 }
 
-func healthCheck(t testing.TB, conn *grpc.ClientConn) error {
-	ctx := testhelper.Context(t)
+func healthCheck(tb testing.TB, conn *grpc.ClientConn) error {
+	ctx := testhelper.Context(tb)
 
 	_, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
 	return err

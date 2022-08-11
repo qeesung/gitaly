@@ -42,18 +42,18 @@ func TestUserApplyPatch(t *testing.T) {
 	type actionFunc func(testing.TB, *localrepo.Repo) git2go.Action
 
 	createFile := func(filepath string, content string) actionFunc {
-		return func(t testing.TB, repo *localrepo.Repo) git2go.Action {
+		return func(tb testing.TB, repo *localrepo.Repo) git2go.Action {
 			fileOID, err := repo.WriteBlob(ctx, filepath, strings.NewReader(content))
-			require.NoError(t, err)
+			require.NoError(tb, err)
 
 			return git2go.CreateFile{Path: filepath, OID: fileOID.String()}
 		}
 	}
 
 	updateFile := func(filepath string, content string) actionFunc {
-		return func(t testing.TB, repo *localrepo.Repo) git2go.Action {
+		return func(tb testing.TB, repo *localrepo.Repo) git2go.Action {
 			fileOID, err := repo.WriteBlob(ctx, filepath, strings.NewReader(content))
-			require.NoError(t, err)
+			require.NoError(tb, err)
 
 			return git2go.UpdateFile{Path: filepath, OID: fileOID.String()}
 		}

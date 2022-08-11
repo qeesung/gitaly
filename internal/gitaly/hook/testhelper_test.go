@@ -23,9 +23,9 @@ func TestMain(m *testing.M) {
 	testhelper.Run(m)
 }
 
-func getExpectedEnv(ctx context.Context, t testing.TB, locator storage.Locator, gitCmdFactory git.CommandFactory, repo *gitalypb.Repository) []string {
+func getExpectedEnv(ctx context.Context, tb testing.TB, locator storage.Locator, gitCmdFactory git.CommandFactory, repo *gitalypb.Repository) []string {
 	repoPath, err := locator.GetPath(repo)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	expectedEnv := map[string]string{
 		"GIT_DIR":             repoPath,
@@ -44,7 +44,7 @@ func getExpectedEnv(ctx context.Context, t testing.TB, locator storage.Locator, 
 	// we need to deduplicate environment variables here.
 	for _, allowedEnvVar := range append(command.AllowedEnvironment(os.Environ()), execEnv.EnvironmentVariables...) {
 		kv := strings.SplitN(allowedEnvVar, "=", 2)
-		require.Len(t, kv, 2)
+		require.Len(tb, kv, 2)
 		expectedEnv[kv[0]] = kv[1]
 	}
 

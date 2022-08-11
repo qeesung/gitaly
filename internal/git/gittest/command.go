@@ -24,26 +24,26 @@ type ExecConfig struct {
 }
 
 // Exec runs a git command and returns the standard output, or fails.
-func Exec(t testing.TB, cfg config.Cfg, args ...string) []byte {
-	t.Helper()
-	return ExecOpts(t, cfg, ExecConfig{}, args...)
+func Exec(tb testing.TB, cfg config.Cfg, args ...string) []byte {
+	tb.Helper()
+	return ExecOpts(tb, cfg, ExecConfig{}, args...)
 }
 
 // ExecOpts runs a git command with the given configuration.
-func ExecOpts(t testing.TB, cfg config.Cfg, execCfg ExecConfig, args ...string) []byte {
-	t.Helper()
+func ExecOpts(tb testing.TB, cfg config.Cfg, execCfg ExecConfig, args ...string) []byte {
+	tb.Helper()
 
-	cmd := createCommand(t, cfg, execCfg, args...)
+	cmd := createCommand(tb, cfg, execCfg, args...)
 
 	// If the caller has passed an stdout writer to us we cannot use `cmd.Output()`. So
 	// we detect this case and call `cmd.Run()` instead.
 	if execCfg.Stdout != nil {
 		if err := cmd.Run(); err != nil {
-			t.Log(cfg.Git.BinPath, args)
+			tb.Log(cfg.Git.BinPath, args)
 			if ee, ok := err.(*exec.ExitError); ok {
-				t.Logf("%s\n", ee.Stderr)
+				tb.Logf("%s\n", ee.Stderr)
 			}
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 
 		return nil
@@ -51,28 +51,28 @@ func ExecOpts(t testing.TB, cfg config.Cfg, execCfg ExecConfig, args ...string) 
 
 	output, err := cmd.Output()
 	if err != nil {
-		t.Log(cfg.Git.BinPath, args)
+		tb.Log(cfg.Git.BinPath, args)
 		if ee, ok := err.(*exec.ExitError); ok {
-			t.Logf("%s: %s\n", ee.Stderr, output)
+			tb.Logf("%s: %s\n", ee.Stderr, output)
 		}
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	return output
 }
 
 // NewCommand creates a new Git command ready for execution.
-func NewCommand(t testing.TB, cfg config.Cfg, args ...string) *exec.Cmd {
-	t.Helper()
-	return createCommand(t, cfg, ExecConfig{}, args...)
+func NewCommand(tb testing.TB, cfg config.Cfg, args ...string) *exec.Cmd {
+	tb.Helper()
+	return createCommand(tb, cfg, ExecConfig{}, args...)
 }
 
-func createCommand(t testing.TB, cfg config.Cfg, execCfg ExecConfig, args ...string) *exec.Cmd {
-	t.Helper()
+func createCommand(tb testing.TB, cfg config.Cfg, execCfg ExecConfig, args ...string) *exec.Cmd {
+	tb.Helper()
 
-	ctx := testhelper.Context(t)
+	ctx := testhelper.Context(tb)
 
-	execEnv := NewCommandFactory(t, cfg).GetExecutionEnvironment(ctx)
+	execEnv := NewCommandFactory(tb, cfg).GetExecutionEnvironment(ctx)
 
 	cmd := exec.CommandContext(ctx, execEnv.BinaryPath, args...)
 	cmd.Env = command.AllowedEnvironment(os.Environ())

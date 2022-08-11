@@ -40,31 +40,33 @@ func TestSuccessfulCalculateChecksum(t *testing.T) {
 
 func TestEmptyRepositoryCalculateChecksum(t *testing.T) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
-	testCtx := testhelper.Context(t)
-	repo, _ := gittest.CreateRepository(testCtx, t, cfg)
+	repo, _ := gittest.CreateRepository(ctx, t, cfg)
 
 	request := &gitalypb.CalculateChecksumRequest{Repository: repo}
 
-	response, err := client.CalculateChecksum(testCtx, request)
+	response, err := client.CalculateChecksum(ctx, request)
 	require.NoError(t, err)
 	require.Equal(t, git.ObjectHashSHA1.ZeroOID.String(), response.Checksum)
 }
 
 func TestBrokenRepositoryCalculateChecksum(t *testing.T) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryServiceWithoutRepo(t)
 
-	testCtx := testhelper.Context(t)
-	repo, repoPath := gittest.CreateRepository(testCtx, t, cfg)
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg)
 
 	// Force an empty HEAD file
 	require.NoError(t, os.Truncate(filepath.Join(repoPath, "HEAD"), 0))
 
 	request := &gitalypb.CalculateChecksumRequest{Repository: repo}
 
-	_, err := client.CalculateChecksum(testCtx, request)
+	_, err := client.CalculateChecksum(ctx, request)
 	testhelper.RequireGrpcCode(t, err, codes.DataLoss)
 }
 

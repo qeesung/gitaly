@@ -26,26 +26,26 @@ func TestMain(m *testing.M) {
 	testhelper.Run(m)
 }
 
-func setupConflictsService(ctx context.Context, t testing.TB, hookManager hook.Manager) (config.Cfg, *gitalypb.Repository, string, gitalypb.ConflictsServiceClient) {
-	cfg := testcfg.Build(t)
+func setupConflictsService(ctx context.Context, tb testing.TB, hookManager hook.Manager) (config.Cfg, *gitalypb.Repository, string, gitalypb.ConflictsServiceClient) {
+	cfg := testcfg.Build(tb)
 
-	testcfg.BuildGitalyGit2Go(t, cfg)
+	testcfg.BuildGitalyGit2Go(tb, cfg)
 
-	serverSocketPath := runConflictsServer(t, cfg, hookManager)
+	serverSocketPath := runConflictsServer(tb, cfg, hookManager)
 	cfg.SocketPath = serverSocketPath
 
-	client, conn := NewConflictsClient(t, serverSocketPath)
-	t.Cleanup(func() { conn.Close() })
+	client, conn := NewConflictsClient(tb, serverSocketPath)
+	tb.Cleanup(func() { conn.Close() })
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	repo, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
 
 	return cfg, repo, repoPath, client
 }
 
-func runConflictsServer(t testing.TB, cfg config.Cfg, hookManager hook.Manager) string {
-	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+func runConflictsServer(tb testing.TB, cfg config.Cfg, hookManager hook.Manager) string {
+	return testserver.RunGitalyServer(tb, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterConflictsServiceServer(srv, NewServer(
 			deps.GetHookManager(),
 			deps.GetLocator(),
@@ -81,14 +81,14 @@ func runConflictsServer(t testing.TB, cfg config.Cfg, hookManager hook.Manager) 
 	}, testserver.WithHookManager(hookManager))
 }
 
-func NewConflictsClient(t testing.TB, serverSocketPath string) (gitalypb.ConflictsServiceClient, *grpc.ClientConn) {
+func NewConflictsClient(tb testing.TB, serverSocketPath string) (gitalypb.ConflictsServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	return gitalypb.NewConflictsServiceClient(conn), conn

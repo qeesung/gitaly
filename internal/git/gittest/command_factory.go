@@ -20,7 +20,6 @@ func NewCommandFactory(tb testing.TB, cfg config.Cfg, opts ...git.ExecCommandFac
 
 // GitSupportsStatusFlushing returns whether or not the current version of Git
 // supports status flushing.
-//nolint: revive
 func GitSupportsStatusFlushing(t *testing.T, ctx context.Context, cfg config.Cfg) bool {
 	version, err := NewCommandFactory(t, cfg).GitVersion(ctx)
 	require.NoError(t, err)

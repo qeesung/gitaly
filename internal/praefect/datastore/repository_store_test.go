@@ -37,10 +37,10 @@ type replicaRecord struct {
 // It structured as virtual-storage->relative_path->storage->replicaRecord
 type storageState map[string]map[string]map[string]replicaRecord
 
-func requireState(t testing.TB, ctx context.Context, db glsql.Querier, vss virtualStorageState, ss storageState) {
-	t.Helper()
+func requireState(tb testing.TB, ctx context.Context, db glsql.Querier, vss virtualStorageState, ss storageState) {
+	tb.Helper()
 
-	requireVirtualStorageState := func(t testing.TB, ctx context.Context, exp virtualStorageState) {
+	requireVirtualStorageState := func(tb testing.TB, ctx context.Context, exp virtualStorageState) {
 		rows, err := db.QueryContext(ctx, `
 SELECT repository_id, virtual_storage, relative_path, replica_path, "primary", assigned_storages
 FROM repositories
@@ -51,7 +51,7 @@ LEFT JOIN (
 ) AS repository_assignments USING (repository_id, virtual_storage, relative_path)
 
 				`)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		defer rows.Close()
 
 		act := make(virtualStorageState)
@@ -62,7 +62,7 @@ LEFT JOIN (
 				primary                                   sql.NullString
 				assignments                               glsql.StringArray
 			)
-			require.NoError(t, rows.Scan(&repositoryID, &virtualStorage, &relativePath, &replicaPath, &primary, &assignments))
+			require.NoError(tb, rows.Scan(&repositoryID, &virtualStorage, &relativePath, &replicaPath, &primary, &assignments))
 			if act[virtualStorage] == nil {
 				act[virtualStorage] = make(map[string]repositoryRecord)
 			}
@@ -75,16 +75,16 @@ LEFT JOIN (
 			}
 		}
 
-		require.NoError(t, rows.Err())
-		require.Equal(t, exp, act)
+		require.NoError(tb, rows.Err())
+		require.Equal(tb, exp, act)
 	}
 
-	requireStorageState := func(t testing.TB, ctx context.Context, exp storageState) {
+	requireStorageState := func(tb testing.TB, ctx context.Context, exp storageState) {
 		rows, err := db.QueryContext(ctx, `
 SELECT repository_id, virtual_storage, relative_path, storage, generation
 FROM storage_repositories
 	`)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		defer rows.Close()
 
 		act := make(storageState)
@@ -92,7 +92,7 @@ FROM storage_repositories
 			var repositoryID sql.NullInt64
 			var vs, rel, storage string
 			var gen int
-			require.NoError(t, rows.Scan(&repositoryID, &vs, &rel, &storage, &gen))
+			require.NoError(tb, rows.Scan(&repositoryID, &vs, &rel, &storage, &gen))
 
 			if act[vs] == nil {
 				act[vs] = make(map[string]map[string]replicaRecord)
@@ -104,12 +104,12 @@ FROM storage_repositories
 			act[vs][rel][storage] = replicaRecord{repositoryID: repositoryID.Int64, generation: gen}
 		}
 
-		require.NoError(t, rows.Err())
-		require.Equal(t, exp, act)
+		require.NoError(tb, rows.Err())
+		require.Equal(tb, exp, act)
 	}
 
-	requireVirtualStorageState(t, ctx, vss)
-	requireStorageState(t, ctx, ss)
+	requireVirtualStorageState(tb, ctx, vss)
+	requireStorageState(tb, ctx, ss)
 }
 
 func TestRepositoryStore_Postgres(t *testing.T) {

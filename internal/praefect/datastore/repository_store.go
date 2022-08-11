@@ -213,7 +213,7 @@ func (rs *PostgresRepositoryStore) MarkStorageUnverified(ctx context.Context, vi
 	return result.RowsAffected()
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (rs *PostgresRepositoryStore) GetGeneration(ctx context.Context, repositoryID int64, storage string) (int, error) {
 	const q = `
 SELECT generation
@@ -234,7 +234,7 @@ AND storage = $2
 	return gen, nil
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (rs *PostgresRepositoryStore) IncrementGeneration(ctx context.Context, repositoryID int64, primary string, secondaries []string) error {
 	const q = `
 WITH updated_replicas AS (
@@ -288,7 +288,7 @@ SELECT
 	return nil
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (rs *PostgresRepositoryStore) SetGeneration(ctx context.Context, repositoryID int64, storage, relativePath string, generation int) error {
 	const q = `
 WITH repository AS (
@@ -352,7 +352,7 @@ ON CONFLICT (virtual_storage, relative_path, storage) DO UPDATE
 	return nil
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (rs *PostgresRepositoryStore) GetReplicatedGeneration(ctx context.Context, repositoryID int64, source, target string) (int, error) {
 	const q = `
 SELECT storage, generation
@@ -487,7 +487,7 @@ FROM (
 	return nil
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (rs *PostgresRepositoryStore) DeleteRepository(ctx context.Context, virtualStorage, relativePath string) (string, []string, error) {
 	var (
 		replicaPath string
@@ -571,7 +571,7 @@ WHERE repository_id = (SELECT repository_id FROM repository)
 	return nil
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (rs *PostgresRepositoryStore) RenameRepository(ctx context.Context, virtualStorage, relativePath, storage, newRelativePath string) error {
 	const q = `
 WITH repo AS (
@@ -657,7 +657,7 @@ func (rs *PostgresRepositoryStore) getConsistentStorages(ctx context.Context, qu
 	return replicaPath, consistentStorages, nil
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (rs *PostgresRepositoryStore) RepositoryExists(ctx context.Context, virtualStorage, relativePath string) (bool, error) {
 	const q = `
 SELECT true

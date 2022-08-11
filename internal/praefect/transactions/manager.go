@@ -15,7 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/voting"
 )
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 var ErrNotFound = errors.New("transaction not found")
 
 // Manager handles reference transactions for Praefect. It is required in order
@@ -63,12 +63,12 @@ func NewManager(cfg config.Config) *Manager {
 	}
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (mgr *Manager) Describe(descs chan<- *prometheus.Desc) {
 	prometheus.DescribeByCollect(mgr, descs)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (mgr *Manager) Collect(metrics chan<- prometheus.Metric) {
 	mgr.counterMetric.Collect(metrics)
 	mgr.delayMetric.Collect(metrics)

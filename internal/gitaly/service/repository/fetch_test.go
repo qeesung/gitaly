@@ -138,7 +138,9 @@ func TestFetchSourceBranchWrongRef(t *testing.T) {
 	md := testcfg.GitalyServersMetadataFromCfg(t, cfg)
 	ctx = testhelper.MergeOutgoingMetadata(ctx, md)
 
-	sourceRepo, sourceRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	sourceRepo, sourceRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
 
 	sourceBranch := "fetch-source-branch-testmas-branch"
 	gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch(sourceBranch))

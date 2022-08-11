@@ -48,7 +48,9 @@ func testExecutorFeatureFlags(t *testing.T, ctx context.Context) {
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyGit2Go(t, cfg)
 
-	repoProto, _ := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 

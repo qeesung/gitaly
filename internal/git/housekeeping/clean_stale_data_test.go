@@ -865,12 +865,14 @@ func TestRepositoryManager_CleanStaleData_missingRepo(t *testing.T) {
 }
 
 func TestRepositoryManager_CleanStaleData_unsetConfiguration(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 	configPath := filepath.Join(repoPath, "config")
-
-	ctx := testhelper.Context(t)
 
 	require.NoError(t, os.WriteFile(configPath, []byte(
 		`[core]
@@ -923,7 +925,9 @@ func TestRepositoryManager_CleanStaleData_unsetConfigurationTransactional(t *tes
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 	gittest.Exec(t, cfg, "-C", repoPath, "config", "http.some.extraHeader", "value")
@@ -955,7 +959,9 @@ func TestRepositoryManager_CleanStaleData_pruneEmptyConfigSections(t *testing.T)
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 	configPath := filepath.Join(repoPath, "config")
 
@@ -1003,7 +1009,9 @@ func TestPruneEmptyConfigSections(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 	configPath := filepath.Join(repoPath, "config")
 

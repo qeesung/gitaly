@@ -92,7 +92,7 @@ type Hooks struct {
 	CustomHooksDir string `toml:"custom_hooks_dir" json:"custom_hooks_dir"`
 }
 
-// nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 type HTTPSettings struct {
 	ReadTimeout int    `toml:"read_timeout" json:"read_timeout"`
 	User        string `toml:"user" json:"user"`
@@ -175,8 +175,7 @@ type StreamCacheConfig struct {
 }
 
 // Load initializes the Config variable from file and the environment.
-//
-//	Environment variables take precedence over the file.
+// Environment variables take precedence over the file.
 func Load(file io.Reader) (Cfg, error) {
 	cfg := Cfg{
 		Prometheus: prometheus.DefaultConfig(),

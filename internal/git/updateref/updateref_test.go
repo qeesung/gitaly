@@ -24,7 +24,9 @@ func setupUpdater(t *testing.T, ctx context.Context) (config.Cfg, *localrepo.Rep
 
 	cfg := testcfg.Build(t)
 
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto, git.WithSkipHooks())
 
 	updater, err := New(ctx, repo)
@@ -133,7 +135,9 @@ func TestUpdater_concurrentLocking(t *testing.T) {
 		t.Skip("git does not support flushing yet, which is known to be flaky")
 	}
 
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto, git.WithSkipHooks())
 
 	commitID := gittest.WriteCommit(t, cfg, repoPath)

@@ -10,7 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (s *Server) SetReplicationFactor(ctx context.Context, req *gitalypb.SetReplicationFactorRequest) (*gitalypb.SetReplicationFactorResponse, error) {
 	resp, err := s.setReplicationFactor(ctx, req)
 	if err != nil {

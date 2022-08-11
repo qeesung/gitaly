@@ -48,7 +48,9 @@ func TestExecutor_Commit(t *testing.T) {
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyGit2Go(t, cfg)
 
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -490,11 +492,11 @@ func TestExecutor_Commit(t *testing.T) {
 	}
 }
 
-func getCommit(t testing.TB, ctx context.Context, repo *localrepo.Repo, oid git.ObjectID) commit {
-	t.Helper()
+func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git.ObjectID) commit {
+	tb.Helper()
 
 	data, err := repo.ReadObject(ctx, oid)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	var commit commit
 	lines := strings.Split(string(data), "\n")
@@ -505,19 +507,19 @@ func getCommit(t testing.TB, ctx context.Context, repo *localrepo.Repo, oid git.
 		}
 
 		split := strings.SplitN(line, " ", 2)
-		require.Len(t, split, 2, "invalid commit: %q", data)
+		require.Len(tb, split, 2, "invalid commit: %q", data)
 
 		field, value := split[0], split[1]
 		switch field {
 		case "parent":
-			require.Empty(t, commit.Parent, "multi parent parsing not implemented")
+			require.Empty(tb, commit.Parent, "multi parent parsing not implemented")
 			commit.Parent = git.ObjectID(value)
 		case "author":
-			require.Empty(t, commit.Author, "commit contained multiple authors")
-			commit.Author = unmarshalSignature(t, value)
+			require.Empty(tb, commit.Author, "commit contained multiple authors")
+			commit.Author = unmarshalSignature(tb, value)
 		case "committer":
-			require.Empty(t, commit.Committer, "commit contained multiple committers")
-			commit.Committer = unmarshalSignature(t, value)
+			require.Empty(tb, commit.Committer, "commit contained multiple committers")
+			commit.Committer = unmarshalSignature(tb, value)
 		default:
 		}
 	}
@@ -525,21 +527,21 @@ func getCommit(t testing.TB, ctx context.Context, repo *localrepo.Repo, oid git.
 	return commit
 }
 
-func unmarshalSignature(t testing.TB, data string) Signature {
-	t.Helper()
+func unmarshalSignature(tb testing.TB, data string) Signature {
+	tb.Helper()
 
 	// Format: NAME <EMAIL> DATE_UNIX DATE_TIMEZONE
 	split1 := strings.Split(data, " <")
-	require.Len(t, split1, 2, "invalid signature: %q", data)
+	require.Len(tb, split1, 2, "invalid signature: %q", data)
 
 	split2 := strings.Split(split1[1], "> ")
-	require.Len(t, split2, 2, "invalid signature: %q", data)
+	require.Len(tb, split2, 2, "invalid signature: %q", data)
 
 	split3 := strings.Split(split2[1], " ")
-	require.Len(t, split3, 2, "invalid signature: %q", data)
+	require.Len(tb, split3, 2, "invalid signature: %q", data)
 
 	timestamp, err := strconv.ParseInt(split3[0], 10, 64)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return Signature{
 		Name:  split1[0],

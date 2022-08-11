@@ -50,7 +50,9 @@ func TestReplicateRepository(t *testing.T) {
 	client, serverSocketPath := runRepositoryService(t, cfg, nil, testserver.WithDisablePraefect())
 	cfg.SocketPath = serverSocketPath
 
-	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
 
 	// create a loose object to ensure snapshot replication is used
 	blobData, err := text.RandomHex(10)
@@ -124,7 +126,7 @@ func TestReplicateRepository_hiddenRefs(t *testing.T) {
 	ctx = testhelper.MergeOutgoingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 
 	t.Run("initial seeding", func(t *testing.T) {
-		sourceRepo, sourceRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+		sourceRepo, sourceRepoPath := gittest.CreateRepository(ctx, t, cfg)
 
 		// Create a bunch of internal references, regardless of whether we classify them as hidden
 		// or read-only. We should be able to replicate all of them.
@@ -156,9 +158,10 @@ func TestReplicateRepository_hiddenRefs(t *testing.T) {
 	})
 
 	t.Run("incremental replication", func(t *testing.T) {
-		sourceRepo, sourceRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
-		targetRepo, targetRepoPath := gittest.InitRepo(t, cfg, cfg.Storages[1], gittest.InitRepoOpts{
-			WithRelativePath: sourceRepo.GetRelativePath(),
+		sourceRepo, sourceRepoPath := gittest.CreateRepository(ctx, t, cfg)
+		targetRepo, targetRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+			RelativePath: sourceRepo.GetRelativePath(),
+			Storage:      cfg.Storages[1],
 		})
 
 		// Create the same commit in both repositories so that they're in a known-good
@@ -203,7 +206,9 @@ func TestReplicateRepositoryTransactional(t *testing.T) {
 	_, serverSocketPath := runRepositoryService(t, cfg, nil, testserver.WithDisablePraefect())
 	cfg.SocketPath = serverSocketPath
 
-	sourceRepo, sourceRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	sourceRepo, sourceRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
 
 	targetRepo := proto.Clone(sourceRepo).(*gitalypb.Repository)
 	targetRepo.StorageName = cfg.Storages[1].Name
@@ -389,16 +394,16 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 		{
 			desc:          "source invalid",
 			invalidSource: true,
-			error: func(t testing.TB, actual error) {
-				testhelper.RequireGrpcError(t, ErrInvalidSourceRepository, actual)
+			error: func(tb testing.TB, actual error) {
+				testhelper.RequireGrpcError(tb, ErrInvalidSourceRepository, actual)
 			},
 		},
 		{
 			desc:          "both invalid",
 			invalidSource: true,
 			invalidTarget: true,
-			error: func(t testing.TB, actual error) {
-				testhelper.RequireGrpcError(t, ErrInvalidSourceRepository, actual)
+			error: func(tb testing.TB, actual error) {
+				testhelper.RequireGrpcError(tb, ErrInvalidSourceRepository, actual)
 			},
 		},
 	} {
@@ -412,8 +417,11 @@ func TestReplicateRepository_BadRepository(t *testing.T) {
 			client, serverSocketPath := runRepositoryService(t, cfg, nil, testserver.WithDisablePraefect())
 			cfg.SocketPath = serverSocketPath
 
-			sourceRepo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-			targetRepo, targetRepoPath := gittest.CloneRepo(t, cfg, cfg.Storages[1], gittest.CloneRepoOpts{
+			sourceRepo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+				Seed: gittest.SeedGitLabTest,
+			})
+			targetRepo, targetRepoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+				Storage:      cfg.Storages[1],
 				RelativePath: sourceRepo.RelativePath,
 			})
 
@@ -466,7 +474,9 @@ func TestReplicateRepository_FailedFetchInternalRemote(t *testing.T) {
 	client, socketPath := runRepositoryService(t, cfg, nil, testserver.WithDisablePraefect())
 	cfg.SocketPath = socketPath
 
-	targetRepo, _ := gittest.InitRepo(t, cfg, cfg.Storages[1])
+	targetRepo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Storage: cfg.Storages[1],
+	})
 
 	// The source repository must be at the same path as the target repository, and it must be a
 	// real repository. In order to still have the fetch fail, we corrupt the repository by

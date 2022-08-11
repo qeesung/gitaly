@@ -310,16 +310,16 @@ func TestServer_CloneFromURLCommand_withMirror(t *testing.T) {
 	require.Error(t, cmd.Wait())
 }
 
-func gitServerWithBasicAuth(ctx context.Context, t testing.TB, gitCmdFactory git.CommandFactory, user, pass, repoPath string) (int, func() error) {
-	return gittest.HTTPServer(ctx, t, gitCmdFactory, repoPath, basicAuthMiddleware(t, user, pass))
+func gitServerWithBasicAuth(ctx context.Context, tb testing.TB, gitCmdFactory git.CommandFactory, user, pass, repoPath string) (int, func() error) {
+	return gittest.HTTPServer(ctx, tb, gitCmdFactory, repoPath, basicAuthMiddleware(tb, user, pass))
 }
 
-func basicAuthMiddleware(t testing.TB, user, pass string) func(http.ResponseWriter, *http.Request, http.Handler) {
+func basicAuthMiddleware(tb testing.TB, user, pass string) func(http.ResponseWriter, *http.Request, http.Handler) {
 	return func(w http.ResponseWriter, r *http.Request, next http.Handler) {
 		authUser, authPass, ok := r.BasicAuth()
-		require.True(t, ok, "should contain basic auth")
-		require.Equal(t, user, authUser, "username should match")
-		require.Equal(t, pass, authPass, "password should match")
+		require.True(tb, ok, "should contain basic auth")
+		require.Equal(tb, user, authUser, "username should match")
+		require.Equal(tb, pass, authPass, "password should match")
 		next.ServeHTTP(w, r)
 	}
 }

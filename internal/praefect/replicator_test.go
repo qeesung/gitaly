@@ -285,7 +285,10 @@ func TestConfirmReplication(t *testing.T) {
 	cfg, testRepoA, testRepoAPath := testcfg.BuildWithRepo(t)
 	srvSocketPath := testserver.RunGitalyServer(t, cfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
 
-	testRepoB, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	testRepoB, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+	})
 
 	connOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

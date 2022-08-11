@@ -12,10 +12,8 @@ import (
 // praefect name -> virtual storage -> storage. On each run, it clears all previous health checks from the table, so the
 // passed in nodes are the only ones considered healthy after the function. As the healthy nodes are determined by the time of
 // the last successful health check, this should be run in the same transastion as the tested query to prevent flakiness.
-//
-//nolint:revive
-func SetHealthyNodes(t testing.TB, ctx context.Context, db glsql.Querier, healthyNodes map[string]map[string][]string) {
-	t.Helper()
+func SetHealthyNodes(tb testing.TB, ctx context.Context, db glsql.Querier, healthyNodes map[string]map[string][]string) {
+	tb.Helper()
 
 	var praefects, virtualStorages, storages []string
 	for praefect, virtualStors := range healthyNodes {
@@ -46,5 +44,5 @@ ON CONFLICT (praefect_name, shard_name, node_name) DO UPDATE SET
 		virtualStorages,
 		storages,
 	)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 }

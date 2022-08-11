@@ -20,8 +20,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
@@ -761,28 +759,23 @@ func (t *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalyp
 func TestPostReceivePack_referenceTransactionHook(t *testing.T) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
+	ctxWithoutTransaction := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyHooks(t, cfg)
 
 	refTransactionServer := &testTransactionServer{}
 
-	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterSmartHTTPServiceServer(srv, NewServer(
-			deps.GetLocator(),
-			deps.GetGitCmdFactory(),
-			deps.GetTxManager(),
-			deps.GetDiskCache(),
-		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
-	}, testserver.WithDisablePraefect())
+	server := startSmartHTTPServerWithOptions(t, cfg, nil, []testserver.GitalyServerOpt{
+		testserver.WithDisablePraefect(),
+	})
+	cfg.SocketPath = server.Address()
 
-	ctx, err := txinfo.InjectTransaction(ctx, 1234, "primary", true)
+	ctx, err := txinfo.InjectTransaction(ctxWithoutTransaction, 1234, "primary", true)
 	require.NoError(t, err)
 	ctx = metadata.IncomingToOutgoing(ctx)
 
-	client := newMuxedSmartHTTPClient(t, ctx, addr, cfg.Auth.Token, func() backchannel.Server {
+	client := newMuxedSmartHTTPClient(t, ctx, server.Address(), cfg.Auth.Token, func() backchannel.Server {
 		srv := grpc.NewServer()
 		gitalypb.RegisterRefTransactionServer(srv, refTransactionServer)
 		return srv
@@ -792,7 +785,9 @@ func TestPostReceivePack_referenceTransactionHook(t *testing.T) {
 		stream, err := client.PostReceivePack(ctx)
 		require.NoError(t, err)
 
-		repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		repo, _ := gittest.CreateRepository(ctxWithoutTransaction, t, cfg, gittest.CreateRepositoryConfig{
+			Seed: gittest.SeedGitLabTest,
+		})
 
 		_, _, pushRequest := createPushRequest(t, cfg)
 		response := performPush(t, stream, &gitalypb.PostReceivePackRequest{
@@ -813,7 +808,10 @@ func TestPostReceivePack_referenceTransactionHook(t *testing.T) {
 		stream, err := client.PostReceivePack(ctx)
 		require.NoError(t, err)
 
-		repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+		repo, repoPath := gittest.CreateRepository(ctxWithoutTransaction, t, cfg,
+			gittest.CreateRepositoryConfig{
+				Seed: gittest.SeedGitLabTest,
+			})
 
 		// Create a new branch which we're about to delete. We also pack references because
 		// this used to generate two transactions: one for the packed-refs file and one for
@@ -864,21 +862,18 @@ func TestPostReceivePack_notAllowed(t *testing.T) {
 		gitalyhook.NopUpdate,
 		gitalyhook.NopReferenceTransaction,
 	)
-	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
-		gitalypb.RegisterSmartHTTPServiceServer(srv, NewServer(
-			deps.GetLocator(),
-			deps.GetGitCmdFactory(),
-			deps.GetTxManager(),
-			deps.GetDiskCache(),
-		))
-		gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps.GetHookManager(), deps.GetGitCmdFactory(), deps.GetPackObjectsCache(), deps.GetPackObjectsConcurrencyTracker()))
-	}, testserver.WithDisablePraefect(), testserver.WithHookManager(hookManager))
 
-	ctx, err := txinfo.InjectTransaction(testhelper.Context(t), 1234, "primary", true)
+	server := startSmartHTTPServerWithOptions(t, cfg, nil, []testserver.GitalyServerOpt{
+		testserver.WithDisablePraefect(), testserver.WithHookManager(hookManager),
+	})
+	cfg.SocketPath = server.Address()
+
+	ctxWithoutTransaction := testhelper.Context(t)
+	ctx, err := txinfo.InjectTransaction(ctxWithoutTransaction, 1234, "primary", true)
 	require.NoError(t, err)
 	ctx = metadata.IncomingToOutgoing(ctx)
 
-	client := newMuxedSmartHTTPClient(t, ctx, addr, cfg.Auth.Token, func() backchannel.Server {
+	client := newMuxedSmartHTTPClient(t, ctx, server.Address(), cfg.Auth.Token, func() backchannel.Server {
 		srv := grpc.NewServer()
 		gitalypb.RegisterRefTransactionServer(srv, refTransactionServer)
 		return srv
@@ -887,7 +882,9 @@ func TestPostReceivePack_notAllowed(t *testing.T) {
 	stream, err := client.PostReceivePack(ctx)
 	require.NoError(t, err)
 
-	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repo, _ := gittest.CreateRepository(ctxWithoutTransaction, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
 
 	_, _, pushRequest := createPushRequest(t, cfg)
 	request := &gitalypb.PostReceivePackRequest{Repository: repo, GlId: "key-1234", GlRepository: "some_repo"}
@@ -897,7 +894,11 @@ func TestPostReceivePack_notAllowed(t *testing.T) {
 }
 
 func createPushRequest(t *testing.T, cfg config.Cfg) (git.ObjectID, git.ObjectID, io.Reader) {
-	_, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	ctx := testhelper.Context(t)
+
+	_, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
 
 	oldCommitID := git.ObjectID(text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "HEAD")))
 	newCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(oldCommitID))
@@ -956,8 +957,8 @@ func drainPostReceivePackResponse(stream gitalypb.SmartHTTPService_PostReceivePa
 // requireSideband compares the actual sideband data to expected sideband data. This function is
 // required to filter out any keep-alive packets which Git may send over the sideband and which are
 // kind of unpredictable for us.
-func requireSideband(t testing.TB, expectedSidebandMessages []string, actualInput string) {
-	t.Helper()
+func requireSideband(tb testing.TB, expectedSidebandMessages []string, actualInput string) {
+	tb.Helper()
 
 	scanner := pktline.NewScanner(strings.NewReader(actualInput))
 
@@ -968,7 +969,7 @@ func requireSideband(t testing.TB, expectedSidebandMessages []string, actualInpu
 		// Flush packets terminate the communication via side-channels, so we expect them to
 		// come.
 		if pktline.IsFlush(payload) {
-			require.Equal(t, expectedSidebandMessages, actualSidebandMessages)
+			require.Equal(tb, expectedSidebandMessages, actualSidebandMessages)
 			return
 		}
 
@@ -982,5 +983,5 @@ func requireSideband(t testing.TB, expectedSidebandMessages []string, actualInpu
 		actualSidebandMessages = append(actualSidebandMessages, string(payload))
 	}
 
-	require.FailNow(t, "expected to receive a flush to terminate the protocol")
+	require.FailNow(tb, "expected to receive a flush to terminate the protocol")
 }

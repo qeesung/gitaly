@@ -21,11 +21,17 @@ import (
 )
 
 func TestLogObjectInfo(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	repo1, repoPath1 := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-	repo2, repoPath2 := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-	ctx := testhelper.Context(t)
+	repo1, repoPath1 := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+	})
+	repo2, repoPath2 := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+	})
 
 	requireLog := func(entries []*logrus.Entry) map[string]interface{} {
 		for _, entry := range entries {

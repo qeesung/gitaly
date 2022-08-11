@@ -249,20 +249,20 @@ type storageCleanupRow struct {
 	TriggeredAt sql.NullTime
 }
 
-func getAllStoragesCleanup(t testing.TB, db testdb.DB) []storageCleanupRow {
+func getAllStoragesCleanup(tb testing.TB, db testdb.DB) []storageCleanupRow {
 	rows, err := db.Query(`SELECT * FROM storage_cleanups`)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	defer func() {
-		require.NoError(t, rows.Close())
+		require.NoError(tb, rows.Close())
 	}()
 
 	var res []storageCleanupRow
 	for rows.Next() {
 		var dst storageCleanupRow
 		err := rows.Scan(&dst.VirtualStorage, &dst.Storage, &dst.LastRun, &dst.TriggeredAt)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		res = append(res, dst)
 	}
-	require.NoError(t, rows.Err())
+	require.NoError(tb, rows.Err())
 	return res
 }

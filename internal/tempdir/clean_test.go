@@ -55,10 +55,14 @@ func TestCleanSuccess(t *testing.T) {
 }
 
 func TestCleanTempDir(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t, testcfg.WithStorages("first", "second"))
 	locator := config.NewLocator(cfg)
 
-	gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+	})
 
 	logrus.SetLevel(logrus.InfoLevel)
 	logrus.SetOutput(io.Discard)

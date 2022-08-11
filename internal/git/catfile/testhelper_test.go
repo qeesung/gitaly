@@ -59,7 +59,9 @@ func setupObjectReader(t *testing.T, ctx context.Context) (config.Cfg, ObjectRea
 	t.Helper()
 
 	cfg := testcfg.Build(t)
-	repo, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	repoExecutor := newRepoExecutor(t, cfg, repo)
 
 	cache := newCache(1*time.Hour, 1000, helper.NewTimerTicker(defaultEvictionInterval))

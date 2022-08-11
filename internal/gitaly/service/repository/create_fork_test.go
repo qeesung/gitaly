@@ -291,8 +291,8 @@ func injectCustomCATestCerts(t *testing.T) (*x509.CertPool, config.TLS) {
 	return pool, config.TLS{CertPath: certFile, KeyPath: keyFile}
 }
 
-func newSecureRepoClient(t testing.TB, addr, token string, pool *x509.CertPool) (gitalypb.RepositoryServiceClient, *grpc.ClientConn) {
-	t.Helper()
+func newSecureRepoClient(tb testing.TB, addr, token string, pool *x509.CertPool) (gitalypb.RepositoryServiceClient, *grpc.ClientConn) {
+	tb.Helper()
 
 	connOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
@@ -303,7 +303,7 @@ func newSecureRepoClient(t testing.TB, addr, token string, pool *x509.CertPool) 
 	}
 
 	conn, err := client.Dial(addr, connOpts)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return gitalypb.NewRepositoryServiceClient(conn), conn
 }

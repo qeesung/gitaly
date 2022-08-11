@@ -206,21 +206,21 @@ func TestUpdateCommitGraph(t *testing.T) {
 	assertModTimeAfter(t, mt, chainPath)
 }
 
-func requireBloomFilterUsed(t testing.TB, repoPath string) {
-	t.Helper()
+func requireBloomFilterUsed(tb testing.TB, repoPath string) {
+	tb.Helper()
 
 	commitGraphsPath := filepath.Join(repoPath, stats.CommitGraphChainRelPath)
-	ids := bytes.Split(testhelper.MustReadFile(t, commitGraphsPath), []byte{'\n'})
+	ids := bytes.Split(testhelper.MustReadFile(tb, commitGraphsPath), []byte{'\n'})
 
 	for _, id := range ids {
 		if len(id) == 0 {
 			continue
 		}
 		graphFilePath := filepath.Join(repoPath, filepath.Dir(stats.CommitGraphChainRelPath), fmt.Sprintf("graph-%s.graph", id))
-		graphFileData := testhelper.MustReadFile(t, graphFilePath)
+		graphFileData := testhelper.MustReadFile(tb, graphFilePath)
 
-		require.True(t, bytes.HasPrefix(graphFileData, []byte("CGPH")), "4-byte signature of the commit graph file")
-		require.True(t, bytes.Contains(graphFileData, []byte("BIDX")), "Bloom Filter Index")
-		require.True(t, bytes.Contains(graphFileData, []byte("BDAT")), "Bloom Filter Data")
+		require.True(tb, bytes.HasPrefix(graphFileData, []byte("CGPH")), "4-byte signature of the commit graph file")
+		require.True(tb, bytes.Contains(graphFileData, []byte("BIDX")), "Bloom Filter Index")
+		require.True(tb, bytes.Contains(graphFileData, []byte("BDAT")), "Bloom Filter Data")
 	}
 }

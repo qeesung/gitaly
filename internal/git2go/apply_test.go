@@ -18,14 +18,16 @@ import (
 )
 
 func TestExecutor_Apply(t *testing.T) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyGit2Go(t, cfg)
 
-	repoProto, repoPath := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
-	ctx := testhelper.Context(t)
 
 	oidBase, err := repo.WriteBlob(ctx, "file", strings.NewReader("base"))
 	require.NoError(t, err)
@@ -96,9 +98,9 @@ func TestExecutor_Apply(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	diffBetween := func(t testing.TB, fromCommit, toCommit git.ObjectID) []byte {
-		t.Helper()
-		return gittest.Exec(t, cfg, "-C", repoPath, "format-patch", "--stdout", fromCommit.String()+".."+toCommit.String())
+	diffBetween := func(tb testing.TB, fromCommit, toCommit git.ObjectID) []byte {
+		tb.Helper()
+		return gittest.Exec(tb, cfg, "-C", repoPath, "format-patch", "--stdout", fromCommit.String()+".."+toCommit.String())
 	}
 
 	for _, tc := range []struct {

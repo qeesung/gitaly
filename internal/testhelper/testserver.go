@@ -12,22 +12,22 @@ import (
 
 // NewServerWithHealth creates a new gRPC server with the health server set up.
 // It will listen on the socket identified by `socketName`.
-func NewServerWithHealth(t testing.TB, socketName string) *health.Server {
+func NewServerWithHealth(tb testing.TB, socketName string) *health.Server {
 	lis, err := net.Listen("unix", socketName)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
-	return NewHealthServerWithListener(t, lis)
+	return NewHealthServerWithListener(tb, lis)
 }
 
 // NewHealthServerWithListener creates a new gRPC server with the health server
 // set up. It will listen on the given listener.
-func NewHealthServerWithListener(t testing.TB, listener net.Listener) *health.Server {
+func NewHealthServerWithListener(tb testing.TB, listener net.Listener) *health.Server {
 	srv := grpc.NewServer()
 	healthSrvr := health.NewServer()
 	healthpb.RegisterHealthServer(srv, healthSrvr)
 
-	t.Cleanup(srv.Stop)
-	go func() { require.NoError(t, srv.Serve(listener)) }()
+	tb.Cleanup(srv.Stop)
+	go func() { require.NoError(tb, srv.Serve(listener)) }()
 
 	return healthSrvr
 }

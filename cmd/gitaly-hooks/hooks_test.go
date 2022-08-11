@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,6 +26,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	gitalylog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
@@ -58,13 +58,13 @@ func featureFlags(ctx context.Context) map[featureflag.FeatureFlag]bool {
 }
 
 // envForHooks generates a set of environment variables for gitaly hooks
-func envForHooks(t testing.TB, ctx context.Context, cfg config.Cfg, repo *gitalypb.Repository, glHookValues glHookValues, proxyValues proxyValues, gitPushOptions ...string) []string {
+func envForHooks(tb testing.TB, ctx context.Context, cfg config.Cfg, repo *gitalypb.Repository, glHookValues glHookValues, proxyValues proxyValues, gitPushOptions ...string) []string {
 	payload, err := git.NewHooksPayload(cfg, repo, nil, &git.UserDetails{
 		UserID:   glHookValues.GLID,
 		Username: glHookValues.GLUsername,
 		Protocol: glHookValues.GLProtocol,
 	}, git.AllHooks, featureFlags(ctx)).Env()
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	env := append(command.AllowedEnvironment(os.Environ()), []string{
 		payload,
@@ -273,30 +273,29 @@ func TestHooksUpdate(t *testing.T) {
 }
 
 func testHooksUpdate(t *testing.T, ctx context.Context, cfg config.Cfg, glValues glHookValues) {
-	repo, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 
 	refval, oldval, newval := "refval", strings.Repeat("a", 40), strings.Repeat("b", 40)
 
+	// Write a custom update hook that dumps all arguments seen by the hook...
+	customHookArgsPath := filepath.Join(testhelper.TempDir(t), "containsarguments")
+	testhelper.WriteExecutable(t,
+		filepath.Join(repoPath, "custom_hooks", "update.d", "dumpargsscript"),
+		[]byte(fmt.Sprintf(`#!/bin/bash
+			echo "$@" >%q
+		`, customHookArgsPath)),
+	)
+
+	// ... and a second custom hook that dumps the environment variables.
+	customHookEnvPath := gittest.WriteEnvToCustomHook(t, repoPath, "update")
+
+	var stdout, stderr bytes.Buffer
 	cmd := exec.Command(cfg.BinaryPath("gitaly-hooks"))
 	cmd.Args = []string{"update", refval, oldval, newval}
 	cmd.Env = envForHooks(t, ctx, cfg, repo, glValues, proxyValues{})
 	cmd.Dir = repoPath
-
-	tempDir := testhelper.TempDir(t)
-
-	customHookArgsPath := filepath.Join(tempDir, "containsarguments")
-	dumpArgsToTempfileScript := fmt.Sprintf(`#!/usr/bin/env ruby
-require 'json'
-open('%s', 'w') { |f| f.puts(JSON.dump(ARGV)) }
-`, customHookArgsPath)
-	// write a custom hook to path/to/repo.git/custom_hooks/update.d/dumpargsscript which dumps the args into a tempfile
-	testhelper.WriteExecutable(t, filepath.Join(repoPath, "custom_hooks", "update.d", "dumpargsscript"), []byte(dumpArgsToTempfileScript))
-
-	// write a custom hook to path/to/repo.git/custom_hooks/update which dumps the env into a tempfile
-	customHookOutputPath := gittest.WriteEnvToCustomHook(t, repoPath, "update")
-
-	var stdout, stderr bytes.Buffer
-
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.Dir = repoPath
@@ -305,15 +304,14 @@ open('%s', 'w') { |f| f.puts(JSON.dump(ARGV)) }
 	require.Empty(t, stdout.String())
 	require.Empty(t, stderr.String())
 
-	require.FileExists(t, customHookArgsPath)
+	// Ensure that the hook was executed with the expected arguments...
+	require.Equal(t,
+		fmt.Sprintf("%s %s %s", refval, oldval, newval),
+		text.ChompBytes(testhelper.MustReadFile(t, customHookArgsPath)),
+	)
 
-	var inputs []string
-
-	b := testhelper.MustReadFile(t, customHookArgsPath)
-	require.NoError(t, json.Unmarshal(b, &inputs))
-	require.Equal(t, []string{refval, oldval, newval}, inputs)
-
-	output := string(testhelper.MustReadFile(t, customHookOutputPath))
+	// ... and with the expected environment variables.
+	output := string(testhelper.MustReadFile(t, customHookEnvPath))
 	require.Contains(t, output, "GL_USERNAME="+glValues.GLUsername)
 	require.Contains(t, output, "GL_ID="+glValues.GLID)
 	require.Contains(t, output, "GL_REPOSITORY="+repo.GetGlRepository())

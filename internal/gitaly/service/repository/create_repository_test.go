@@ -207,14 +207,18 @@ func TestCreateRepository_transactional(t *testing.T) {
 		// The above test creates the second repository on the server. As this test can run with Praefect in front of it,
 		// we'll use the next replica path Praefect will assign in order to ensure this repository creation conflicts even
 		// with Praefect in front of it.
-		repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+		repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 			RelativePath: praefectutil.DeriveReplicaPath(2),
 		})
 
 		_, err = client.CreateRepository(ctx, &gitalypb.CreateRepositoryRequest{
 			Repository: repo,
 		})
-		testhelper.ProtoEqual(t, status.Error(codes.AlreadyExists, "creating repository: repository exists already"), err)
+		if testhelper.IsPraefectEnabled() {
+			testhelper.ProtoEqual(t, status.Error(codes.AlreadyExists, "route repository creation: reserve repository id: repository already exists"), err)
+		} else {
+			testhelper.ProtoEqual(t, status.Error(codes.AlreadyExists, "creating repository: repository exists already"), err)
+		}
 	})
 }
 
@@ -231,11 +235,15 @@ func TestCreateRepository_idempotent(t *testing.T) {
 		// conflicts even with Praefect in front of it.
 		RelativePath: praefectutil.DeriveReplicaPath(1),
 	}
-	gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
+	gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		RelativePath: repo.RelativePath,
 	})
 
 	req := &gitalypb.CreateRepositoryRequest{Repository: repo}
 	_, err := client.CreateRepository(ctx, req)
-	testhelper.ProtoEqual(t, status.Error(codes.AlreadyExists, "creating repository: repository exists already"), err)
+	if testhelper.IsPraefectEnabled() {
+		testhelper.ProtoEqual(t, status.Error(codes.AlreadyExists, "route repository creation: reserve repository id: repository already exists"), err)
+	} else {
+		testhelper.ProtoEqual(t, status.Error(codes.AlreadyExists, "creating repository: repository exists already"), err)
+	}
 }

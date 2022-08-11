@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateBranchRequest) (*gitalypb.UserCreateBranchResponse, error) {
 	if len(req.BranchName) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "Bad Request (empty branch name)")
@@ -101,7 +101,7 @@ func validateUserUpdateBranchGo(req *gitalypb.UserUpdateBranchRequest) error {
 	return nil
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserUpdateBranch(ctx context.Context, req *gitalypb.UserUpdateBranchRequest) (*gitalypb.UserUpdateBranchResponse, error) {
 	// Validate the request
 	if err := validateUserUpdateBranchGo(req); err != nil {

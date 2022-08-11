@@ -26,8 +26,8 @@ type TreeEntry struct {
 
 // RequireTree looks up the given treeish and asserts that its entries match
 // the given expected entries. Tree entries are checked recursively.
-func RequireTree(t testing.TB, cfg config.Cfg, repoPath, treeish string, expectedEntries []TreeEntry) {
-	t.Helper()
+func RequireTree(tb testing.TB, cfg config.Cfg, repoPath, treeish string, expectedEntries []TreeEntry) {
+	tb.Helper()
 
 	for i, entry := range expectedEntries {
 		if entry.OID != "" {
@@ -38,45 +38,45 @@ func RequireTree(t testing.TB, cfg config.Cfg, repoPath, treeish string, expecte
 
 		hasher := DefaultObjectHash.Hash()
 		_, err := hasher.Write([]byte(blob))
-		require.NoError(t, err)
+		require.NoError(tb, err)
 
 		expectedEntries[i].OID = git.ObjectID(hex.EncodeToString(hasher.Sum(nil)))
 	}
 
 	var actualEntries []TreeEntry
 
-	output := bytes.TrimSpace(Exec(t, cfg, "-C", repoPath, "ls-tree", "-r", treeish))
+	output := bytes.TrimSpace(Exec(tb, cfg, "-C", repoPath, "ls-tree", "-r", treeish))
 
 	if len(output) > 0 {
 		for _, line := range bytes.Split(output, []byte("\n")) {
 			// Format: <mode> SP <type> SP <object> TAB <file>
 			tabSplit := bytes.Split(line, []byte("\t"))
-			require.Len(t, tabSplit, 2)
+			require.Len(tb, tabSplit, 2)
 
 			spaceSplit := bytes.Split(tabSplit[0], []byte(" "))
-			require.Len(t, spaceSplit, 3)
+			require.Len(tb, spaceSplit, 3)
 
 			path := string(tabSplit[1])
 
 			objectID, err := DefaultObjectHash.FromHex(string(spaceSplit[2]))
-			require.NoError(t, err)
+			require.NoError(tb, err)
 
 			actualEntries = append(actualEntries, TreeEntry{
 				OID:     objectID,
 				Mode:    string(spaceSplit[0]),
 				Path:    path,
-				Content: string(Exec(t, cfg, "-C", repoPath, "show", treeish+":"+path)),
+				Content: string(Exec(tb, cfg, "-C", repoPath, "show", treeish+":"+path)),
 			})
 		}
 	}
 
-	require.Equal(t, expectedEntries, actualEntries)
+	require.Equal(tb, expectedEntries, actualEntries)
 }
 
 // WriteTree writes a new tree object to the given path. This function does not verify whether OIDs
 // referred to by tree entries actually exist in the repository.
-func WriteTree(t testing.TB, cfg config.Cfg, repoPath string, entries []TreeEntry) git.ObjectID {
-	t.Helper()
+func WriteTree(tb testing.TB, cfg config.Cfg, repoPath string, entries []TreeEntry) git.ObjectID {
+	tb.Helper()
 
 	var tree bytes.Buffer
 	for _, entry := range entries {
@@ -91,29 +91,29 @@ func WriteTree(t testing.TB, cfg config.Cfg, repoPath string, entries []TreeEntr
 		case "160000":
 			entryType = "commit"
 		default:
-			t.Fatalf("invalid entry type %q", entry.Mode)
+			tb.Fatalf("invalid entry type %q", entry.Mode)
 		}
 
-		require.False(t, len(entry.OID) > 0 && len(entry.Content) > 0,
+		require.False(tb, len(entry.OID) > 0 && len(entry.Content) > 0,
 			"entry cannot have both OID and content")
-		require.False(t, len(entry.OID) == 0 && len(entry.Content) == 0,
+		require.False(tb, len(entry.OID) == 0 && len(entry.Content) == 0,
 			"entry must have either an OID or content")
 
 		oid := entry.OID
 		if len(entry.Content) > 0 {
-			oid = WriteBlob(t, cfg, repoPath, []byte(entry.Content))
+			oid = WriteBlob(tb, cfg, repoPath, []byte(entry.Content))
 		}
 
 		formattedEntry := fmt.Sprintf("%s %s %s\t%s\000", entry.Mode, entryType, oid.String(), entry.Path)
 		_, err := tree.WriteString(formattedEntry)
-		require.NoError(t, err)
+		require.NoError(tb, err)
 	}
 
-	stdout := ExecOpts(t, cfg, ExecConfig{Stdin: &tree},
+	stdout := ExecOpts(tb, cfg, ExecConfig{Stdin: &tree},
 		"-C", repoPath, "mktree", "-z", "--missing",
 	)
 	treeOID, err := DefaultObjectHash.FromHex(text.ChompBytes(stdout))
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return treeOID
 }

@@ -49,9 +49,9 @@ func TestConnectivity(t *testing.T) {
 	require.NoError(t, os.RemoveAll(relativeSocketPath))
 	require.NoError(t, os.Symlink(cfg.SocketPath, relativeSocketPath))
 
-	runGitaly := func(t testing.TB, cfg config.Cfg) string {
-		t.Helper()
-		return testserver.RunGitalyServer(t, cfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
+	runGitaly := func(tb testing.TB, cfg config.Cfg) string {
+		tb.Helper()
+		return testserver.RunGitalyServer(tb, cfg, nil, setup.RegisterAll, testserver.WithDisablePraefect())
 	}
 
 	testCases := []struct {

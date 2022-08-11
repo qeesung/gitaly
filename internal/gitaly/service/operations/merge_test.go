@@ -120,6 +120,108 @@ func TestUserMergeBranch_successful(t *testing.T) {
 	}
 }
 
+func TestUserMergeBranch_failure(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, ctx)
+	repoProto, _ := gittest.CreateRepository(ctx, t, cfg)
+
+	_ = localrepo.NewTestRepo(t, cfg, repoProto)
+
+	testCases := []struct {
+		user        *gitalypb.User
+		repo        *gitalypb.Repository
+		desc        string
+		commitID    string
+		branch      []byte
+		message     []byte
+		expectedErr error
+	}{
+		{
+			desc:        "empty user",
+			repo:        repoProto,
+			branch:      []byte(mergeBranchName),
+			commitID:    commitToMerge,
+			message:     []byte("sample-message"),
+			expectedErr: helper.ErrInvalidArgumentf("empty user"),
+		},
+		{
+			desc: "empty user name",
+			user: &gitalypb.User{
+				GlId:       gittest.TestUser.GlId,
+				GlUsername: gittest.TestUser.GlUsername,
+				Email:      gittest.TestUser.Email,
+				Timezone:   gittest.TestUser.Timezone,
+			},
+			repo:        repoProto,
+			branch:      []byte(mergeBranchName),
+			commitID:    commitToMerge,
+			message:     []byte("sample-message"),
+			expectedErr: helper.ErrInvalidArgumentf("empty user name"),
+		},
+		{
+			desc: "empty user email",
+			user: &gitalypb.User{
+				GlId:       gittest.TestUser.GlId,
+				Name:       gittest.TestUser.Name,
+				GlUsername: gittest.TestUser.GlUsername,
+				Timezone:   gittest.TestUser.Timezone,
+			},
+			repo:        repoProto,
+			branch:      []byte(mergeBranchName),
+			commitID:    commitToMerge,
+			message:     []byte("sample-message"),
+			expectedErr: helper.ErrInvalidArgumentf("empty user email"),
+		},
+		{
+			desc:        "empty commit",
+			repo:        repoProto,
+			user:        gittest.TestUser,
+			branch:      []byte(mergeBranchName),
+			message:     []byte("sample-message"),
+			expectedErr: helper.ErrInvalidArgumentf("empty commit ID"),
+		},
+		{
+			desc:        "empty branch",
+			repo:        repoProto,
+			user:        gittest.TestUser,
+			commitID:    commitToMerge,
+			message:     []byte("sample-message"),
+			expectedErr: helper.ErrInvalidArgumentf("empty branch name"),
+		},
+		{
+			desc:        "empty message",
+			repo:        repoProto,
+			user:        gittest.TestUser,
+			branch:      []byte(mergeBranchName),
+			commitID:    commitToMerge,
+			expectedErr: helper.ErrInvalidArgumentf("empty message"),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			request := &gitalypb.UserMergeBranchRequest{
+				Repository: testCase.repo,
+				User:       testCase.user,
+				Branch:     testCase.branch,
+				CommitId:   testCase.commitID,
+				Message:    testCase.message,
+			}
+
+			mergeBidi, err := client.UserMergeBranch(ctx)
+			require.NoError(t, err)
+
+			require.NoError(t, mergeBidi.Send(request), "apply merge")
+			_, err = mergeBidi.Recv()
+
+			testhelper.RequireGrpcError(t, testCase.expectedErr, err)
+		})
+	}
+}
+
 func TestUserMergeBranch_quarantine(t *testing.T) {
 	t.Parallel()
 
@@ -1115,8 +1217,8 @@ func TestUserMergeToRef_conflicts(t *testing.T) {
 	})
 }
 
-func buildUserMergeToRefRequest(t testing.TB, cfg config.Cfg, repo *gitalypb.Repository, repoPath string, sourceSha string, targetSha string, mergeBranchName string) *gitalypb.UserMergeToRefRequest {
-	gittest.Exec(t, cfg, "-C", repoPath, "branch", mergeBranchName, targetSha)
+func buildUserMergeToRefRequest(tb testing.TB, cfg config.Cfg, repo *gitalypb.Repository, repoPath string, sourceSha string, targetSha string, mergeBranchName string) *gitalypb.UserMergeToRefRequest {
+	gittest.Exec(tb, cfg, "-C", repoPath, "branch", mergeBranchName, targetSha)
 
 	return &gitalypb.UserMergeToRefRequest{
 		Repository:     repo,

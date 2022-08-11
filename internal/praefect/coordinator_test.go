@@ -2610,17 +2610,17 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.WithValue(ctx, ctxKey{}, "value"), parentDeadline)
 	defer cancel()
 
-	requireSuppressedCancellation := func(t testing.TB, ctx context.Context) {
+	requireSuppressedCancellation := func(tb testing.TB, ctx context.Context) {
 		deadline, ok := ctx.Deadline()
-		require.True(t, ok)
-		require.NotEqual(t, parentDeadline, deadline)
-		require.Equal(t, ctx.Value(ctxKey{}), "value")
-		require.Nil(t, ctx.Err())
+		require.True(tb, ok)
+		require.NotEqual(tb, parentDeadline, deadline)
+		require.Equal(tb, ctx.Value(ctxKey{}), "value")
+		require.Nil(tb, ctx.Err())
 		select {
 		case <-ctx.Done():
-			t.Fatal("context should not be canceled if the parent is canceled")
+			tb.Fatal("context should not be canceled if the parent is canceled")
 		default:
-			require.NotNil(t, ctx.Done())
+			require.NotNil(tb, ctx.Done())
 		}
 	}
 

@@ -719,8 +719,8 @@ func BenchmarkGetTreeEntries(b *testing.B) {
 	ctx := testhelper.Context(b)
 	cfg, client := setupCommitService(ctx, b)
 
-	repo, _ := gittest.CloneRepo(b, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
-		SourceRepo: "benchmark.git",
+	repo, _ := gittest.CreateRepository(ctx, b, cfg, gittest.CreateRepositoryConfig{
+		Seed: "benchmark.git",
 	})
 
 	for _, tc := range []struct {

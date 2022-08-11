@@ -103,7 +103,7 @@ func TestPointerLocator(t *testing.T) {
 
 		for _, tc := range []struct {
 			desc             string
-			setup            func(t testing.TB, ctx context.Context, sink Sink)
+			setup            func(tb testing.TB, ctx context.Context, sink Sink)
 			expectedBackupID string
 			expectedOffset   int
 		}{
@@ -115,9 +115,9 @@ func TestPointerLocator(t *testing.T) {
 				desc:             "with previous backup",
 				expectedBackupID: "abc123",
 				expectedOffset:   1,
-				setup: func(t testing.TB, ctx context.Context, sink Sink) {
-					require.NoError(t, sink.Write(ctx, filepath.Join(repo.RelativePath, "LATEST"), strings.NewReader("abc123")))
-					require.NoError(t, sink.Write(ctx, filepath.Join(repo.RelativePath, "abc123", "LATEST"), strings.NewReader("001")))
+				setup: func(tb testing.TB, ctx context.Context, sink Sink) {
+					require.NoError(tb, sink.Write(ctx, filepath.Join(repo.RelativePath, "LATEST"), strings.NewReader("abc123")))
+					require.NoError(tb, sink.Write(ctx, filepath.Join(repo.RelativePath, "abc123", "LATEST"), strings.NewReader("001")))
 				},
 			},
 		} {

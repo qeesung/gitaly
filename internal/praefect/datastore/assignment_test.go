@@ -119,16 +119,16 @@ func TestAssignmentStore_SetReplicationFactor(t *testing.T) {
 	type matcher func(testing.TB, []string)
 
 	equal := func(expected []string) matcher {
-		return func(t testing.TB, actual []string) {
-			t.Helper()
-			require.Equal(t, expected, actual)
+		return func(tb testing.TB, actual []string) {
+			tb.Helper()
+			require.Equal(tb, expected, actual)
 		}
 	}
 
 	contains := func(expecteds ...[]string) matcher {
-		return func(t testing.TB, actual []string) {
-			t.Helper()
-			require.Contains(t, expecteds, actual)
+		return func(tb testing.TB, actual []string) {
+			tb.Helper()
+			require.Contains(tb, expecteds, actual)
 		}
 	}
 

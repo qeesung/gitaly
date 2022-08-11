@@ -18,14 +18,19 @@ import (
 
 func TestRepositoryExists(t *testing.T) {
 	t.Parallel()
+
+	ctx := testhelper.Context(t)
 	cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages("default", "other", "broken"))
 	cfg := cfgBuilder.Build(t)
 
 	require.NoError(t, os.RemoveAll(cfg.Storages[2].Path), "third storage needs to be invalid")
 
-	client, _ := runRepositoryService(t, cfg, nil, testserver.WithDisablePraefect())
+	client, socketPath := runRepositoryService(t, cfg, nil, testserver.WithDisablePraefect())
+	cfg.SocketPath = socketPath
 
-	repo, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		Seed: gittest.SeedGitLabTest,
+	})
 
 	queries := []struct {
 		desc      string
@@ -94,7 +99,6 @@ func TestRepositoryExists(t *testing.T) {
 
 	for _, tc := range queries {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx := testhelper.Context(t)
 			response, err := client.RepositoryExists(ctx, tc.request)
 
 			require.Equal(t, tc.errorCode, helper.GrpcCode(err))

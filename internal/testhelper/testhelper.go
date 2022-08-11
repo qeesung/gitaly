@@ -44,19 +44,19 @@ func IsPraefectEnabled() bool {
 
 // SkipWithPraefect skips the test if it is being executed with Praefect in front
 // of the Gitaly.
-func SkipWithPraefect(t testing.TB, reason string) {
+func SkipWithPraefect(tb testing.TB, reason string) {
 	if IsPraefectEnabled() {
-		t.Skipf(reason)
+		tb.Skipf(reason)
 	}
 }
 
 // MustReadFile returns the content of a file or fails at once.
-func MustReadFile(t testing.TB, filename string) []byte {
-	t.Helper()
+func MustReadFile(tb testing.TB, filename string) []byte {
+	tb.Helper()
 
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	return content
@@ -71,11 +71,11 @@ func GitlabTestStoragePath() string {
 }
 
 // MustRunCommand runs a command with an optional standard input and returns the standard output, or fails.
-func MustRunCommand(t testing.TB, stdin io.Reader, name string, args ...string) []byte {
-	t.Helper()
+func MustRunCommand(tb testing.TB, stdin io.Reader, name string, args ...string) []byte {
+	tb.Helper()
 
 	if filepath.Base(name) == "git" {
-		require.Fail(t, "Please use gittest.Exec or gittest.ExecStream to run git commands.")
+		require.Fail(tb, "Please use gittest.Exec or gittest.ExecStream to run git commands.")
 	}
 
 	cmd := exec.Command(name, args...)
@@ -86,7 +86,7 @@ func MustRunCommand(t testing.TB, stdin io.Reader, name string, args ...string) 
 	output, err := cmd.Output()
 	if err != nil {
 		stderr := err.(*exec.ExitError).Stderr
-		require.NoError(t, err, "%s %s: %s", name, args, stderr)
+		require.NoError(tb, err, "%s %s: %s", name, args, stderr)
 	}
 
 	return output
@@ -96,43 +96,43 @@ func MustRunCommand(t testing.TB, stdin io.Reader, name string, args ...string) 
 // an error. This function is useful when closing via `defer`, as a simple
 // `defer require.NoError(t, closer.Close())` would cause `closer.Close()` to
 // be executed early already.
-func MustClose(t testing.TB, closer io.Closer) {
-	require.NoError(t, closer.Close())
+func MustClose(tb testing.TB, closer io.Closer) {
+	require.NoError(tb, closer.Close())
 }
 
 // CopyFile copies a file at the path src to a file at the path dst
-func CopyFile(t testing.TB, src, dst string) {
+func CopyFile(tb testing.TB, src, dst string) {
 	fsrc, err := os.Open(src)
-	require.NoError(t, err)
-	defer MustClose(t, fsrc)
+	require.NoError(tb, err)
+	defer MustClose(tb, fsrc)
 
 	fdst, err := os.Create(dst)
-	require.NoError(t, err)
-	defer MustClose(t, fdst)
+	require.NoError(tb, err)
+	defer MustClose(tb, fdst)
 
 	_, err = io.Copy(fdst, fsrc)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 }
 
 // GetTemporaryGitalySocketFileName will return a unique, useable socket file name
-func GetTemporaryGitalySocketFileName(t testing.TB) string {
-	require.NotEmpty(t, testDirectory, "you must call testhelper.Configure() before GetTemporaryGitalySocketFileName()")
+func GetTemporaryGitalySocketFileName(tb testing.TB) string {
+	require.NotEmpty(tb, testDirectory, "you must call testhelper.Configure() before GetTemporaryGitalySocketFileName()")
 
 	tmpfile, err := os.CreateTemp(testDirectory, "gitaly.socket.")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	name := tmpfile.Name()
-	require.NoError(t, tmpfile.Close())
-	require.NoError(t, os.Remove(name))
+	require.NoError(tb, tmpfile.Close())
+	require.NoError(tb, os.Remove(name))
 
 	return name
 }
 
 // GetLocalhostListener listens on the next available TCP port and returns
 // the listener and the localhost address (host:port) string.
-func GetLocalhostListener(t testing.TB) (net.Listener, string) {
+func GetLocalhostListener(tb testing.TB) (net.Listener, string) {
 	l, err := net.Listen("tcp", "localhost:0")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	addr := fmt.Sprintf("localhost:%d", l.Addr().(*net.TCPAddr).Port)
 
@@ -150,9 +150,9 @@ func ContextWithLogger(logger *log.Entry) ContextOpt {
 }
 
 // Context returns that gets canceled at the end of the test.
-func Context(t testing.TB, opts ...ContextOpt) context.Context {
+func Context(tb testing.TB, opts ...ContextOpt) context.Context {
 	ctx, cancel := context.WithCancel(ContextWithoutCancel(opts...))
-	t.Cleanup(cancel)
+	tb.Cleanup(cancel)
 	return ctx
 }
 
@@ -189,23 +189,23 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 
 // CreateGlobalDirectory creates a directory in the test directory that is shared across all
 // between all tests.
-func CreateGlobalDirectory(t testing.TB, name string) string {
-	require.NotEmpty(t, testDirectory, "global temporary directory does not exist")
+func CreateGlobalDirectory(tb testing.TB, name string) string {
+	require.NotEmpty(tb, testDirectory, "global temporary directory does not exist")
 	path := filepath.Join(testDirectory, name)
-	require.NoError(t, os.Mkdir(path, 0o777))
+	require.NoError(tb, os.Mkdir(path, 0o777))
 	return path
 }
 
 // TempDir is a wrapper around os.MkdirTemp that provides a cleanup function.
-func TempDir(t testing.TB) string {
+func TempDir(tb testing.TB) string {
 	if testDirectory == "" {
 		panic("you must call testhelper.Configure() before TempDir()")
 	}
 
 	tmpDir, err := os.MkdirTemp(testDirectory, "")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, os.RemoveAll(tmpDir))
+	require.NoError(tb, err)
+	tb.Cleanup(func() {
+		require.NoError(tb, os.RemoveAll(tmpDir))
 	})
 
 	return tmpDir
@@ -218,11 +218,11 @@ type Cleanup func()
 // WriteExecutable ensures that the parent directory exists, and writes an executable with provided
 // content. The executable must not exist previous to writing it. Returns the path of the written
 // executable.
-func WriteExecutable(t testing.TB, path string, content []byte) string {
+func WriteExecutable(tb testing.TB, path string, content []byte) string {
 	dir := filepath.Dir(path)
-	require.NoError(t, os.MkdirAll(dir, 0o755))
-	t.Cleanup(func() {
-		assert.NoError(t, os.RemoveAll(dir))
+	require.NoError(tb, os.MkdirAll(dir, 0o755))
+	tb.Cleanup(func() {
+		assert.NoError(tb, os.RemoveAll(dir))
 	})
 
 	// Open the file descriptor and write the script into it. It may happen that any other
@@ -235,9 +235,9 @@ func WriteExecutable(t testing.TB, path string, content []byte) string {
 	// We thus need to perform file locking to ensure that all writeable references to this
 	// file have been closed before returning.
 	executable, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o755)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	_, err = io.Copy(executable, bytes.NewReader(content))
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	// We now lock the file descriptor for exclusive access. If there was a forked process
 	// holding the writeable file descriptor at this point in time, then it would refer to the
@@ -247,45 +247,45 @@ func WriteExecutable(t testing.TB, path string, content []byte) string {
 	//
 	// No matter what, after this step any file descriptors referring to this writeable file
 	// descriptor will be exclusively locked.
-	require.NoError(t, syscall.Flock(int(executable.Fd()), syscall.LOCK_EX))
+	require.NoError(tb, syscall.Flock(int(executable.Fd()), syscall.LOCK_EX))
 
 	// We now close this file. The file will be automatically unlocked as soon as all
 	// references to this file descriptor are closed.
-	MustClose(t, executable)
+	MustClose(tb, executable)
 
 	// We now open the file again, but this time only for reading.
 	executable, err = os.Open(path)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	// And this time, we try to acquire a shared lock on this file. This call will block until
 	// the exclusive file lock on the above writeable file descriptor has been dropped. So as
 	// soon as we're able to acquire the lock we know that there cannot be any open writeable
 	// file descriptors for this file anymore, and thus we won't get ETXTBSY anymore.
-	require.NoError(t, syscall.Flock(int(executable.Fd()), syscall.LOCK_SH))
-	MustClose(t, executable)
+	require.NoError(tb, syscall.Flock(int(executable.Fd()), syscall.LOCK_SH))
+	MustClose(tb, executable)
 
 	return path
 }
 
 // Unsetenv unsets an environment variable. The variable will be restored after the test has
 // finished.
-func Unsetenv(t testing.TB, key string) {
-	t.Helper()
+func Unsetenv(tb testing.TB, key string) {
+	tb.Helper()
 
-	// We're first using `t.Setenv()` here due to two reasons: first, it will automitcally
+	// We're first using `tb.Setenv()` here due to two reasons: first, it will automitcally
 	// handle restoring the environment variable for us after the test has finished. And second,
-	// it performs a check whether we're running with `t.Parallel()`.
-	t.Setenv(key, "")
+	// it performs a check whether we're running with `tb.Parallel()`.
+	tb.Setenv(key, "")
 
 	// And now we can unset the environment variable given that we know we're not running in a
 	// parallel test and where the cleanup function has been installed.
-	require.NoError(t, os.Unsetenv(key))
+	require.NoError(tb, os.Unsetenv(key))
 }
 
 // GenerateCerts creates a certificate that can be used to establish TLS protected TCP connection.
 // It returns paths to the file with the certificate and its private key.
-func GenerateCerts(t *testing.T) (string, string) {
-	t.Helper()
+func GenerateCerts(tb testing.TB) (string, string) {
+	tb.Helper()
 
 	rootCA := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
@@ -299,31 +299,31 @@ func GenerateCerts(t *testing.T) (string, string) {
 	}
 
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	caCert, err := x509.CreateCertificate(rand.Reader, rootCA, rootCA, &caKey.PublicKey, caKey)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	entityKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	entityX509 := &x509.Certificate{
 		SerialNumber: big.NewInt(2),
 	}
 
 	entityCert, err := x509.CreateCertificate(rand.Reader, rootCA, entityX509, &entityKey.PublicKey, caKey)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	certFile, err := os.CreateTemp(testDirectory, "")
-	require.NoError(t, err)
-	defer MustClose(t, certFile)
-	t.Cleanup(func() {
-		require.NoError(t, os.Remove(certFile.Name()))
+	require.NoError(tb, err)
+	defer MustClose(tb, certFile)
+	tb.Cleanup(func() {
+		require.NoError(tb, os.Remove(certFile.Name()))
 	})
 
 	// create chained PEM file with CA and entity cert
 	for _, cert := range [][]byte{entityCert, caCert} {
-		require.NoError(t,
+		require.NoError(tb,
 			pem.Encode(certFile, &pem.Block{
 				Type:  "CERTIFICATE",
 				Bytes: cert,
@@ -332,16 +332,16 @@ func GenerateCerts(t *testing.T) (string, string) {
 	}
 
 	keyFile, err := os.CreateTemp(testDirectory, "")
-	require.NoError(t, err)
-	defer MustClose(t, keyFile)
-	t.Cleanup(func() {
-		require.NoError(t, os.Remove(keyFile.Name()))
+	require.NoError(tb, err)
+	defer MustClose(tb, keyFile)
+	tb.Cleanup(func() {
+		require.NoError(tb, os.Remove(keyFile.Name()))
 	})
 
 	entityKeyBytes, err := x509.MarshalECPrivateKey(entityKey)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
-	require.NoError(t,
+	require.NoError(tb,
 		pem.Encode(keyFile, &pem.Block{
 			Type:  "ECDSA PRIVATE KEY",
 			Bytes: entityKeyBytes,

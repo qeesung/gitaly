@@ -33,7 +33,7 @@ func (er gitError) Error() string {
 	return er.ErrMsg + ": " + er.Err.Error()
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (s *Server) UserApplyPatch(stream gitalypb.OperationService_UserApplyPatchServer) error {
 	firstRequest, err := stream.Recv()
 	if err != nil {

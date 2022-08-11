@@ -7,5 +7,5 @@ var FetchIntoObjectPoolPruneRefs = NewFeatureFlag(
 	"fetch_into_object_pool_prune_refs",
 	"v15.3.0",
 	"https://gitlab.com/gitlab-org/gitaly/-/issues/4394",
-	false,
+	true,
 )

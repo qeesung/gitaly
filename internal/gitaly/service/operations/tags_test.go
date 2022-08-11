@@ -85,60 +85,48 @@ func TestUserDeleteTag_hooks(t *testing.T) {
 func writeAssertObjectTypePreReceiveHook(t *testing.T, repoPath, expectedObjectType string) {
 	t.Helper()
 
-	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(fmt.Sprintf(
-		`#!/usr/bin/env ruby
+	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(fmt.Sprintf(`#!/bin/bash
+		i=0
+		while read oldvalue newvalue reference
+		do
+			i=$((i+1))
 
-		# We match a non-ASCII ref_name below
-		Encoding.default_external = Encoding::UTF_8
-		Encoding.default_internal = Encoding::UTF_8
+			if [[ "${reference}" =~ skip-type-check- ]]
+			then
+				continue
+			fi
 
-		expected_object_type = %q
-		commands = STDIN.each_line.map(&:chomp)
-		unless commands.size == 1
-		abort "expected 1 ref update command, got #{commands.size}"
-		end
+			type="$(git cat-file -t "${newvalue}")"
+			if test "%[1]s" != "${type}"
+			then
+				echo "expected %[1]s, got ${type}" >&2
+				exit 1
+			fi
+		done
 
-		old_value, new_value, ref_name = commands[0].split(' ', 3)
-		abort 'missing new_value' unless new_value
-
-		out = IO.popen(%%W[git cat-file -t #{new_value}], &:read)
-		abort 'cat-file failed' unless $?.success?
-
-		if ref_name =~ /^refs\/[^\/]+\/skip-type-check-/
-		exit 0
-		end
-
-		unless out.chomp == expected_object_type
-		abort "pre-receive hook error: expected '#{ref_name}' update of '#{old_value}' (a) -> '#{new_value}' (b) for 'b' to be a '#{expected_object_type}' object, got '#{out}'"
-		end
+		if test "$i" -ne 1
+		then
+			echo "expected exactly one reference update, got ${i}" >&2
+			exit 1
+		fi
 	`, expectedObjectType)))
 }
 
 func writeAssertObjectTypeUpdateHook(t *testing.T, repoPath, expectedObjectType string) {
 	t.Helper()
 
-	gittest.WriteCustomHook(t, repoPath, "update", []byte(fmt.Sprintf(
-		`#!/usr/bin/env ruby
+	gittest.WriteCustomHook(t, repoPath, "update", []byte(fmt.Sprintf(`#!/bin/bash
+		if [[ "$1" =~ skip-type-check- ]]
+		then
+			exit 0
+		fi
 
-		# We match a non-ASCII ref_name below
-		Encoding.default_external = Encoding::UTF_8
-		Encoding.default_internal = Encoding::UTF_8
-
-		expected_object_type = %q
-		ref_name, old_value, new_value = ARGV[0..2]
-
-		abort "missing new_value" unless new_value
-
-		out = IO.popen(%%W[git cat-file -t #{new_value}], &:read)
-		abort 'cat-file failed' unless $?.success?
-
-		if ref_name =~ /^refs\/[^\/]+\/skip-type-check-/
-		exit 0
-		end
-
-		unless out.chomp == expected_object_type
-		abort "update hook error: expected '#{ref_name}' update of '#{old_value}' (a) -> '#{new_value}' (b) for 'b' to be a '#{expected_object_type}' object, got '#{out}'"
-		end
+		type="$(git cat-file -t "$3")"
+		if test "%[1]s" != "${type}"
+		then
+			echo "expected %[1]s, got ${type}" >&2
+			exit 1
+		fi
 	`, expectedObjectType)))
 }
 

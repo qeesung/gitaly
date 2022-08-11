@@ -23,30 +23,30 @@ func TestMain(m *testing.M) {
 	testhelper.Run(m)
 }
 
-func setupHookService(ctx context.Context, t testing.TB) (config.Cfg, *gitalypb.Repository, string, gitalypb.HookServiceClient) {
-	t.Helper()
+func setupHookService(ctx context.Context, tb testing.TB) (config.Cfg, *gitalypb.Repository, string, gitalypb.HookServiceClient) {
+	tb.Helper()
 
-	cfg := testcfg.Build(t)
-	cfg.SocketPath = runHooksServer(t, cfg, nil)
-	client, conn := newHooksClient(t, cfg.SocketPath)
-	t.Cleanup(func() { conn.Close() })
+	cfg := testcfg.Build(tb)
+	cfg.SocketPath = runHooksServer(tb, cfg, nil)
+	client, conn := newHooksClient(tb, cfg.SocketPath)
+	tb.Cleanup(func() { conn.Close() })
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	repo, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
 
 	return cfg, repo, repoPath, client
 }
 
-func newHooksClient(t testing.TB, serverSocketPath string) (gitalypb.HookServiceClient, *grpc.ClientConn) {
-	t.Helper()
+func newHooksClient(tb testing.TB, serverSocketPath string) (gitalypb.HookServiceClient, *grpc.ClientConn) {
+	tb.Helper()
 
 	connOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	return gitalypb.NewHookServiceClient(conn), conn
@@ -54,12 +54,12 @@ func newHooksClient(t testing.TB, serverSocketPath string) (gitalypb.HookService
 
 type serverOption func(*server)
 
-func runHooksServer(t testing.TB, cfg config.Cfg, opts []serverOption, serverOpts ...testserver.GitalyServerOpt) string {
-	t.Helper()
+func runHooksServer(tb testing.TB, cfg config.Cfg, opts []serverOption, serverOpts ...testserver.GitalyServerOpt) string {
+	tb.Helper()
 
 	serverOpts = append(serverOpts, testserver.WithDisablePraefect())
 
-	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+	return testserver.RunGitalyServer(tb, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		hookServer := NewServer(
 			gitalyhook.NewManager(deps.GetCfg(), deps.GetLocator(), deps.GetGitCmdFactory(), deps.GetTxManager(), deps.GetGitlabClient()),
 			deps.GetGitCmdFactory(),

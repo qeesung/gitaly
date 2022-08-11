@@ -47,8 +47,17 @@ func TestStreamDBNaiveKeyer(t *testing.T) {
 
 	cfg := testcfg.Build(t)
 
-	repo1, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-	repo2, _ := gittest.CloneRepo(t, cfg, cfg.Storages[0])
+	ctx := testhelper.Context(t)
+	ctx = testhelper.SetCtxGrpcMethod(ctx, "InfoRefsUploadPack")
+
+	repo1, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+	})
+	repo2, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+	})
 
 	locator := config.NewLocator(cfg)
 
@@ -58,8 +67,6 @@ func TestStreamDBNaiveKeyer(t *testing.T) {
 	req2 := &gitalypb.InfoRefsRequest{
 		Repository: repo2,
 	}
-	ctx := testhelper.Context(t)
-	ctx = testhelper.SetCtxGrpcMethod(ctx, "InfoRefsUploadPack")
 
 	t.Run("empty cache", func(t *testing.T) {
 		cache := New(cfg, locator)

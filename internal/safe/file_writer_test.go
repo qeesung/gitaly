@@ -128,8 +128,8 @@ func TestFileWriter_commitBeforeClose(t *testing.T) {
 	require.FileExists(t, dstPath)
 }
 
-func dirEmpty(t testing.TB, dirPath string) bool {
+func dirEmpty(tb testing.TB, dirPath string) bool {
 	infos, err := os.ReadDir(dirPath)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return len(infos) == 0
 }

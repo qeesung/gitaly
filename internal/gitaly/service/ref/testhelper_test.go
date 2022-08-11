@@ -37,30 +37,30 @@ func TestMain(m *testing.M) {
 	}))
 }
 
-func setupRefService(ctx context.Context, t testing.TB) (config.Cfg, *gitalypb.Repository, string, gitalypb.RefServiceClient) {
-	cfg, client := setupRefServiceWithoutRepo(t)
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+func setupRefService(ctx context.Context, tb testing.TB) (config.Cfg, *gitalypb.Repository, string, gitalypb.RefServiceClient) {
+	cfg, client := setupRefServiceWithoutRepo(tb)
+	repo, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
 	return cfg, repo, repoPath, client
 }
 
-func setupRefServiceWithoutRepo(t testing.TB) (config.Cfg, gitalypb.RefServiceClient) {
-	cfg := testcfg.Build(t)
+func setupRefServiceWithoutRepo(tb testing.TB) (config.Cfg, gitalypb.RefServiceClient) {
+	cfg := testcfg.Build(tb)
 
-	testcfg.BuildGitalyHooks(t, cfg)
+	testcfg.BuildGitalyHooks(tb, cfg)
 
-	serverSocketPath := runRefServiceServer(t, cfg)
+	serverSocketPath := runRefServiceServer(tb, cfg)
 	cfg.SocketPath = serverSocketPath
 
-	client, conn := newRefServiceClient(t, serverSocketPath)
-	t.Cleanup(func() { conn.Close() })
+	client, conn := newRefServiceClient(tb, serverSocketPath)
+	tb.Cleanup(func() { conn.Close() })
 
 	return cfg, client
 }
 
-func runRefServiceServer(t testing.TB, cfg config.Cfg) string {
-	return testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+func runRefServiceServer(tb testing.TB, cfg config.Cfg) string {
+	return testserver.RunGitalyServer(tb, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterRefServiceServer(srv, NewServer(
 			deps.GetLocator(),
 			deps.GetGitCmdFactory(),
@@ -82,12 +82,12 @@ func runRefServiceServer(t testing.TB, cfg config.Cfg) string {
 	})
 }
 
-func newRefServiceClient(t testing.TB, serverSocketPath string) (gitalypb.RefServiceClient, *grpc.ClientConn) {
+func newRefServiceClient(tb testing.TB, serverSocketPath string) (gitalypb.RefServiceClient, *grpc.ClientConn) {
 	connOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	conn, err := grpc.Dial(serverSocketPath, connOpts...)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return gitalypb.NewRefServiceClient(conn), conn
 }

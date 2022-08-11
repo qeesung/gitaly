@@ -106,14 +106,14 @@ func TestCheckBadCreds(t *testing.T) {
 
 // writeTemporaryGitalyConfigFile writes the given Gitaly configuration into a temporary file and
 // returns its path.
-func writeTemporaryGitalyConfigFile(t testing.TB, cfg config.Cfg) string {
-	t.Helper()
+func writeTemporaryGitalyConfigFile(tb testing.TB, cfg config.Cfg) string {
+	tb.Helper()
 
-	path := filepath.Join(testhelper.TempDir(t), "config.toml")
+	path := filepath.Join(testhelper.TempDir(tb), "config.toml")
 
 	contents, err := toml.Marshal(cfg)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(path, contents, 0o644))
+	require.NoError(tb, err)
+	require.NoError(tb, os.WriteFile(path, contents, 0o644))
 
 	return path
 }

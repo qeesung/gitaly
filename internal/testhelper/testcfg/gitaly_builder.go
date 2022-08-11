@@ -75,50 +75,50 @@ type GitalyCfgBuilder struct {
 }
 
 // Build setups required filesystem structure, creates and returns configuration of the gitaly service.
-func (gc *GitalyCfgBuilder) Build(t testing.TB) config.Cfg {
-	t.Helper()
+func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
+	tb.Helper()
 
 	cfg := gc.cfg
 	if cfg.SocketPath == "" {
 		cfg.SocketPath = UnconfiguredSocketPath
 	}
 
-	root := testhelper.TempDir(t)
+	root := testhelper.TempDir(tb)
 
 	if cfg.BinDir == "" {
 		cfg.BinDir = filepath.Join(root, "bin.d")
-		require.NoError(t, os.Mkdir(cfg.BinDir, 0o755))
+		require.NoError(tb, os.Mkdir(cfg.BinDir, 0o755))
 	}
 
 	if cfg.Ruby.Dir == "" {
 		_, currentFile, _, ok := runtime.Caller(0)
-		require.True(t, ok, "could not get caller info")
+		require.True(tb, ok, "could not get caller info")
 		cfg.Ruby.Dir = filepath.Join(filepath.Dir(currentFile), "../../../ruby")
 	}
 
 	if cfg.Logging.Dir == "" {
 		cfg.Logging.Dir = filepath.Join(root, "log.d")
-		require.NoError(t, os.Mkdir(cfg.Logging.Dir, 0o755))
+		require.NoError(tb, os.Mkdir(cfg.Logging.Dir, 0o755))
 	}
 
 	if cfg.GitlabShell.Dir == "" {
 		cfg.GitlabShell.Dir = filepath.Join(root, "shell.d")
-		require.NoError(t, os.Mkdir(cfg.GitlabShell.Dir, 0o755))
+		require.NoError(tb, os.Mkdir(cfg.GitlabShell.Dir, 0o755))
 	}
 
 	if cfg.RuntimeDir == "" {
 		cfg.RuntimeDir = filepath.Join(root, "runtime.d")
-		require.NoError(t, os.Mkdir(cfg.RuntimeDir, 0o700))
-		require.NoError(t, os.Mkdir(cfg.InternalSocketDir(), 0o755))
+		require.NoError(tb, os.Mkdir(cfg.RuntimeDir, 0o700))
+		require.NoError(tb, os.Mkdir(cfg.InternalSocketDir(), 0o755))
 	}
 
 	if len(cfg.Storages) != 0 && len(gc.storages) != 0 {
-		require.FailNow(t, "invalid configuration build setup: fix storages configured")
+		require.FailNow(tb, "invalid configuration build setup: fix storages configured")
 	}
 
 	if len(cfg.Storages) == 0 {
 		storagesDir := filepath.Join(root, "storages.d")
-		require.NoError(t, os.Mkdir(storagesDir, 0o755))
+		require.NoError(tb, os.Mkdir(storagesDir, 0o755))
 
 		if len(gc.storages) == 0 {
 			gc.storages = []string{"default"}
@@ -128,7 +128,7 @@ func (gc *GitalyCfgBuilder) Build(t testing.TB) config.Cfg {
 		cfg.Storages = make([]config.Storage, len(gc.storages))
 		for i, storageName := range gc.storages {
 			storagePath := filepath.Join(storagesDir, storageName)
-			require.NoError(t, os.MkdirAll(storagePath, 0o755))
+			require.NoError(tb, os.MkdirAll(storagePath, 0o755))
 			cfg.Storages[i].Name = storageName
 			cfg.Storages[i].Path = storagePath
 		}
@@ -138,7 +138,7 @@ func (gc *GitalyCfgBuilder) Build(t testing.TB) config.Cfg {
 		if cfg.Ruby.LinguistLanguagesPath == "" {
 			// set a stub to prevent a long ruby process to run where it is not needed
 			cfg.Ruby.LinguistLanguagesPath = filepath.Join(root, "linguist_languages.json")
-			require.NoError(t, os.WriteFile(cfg.Ruby.LinguistLanguagesPath, []byte(`{}`), 0o655))
+			require.NoError(tb, os.WriteFile(cfg.Ruby.LinguistLanguagesPath, []byte(`{}`), 0o655))
 		}
 	}
 
@@ -147,23 +147,27 @@ func (gc *GitalyCfgBuilder) Build(t testing.TB) config.Cfg {
 	// to have lying around.
 	cfg.Git.IgnoreGitconfig = true
 
-	require.NoError(t, cfg.Validate())
+	require.NoError(tb, cfg.Validate())
 
 	return cfg
 }
 
 // BuildWithRepoAt setups required filesystem structure, creates and returns configuration of the gitaly service,
 // clones test repository into each configured storage the provided relative path.
-func (gc *GitalyCfgBuilder) BuildWithRepoAt(t testing.TB, relativePath string) (config.Cfg, []*gitalypb.Repository) {
-	t.Helper()
+func (gc *GitalyCfgBuilder) BuildWithRepoAt(tb testing.TB, relativePath string) (config.Cfg, []*gitalypb.Repository) {
+	tb.Helper()
 
-	cfg := gc.Build(t)
+	ctx := testhelper.Context(tb)
+	cfg := gc.Build(tb)
 
 	// clone the test repo to the each storage
 	repos := make([]*gitalypb.Repository, len(cfg.Storages))
 	for i, gitalyStorage := range cfg.Storages {
-		repo, _ := gittest.CloneRepo(t, cfg, gitalyStorage, gittest.CloneRepoOpts{
-			RelativePath: relativePath,
+		repo, _ := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+			Storage:                gitalyStorage,
+			RelativePath:           relativePath,
+			Seed:                   gittest.SeedGitLabTest,
 		})
 
 		repos[i] = repo
@@ -174,18 +178,18 @@ func (gc *GitalyCfgBuilder) BuildWithRepoAt(t testing.TB, relativePath string) (
 }
 
 // Build creates a minimal configuration setup with no options and returns it with cleanup function.
-func Build(t testing.TB, opts ...Option) config.Cfg {
+func Build(tb testing.TB, opts ...Option) config.Cfg {
 	cfgBuilder := NewGitalyCfgBuilder(opts...)
 
-	return cfgBuilder.Build(t)
+	return cfgBuilder.Build(tb)
 }
 
 // BuildWithRepo creates a minimal configuration setup with no options.
 // It also clones test repository at the storage and returns it with the full path to the repository.
-func BuildWithRepo(t testing.TB, opts ...Option) (config.Cfg, *gitalypb.Repository, string) {
+func BuildWithRepo(tb testing.TB, opts ...Option) (config.Cfg, *gitalypb.Repository, string) {
 	cfgBuilder := NewGitalyCfgBuilder(opts...)
 
-	cfg, repos := cfgBuilder.BuildWithRepoAt(t, t.Name())
+	cfg, repos := cfgBuilder.BuildWithRepoAt(tb, tb.Name())
 	repoPath := filepath.Join(cfg.Storages[0].Path, repos[0].RelativePath)
 	return cfg, repos[0], repoPath
 }

@@ -173,7 +173,7 @@ func (mc *mockCache) StartLease(repo *gitalypb.Repository) (diskcache.LeaseEnder
 	return mc, nil
 }
 
-func newTestSvc(t testing.TB, ctx context.Context, srvr *grpc.Server, svc testdata.TestServiceServer) (testdata.TestServiceClient, *grpc.ClientConn, func()) {
+func newTestSvc(tb testing.TB, ctx context.Context, srvr *grpc.Server, svc testdata.TestServiceServer) (testdata.TestServiceClient, *grpc.ClientConn, func()) {
 	healthSrvr := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(srvr, healthSrvr)
 	healthSrvr.SetServingStatus("TestService", grpc_health_v1.HealthCheckResponse_SERVING)
@@ -181,7 +181,7 @@ func newTestSvc(t testing.TB, ctx context.Context, srvr *grpc.Server, svc testda
 	testdata.RegisterInterceptedServiceServer(srvr, &testdata.UnimplementedInterceptedServiceServer{})
 
 	lis, err := net.Listen("tcp", ":0")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	errQ := make(chan error)
 
@@ -191,7 +191,7 @@ func newTestSvc(t testing.TB, ctx context.Context, srvr *grpc.Server, svc testda
 
 	cleanup := func() {
 		srvr.Stop()
-		require.NoError(t, <-errQ)
+		require.NoError(tb, <-errQ)
 	}
 
 	cc, err := grpc.DialContext(
@@ -200,7 +200,7 @@ func newTestSvc(t testing.TB, ctx context.Context, srvr *grpc.Server, svc testda
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return testdata.NewTestServiceClient(cc), cc, cleanup
 }

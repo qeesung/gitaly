@@ -19,8 +19,10 @@ func TestShowRefDecoder(t *testing.T) {
 	cfg := testcfg.Build(t)
 	ctx := testhelper.Context(t)
 
-	repoProto, repoPath := gittest.CloneRepo(t, cfg, cfg.Storages[0], gittest.CloneRepoOpts{
-		RelativePath: "repo.git",
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		Seed:                   gittest.SeedGitLabTest,
+		RelativePath:           "repo.git",
 	})
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)

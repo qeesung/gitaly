@@ -23,10 +23,10 @@ func TestMain(m *testing.M) {
 	testhelper.Run(m)
 }
 
-func setupDiffService(ctx context.Context, t testing.TB, opt ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.DiffServiceClient) {
-	cfg := testcfg.Build(t)
+func setupDiffService(ctx context.Context, tb testing.TB, opt ...testserver.GitalyServerOpt) (config.Cfg, *gitalypb.Repository, string, gitalypb.DiffServiceClient) {
+	cfg := testcfg.Build(tb)
 
-	addr := testserver.RunGitalyServer(t, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
+	addr := testserver.RunGitalyServer(tb, cfg, nil, func(srv *grpc.Server, deps *service.Dependencies) {
 		gitalypb.RegisterDiffServiceServer(srv, NewServer(
 			deps.GetLocator(),
 			deps.GetGitCmdFactory(),
@@ -47,10 +47,10 @@ func setupDiffService(ctx context.Context, t testing.TB, opt ...testserver.Gital
 	cfg.SocketPath = addr
 
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-	t.Cleanup(func() { testhelper.MustClose(t, conn) })
+	require.NoError(tb, err)
+	tb.Cleanup(func() { testhelper.MustClose(tb, conn) })
 
-	repo, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	repo, repoPath := gittest.CreateRepository(ctx, tb, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
 	})
 

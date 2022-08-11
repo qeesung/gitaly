@@ -604,8 +604,8 @@ func TestHealthManager_databaseTimeout(t *testing.T) {
 	require.EqualError(t, <-blockedErr, "update checks: timeout: context canceled")
 }
 
-func predateHealthChecks(t testing.TB, db testdb.DB, amount time.Duration) {
-	t.Helper()
+func predateHealthChecks(tb testing.TB, db testdb.DB, amount time.Duration) {
+	tb.Helper()
 
 	_, err := db.Exec(`
 		UPDATE node_status SET
@@ -613,7 +613,7 @@ func predateHealthChecks(t testing.TB, db testdb.DB, amount time.Duration) {
 			last_seen_active_at = last_seen_active_at - INTERVAL '1 MICROSECOND' * $1
 		`, amount.Microseconds(),
 	)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 }
 
 // This test case ensures the record updates are done in an ordered manner to avoid concurrent writes

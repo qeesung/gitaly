@@ -477,7 +477,9 @@ func TestExecCommandFactory_config(t *testing.T) {
 
 	// Create a repository and remove its gitconfig to bring us into a known state where there
 	// is no repo-level configuration that interferes with our test.
-	repo, repoDir := gittest.InitRepo(t, cfg, cfg.Storages[0])
+	repo, repoDir := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
 	require.NoError(t, os.Remove(filepath.Join(repoDir, "config")))
 
 	commonEnv := []string{

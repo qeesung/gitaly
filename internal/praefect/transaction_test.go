@@ -29,10 +29,10 @@ type voter struct {
 	shouldSucceed bool
 }
 
-func runPraefectServerAndTxMgr(t testing.TB, ctx context.Context) (*grpc.ClientConn, *transactions.Manager, testhelper.Cleanup) {
+func runPraefectServerAndTxMgr(tb testing.TB, ctx context.Context) (*grpc.ClientConn, *transactions.Manager, testhelper.Cleanup) {
 	conf := testConfig(1)
 	txMgr := transactions.NewManager(conf)
-	cc, _, cleanup := RunPraefectServer(t, ctx, conf, BuildOptions{
+	cc, _, cleanup := RunPraefectServer(tb, ctx, conf, BuildOptions{
 		WithTxMgr:   txMgr,
 		WithNodeMgr: nullNodeMgr{}, // to suppress node address issues
 	})

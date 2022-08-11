@@ -135,7 +135,7 @@ func (r *PerRepositoryRouter) RouteStorageMutator(ctx context.Context, virtualSt
 	return StorageMutatorRoute{}, errors.New("RouteStorageMutator is not implemented on PerRepositoryRouter")
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (r *PerRepositoryRouter) RouteRepositoryAccessor(ctx context.Context, virtualStorage, relativePath string, forcePrimary bool) (RepositoryAccessorRoute, error) {
 	healthyNodes, err := r.healthyNodes(virtualStorage)
 	if err != nil {
@@ -208,7 +208,7 @@ func (r *PerRepositoryRouter) resolveAdditionalReplicaPath(ctx context.Context, 
 	return r.rs.GetReplicaPath(ctx, additionalRepositoryID)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (r *PerRepositoryRouter) RouteRepositoryMutator(ctx context.Context, virtualStorage, relativePath, additionalRelativePath string) (RepositoryMutatorRoute, error) {
 	healthyNodes, err := r.healthyNodes(virtualStorage)
 	if err != nil {

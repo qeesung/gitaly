@@ -526,9 +526,9 @@ func (*healthServer) Check(context.Context, *healthpb.HealthCheckRequest) (*heal
 }
 
 // startTCPListener will start a insecure TCP listener on a random unused port
-func startTCPListener(t testing.TB, factory func(credentials.TransportCredentials) *grpc.Server) (func(), string) {
+func startTCPListener(tb testing.TB, factory func(credentials.TransportCredentials) *grpc.Server) (func(), string) {
 	listener, err := net.Listen("tcp", "localhost:0")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	tcpPort := listener.Addr().(*net.TCPAddr).Port
 	address := fmt.Sprintf("%d", tcpPort)
@@ -542,11 +542,11 @@ func startTCPListener(t testing.TB, factory func(credentials.TransportCredential
 }
 
 // startUnixListener will start a unix socket listener using a temporary file
-func startUnixListener(t testing.TB, factory func(credentials.TransportCredentials) *grpc.Server) (func(), string) {
-	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName(t)
+func startUnixListener(tb testing.TB, factory func(credentials.TransportCredentials) *grpc.Server) (func(), string) {
+	serverSocketPath := testhelper.GetTemporaryGitalySocketFileName(tb)
 
 	listener, err := net.Listen("unix", serverSocketPath)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	grpcServer := factory(insecure.NewCredentials())
 	go grpcServer.Serve(listener)
@@ -558,15 +558,15 @@ func startUnixListener(t testing.TB, factory func(credentials.TransportCredentia
 
 // startTLSListener will start a secure TLS listener on a random unused port
 //go:generate openssl req -newkey rsa:4096 -new -nodes -x509 -days 3650 -out testdata/gitalycert.pem -keyout testdata/gitalykey.pem -subj "/C=US/ST=California/L=San Francisco/O=GitLab/OU=GitLab-Shell/CN=localhost" -addext "subjectAltName = IP:127.0.0.1, DNS:localhost"
-func startTLSListener(t testing.TB, factory func(credentials.TransportCredentials) *grpc.Server) (func(), string) {
+func startTLSListener(tb testing.TB, factory func(credentials.TransportCredentials) *grpc.Server) (func(), string) {
 	listener, err := net.Listen("tcp", "localhost:0")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	tcpPort := listener.Addr().(*net.TCPAddr).Port
 	address := fmt.Sprintf("%d", tcpPort)
 
 	cert, err := tls.LoadX509KeyPair("testdata/gitalycert.pem", "testdata/gitalykey.pem")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	grpcServer := factory(
 		credentials.NewTLS(&tls.Config{
@@ -588,11 +588,11 @@ var listeners = map[string]func(testing.TB, func(credentials.TransportCredential
 }
 
 // startListeners will start all the different listeners used in this test
-func startListeners(t testing.TB, factory func(credentials.TransportCredentials) *grpc.Server) (func(), map[string]string) {
+func startListeners(tb testing.TB, factory func(credentials.TransportCredentials) *grpc.Server) (func(), map[string]string) {
 	var closers []func()
 	connectionMap := map[string]string{}
 	for k, v := range listeners {
-		closer, address := v(t, factory)
+		closer, address := v(tb, factory)
 		closers = append(closers, closer)
 		connectionMap[k] = address
 	}
@@ -631,4 +631,6 @@ func TestHealthCheckDialer(t *testing.T) {
 	require.NoError(t, cc.Close())
 }
 
-func newLogger(t testing.TB) *logrus.Entry { return logrus.NewEntry(testhelper.NewDiscardingLogger(t)) }
+func newLogger(tb testing.TB) *logrus.Entry {
+	return logrus.NewEntry(testhelper.NewDiscardingLogger(tb))
+}

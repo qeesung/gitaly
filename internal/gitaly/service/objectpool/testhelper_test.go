@@ -101,46 +101,46 @@ func runObjectPoolServer(t *testing.T, cfg config.Cfg, locator storage.Locator, 
 	}, append(opts, testserver.WithLocator(locator), testserver.WithLogger(logger))...)
 }
 
-func newObjectPool(t testing.TB, cfg config.Cfg, storage, relativePath string) *objectpool.ObjectPool {
+func newObjectPool(tb testing.TB, cfg config.Cfg, storage, relativePath string) *objectpool.ObjectPool {
 	catfileCache := catfile.NewCache(cfg)
-	t.Cleanup(catfileCache.Stop)
+	tb.Cleanup(catfileCache.Stop)
 
 	txManager := transaction.NewManager(cfg, backchannel.NewRegistry())
 
 	pool, err := objectpool.NewObjectPool(
 		config.NewLocator(cfg),
-		gittest.NewCommandFactory(t, cfg),
+		gittest.NewCommandFactory(tb, cfg),
 		catfileCache,
 		txManager,
 		housekeeping.NewManager(cfg.Prometheus, txManager),
 		storage,
 		relativePath,
 	)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return pool
 }
 
 // initObjectPool creates a new empty object pool in the given storage.
-func initObjectPool(t testing.TB, cfg config.Cfg, storage config.Storage) *objectpool.ObjectPool {
-	t.Helper()
+func initObjectPool(tb testing.TB, cfg config.Cfg, storage config.Storage) *objectpool.ObjectPool {
+	tb.Helper()
 
-	relativePath := gittest.NewObjectPoolName(t)
-	gittest.InitRepoDir(t, storage.Path, relativePath)
+	relativePath := gittest.NewObjectPoolName(tb)
+	gittest.InitRepoDir(tb, storage.Path, relativePath)
 	catfileCache := catfile.NewCache(cfg)
-	t.Cleanup(catfileCache.Stop)
+	tb.Cleanup(catfileCache.Stop)
 
-	pool := newObjectPool(t, cfg, storage.Name, relativePath)
+	pool := newObjectPool(tb, cfg, storage.Name, relativePath)
 
 	poolPath := filepath.Join(storage.Path, relativePath)
-	t.Cleanup(func() { require.NoError(t, os.RemoveAll(poolPath)) })
+	tb.Cleanup(func() { require.NoError(tb, os.RemoveAll(poolPath)) })
 
 	return pool
 }
 
 // rewrittenObjectPool returns a pool that is rewritten as if it was passed through Praefect. This should be used
 // to access the pool on the disk if the tests are running with Praefect in front of them.
-func rewrittenObjectPool(ctx context.Context, t testing.TB, cfg config.Cfg, pool *objectpool.ObjectPool) *objectpool.ObjectPool {
-	replicaPath := gittest.GetReplicaPath(ctx, t, cfg, pool)
-	return newObjectPool(t, cfg, pool.GetStorageName(), replicaPath)
+func rewrittenObjectPool(ctx context.Context, tb testing.TB, cfg config.Cfg, pool *objectpool.ObjectPool) *objectpool.ObjectPool {
+	replicaPath := gittest.GetReplicaPath(ctx, tb, cfg, pool)
+	return newObjectPool(tb, cfg, pool.GetStorageName(), replicaPath)
 }

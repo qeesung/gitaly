@@ -9,7 +9,7 @@ type MockReplicationEventQueue struct {
 	EnqueueFunc func(context.Context, ReplicationEvent) (ReplicationEvent, error)
 }
 
-//nolint: revive,stylecheck // This is unintentionally missing documentation.
+//nolint: stylecheck // This is unintentionally missing documentation.
 func (m *MockReplicationEventQueue) Enqueue(ctx context.Context, event ReplicationEvent) (ReplicationEvent, error) {
 	return m.EnqueueFunc(ctx, event)
 }

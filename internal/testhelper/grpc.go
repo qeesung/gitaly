@@ -35,27 +35,27 @@ func (mockServerTransportStream) SetTrailer(md metadata.MD) error { return nil }
 // It can accept not only proto.Message, but slices, maps, and structs too.
 // This is required as comparing messages directly with `require.Equal` doesn't
 // work.
-func ProtoEqual(t testing.TB, expected, actual interface{}) {
-	t.Helper()
-	require.Empty(t, cmp.Diff(expected, actual, protocmp.Transform(), cmpopts.EquateErrors()))
+func ProtoEqual(tb testing.TB, expected, actual interface{}) {
+	tb.Helper()
+	require.Empty(tb, cmp.Diff(expected, actual, protocmp.Transform(), cmpopts.EquateErrors()))
 }
 
 // RequireGrpcCode asserts that the error has the expected gRPC status code.
-func RequireGrpcCode(t testing.TB, err error, expectedCode codes.Code) {
-	t.Helper()
+func RequireGrpcCode(tb testing.TB, err error, expectedCode codes.Code) {
+	tb.Helper()
 
-	require.Error(t, err)
+	require.Error(tb, err)
 	status, ok := status.FromError(err)
-	require.True(t, ok)
-	require.Equal(t, expectedCode, status.Code())
+	require.True(tb, ok)
+	require.Equal(tb, expectedCode, status.Code())
 }
 
 // RequireGrpcError asserts that expected and actual gRPC errors are equal. Comparing gRPC errors
 // directly with `require.Equal()` will not typically work correct.
-func RequireGrpcError(t testing.TB, expected, actual error) {
-	t.Helper()
+func RequireGrpcError(tb testing.TB, expected, actual error) {
+	tb.Helper()
 	// .Proto() handles nil receiver
-	ProtoEqual(t, status.Convert(expected).Proto(), status.Convert(actual).Proto())
+	ProtoEqual(tb, status.Convert(expected).Proto(), status.Convert(actual).Proto())
 }
 
 // MergeOutgoingMetadata merges provided metadata-s and returns context with resulting value.

@@ -24,8 +24,8 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func getSnapshot(t testing.TB, client gitalypb.RepositoryServiceClient, req *gitalypb.GetSnapshotRequest) ([]byte, error) {
-	ctx := testhelper.Context(t)
+func getSnapshot(tb testing.TB, client gitalypb.RepositoryServiceClient, req *gitalypb.GetSnapshotRequest) ([]byte, error) {
+	ctx := testhelper.Context(tb)
 
 	stream, err := client.GetSnapshot(ctx, req)
 	if err != nil {
@@ -252,10 +252,10 @@ func copyRepoUsingSnapshot(t *testing.T, ctx context.Context, cfg config.Cfg, cl
 	srv := httptest.NewServer(&tarTesthandler{tarData: bytes.NewBuffer(data), secret: secret})
 	defer srv.Close()
 
-	repoCopy, repoCopyPath := gittest.CloneRepo(t, cfg, cfg.Storages[0])
-
-	// Delete the repository so we can re-use the path
-	require.NoError(t, os.RemoveAll(repoCopyPath))
+	repoCopy := &gitalypb.Repository{
+		StorageName:  cfg.Storages[0].Name,
+		RelativePath: gittest.NewRepositoryName(t, true),
+	}
 
 	createRepoReq := &gitalypb.CreateRepositoryFromSnapshotRequest{
 		Repository: repoCopy,
@@ -266,7 +266,8 @@ func copyRepoUsingSnapshot(t *testing.T, ctx context.Context, cfg config.Cfg, cl
 	rsp, err := client.CreateRepositoryFromSnapshot(ctx, createRepoReq)
 	require.NoError(t, err)
 	testhelper.ProtoEqual(t, rsp, &gitalypb.CreateRepositoryFromSnapshotResponse{})
-	return repoCopy, repoCopyPath
+
+	return repoCopy, filepath.Join(cfg.Storages[0].Path, gittest.GetReplicaPath(ctx, t, cfg, repoCopy))
 }
 
 func TestGetSnapshotFailsIfRepositoryMissing(t *testing.T) {
