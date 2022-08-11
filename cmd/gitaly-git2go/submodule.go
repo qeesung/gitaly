@@ -14,10 +14,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 
-type submoduleSubcommand struct{}
+type submoduleSubcommand struct {
+	signingKeyPath string
+}
 
 func (cmd *submoduleSubcommand) Flags() *flag.FlagSet {
-	return flag.NewFlagSet("submodule", flag.ExitOnError)
+	fs := flag.NewFlagSet("submodule", flag.ExitOnError)
+	fs.StringVar(&cmd.signingKeyPath, "signing-key", "", "Path to the OpenPGP signing key.")
+	return fs
 }
 
 func (cmd *submoduleSubcommand) Run(_ context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
@@ -84,7 +88,7 @@ func (cmd *submoduleSubcommand) run(request git2go.SubmoduleCommand) (*git2go.Su
 	}
 
 	if smEntry.Id.Cmp(smCommitOID) == 0 {
-		//nolint
+		// nolint
 		return nil, fmt.Errorf(
 			"The submodule %s is already at %s",
 			request.Submodule, request.CommitSHA,
@@ -121,10 +125,11 @@ func (cmd *submoduleSubcommand) run(request git2go.SubmoduleCommand) (*git2go.Su
 			request.AuthorDate,
 		),
 	)
-	newCommitOID, err := repo.CreateCommit(
-		"", // caller should update branch with hooks
+	commitBytes, err := repo.CreateCommitBuffer(
+		// caller should update branch with hooks
 		&committer,
 		&committer,
+		git.MessageEncodingUTF8,
 		request.Message,
 		newTree,
 		startCommit,
@@ -134,6 +139,19 @@ func (cmd *submoduleSubcommand) run(request git2go.SubmoduleCommand) (*git2go.Su
 			"%s: %w",
 			git2go.LegacyErrPrefixFailedCommit, err,
 		)
+	}
+
+	var signature string
+	if cmd.signingKeyPath != "" {
+		signature, err = git2goutil.ReadSigningKeyAndSign(cmd.signingKeyPath, string(commitBytes))
+		if err != nil {
+			return nil, fmt.Errorf("read openpgp key: %w", err)
+		}
+	}
+
+	newCommitOID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
+	if err != nil {
+		return nil, fmt.Errorf("create not create cherry-pick commit: %w", err)
 	}
 
 	return &git2go.SubmoduleResult{

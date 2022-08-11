@@ -108,7 +108,7 @@ type Git struct {
 	CatfileCacheSize   int         `toml:"catfile_cache_size"`
 	Config             []GitConfig `toml:"config"`
 	IgnoreGitconfig    bool        `toml:"ignore_gitconfig"`
-	WebSigningKey      string      `toml:"web_signing_key"`
+	SigningKey         string      `toml:"signing_key"`
 }
 
 // GitConfig contains a key-value pair which is to be passed to git as configuration.

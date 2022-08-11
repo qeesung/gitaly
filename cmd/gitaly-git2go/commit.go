@@ -10,6 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go/commit"
 )
 
+// SigningKeyPathKey is a key for a value in context
 type SigningKeyPathKey struct{}
 
 type commitSubcommand struct {

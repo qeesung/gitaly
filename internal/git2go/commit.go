@@ -66,7 +66,12 @@ func (b *Executor) Commit(ctx context.Context, repo repository.GitRepo, params C
 		return "", err
 	}
 
-	output, err := b.run(ctx, repo, input, "commit")
+	var args []string
+	if b.signingKey != "" {
+		args = []string{"-signing-key", b.signingKey}
+	}
+
+	output, err := b.run(ctx, repo, input, "commit", args...)
 	if err != nil {
 		return "", err
 	}

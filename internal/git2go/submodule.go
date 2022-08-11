@@ -57,10 +57,15 @@ func (b *Executor) Submodule(ctx context.Context, repo repository.GitRepo, s Sub
 		return SubmoduleResult{}, fmt.Errorf("%s: %w", cmd, err)
 	}
 
+	var args []string
+	if b.signingKey != "" {
+		args = []string{"-signing-key", b.signingKey}
+	}
+
 	// Ideally we would use `b.runWithGob` here to avoid the gob encoding
-	// boilerplate but it is not possible here because `runWithGob` adds error
+	// boilerplate, but it is not possible here because `runWithGob` adds error
 	// prefixes and the `LegacyErrPrefix*` errors must match exactly.
-	stdout, err := b.run(ctx, repo, input, cmd)
+	stdout, err := b.run(ctx, repo, input, cmd, args...)
 	if err != nil {
 		return SubmoduleResult{}, err
 	}

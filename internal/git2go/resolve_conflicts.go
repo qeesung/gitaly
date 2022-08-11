@@ -37,7 +37,12 @@ func (b *Executor) Resolve(ctx context.Context, repo repository.GitRepo, r Resol
 		return ResolveResult{}, fmt.Errorf("resolve: %w", err)
 	}
 
-	stdout, err := b.run(ctx, repo, input, "resolve")
+	var args []string
+	if b.signingKey != "" {
+		args = []string{"-signing-key", b.signingKey}
+	}
+
+	stdout, err := b.run(ctx, repo, input, "resolve", args...)
 	if err != nil {
 		return ResolveResult{}, err
 	}

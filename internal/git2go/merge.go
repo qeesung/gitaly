@@ -61,7 +61,12 @@ func (b *Executor) Merge(ctx context.Context, repo repository.GitRepo, m MergeCo
 		return MergeResult{}, fmt.Errorf("merge: %w: %s", ErrInvalidArgument, err.Error())
 	}
 
-	commitID, err := b.runWithGob(ctx, repo, "merge", m)
+	var args []string
+	if b.signingKey != "" {
+		args = []string{"-signing-key", b.signingKey}
+	}
+
+	commitID, err := b.runWithGob(ctx, repo, "merge", m, args...)
 	if err != nil {
 		return MergeResult{}, err
 	}

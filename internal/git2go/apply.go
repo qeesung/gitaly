@@ -104,8 +104,13 @@ func (b *Executor) Apply(ctx context.Context, repo repository.GitRepo, params Ap
 
 	execEnv := b.gitCmdFactory.GetExecutionEnvironment(ctx)
 
+	args := []string{"-git-binary-path", execEnv.BinaryPath}
+	if b.signingKey != "" {
+		args = append(args, "-signing-key", b.signingKey)
+	}
+
 	var result Result
-	output, err := b.run(ctx, repo, reader, "apply", "-git-binary-path", execEnv.BinaryPath)
+	output, err := b.run(ctx, repo, reader, "apply", args...)
 	if err != nil {
 		return "", fmt.Errorf("run: %w", err)
 	}

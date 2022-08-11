@@ -28,7 +28,12 @@ type CherryPickCommand struct {
 	Mainline uint
 }
 
-// CherryPick performs a cherry pick via gitaly-git2go.
+// CherryPick performs a cherry-pick via gitaly-git2go.
 func (b *Executor) CherryPick(ctx context.Context, repo repository.GitRepo, m CherryPickCommand) (git.ObjectID, error) {
-	return b.runWithGob(ctx, repo, "cherry-pick", m)
+	var args []string
+	if b.signingKey != "" {
+		args = []string{"-signing-key", b.signingKey}
+	}
+
+	return b.runWithGob(ctx, repo, "cherry-pick", m, args...)
 }
