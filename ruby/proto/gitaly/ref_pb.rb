@@ -90,6 +90,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_enum "gitaly.FindAllTagsRequest.SortBy.Key" do
       value :REFNAME, 0
       value :CREATORDATE, 1
+      value :VERSION_REFNAME, 2
     end
     add_message "gitaly.FindAllTagsResponse" do
       repeated :tags, :message, 1, "gitaly.Tag"

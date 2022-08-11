@@ -305,6 +305,11 @@ message FindAllTagsRequest {
       REFNAME     = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
       // This comment is left unintentionally blank.
       CREATORDATE = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
+      // VERSION_REFNAME sorts tags by their semantic versions (https://semver.org/).
+      // Tag names that are not semantic versions are sorted lexicographically. They come before
+      // the semantic versions if the direction is ascending and after the semantic versions if
+      // the direction is descending.
+      VERSION_REFNAME = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     }
 
     // This comment is left unintentionally blank.
