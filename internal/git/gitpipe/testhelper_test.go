@@ -1,11 +1,10 @@
-//go:build !gitaly_test_sha256
-
 package gitpipe
 
 import (
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
@@ -50,4 +49,11 @@ func (ch *chanObjectIterator) ObjectID() git.ObjectID {
 
 func (ch *chanObjectIterator) ObjectName() []byte {
 	return []byte("idontcare")
+}
+
+func hashDependentObjectSize(sha1Size, sha256Size int64) int64 {
+	if gittest.ObjectHashIsSHA256() {
+		return sha256Size
+	}
+	return sha1Size
 }

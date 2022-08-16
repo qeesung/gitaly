@@ -56,6 +56,14 @@ func LsTree(
 	go func() {
 		defer close(resultChan)
 
+		objectHash, err := repo.ObjectHash(ctx)
+		if err != nil {
+			sendRevisionResult(ctx, resultChan, RevisionResult{
+				err: fmt.Errorf("detecting object hash: %w", err),
+			})
+			return
+		}
+
 		flags := []git.Option{
 			git.Flag{Name: "-z"},
 		}
@@ -80,7 +88,7 @@ func LsTree(
 			return
 		}
 
-		parser := lstree.NewParser(cmd, git.ObjectHashSHA1)
+		parser := lstree.NewParser(cmd, objectHash)
 		for {
 			entry, err := parser.NextEntry()
 			if err != nil {

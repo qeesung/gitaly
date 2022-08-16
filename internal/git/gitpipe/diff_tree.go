@@ -46,7 +46,7 @@ func DiffTreeWithSkip(skipResult func(*RevisionResult) bool) DiffTreeOption {
 
 // DiffTree runs git-diff-tree(1) between the two given revisions. The returned
 // channel will contain the new object IDs listed by this command. For deleted
-// files this would be git.ObjectHashSHA1.ZeroOID. Cancelling the context will cause the
+// files this would be the all-zeroes object ID. Cancelling the context will cause the
 // pipeline to be cancelled, too. By default, it will not recurse into subtrees.
 func DiffTree(
 	ctx context.Context,

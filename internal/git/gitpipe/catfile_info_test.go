@@ -1,15 +1,13 @@
-//go:build !gitaly_test_sha256
-
 package gitpipe
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
@@ -18,22 +16,26 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const (
-	lfsPointer1 = "0c304a93cb8430108629bbbcaa27db3343299bc0"
-	lfsPointer2 = "f78df813119a79bfbe0442ab92540a61d3ab7ff3"
-	lfsPointer3 = "bab31d249f78fba464d1b75799aad496cc07fa3b"
-	lfsPointer4 = "125fcc9f6e33175cb278b9b2809154d2535fe19f"
-)
-
 func TestCatfileInfo(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
-		Seed:                   gittest.SeedGitLabTest,
 	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	blobA := gittest.WriteBlob(t, cfg, repoPath, bytes.Repeat([]byte("a"), 133))
+	blobB := gittest.WriteBlob(t, cfg, repoPath, bytes.Repeat([]byte("b"), 127))
+	blobC := gittest.WriteBlob(t, cfg, repoPath, bytes.Repeat([]byte("c"), 127))
+	blobD := gittest.WriteBlob(t, cfg, repoPath, bytes.Repeat([]byte("d"), 129))
+
+	blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("contents"))
+	treeID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{Path: "branch-test.txt", Mode: "100644", OID: blobID},
+	})
 
 	for _, tc := range []struct {
 		desc            string
@@ -45,36 +47,36 @@ func TestCatfileInfo(t *testing.T) {
 		{
 			desc: "single blob",
 			revlistInputs: []RevisionResult{
-				{OID: lfsPointer1},
+				{OID: blobA},
 			},
 			expectedResults: []CatfileInfoResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 133}},
 			},
 		},
 		{
 			desc: "multiple blobs",
 			revlistInputs: []RevisionResult{
-				{OID: lfsPointer1},
-				{OID: lfsPointer2},
-				{OID: lfsPointer3},
-				{OID: lfsPointer4},
+				{OID: blobA},
+				{OID: blobB},
+				{OID: blobC},
+				{OID: blobD},
 			},
 			expectedResults: []CatfileInfoResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer3, Type: "blob", Size: 127}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer4, Type: "blob", Size: 129}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 133}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobB, Type: "blob", Size: 127}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobC, Type: "blob", Size: 127}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobD, Type: "blob", Size: 129}},
 			},
 		},
 		{
 			desc: "object name",
 			revlistInputs: []RevisionResult{
-				{OID: "b95c0fad32f4361845f91d9ce4c1721b52b82793"},
-				{OID: "93e123ac8a3e6a0b600953d7598af629dec7b735", ObjectName: []byte("branch-test.txt")},
+				{OID: treeID},
+				{OID: blobID, ObjectName: []byte("branch-test.txt")},
 			},
 			expectedResults: []CatfileInfoResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "b95c0fad32f4361845f91d9ce4c1721b52b82793", Type: "tree", Size: 43}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: "93e123ac8a3e6a0b600953d7598af629dec7b735", Type: "blob", Size: 59}, ObjectName: []byte("branch-test.txt")},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: treeID, Type: "tree", Size: hashDependentObjectSize(43, 55)}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobID, Type: "blob", Size: 8}, ObjectName: []byte("branch-test.txt")},
 			},
 		},
 		{
@@ -87,20 +89,20 @@ func TestCatfileInfo(t *testing.T) {
 		{
 			desc: "mixed valid and invalid revision",
 			revlistInputs: []RevisionResult{
-				{OID: lfsPointer1},
+				{OID: blobA},
 				{OID: "invalidobjectid"},
-				{OID: lfsPointer2},
+				{OID: blobB},
 			},
 			expectedResults: []CatfileInfoResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 133}},
 			},
 			expectedErr: errors.New("retrieving object info for \"invalidobjectid\": object not found"),
 		},
 		{
 			desc: "skip everything",
 			revlistInputs: []RevisionResult{
-				{OID: lfsPointer1},
-				{OID: lfsPointer2},
+				{OID: blobA},
+				{OID: blobB},
 			},
 			opts: []CatfileInfoOption{
 				WithSkipCatfileInfoResult(func(*catfile.ObjectInfo) bool { return true }),
@@ -109,30 +111,30 @@ func TestCatfileInfo(t *testing.T) {
 		{
 			desc: "skip one",
 			revlistInputs: []RevisionResult{
-				{OID: lfsPointer1},
-				{OID: lfsPointer2},
+				{OID: blobA},
+				{OID: blobB},
 			},
 			opts: []CatfileInfoOption{
 				WithSkipCatfileInfoResult(func(objectInfo *catfile.ObjectInfo) bool {
-					return objectInfo.Oid == lfsPointer1
+					return objectInfo.Oid == blobA
 				}),
 			},
 			expectedResults: []CatfileInfoResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobB, Type: "blob", Size: 127}},
 			},
 		},
 		{
 			desc: "skip nothing",
 			revlistInputs: []RevisionResult{
-				{OID: lfsPointer1},
-				{OID: lfsPointer2},
+				{OID: blobA},
+				{OID: blobB},
 			},
 			opts: []CatfileInfoOption{
 				WithSkipCatfileInfoResult(func(*catfile.ObjectInfo) bool { return false }),
 			},
 			expectedResults: []CatfileInfoResult{
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}},
-				{ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 133}},
+				{ObjectInfo: &catfile.ObjectInfo{Oid: blobB, Type: "blob", Size: 127}},
 			},
 		},
 	} {
@@ -175,15 +177,15 @@ func TestCatfileInfo(t *testing.T) {
 		defer objectInfoReaderCancel()
 
 		it, err := CatfileInfo(ctx, objectInfoReader, NewRevisionIterator(ctx, []RevisionResult{
-			{OID: lfsPointer1},
-			{OID: lfsPointer1},
+			{OID: blobA},
+			{OID: blobA},
 		}))
 		require.NoError(t, err)
 
 		require.True(t, it.Next())
 		require.NoError(t, it.Err())
 		require.Equal(t, CatfileInfoResult{
-			ObjectInfo: &catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133},
+			ObjectInfo: &catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 133},
 		}, it.Result())
 
 		cancel()
@@ -217,7 +219,7 @@ func TestCatfileInfo(t *testing.T) {
 		// not flushed after every object this means that the request is currently
 		// outstanding.
 		<-nextCh
-		inputCh <- git.ObjectID(lfsPointer1)
+		inputCh <- blobA
 
 		// Wait for the pipeline to request the next object.
 		<-nextCh
@@ -233,7 +235,7 @@ func TestCatfileInfo(t *testing.T) {
 		cancel()
 
 		// Now we queue another request that should cause the pipeline to fail.
-		inputCh <- git.ObjectID(lfsPointer1)
+		inputCh <- blobA
 
 		// Verify whether we can receive any more objects via the iterator. This should
 		// fail because the context got cancelled, but in any case it shouldn't block. Note
@@ -258,7 +260,7 @@ func TestCatfileInfo(t *testing.T) {
 		defer cancel()
 
 		input := []RevisionResult{
-			{OID: lfsPointer1},
+			{OID: blobA},
 		}
 
 		it, err := CatfileInfo(ctx, objectInfoReader, NewRevisionIterator(ctx, input))
@@ -279,6 +281,8 @@ func TestCatfileInfo(t *testing.T) {
 }
 
 func TestCatfileInfoAllObjects(t *testing.T) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 	ctx := testhelper.Context(t)
 
@@ -297,8 +301,8 @@ func TestCatfileInfoAllObjects(t *testing.T) {
 	actualObjects := []CatfileInfoResult{
 		{ObjectInfo: &catfile.ObjectInfo{Oid: blob1, Type: "blob", Size: 6}},
 		{ObjectInfo: &catfile.ObjectInfo{Oid: blob2, Type: "blob", Size: 6}},
-		{ObjectInfo: &catfile.ObjectInfo{Oid: tree, Type: "tree", Size: 34}},
-		{ObjectInfo: &catfile.ObjectInfo{Oid: commit, Type: "commit", Size: 177}},
+		{ObjectInfo: &catfile.ObjectInfo{Oid: tree, Type: "tree", Size: hashDependentObjectSize(34, 46)}},
+		{ObjectInfo: &catfile.ObjectInfo{Oid: commit, Type: "commit", Size: hashDependentObjectSize(177, 201)}},
 	}
 
 	t.Run("successful", func(t *testing.T) {
