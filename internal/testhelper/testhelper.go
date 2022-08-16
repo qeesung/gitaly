@@ -179,6 +179,8 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// PraefectGeneratedReplicaPaths affects many tests as it changes the repository creation logic.
 	// Randomly enable the flag to exercise both paths to some extent.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.PraefectGeneratedReplicaPaths, rnd.Int()%2 == 0)
+	// AutocrlfConfig affects the global options configuration.
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.AutocrlfConfig, true)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)

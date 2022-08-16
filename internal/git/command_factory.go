@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 )
 
 // CommandFactory is designed to create and run git commands in a protected and fully managed manner.
@@ -497,6 +498,12 @@ func (cf *ExecCommandFactory) globalConfiguration(ctx context.Context) ([]Global
 		return nil, fmt.Errorf("determining Git version: %w", err)
 	}
 
+	// Feature flag to change the default global configuration of autocrlf.
+	autocrlf := "input"
+	if featureflag.AutocrlfConfig.IsEnabled(ctx) {
+		autocrlf = "false"
+	}
+
 	// As global options may cancel out each other, we have a clearly defined order in which
 	// globals get applied. The order is similar to how git handles configuration options from
 	// most general to most specific. This allows callsites to override options which would
@@ -514,11 +521,11 @@ func (cf *ExecCommandFactory) globalConfiguration(ctx context.Context) ([]Global
 		// of it ourselves.
 		ConfigPair{Key: "gc.auto", Value: "0"},
 
-		// CRLF line endings will get replaced with LF line endings
-		// when writing blobs to the object database. No conversion is
-		// done when reading blobs from the object database. This is
-		// required for the web editor.
-		ConfigPair{Key: "core.autocrlf", Value: "input"},
+		// CRLF line endings will get replaced with LF line endings when writing blobs to the
+		// object database. No conversion is done when reading blobs from the object database.
+		// This is required for the web editor. With feature flag "autocrlf_false" enabled
+		// CRLF line endings will not get replaced and be left alone.
+		ConfigPair{Key: "core.autocrlf", Value: autocrlf},
 
 		// Git allows the use of replace refs, where a given object ID can be replaced with a
 		// different one. The result is that Git commands would use the new object instead of the

@@ -56,9 +56,9 @@ func TestRepo_WriteBlob(t *testing.T) {
 			content: "\n",
 		},
 		{
-			desc:    "CRLF converted to LF due to global git config",
+			desc:    "CRLF not converted to LF due to global git config",
 			input:   strings.NewReader("\r\n"),
-			content: "\n",
+			content: "\r\n",
 		},
 		{
 			desc:       "line endings preserved in binary files",
