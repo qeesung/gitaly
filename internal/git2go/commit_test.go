@@ -7,11 +7,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
@@ -30,6 +33,7 @@ type commit struct {
 	Author    Signature
 	Committer Signature
 	Message   string
+	GPGSig    string
 }
 
 func TestExecutor_Commit(t *testing.T) {
@@ -65,6 +69,7 @@ func TestExecutor_Commit(t *testing.T) {
 	for _, tc := range []struct {
 		desc  string
 		steps []step
+		sign  bool
 	}{
 		{
 			desc: "create directory",
@@ -455,10 +460,30 @@ func TestExecutor_Commit(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc: "update created file, sign commit and verify signature",
+			steps: []step{
+				{
+					actions: []Action{
+						CreateFile{Path: "file", OID: originalFile.String()},
+						UpdateFile{Path: "file", OID: updatedFile.String()},
+					},
+					treeEntries: []gittest.TreeEntry{
+						{Mode: DefaultMode, Path: "file", Content: "updated"},
+					},
+				},
+			},
+			sign: true,
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			author := NewSignature("Author Name", "author.email@example.com", time.Now())
 			committer := NewSignature("Committer Name", "committer.email@example.com", time.Now())
+
+			if tc.sign {
+				executor.signingKey = "testdata/signingKey.gpg"
+			}
+
 			var parentCommit git.ObjectID
 			for i, step := range tc.steps {
 				message := fmt.Sprintf("commit %d", i+1)
@@ -498,18 +523,34 @@ func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git
 	data, err := repo.ReadObject(ctx, oid)
 	require.NoError(tb, err)
 
+	var (
+		gpgsig, dataWithoutGpgSig string
+		gpgsigStarted             bool
+	)
+
 	var commit commit
 	lines := strings.Split(string(data), "\n")
 	for i, line := range lines {
 		if line == "" {
+			dataWithoutGpgSig += "\n" + strings.Join(lines[i+1:], "\n")
 			commit.Message = strings.Join(lines[i+1:], "\n")
 			break
+		}
+
+		if gpgsigStarted && strings.HasPrefix(line, " ") {
+			gpgsig += strings.TrimSpace(line) + "\n"
+			continue
 		}
 
 		split := strings.SplitN(line, " ", 2)
 		require.Len(tb, split, 2, "invalid commit: %q", data)
 
 		field, value := split[0], split[1]
+
+		if field != "gpgsig" {
+			dataWithoutGpgSig += line + "\n"
+		}
+
 		switch field {
 		case "parent":
 			require.Empty(tb, commit.Parent, "multi parent parsing not implemented")
@@ -520,8 +561,27 @@ func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git
 		case "committer":
 			require.Empty(tb, commit.Committer, "commit contained multiple committers")
 			commit.Committer = unmarshalSignature(tb, value)
+		case "gpgsig":
+			gpgsig = value + "\n"
+			gpgsigStarted = true
 		default:
 		}
+	}
+
+	if gpgsig != "" {
+		file, err := os.Open("testdata/publicKey.gpg")
+		require.NoError(tb, err)
+
+		keyring, err := openpgp.ReadKeyRing(file)
+		require.NoError(tb, err)
+
+		_, err = openpgp.CheckArmoredDetachedSignature(
+			keyring,
+			strings.NewReader(dataWithoutGpgSig),
+			strings.NewReader(gpgsig),
+			&packet.Config{},
+		)
+		require.NoError(tb, err)
 	}
 
 	return commit
