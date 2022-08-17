@@ -46,7 +46,9 @@ func TestDistributedGitEnvironmentConstructor(t *testing.T) {
 		defer execEnv.Cleanup()
 
 		require.Equal(t, "/foo/bar", execEnv.BinaryPath)
-		require.Equal(t, []string(nil), execEnv.EnvironmentVariables)
+		require.Equal(t, []string{
+			"NO_SET_GIT_TEMPLATE_DIR=YesPlease",
+		}, execEnv.EnvironmentVariables)
 	})
 
 	t.Run("configuration overrides environment variable", func(t *testing.T) {

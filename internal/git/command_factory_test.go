@@ -210,6 +210,7 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 		}, git.ExecutionEnvironment{
 			BinaryPath: "/path/to/env_git",
 			EnvironmentVariables: []string{
+				"NO_SET_GIT_TEMPLATE_DIR=YesPlease",
 				"LANG=en_US.UTF-8",
 				"GIT_TERMINAL_PROMPT=0",
 				"GIT_CONFIG_GLOBAL=/dev/null",
