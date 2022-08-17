@@ -83,26 +83,13 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 
 	author := git.Signature(params.Author)
 	committer := git.Signature(params.Committer)
-	commitBytes, err := repo.CreateCommitBuffer(&author, &committer, git.MessageEncodingUTF8, params.Message, tree, parents...)
+	commitID, err := git2goutil.NewCommitSubmitter(repo, signingKeyPathFromContext(ctx)).
+		Commit(&author, &committer, git.MessageEncodingUTF8, params.Message, tree, parents...)
 	if err != nil {
 		if git.IsErrorClass(err, git.ErrorClassInvalid) {
 			return "", git2go.InvalidArgumentError(err.Error())
 		}
 
-		return "", fmt.Errorf("create commit buffer: %w", err)
-	}
-
-	var signature string
-	signingKeyPath := signingKeyPathFromContext(ctx)
-	if signingKeyPath != "" {
-		signature, err = git2goutil.ReadSigningKeyAndSign(signingKeyPath, string(commitBytes))
-		if err != nil {
-			return "", fmt.Errorf("read openpgp key: %w", err)
-		}
-	}
-
-	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
-	if err != nil {
 		return "", fmt.Errorf("create commit: %w", err)
 	}
 

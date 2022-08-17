@@ -105,13 +105,13 @@ func (b *Executor) run(ctx context.Context, repo repository.GitRepo, stdin io.Re
 
 // runWithGob runs the specified gitaly-git2go cmd with the request gob-encoded
 // as input and returns the commit ID as string or an error.
-func (b *Executor) runWithGob(ctx context.Context, repo repository.GitRepo, cmd string, request interface{}, args ...string) (git.ObjectID, error) {
+func (b *Executor) runWithGob(ctx context.Context, repo repository.GitRepo, cmd string, request interface{}) (git.ObjectID, error) {
 	input := &bytes.Buffer{}
 	if err := gob.NewEncoder(input).Encode(request); err != nil {
 		return "", fmt.Errorf("%s: %w", cmd, err)
 	}
 
-	output, err := b.run(ctx, repo, input, cmd, args...)
+	output, err := b.run(ctx, repo, input, cmd)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", cmd, err)
 	}

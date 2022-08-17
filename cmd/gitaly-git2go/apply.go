@@ -138,20 +138,8 @@ func (cmd *applySubcommand) applyPatch(
 	}
 
 	author := git.Signature(patch.Author)
-	commitBytes, err := repo.CreateCommitBuffer(&author, committer, git.MessageEncodingUTF8, patch.Message, patchedTree, parentCommit)
-	if err != nil {
-		return nil, fmt.Errorf("create commit buffer: %w", err)
-	}
-
-	var signature string
-	if cmd.signingKeyPath != "" {
-		signature, err = git2goutil.ReadSigningKeyAndSign(cmd.signingKeyPath, string(commitBytes))
-		if err != nil {
-			return nil, fmt.Errorf("read openpgp key: %w", err)
-		}
-	}
-
-	patchedCommitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
+	patchedCommitID, err := git2goutil.NewCommitSubmitter(repo, cmd.signingKeyPath).
+		Commit(&author, committer, git.MessageEncodingUTF8, patch.Message, patchedTree, parentCommit)
 	if err != nil {
 		return nil, fmt.Errorf("create commit: %w", err)
 	}

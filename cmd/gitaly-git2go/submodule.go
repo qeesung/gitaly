@@ -125,33 +125,21 @@ func (cmd *submoduleSubcommand) run(request git2go.SubmoduleCommand) (*git2go.Su
 			request.AuthorDate,
 		),
 	)
-	commitBytes, err := repo.CreateCommitBuffer(
-		// caller should update branch with hooks
-		&committer,
-		&committer,
-		git.MessageEncodingUTF8,
-		request.Message,
-		newTree,
-		startCommit,
-	)
+
+	newCommitOID, err := git2goutil.NewCommitSubmitter(repo, cmd.signingKeyPath).
+		Commit(
+			&committer,
+			&committer,
+			git.MessageEncodingUTF8,
+			request.Message,
+			newTree,
+			startCommit,
+		)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"%s: %w",
 			git2go.LegacyErrPrefixFailedCommit, err,
 		)
-	}
-
-	var signature string
-	if cmd.signingKeyPath != "" {
-		signature, err = git2goutil.ReadSigningKeyAndSign(cmd.signingKeyPath, string(commitBytes))
-		if err != nil {
-			return nil, fmt.Errorf("read openpgp key: %w", err)
-		}
-	}
-
-	newCommitOID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
-	if err != nil {
-		return nil, fmt.Errorf("create not create cherry-pick commit: %w", err)
 	}
 
 	return &git2go.SubmoduleResult{

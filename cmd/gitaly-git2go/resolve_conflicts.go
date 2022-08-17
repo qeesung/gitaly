@@ -200,20 +200,8 @@ func (cmd resolveSubcommand) Run(_ context.Context, decoder *gob.Decoder, encode
 		When:  request.AuthorDate,
 	}
 
-	commitBytes, err := repo.CreateCommitBuffer(committer, committer, git.MessageEncodingUTF8, request.Message, tree, ours, theirs)
-	if err != nil {
-		return fmt.Errorf("could not create resolve conflict commit: %w", err)
-	}
-
-	var signature string
-	if cmd.signingKeyPath != "" {
-		signature, err = git2goutil.ReadSigningKeyAndSign(cmd.signingKeyPath, string(commitBytes))
-		if err != nil {
-			return fmt.Errorf("read openpgp key: %w", err)
-		}
-	}
-
-	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
+	commitID, err := git2goutil.NewCommitSubmitter(repo, cmd.signingKeyPath).
+		Commit(committer, committer, git.MessageEncodingUTF8, request.Message, tree, ours, theirs)
 	if err != nil {
 		return fmt.Errorf("create commit: %w", err)
 	}

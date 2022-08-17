@@ -14,14 +14,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 
-type cherryPickSubcommand struct {
-	signingKeyPath string
-}
+type cherryPickSubcommand struct{}
 
 func (cmd *cherryPickSubcommand) Flags() *flag.FlagSet {
-	fs := flag.NewFlagSet("cherry-pick", flag.ExitOnError)
-	fs.StringVar(&cmd.signingKeyPath, "signing-key", "", "Path to the OpenPGP signing key.")
-	return fs
+	return flag.NewFlagSet("cherry-pick", flag.ExitOnError)
 }
 
 func (cmd *cherryPickSubcommand) Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
@@ -121,20 +117,8 @@ func (cmd *cherryPickSubcommand) cherryPick(ctx context.Context, r *git2go.Cherr
 
 	committer := git.Signature(git2go.NewSignature(r.CommitterName, r.CommitterMail, r.CommitterDate))
 
-	commitBytes, err := repo.CreateCommitBuffer(pick.Author(), &committer, git.MessageEncodingUTF8, r.Message, tree, ours)
-	if err != nil {
-		return "", fmt.Errorf("could not create cherry-pick commit buffer: %w", err)
-	}
-
-	var signature string
-	if cmd.signingKeyPath != "" {
-		signature, err = git2goutil.ReadSigningKeyAndSign(cmd.signingKeyPath, string(commitBytes))
-		if err != nil {
-			return "", fmt.Errorf("read openpgp key: %w", err)
-		}
-	}
-
-	commitID, err := repo.CreateCommitWithSignature(string(commitBytes), signature, "")
+	commitID, err := git2goutil.NewCommitSubmitter(repo, r.SigningKey).
+		Commit(pick.Author(), &committer, git.MessageEncodingUTF8, r.Message, tree, ours)
 	if err != nil {
 		return "", fmt.Errorf("create not create cherry-pick commit: %w", err)
 	}
