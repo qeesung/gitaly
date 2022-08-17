@@ -16,9 +16,9 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/yamux v0.1.1
-	github.com/jackc/pgconn v1.12.1
-	github.com/jackc/pgtype v1.11.0
-	github.com/jackc/pgx/v4 v4.16.1
+	github.com/jackc/pgconn v1.13.0
+	github.com/jackc/pgtype v1.12.0
+	github.com/jackc/pgx/v4 v4.17.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/libgit2/git2go/v33 v33.0.9
 	github.com/olekukonko/tablewriter v0.0.5
@@ -117,7 +117,7 @@ require (
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgproto3/v2 v2.3.0 // indirect
+	github.com/jackc/pgproto3/v2 v2.3.1 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
@@ -160,7 +160,7 @@ require (
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
+	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5 // indirect
 	golang.org/x/net v0.0.0-20220531201128-c960675eff93 // indirect
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a // indirect
