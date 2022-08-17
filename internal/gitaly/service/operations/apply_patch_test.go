@@ -293,7 +293,7 @@ To restore the original branch and stop patching, run "git am --abort".
 			var baseCommit git.ObjectID
 			for _, action := range tc.baseCommit {
 				var err error
-				baseCommit, err = executor.Commit(ctx, rewrittenRepo, git2go.CommitParams{
+				baseCommit, err = executor.Commit(ctx, rewrittenRepo, git2go.CommitCommand{
 					Repository: repoPath,
 					Author:     author,
 					Committer:  committer,
@@ -309,7 +309,7 @@ To restore the original branch and stop patching, run "git am --abort".
 			}
 
 			if tc.extraBranches != nil {
-				emptyCommit, err := executor.Commit(ctx, rewrittenRepo, git2go.CommitParams{
+				emptyCommit, err := executor.Commit(ctx, rewrittenRepo, git2go.CommitCommand{
 					Repository: repoPath,
 					Author:     author,
 					Committer:  committer,
@@ -329,7 +329,7 @@ To restore the original branch and stop patching, run "git am --abort".
 				commit := baseCommit
 				for _, action := range commitActions {
 					var err error
-					commit, err = executor.Commit(ctx, rewrittenRepo, git2go.CommitParams{
+					commit, err = executor.Commit(ctx, rewrittenRepo, git2go.CommitCommand{
 						Repository: repoPath,
 						Author:     author,
 						Committer:  committer,

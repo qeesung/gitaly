@@ -14,14 +14,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 
-type submoduleSubcommand struct {
-	signingKeyPath string
-}
+type submoduleSubcommand struct{}
 
 func (cmd *submoduleSubcommand) Flags() *flag.FlagSet {
-	fs := flag.NewFlagSet("submodule", flag.ExitOnError)
-	fs.StringVar(&cmd.signingKeyPath, "signing-key", "", "Path to the OpenPGP signing key.")
-	return fs
+	return flag.NewFlagSet("submodule", flag.ExitOnError)
 }
 
 func (cmd *submoduleSubcommand) Run(_ context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
@@ -126,7 +122,7 @@ func (cmd *submoduleSubcommand) run(request git2go.SubmoduleCommand) (*git2go.Su
 		),
 	)
 
-	newCommitOID, err := git2goutil.NewCommitSubmitter(repo, cmd.signingKeyPath).
+	newCommitOID, err := git2goutil.NewCommitSubmitter(repo, request.SigningKey).
 		Commit(
 			&committer,
 			&committer,

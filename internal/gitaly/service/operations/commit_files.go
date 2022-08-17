@@ -291,7 +291,7 @@ func (s *Server) userCommitFiles(ctx context.Context, header *gitalypb.UserCommi
 		author = git2go.NewSignature(string(header.CommitAuthorName), string(header.CommitAuthorEmail), now)
 	}
 
-	commitID, err := s.git2goExecutor.Commit(ctx, quarantineRepo, git2go.CommitParams{
+	commitID, err := s.git2goExecutor.Commit(ctx, quarantineRepo, git2go.CommitCommand{
 		Repository: repoPath,
 		Author:     author,
 		Committer:  committer,

@@ -18,14 +18,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 )
 
-type resolveSubcommand struct {
-	signingKeyPath string
-}
+type resolveSubcommand struct{}
 
 func (cmd *resolveSubcommand) Flags() *flag.FlagSet {
-	fs := flag.NewFlagSet("resolve", flag.ExitOnError)
-	fs.StringVar(&cmd.signingKeyPath, "signing-key", "", "Path to the OpenPGP signing key.")
-	return fs
+	return flag.NewFlagSet("resolve", flag.ExitOnError)
 }
 
 func (cmd resolveSubcommand) Run(_ context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
@@ -200,7 +196,7 @@ func (cmd resolveSubcommand) Run(_ context.Context, decoder *gob.Decoder, encode
 		When:  request.AuthorDate,
 	}
 
-	commitID, err := git2goutil.NewCommitSubmitter(repo, cmd.signingKeyPath).
+	commitID, err := git2goutil.NewCommitSubmitter(repo, request.SigningKey).
 		Commit(committer, committer, git.MessageEncodingUTF8, request.Message, tree, ours, theirs)
 	if err != nil {
 		return fmt.Errorf("create commit: %w", err)

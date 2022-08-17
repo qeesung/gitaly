@@ -257,7 +257,7 @@ func (cf *ExecCommandFactory) GetExecutionEnvironment(ctx context.Context) Execu
 	}
 
 	// If none is enabled though, we simply use the first execution environment, which is also
-	// the one with highest priority. This can for example happen in case we only were able to
+	// the one with the highest priority. This can for example happen in case we only were able to
 	// construct a single execution environment that is currently feature flagged.
 	return cf.execEnvs[0]
 }

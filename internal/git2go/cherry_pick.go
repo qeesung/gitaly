@@ -8,9 +8,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 )
 
-// CherryPickCommand contains parameters to perform a cherry pick.
+// CherryPickCommand contains parameters to perform a cherry-pick.
 type CherryPickCommand struct {
-	// Repository is the path where to execute the cherry pick.
+	// Repository is the path where to execute the cherry-pick.
 	Repository string
 	// CommitterName is the committer name for the resulting commit.
 	CommitterName string

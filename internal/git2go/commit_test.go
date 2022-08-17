@@ -67,9 +67,9 @@ func TestExecutor_Commit(t *testing.T) {
 	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 	for _, tc := range []struct {
-		desc  string
-		steps []step
-		sign  bool
+		desc          string
+		steps         []step
+		signAndVerify bool
 	}{
 		{
 			desc: "create directory",
@@ -473,21 +473,21 @@ func TestExecutor_Commit(t *testing.T) {
 					},
 				},
 			},
-			sign: true,
+			signAndVerify: true,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			author := NewSignature("Author Name", "author.email@example.com", time.Now())
 			committer := NewSignature("Committer Name", "committer.email@example.com", time.Now())
 
-			if tc.sign {
+			if tc.signAndVerify {
 				executor.signingKey = "testdata/signingKey.gpg"
 			}
 
 			var parentCommit git.ObjectID
 			for i, step := range tc.steps {
 				message := fmt.Sprintf("commit %d", i+1)
-				commitID, err := executor.Commit(ctx, repo, CommitParams{
+				commitID, err := executor.Commit(ctx, repo, CommitCommand{
 					Repository: repoPath,
 					Author:     author,
 					Committer:  committer,
@@ -508,7 +508,7 @@ func TestExecutor_Commit(t *testing.T) {
 					Author:    author,
 					Committer: committer,
 					Message:   message,
-				}, getCommit(t, ctx, repo, commitID))
+				}, getCommit(t, ctx, repo, commitID, tc.signAndVerify))
 
 				gittest.RequireTree(t, cfg, repoPath, commitID.String(), step.treeEntries)
 				parentCommit = commitID
@@ -517,7 +517,7 @@ func TestExecutor_Commit(t *testing.T) {
 	}
 }
 
-func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git.ObjectID) commit {
+func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git.ObjectID, verify bool) commit {
 	tb.Helper()
 
 	data, err := repo.ReadObject(ctx, oid)
@@ -568,7 +568,7 @@ func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git
 		}
 	}
 
-	if gpgsig != "" {
+	if gpgsig != "" || verify {
 		file, err := os.Open("testdata/publicKey.gpg")
 		require.NoError(tb, err)
 

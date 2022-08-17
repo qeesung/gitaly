@@ -28,6 +28,8 @@ type ResolveResult struct {
 
 // Resolve will attempt merging and resolving conflicts for the provided request
 func (b *Executor) Resolve(ctx context.Context, repo repository.GitRepo, r ResolveCommand) (ResolveResult, error) {
+	r.SigningKey = b.signingKey
+
 	if err := r.verify(); err != nil {
 		return ResolveResult{}, fmt.Errorf("resolve: %w: %s", ErrInvalidArgument, err.Error())
 	}
@@ -37,12 +39,7 @@ func (b *Executor) Resolve(ctx context.Context, repo repository.GitRepo, r Resol
 		return ResolveResult{}, fmt.Errorf("resolve: %w", err)
 	}
 
-	var args []string
-	if b.signingKey != "" {
-		args = []string{"-signing-key", b.signingKey}
-	}
-
-	stdout, err := b.run(ctx, repo, input, "resolve", args...)
+	stdout, err := b.run(ctx, repo, input, "resolve")
 	if err != nil {
 		return ResolveResult{}, err
 	}

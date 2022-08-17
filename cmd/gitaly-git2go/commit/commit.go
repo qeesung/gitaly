@@ -15,7 +15,7 @@ import (
 
 // Run runs the commit subcommand.
 func Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
-	var params git2go.CommitParams
+	var params git2go.CommitCommand
 	if err := decoder.Decode(&params); err != nil {
 		return err
 	}
@@ -27,8 +27,8 @@ func Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error 
 	})
 }
 
-func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
-	repo, err := git2goutil.OpenRepository(params.Repository)
+func commit(ctx context.Context, request git2go.CommitCommand) (string, error) {
+	repo, err := git2goutil.OpenRepository(request.Repository)
 	if err != nil {
 		return "", fmt.Errorf("open repository: %w", err)
 	}
@@ -39,8 +39,8 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 	}
 
 	var parents []*git.Commit
-	if params.Parent != "" {
-		parentOID, err := git.NewOid(params.Parent)
+	if request.Parent != "" {
+		parentOID, err := git.NewOid(request.Parent)
 		if err != nil {
 			return "", fmt.Errorf("parse base commit oid: %w", err)
 		}
@@ -62,7 +62,7 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 		}
 	}
 
-	for _, action := range params.Actions {
+	for _, action := range request.Actions {
 		if err := apply(action, repo, index); err != nil {
 			if git.IsErrorClass(err, git.ErrorClassIndex) {
 				err = git2go.IndexError(err.Error())
@@ -81,10 +81,10 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 		return "", fmt.Errorf("lookup tree: %w", err)
 	}
 
-	author := git.Signature(params.Author)
-	committer := git.Signature(params.Committer)
-	commitID, err := git2goutil.NewCommitSubmitter(repo, signingKeyPathFromContext(ctx)).
-		Commit(&author, &committer, git.MessageEncodingUTF8, params.Message, tree, parents...)
+	author := git.Signature(request.Author)
+	committer := git.Signature(request.Committer)
+	commitID, err := git2goutil.NewCommitSubmitter(repo, request.SigningKey).
+		Commit(&author, &committer, git.MessageEncodingUTF8, request.Message, tree, parents...)
 	if err != nil {
 		if git.IsErrorClass(err, git.ErrorClassInvalid) {
 			return "", git2go.InvalidArgumentError(err.Error())
@@ -113,12 +113,4 @@ func apply(action git2go.Action, repo *git.Repository, index *git.Index) error {
 	default:
 		return errors.New("unsupported action")
 	}
-}
-
-func signingKeyPathFromContext(ctx context.Context) string {
-	signingKeyPath, ok := ctx.Value(git2goutil.SigningKeyPathKey{}).(string)
-	if !ok {
-		return ""
-	}
-	return signingKeyPath
 }

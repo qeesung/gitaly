@@ -37,6 +37,9 @@ type SubmoduleCommand struct {
 	Submodule string
 	// Branch where to commit submodule update
 	Branch string
+
+	// SigningKey is a path to the key to sign commit using OpenPGP
+	SigningKey string
 }
 
 // SubmoduleResult contains results from a committing a submodule update
@@ -47,6 +50,8 @@ type SubmoduleResult struct {
 
 // Submodule attempts to commit the request submodule change
 func (b *Executor) Submodule(ctx context.Context, repo repository.GitRepo, s SubmoduleCommand) (SubmoduleResult, error) {
+	s.SigningKey = b.signingKey
+
 	if err := s.verify(); err != nil {
 		return SubmoduleResult{}, fmt.Errorf("submodule: %w", err)
 	}
@@ -57,15 +62,10 @@ func (b *Executor) Submodule(ctx context.Context, repo repository.GitRepo, s Sub
 		return SubmoduleResult{}, fmt.Errorf("%s: %w", cmd, err)
 	}
 
-	var args []string
-	if b.signingKey != "" {
-		args = []string{"-signing-key", b.signingKey}
-	}
-
 	// Ideally we would use `b.runWithGob` here to avoid the gob encoding
 	// boilerplate, but it is not possible here because `runWithGob` adds error
 	// prefixes and the `LegacyErrPrefix*` errors must match exactly.
-	stdout, err := b.run(ctx, repo, input, cmd, args...)
+	stdout, err := b.run(ctx, repo, input, cmd)
 	if err != nil {
 		return SubmoduleResult{}, err
 	}

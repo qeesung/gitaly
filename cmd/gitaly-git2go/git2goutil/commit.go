@@ -6,9 +6,6 @@ import (
 	git "github.com/libgit2/git2go/v33"
 )
 
-// SigningKeyPathKey is the key for a context value.
-type SigningKeyPathKey struct{}
-
 // CommitSubmitter is the helper struct to make signed Commits conveniently.
 type CommitSubmitter struct {
 	Repo           *git.Repository
