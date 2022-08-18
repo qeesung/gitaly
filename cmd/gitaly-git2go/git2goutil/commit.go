@@ -33,12 +33,9 @@ func (cs *CommitSubmitter) Commit(
 		return nil, err
 	}
 
-	var signature string
-	if cs.SigningKeyPath != "" {
-		signature, err = CreateCommitSignature(cs.SigningKeyPath, string(commitBytes))
-		if err != nil {
-			return nil, fmt.Errorf("create commit signature: %w", err)
-		}
+	signature, err := CreateCommitSignature(cs.SigningKeyPath, string(commitBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create commit signature: %w", err)
 	}
 
 	commitID, err := cs.Repo.CreateCommitWithSignature(string(commitBytes), signature, "")
