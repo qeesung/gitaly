@@ -105,8 +105,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.WithError(run(cfg)).Error("shutting down")
-	log.Info("Gitaly stopped")
+
+	if err := run(cfg); err != nil {
+		log.WithError(err).Error("Gitaly shutdown")
+		os.Exit(1)
+	}
+
+	log.Info("Gitaly shutdown")
 }
 
 func configure(configPath string) (config.Cfg, error) {
