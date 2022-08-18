@@ -265,7 +265,7 @@ func TestUserCommitFiles(t *testing.T) {
 			},
 		},
 		{
-			desc: "create file does not normalize line endings",
+			desc: "create file normalizes line endings",
 			steps: []step{
 				{
 					actions: []*gitalypb.UserCommitFilesRequest{
@@ -276,7 +276,7 @@ func TestUserCommitFiles(t *testing.T) {
 					repoCreated:   true,
 					branchCreated: true,
 					treeEntries: []gittest.TreeEntry{
-						{Mode: DefaultMode, Path: "file-1", Content: "content-1\r\n content-2\r\n"},
+						{Mode: DefaultMode, Path: "file-1", Content: "content-1\n content-2\n"},
 					},
 				},
 			},
@@ -330,7 +330,7 @@ func TestUserCommitFiles(t *testing.T) {
 			},
 		},
 		{
-			desc: "update file does not normalize line endings",
+			desc: "update file normalizes line endings",
 			steps: []step{
 				{
 					actions: []*gitalypb.UserCommitFilesRequest{
@@ -342,7 +342,7 @@ func TestUserCommitFiles(t *testing.T) {
 					repoCreated:   true,
 					branchCreated: true,
 					treeEntries: []gittest.TreeEntry{
-						{Mode: DefaultMode, Path: "file-1", Content: "content-2\r\n"},
+						{Mode: DefaultMode, Path: "file-1", Content: "content-2\n"},
 					},
 				},
 			},
@@ -601,7 +601,7 @@ func TestUserCommitFiles(t *testing.T) {
 			},
 		},
 		{
-			desc: "move file does not normalize line endings",
+			desc: "move file normalizes line endings",
 			steps: []step{
 				{
 					actions: []*gitalypb.UserCommitFilesRequest{
@@ -620,7 +620,7 @@ func TestUserCommitFiles(t *testing.T) {
 						actionContentRequest("new-content\r\n"),
 					},
 					treeEntries: []gittest.TreeEntry{
-						{Mode: DefaultMode, Path: "moved-file", Content: "new-content\r\n"},
+						{Mode: DefaultMode, Path: "moved-file", Content: "new-content\n"},
 					},
 				},
 			},

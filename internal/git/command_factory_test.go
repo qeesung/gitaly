@@ -4,7 +4,6 @@ package git_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -473,10 +472,8 @@ func TestExecCommandFactory_GitVersion(t *testing.T) {
 
 func TestExecCommandFactory_config(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.AutocrlfConfig).Run(t, testExecCommandFactoryConfig)
-}
 
-func testExecCommandFactoryConfig(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
 	// Create a repository and remove its gitconfig to bring us into a known state where there
@@ -486,15 +483,9 @@ func testExecCommandFactoryConfig(t *testing.T, ctx context.Context) {
 	})
 	require.NoError(t, os.Remove(filepath.Join(repoDir, "config")))
 
-	// Feature flag to change the default global configuration of autocrlf.
-	autocrlf := "input"
-	if featureflag.AutocrlfConfig.IsEnabled(ctx) {
-		autocrlf = "false"
-	}
-
 	commonEnv := []string{
 		"gc.auto=0",
-		"core.autocrlf=" + autocrlf,
+		"core.autocrlf=input",
 		"core.usereplacerefs=false",
 		"commitgraph.generationversion=1",
 	}
@@ -545,25 +536,17 @@ func testExecCommandFactoryConfig(t *testing.T, ctx context.Context) {
 
 func TestExecCommandFactory_SidecarGitConfiguration(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.AutocrlfConfig).Run(t, testExecCommandFactorySidecarGitConfiguration)
-}
 
-func testExecCommandFactorySidecarGitConfiguration(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
 	cfg.Git.Config = []config.GitConfig{
 		{Key: "custom.key", Value: "injected"},
 	}
 
-	// Feature flag to change the default global configuration of autocrlf.
-	autocrlf := "input"
-	if featureflag.AutocrlfConfig.IsEnabled(ctx) {
-		autocrlf = "false"
-	}
-
 	commonHead := []git.ConfigPair{
 		{Key: "gc.auto", Value: "0"},
-		{Key: "core.autocrlf", Value: autocrlf},
+		{Key: "core.autocrlf", Value: "input"},
 		{Key: "core.useReplaceRefs", Value: "false"},
 		{Key: "commitGraph.generationVersion", Value: "1"},
 	}
