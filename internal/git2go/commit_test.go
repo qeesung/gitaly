@@ -33,7 +33,6 @@ type commit struct {
 	Author    Signature
 	Committer Signature
 	Message   string
-	GPGSig    string
 }
 
 func TestExecutor_Commit(t *testing.T) {
