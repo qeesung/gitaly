@@ -73,15 +73,7 @@ func (cmd *rebaseSubcommand) rebase(ctx context.Context, request *git2go.RebaseC
 		return "", fmt.Errorf("get rebase options: %w", err)
 	}
 	opts.InMemory = 1
-	opts.CommitCreateCallback = func(author, committer *git.Signature, messageEncoding git.MessageEncoding, message string, tree *git.Tree, parents ...*git.Commit) (oid *git.Oid, err error) {
-		commitID, err := git2goutil.NewCommitSubmitter(repo, request.SigningKey).
-			Commit(author, committer, messageEncoding, message, tree, parents...)
-		if err != nil {
-			return nil, fmt.Errorf("create commit: %w", err)
-		}
-
-		return commitID, nil
-	}
+	opts.CommitCreateCallback = git2goutil.NewCommitSubmitter(repo, request.SigningKey).Commit
 
 	var commit *git.AnnotatedCommit
 	if request.BranchName != "" {
