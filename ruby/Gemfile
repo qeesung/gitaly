@@ -17,7 +17,7 @@ gem 'gitlab-labkit', '~> 0.23'
 
 # Detects the open source license the repository includes
 # This version needs to be in sync with GitLab CE/EE
-gem 'licensee', '~> 9.14.1'
+gem 'licensee', '~> 9.15'
 
 gem 'google-protobuf', '~> 3.21.0'
 
