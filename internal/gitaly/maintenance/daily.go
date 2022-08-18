@@ -55,20 +55,20 @@ func (dw DailyWorker) StartDaily(ctx context.Context, l logrus.FieldLogger, sche
 		case <-ctx.Done():
 			return ctx.Err()
 		case start = <-dw.timer(nt.Sub(dw.clock())):
-			l.WithField("max_duration", schedule.Duration.Duration()).
+			l.WithField("max_duration", schedule.Duration).
 				Info("maintenance: daily starting")
 		}
 
 		var jobErr error
 		dontpanic.Try(func() {
-			ctx, cancel := context.WithTimeout(ctx, schedule.Duration.Duration())
+			ctx, cancel := context.WithTimeout(ctx, schedule.Duration)
 			defer cancel()
 
 			jobErr = job(ctx, l, schedule.Storages)
 		})
 
 		l.WithError(jobErr).
-			WithField("max_duration", schedule.Duration.Duration()).
+			WithField("max_duration", schedule.Duration).
 			WithField("actual_duration", time.Since(start)).
 			Info("maintenance: daily completed")
 	}

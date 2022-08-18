@@ -276,7 +276,7 @@ func WithConcurrencyLimiters(cfg config.Cfg, middleware *LimiterMiddleware) {
 		if limit.MaxQueueWait > 0 {
 			limit := limit
 			newTickerFunc = func() helper.Ticker {
-				return helper.NewTimerTicker(limit.MaxQueueWait.Duration())
+				return helper.NewTimerTicker(limit.MaxQueueWait)
 			}
 		}
 

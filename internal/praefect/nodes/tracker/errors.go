@@ -32,7 +32,7 @@ func NewErrorWindowFunction(cfg config.Failover) (ErrorWindowFunction, error) {
 		return nil, errors.New("errorWindow must be non zero")
 	}
 
-	errorWindow := cfg.ErrorThresholdWindow.Duration()
+	errorWindow := cfg.ErrorThresholdWindow
 	return func(now time.Time, errorTime time.Time) bool {
 		return errorTime.After(now.Add(-errorWindow))
 	}, nil

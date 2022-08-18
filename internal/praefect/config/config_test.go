@@ -205,14 +205,14 @@ func TestConfigValidation(t *testing.T) {
 		{
 			desc: "repositories_cleanup minimal duration is too low",
 			changeConfig: func(cfg *Config) {
-				cfg.RepositoriesCleanup.CheckInterval = config.Duration(minimalSyncCheckInterval - time.Nanosecond)
+				cfg.RepositoriesCleanup.CheckInterval = minimalSyncCheckInterval - time.Nanosecond
 			},
 			errMsg: `repositories_cleanup.check_interval is less then 1m0s, which could lead to a database performance problem`,
 		},
 		{
 			desc: "repositories_cleanup minimal duration is too low",
 			changeConfig: func(cfg *Config) {
-				cfg.RepositoriesCleanup.RunInterval = config.Duration(minimalSyncRunInterval - time.Nanosecond)
+				cfg.RepositoriesCleanup.RunInterval = minimalSyncRunInterval - time.Nanosecond
 			},
 			errMsg: `repositories_cleanup.run_interval is less then 1m0s, which could lead to a database performance problem`,
 		},
@@ -317,24 +317,24 @@ func TestConfigParsing(t *testing.T) {
 					},
 				},
 				MemoryQueueEnabled:  true,
-				GracefulStopTimeout: config.Duration(30 * time.Second),
+				GracefulStopTimeout: 30 * time.Second,
 				Reconciliation: Reconciliation{
-					SchedulingInterval: config.Duration(time.Minute),
+					SchedulingInterval: time.Minute,
 					HistogramBuckets:   []float64{1, 2, 3, 4, 5},
 				},
 				Replication: Replication{BatchSize: 1, ParallelStorageProcessingWorkers: 2},
 				Failover: Failover{
 					Enabled:                  true,
 					ElectionStrategy:         ElectionStrategyPerRepository,
-					ErrorThresholdWindow:     config.Duration(20 * time.Second),
+					ErrorThresholdWindow:     20 * time.Second,
 					WriteErrorThresholdCount: 1500,
 					ReadErrorThresholdCount:  100,
-					BootstrapInterval:        config.Duration(1 * time.Second),
-					MonitorInterval:          config.Duration(3 * time.Second),
+					BootstrapInterval:        1 * time.Second,
+					MonitorInterval:          3 * time.Second,
 				},
 				RepositoriesCleanup: RepositoriesCleanup{
-					CheckInterval:       config.Duration(time.Second),
-					RunInterval:         config.Duration(3 * time.Second),
+					CheckInterval:       time.Second,
+					RunInterval:         3 * time.Second,
 					RepositoriesInBatch: 10,
 				},
 				BackgroundVerification: BackgroundVerification{
@@ -347,7 +347,7 @@ func TestConfigParsing(t *testing.T) {
 			desc:     "overwriting default values in the config",
 			filePath: "testdata/config.overwritedefaults.toml",
 			expected: Config{
-				GracefulStopTimeout: config.Duration(time.Minute),
+				GracefulStopTimeout: time.Minute,
 				Reconciliation: Reconciliation{
 					SchedulingInterval: 0,
 					HistogramBuckets:   []float64{1, 2, 3, 4, 5},
@@ -358,12 +358,12 @@ func TestConfigParsing(t *testing.T) {
 				Failover: Failover{
 					Enabled:           false,
 					ElectionStrategy:  "local",
-					BootstrapInterval: config.Duration(5 * time.Second),
-					MonitorInterval:   config.Duration(10 * time.Second),
+					BootstrapInterval: 5 * time.Second,
+					MonitorInterval:   10 * time.Second,
 				},
 				RepositoriesCleanup: RepositoriesCleanup{
-					CheckInterval:       config.Duration(time.Second),
-					RunInterval:         config.Duration(4 * time.Second),
+					CheckInterval:       time.Second,
+					RunInterval:         4 * time.Second,
 					RepositoriesInBatch: 11,
 				},
 				BackgroundVerification: DefaultBackgroundVerificationConfig(),
@@ -373,7 +373,7 @@ func TestConfigParsing(t *testing.T) {
 			desc:     "empty config yields default values",
 			filePath: "testdata/config.empty.toml",
 			expected: Config{
-				GracefulStopTimeout: config.Duration(time.Minute),
+				GracefulStopTimeout: time.Minute,
 				Prometheus:          prometheus.DefaultConfig(),
 				PrometheusExcludeDatabaseFromDefaultMetrics: true,
 				Reconciliation: DefaultReconciliationConfig(),
@@ -381,12 +381,12 @@ func TestConfigParsing(t *testing.T) {
 				Failover: Failover{
 					Enabled:           true,
 					ElectionStrategy:  ElectionStrategyPerRepository,
-					BootstrapInterval: config.Duration(time.Second),
-					MonitorInterval:   config.Duration(3 * time.Second),
+					BootstrapInterval: time.Second,
+					MonitorInterval:   3 * time.Second,
 				},
 				RepositoriesCleanup: RepositoriesCleanup{
-					CheckInterval:       config.Duration(30 * time.Minute),
-					RunInterval:         config.Duration(24 * time.Hour),
+					CheckInterval:       30 * time.Minute,
+					RunInterval:         24 * time.Hour,
 					RepositoriesInBatch: 16,
 				},
 				BackgroundVerification: DefaultBackgroundVerificationConfig(),

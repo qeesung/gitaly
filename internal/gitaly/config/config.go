@@ -32,10 +32,10 @@ const (
 
 // DailyJob enables a daily task to be scheduled for specific storages
 type DailyJob struct {
-	Hour     uint     `toml:"start_hour"`
-	Minute   uint     `toml:"start_minute"`
-	Duration Duration `toml:"duration"`
-	Storages []string `toml:"storages"`
+	Hour     uint          `toml:"start_hour"`
+	Minute   uint          `toml:"start_minute"`
+	Duration time.Duration `toml:"duration"`
+	Storages []string      `toml:"storages"`
 
 	// Disabled will completely disable a daily job, even in cases where a
 	// default schedule is implied
@@ -62,7 +62,7 @@ type Cfg struct {
 	Hooks                  Hooks             `toml:"hooks"`
 	Concurrency            []Concurrency     `toml:"concurrency"`
 	RateLimiting           []RateLimiting    `toml:"rate_limiting"`
-	GracefulRestartTimeout Duration          `toml:"graceful_restart_timeout"`
+	GracefulRestartTimeout time.Duration     `toml:"graceful_restart_timeout"`
 	DailyMaintenance       DailyJob          `toml:"daily_maintenance"`
 	Cgroups                cgroups.Config    `toml:"cgroups"`
 	PackObjectsCache       StreamCacheConfig `toml:"pack_objects_cache"`
@@ -147,7 +147,7 @@ type Concurrency struct {
 	MaxQueueSize int `toml:"max_queue_size"`
 	// MaxQueueWait is the maximum time a request can remain in the concurrency queue
 	// waiting to be picked up by Gitaly
-	MaxQueueWait Duration `toml:"max_queue_wait"`
+	MaxQueueWait time.Duration `toml:"max_queue_wait"`
 }
 
 // RateLimiting allows endpoints to be limited to a maximum request rate per
@@ -168,9 +168,9 @@ type RateLimiting struct {
 
 // StreamCacheConfig contains settings for a streamcache instance.
 type StreamCacheConfig struct {
-	Enabled bool     `toml:"enabled"` // Default: false
-	Dir     string   `toml:"dir"`     // Default: <FIRST STORAGE PATH>/+gitaly/PackObjectsCache
-	MaxAge  Duration `toml:"max_age"` // Default: 5m
+	Enabled bool          `toml:"enabled"` // Default: false
+	Dir     string        `toml:"dir"`     // Default: <FIRST STORAGE PATH>/+gitaly/PackObjectsCache
+	MaxAge  time.Duration `toml:"max_age"` // Default: 5m
 }
 
 // Load initializes the Config variable from file and the environment.
@@ -219,8 +219,8 @@ func (cfg *Cfg) Validate() error {
 }
 
 func (cfg *Cfg) setDefaults() error {
-	if cfg.GracefulRestartTimeout.Duration() == 0 {
-		cfg.GracefulRestartTimeout = Duration(time.Minute)
+	if cfg.GracefulRestartTimeout == 0 {
+		cfg.GracefulRestartTimeout = time.Minute
 	}
 
 	if cfg.Gitlab.SecretFile == "" {
@@ -462,7 +462,7 @@ func defaultMaintenanceWindow(storages []Storage) DailyJob {
 	return DailyJob{
 		Hour:     12,
 		Minute:   0,
-		Duration: Duration(10 * time.Minute),
+		Duration: 10 * time.Minute,
 		Storages: storageNames,
 	}
 }
@@ -486,8 +486,8 @@ func (cfg *Cfg) validateMaintenance() error {
 	if dm.Minute > 59 {
 		return fmt.Errorf("daily maintenance specified minute '%d' outside range (0-59)", dm.Minute)
 	}
-	if dm.Duration.Duration() > 24*time.Hour {
-		return fmt.Errorf("daily maintenance specified duration %s must be less than 24 hours", dm.Duration.Duration())
+	if dm.Duration > 24*time.Hour {
+		return fmt.Errorf("daily maintenance specified duration %s must be less than 24 hours", dm.Duration)
 	}
 
 	return nil
@@ -524,7 +524,7 @@ func (cfg *Cfg) configurePackObjectsCache() error {
 	}
 
 	if poc.MaxAge == 0 {
-		poc.MaxAge = Duration(5 * time.Minute)
+		poc.MaxAge = 5 * time.Minute
 	}
 
 	if poc.Dir == "" {

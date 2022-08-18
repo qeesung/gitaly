@@ -26,7 +26,7 @@ func newCache(dir string) Cache {
 	return New(config.StreamCacheConfig{
 		Enabled: true,
 		Dir:     dir,
-		MaxAge:  config.Duration(time.Hour),
+		MaxAge:  time.Hour,
 	}, log.Default())
 }
 

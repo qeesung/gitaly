@@ -394,7 +394,7 @@ func run(
 		primaryGetter = nodeMgr
 		nodeManager = nodeMgr
 
-		nodeMgr.Start(conf.Failover.BootstrapInterval.Duration(), conf.Failover.MonitorInterval.Duration())
+		nodeMgr.Start(conf.Failover.BootstrapInterval, conf.Failover.MonitorInterval)
 		defer nodeMgr.Stop()
 	}
 
@@ -520,7 +520,7 @@ func run(
 	repl.ProcessStale(ctx, staleTicker, time.Minute)
 	logger.Info("background started: processing of the stale replication events")
 
-	if interval := conf.Reconciliation.SchedulingInterval.Duration(); interval > 0 {
+	if interval := conf.Reconciliation.SchedulingInterval; interval > 0 {
 		if conf.MemoryQueueEnabled {
 			logger.Warn("Disabled automatic reconciliation as it is only implemented using SQL queue and in-memory queue is configured.")
 		} else {
@@ -540,17 +540,17 @@ func run(
 		}
 	}
 
-	if interval := conf.RepositoriesCleanup.RunInterval.Duration(); interval > 0 {
+	if interval := conf.RepositoriesCleanup.RunInterval; interval > 0 {
 		if db != nil {
 			go func() {
 				storageSync := datastore.NewStorageCleanup(db)
 				cfg := repocleaner.Cfg{
-					RunInterval:         conf.RepositoriesCleanup.RunInterval.Duration(),
+					RunInterval:         conf.RepositoriesCleanup.RunInterval,
 					LivenessInterval:    30 * time.Second,
 					RepositoriesInBatch: conf.RepositoriesCleanup.RepositoriesInBatch,
 				}
 				repoCleaner := repocleaner.NewRunner(cfg, logger, healthChecker, nodeSet.Connections(), storageSync, storageSync, repocleaner.NewLogWarnAction(logger))
-				if err := repoCleaner.Run(ctx, helper.NewTimerTicker(conf.RepositoriesCleanup.CheckInterval.Duration())); err != nil && !errors.Is(context.Canceled, err) {
+				if err := repoCleaner.Run(ctx, helper.NewTimerTicker(conf.RepositoriesCleanup.CheckInterval)); err != nil && !errors.Is(context.Canceled, err) {
 					logger.WithError(err).Error("repository cleaner finished execution")
 				} else {
 					logger.Info("repository cleaner finished execution")
@@ -563,7 +563,7 @@ func run(
 		logger.Warn(`Repository cleanup background task disabled as "repositories_cleanup.run_interval" is not set or 0.`)
 	}
 
-	gracefulStopTicker := helper.NewTimerTicker(conf.GracefulStopTimeout.Duration())
+	gracefulStopTicker := helper.NewTimerTicker(conf.GracefulStopTimeout)
 	defer gracefulStopTicker.Stop()
 
 	return b.Wait(gracefulStopTicker, srvFactory.GracefulStop)

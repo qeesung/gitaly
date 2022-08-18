@@ -595,7 +595,7 @@ func TestLoadGracefulRestartTimeout(t *testing.T) {
 			cfg, err := Load(tmpFile)
 			assert.NoError(t, err)
 
-			assert.Equal(t, test.expected, cfg.GracefulRestartTimeout.Duration())
+			assert.Equal(t, test.expected, cfg.GracefulRestartTimeout)
 		})
 	}
 }
@@ -715,7 +715,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			expect: DailyJob{
 				Hour:     11,
 				Minute:   23,
-				Duration: Duration(45 * time.Minute),
+				Duration: 45 * time.Minute,
 				Storages: []string{"default"},
 			},
 		},
@@ -753,7 +753,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			expect: DailyJob{
 				Hour:     0,
 				Minute:   59,
-				Duration: Duration(24*time.Hour + time.Second),
+				Duration: 24*time.Hour + time.Second,
 			},
 			validateErr: errors.New("daily maintenance specified duration 24h0m1s must be less than 24 hours"),
 		},
@@ -761,7 +761,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			rawCfg: `[daily_maintenance]
 			duration = "meow"`,
 			expect:  DailyJob{},
-			loadErr: errors.New("load toml: (2, 4): unmarshal text: time: invalid duration"),
+			loadErr: errors.New(`load toml: (2, 4): Can't convert meow(string) to time.Duration. time: invalid duration "meow"`),
 		},
 		{
 			rawCfg: `[daily_maintenance]
@@ -780,7 +780,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			expect: DailyJob{
 				Hour:     12,
 				Minute:   0,
-				Duration: Duration(10 * time.Minute),
+				Duration: 10 * time.Minute,
 				Storages: []string{"default"},
 			},
 		},
@@ -1127,7 +1127,7 @@ path="/foobar"
 			in: storageConfig + `[pack_objects_cache]
 enabled = true
 `,
-			out: StreamCacheConfig{Enabled: true, MaxAge: Duration(5 * time.Minute), Dir: "/foobar/+gitaly/PackObjectsCache"},
+			out: StreamCacheConfig{Enabled: true, MaxAge: 5 * time.Minute, Dir: "/foobar/+gitaly/PackObjectsCache"},
 		},
 		{
 			desc: "enabled with custom values",
@@ -1136,7 +1136,7 @@ enabled = true
 dir = "/bazqux"
 max_age = "10m"
 `,
-			out: StreamCacheConfig{Enabled: true, MaxAge: Duration(10 * time.Minute), Dir: "/bazqux"},
+			out: StreamCacheConfig{Enabled: true, MaxAge: 10 * time.Minute, Dir: "/bazqux"},
 		},
 		{
 			desc: "enabled with 0 storages",

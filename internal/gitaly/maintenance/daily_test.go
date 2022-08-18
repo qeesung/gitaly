@@ -37,7 +37,7 @@ func TestStartDaily(t *testing.T) {
 	errQ := make(chan error)
 	s := config.DailyJob{
 		Hour:     1,
-		Duration: config.Duration(time.Hour),
+		Duration: time.Hour,
 		Storages: []string{"meow"},
 	}
 	ctx, cancel := context.WithCancel(testhelper.Context(t))

@@ -145,10 +145,10 @@ func New(cfg config.StreamCacheConfig, logger logrus.FieldLogger) Cache {
 	if cfg.Enabled {
 		packObjectsCacheEnabled.WithLabelValues(
 			cfg.Dir,
-			strconv.Itoa(int(cfg.MaxAge.Duration().Seconds())),
+			strconv.Itoa(int(cfg.MaxAge.Seconds())),
 		).Set(1)
 
-		return newCacheWithSleep(cfg.Dir, cfg.MaxAge.Duration(), time.After, time.After, logger)
+		return newCacheWithSleep(cfg.Dir, cfg.MaxAge, time.After, time.After, logger)
 	}
 
 	return NullCache{}
