@@ -10,8 +10,9 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
 
-// ReadSigningKeyAndSign reads OpenPGP key and produces PKCS#7 detached signature.
-func ReadSigningKeyAndSign(signingKeyPath, contentToSign string) (string, error) {
+// CreateCommitSignature reads the given signing key and produces PKCS#7 detached signature.
+// When the path to the signing key is not present, an empty signature is returned.
+func CreateCommitSignature(signingKeyPath, contentToSign string) (string, error) {
 	file, err := os.Open(signingKeyPath)
 	if err != nil {
 		return "", fmt.Errorf("open file: %w", err)

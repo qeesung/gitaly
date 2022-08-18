@@ -35,9 +35,9 @@ func (cs *CommitSubmitter) Commit(
 
 	var signature string
 	if cs.SigningKeyPath != "" {
-		signature, err = ReadSigningKeyAndSign(cs.SigningKeyPath, string(commitBytes))
+		signature, err = CreateCommitSignature(cs.SigningKeyPath, string(commitBytes))
 		if err != nil {
-			return nil, fmt.Errorf("read openpgp key: %w", err)
+			return nil, fmt.Errorf("create commit signature: %w", err)
 		}
 	}
 
