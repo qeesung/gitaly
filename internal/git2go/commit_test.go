@@ -480,7 +480,7 @@ func TestExecutor_Commit(t *testing.T) {
 			committer := NewSignature("Committer Name", "committer.email@example.com", time.Now())
 
 			if tc.signAndVerify {
-				executor.signingKey = "testdata/signingKey.gpg"
+				executor.signingKey = testhelper.SigningKeyPath
 			}
 
 			var parentCommit git.ObjectID
@@ -516,7 +516,7 @@ func TestExecutor_Commit(t *testing.T) {
 	}
 }
 
-func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git.ObjectID, verify bool) commit {
+func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git.ObjectID, verifySignature bool) commit {
 	tb.Helper()
 
 	data, err := repo.ReadObject(ctx, oid)
@@ -531,8 +531,8 @@ func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git
 	lines := strings.Split(string(data), "\n")
 	for i, line := range lines {
 		if line == "" {
-			dataWithoutGpgSig += "\n" + strings.Join(lines[i+1:], "\n")
 			commit.Message = strings.Join(lines[i+1:], "\n")
+			dataWithoutGpgSig += "\n" + commit.Message
 			break
 		}
 
@@ -567,7 +567,7 @@ func getCommit(tb testing.TB, ctx context.Context, repo *localrepo.Repo, oid git
 		}
 	}
 
-	if gpgsig != "" || verify {
+	if gpgsig != "" || verifySignature {
 		file, err := os.Open("testdata/publicKey.gpg")
 		require.NoError(tb, err)
 
