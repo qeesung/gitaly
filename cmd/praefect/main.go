@@ -358,7 +358,7 @@ func run(
 				db,
 				nodeSet.Connections(),
 				hm,
-				conf.BackgroundVerification.VerificationInterval,
+				conf.BackgroundVerification.VerificationInterval.Duration(),
 				conf.BackgroundVerification.DeleteInvalidRecords,
 			)
 			promreg.MustRegister(verifier)
@@ -394,7 +394,7 @@ func run(
 		primaryGetter = nodeMgr
 		nodeManager = nodeMgr
 
-		nodeMgr.Start(conf.Failover.BootstrapInterval, conf.Failover.MonitorInterval)
+		nodeMgr.Start(conf.Failover.BootstrapInterval.Duration(), conf.Failover.MonitorInterval.Duration())
 		defer nodeMgr.Stop()
 	}
 
@@ -442,16 +442,16 @@ func run(
 	metricsCollectors = append(metricsCollectors, transactionManager, coordinator, repl)
 	if db != nil {
 		dbMetricCollectors := []prometheus.Collector{
-			datastore.NewRepositoryStoreCollector(logger, conf.VirtualStorageNames(), db, conf.Prometheus.ScrapeTimeout),
-			datastore.NewQueueDepthCollector(logger, db, conf.Prometheus.ScrapeTimeout),
+			datastore.NewRepositoryStoreCollector(logger, conf.VirtualStorageNames(), db, conf.Prometheus.ScrapeTimeout.Duration()),
+			datastore.NewQueueDepthCollector(logger, db, conf.Prometheus.ScrapeTimeout.Duration()),
 		}
 
 		if conf.BackgroundVerification.VerificationInterval > 0 {
 			dbMetricCollectors = append(dbMetricCollectors, datastore.NewVerificationQueueDepthCollector(
 				logger,
 				db,
-				conf.Prometheus.ScrapeTimeout,
-				conf.BackgroundVerification.VerificationInterval,
+				conf.Prometheus.ScrapeTimeout.Duration(),
+				conf.BackgroundVerification.VerificationInterval.Duration(),
 				conf.StorageNames(),
 			))
 		}
@@ -520,7 +520,7 @@ func run(
 	repl.ProcessStale(ctx, staleTicker, time.Minute)
 	logger.Info("background started: processing of the stale replication events")
 
-	if interval := conf.Reconciliation.SchedulingInterval; interval > 0 {
+	if interval := conf.Reconciliation.SchedulingInterval.Duration(); interval > 0 {
 		if conf.MemoryQueueEnabled {
 			logger.Warn("Disabled automatic reconciliation as it is only implemented using SQL queue and in-memory queue is configured.")
 		} else {
@@ -540,17 +540,17 @@ func run(
 		}
 	}
 
-	if interval := conf.RepositoriesCleanup.RunInterval; interval > 0 {
+	if interval := conf.RepositoriesCleanup.RunInterval.Duration(); interval > 0 {
 		if db != nil {
 			go func() {
 				storageSync := datastore.NewStorageCleanup(db)
 				cfg := repocleaner.Cfg{
-					RunInterval:         conf.RepositoriesCleanup.RunInterval,
+					RunInterval:         conf.RepositoriesCleanup.RunInterval.Duration(),
 					LivenessInterval:    30 * time.Second,
 					RepositoriesInBatch: conf.RepositoriesCleanup.RepositoriesInBatch,
 				}
 				repoCleaner := repocleaner.NewRunner(cfg, logger, healthChecker, nodeSet.Connections(), storageSync, storageSync, repocleaner.NewLogWarnAction(logger))
-				if err := repoCleaner.Run(ctx, helper.NewTimerTicker(conf.RepositoriesCleanup.CheckInterval)); err != nil && !errors.Is(context.Canceled, err) {
+				if err := repoCleaner.Run(ctx, helper.NewTimerTicker(conf.RepositoriesCleanup.CheckInterval.Duration())); err != nil && !errors.Is(context.Canceled, err) {
 					logger.WithError(err).Error("repository cleaner finished execution")
 				} else {
 					logger.Info("repository cleaner finished execution")
@@ -563,7 +563,7 @@ func run(
 		logger.Warn(`Repository cleanup background task disabled as "repositories_cleanup.run_interval" is not set or 0.`)
 	}
 
-	gracefulStopTicker := helper.NewTimerTicker(conf.GracefulStopTimeout)
+	gracefulStopTicker := helper.NewTimerTicker(conf.GracefulStopTimeout.Duration())
 	defer gracefulStopTicker.Stop()
 
 	return b.Wait(gracefulStopTicker, srvFactory.GracefulStop)

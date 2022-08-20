@@ -200,8 +200,8 @@ func (s *Server) start() error {
 			return err
 		}
 
-		restartDelay := cfg.Ruby.RestartDelay
-		gracefulRestartTimeout := cfg.Ruby.GracefulRestartTimeout
+		restartDelay := cfg.Ruby.RestartDelay.Duration()
+		gracefulRestartTimeout := cfg.Ruby.GracefulRestartTimeout.Duration()
 		s.workers = append(s.workers, newWorker(p, socketPath, restartDelay, gracefulRestartTimeout, events, false))
 	}
 
