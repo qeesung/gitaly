@@ -3,6 +3,7 @@
 package git2go
 
 import (
+	"fmt"
 	"testing"
 
 	git "github.com/libgit2/git2go/v33"
@@ -13,7 +14,17 @@ import (
 func TestMain(m *testing.M) {
 	testhelper.Run(m, testhelper.WithSetup(func() error {
 		// Ignore gitconfig while use libgit2's git_repository_open
-		return git.SetSearchPath(git.ConfigLevelGlobal, "/dev/null")
+		for _, configLevel := range []git.ConfigLevel{
+			git.ConfigLevelSystem,
+			git.ConfigLevelXDG,
+			git.ConfigLevelGlobal,
+		} {
+			if err := git.SetSearchPath(configLevel, "/dev/null"); err != nil {
+				return fmt.Errorf("setting search path: %w", err)
+			}
+		}
+
+		return nil
 	}))
 }
 
