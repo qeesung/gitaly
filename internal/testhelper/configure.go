@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"testing"
 
-	git "github.com/libgit2/git2go/v33"
 	log "github.com/sirupsen/logrus"
 	gitalylog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
 )
@@ -126,10 +125,6 @@ func configure() (_ func(), returnedErr error) {
 
 		if err := os.Setenv("HOME", homeDir); err != nil {
 			return nil, fmt.Errorf("setting home: %w", err)
-		}
-
-		if err := git.SetSearchPath(git.ConfigLevelGlobal, homeDir); err != nil {
-			return nil, fmt.Errorf("cannot set libgit2 search path: %w", err)
 		}
 	}
 

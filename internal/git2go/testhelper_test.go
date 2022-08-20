@@ -11,7 +11,10 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	testhelper.Run(m)
+	testhelper.Run(m, testhelper.WithSetup(func() error {
+		// Ignore gitconfig while use libgit2's git_repository_open
+		return git.SetSearchPath(git.ConfigLevelGlobal, "/dev/null")
+	}))
 }
 
 var defaultAuthor = git.Signature{

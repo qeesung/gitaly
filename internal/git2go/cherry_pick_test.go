@@ -147,17 +147,6 @@ func TestCherryPick(t *testing.T) {
 		cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 		testcfg.BuildGitalyGit2Go(t, cfg)
 		executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
-		/*ctx := testhelper.Context(t)
-		cfg := testcfg.Build(t)
-		testcfg.BuildGitalyGit2Go(t, cfg)
-
-		repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
-			SkipCreationViaService: true,
-		})
-
-		repo := localrepo.NewTestRepo(t, cfg, repoProto)
-
-		executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))*/
 
 		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(tc.base...))
 
