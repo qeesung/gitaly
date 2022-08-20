@@ -1,6 +1,6 @@
 //go:build static && system_libgit2 && !gitaly_test_sha256
 
-package main
+package git2go
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	glgit "gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"google.golang.org/grpc/codes"
@@ -22,7 +22,7 @@ func TestConflicts(t *testing.T) {
 		base      []gittest.TreeEntry
 		ours      []gittest.TreeEntry
 		theirs    []gittest.TreeEntry
-		conflicts []git2go.Conflict
+		conflicts []Conflict
 	}{
 		{
 			desc: "no conflicts",
@@ -48,11 +48,11 @@ func TestConflicts(t *testing.T) {
 			theirs: []gittest.TreeEntry{
 				{Path: "file", Content: "c", Mode: "100644"},
 			},
-			conflicts: []git2go.Conflict{
+			conflicts: []Conflict{
 				{
-					Ancestor: git2go.ConflictEntry{Path: "file", Mode: 0o100644},
-					Our:      git2go.ConflictEntry{Path: "file", Mode: 0o100644},
-					Their:    git2go.ConflictEntry{Path: "file", Mode: 0o100644},
+					Ancestor: ConflictEntry{Path: "file", Mode: 0o100644},
+					Our:      ConflictEntry{Path: "file", Mode: 0o100644},
+					Their:    ConflictEntry{Path: "file", Mode: 0o100644},
 					Content:  []byte("<<<<<<< file\nb\n=======\nc\n>>>>>>> file\n"),
 				},
 			},
@@ -71,11 +71,11 @@ func TestConflicts(t *testing.T) {
 				{Path: "file-1", Content: "a", Mode: "100644"},
 				{Path: "file-2", Content: "c", Mode: "100644"},
 			},
-			conflicts: []git2go.Conflict{
+			conflicts: []Conflict{
 				{
-					Ancestor: git2go.ConflictEntry{Path: "file-2", Mode: 0o100644},
-					Our:      git2go.ConflictEntry{Path: "file-2", Mode: 0o100644},
-					Their:    git2go.ConflictEntry{Path: "file-2", Mode: 0o100644},
+					Ancestor: ConflictEntry{Path: "file-2", Mode: 0o100644},
+					Our:      ConflictEntry{Path: "file-2", Mode: 0o100644},
+					Their:    ConflictEntry{Path: "file-2", Mode: 0o100644},
 					Content:  []byte("<<<<<<< file-2\nb\n=======\nc\n>>>>>>> file-2\n"),
 				},
 			},
@@ -94,17 +94,17 @@ func TestConflicts(t *testing.T) {
 				{Path: "file-1", Content: "c", Mode: "100644"},
 				{Path: "file-2", Content: "c", Mode: "100644"},
 			},
-			conflicts: []git2go.Conflict{
+			conflicts: []Conflict{
 				{
-					Ancestor: git2go.ConflictEntry{Path: "file-1", Mode: 0o100644},
-					Our:      git2go.ConflictEntry{Path: "file-1", Mode: 0o100644},
-					Their:    git2go.ConflictEntry{Path: "file-1", Mode: 0o100644},
+					Ancestor: ConflictEntry{Path: "file-1", Mode: 0o100644},
+					Our:      ConflictEntry{Path: "file-1", Mode: 0o100644},
+					Their:    ConflictEntry{Path: "file-1", Mode: 0o100644},
 					Content:  []byte("<<<<<<< file-1\nb\n=======\nc\n>>>>>>> file-1\n"),
 				},
 				{
-					Ancestor: git2go.ConflictEntry{Path: "file-2", Mode: 0o100644},
-					Our:      git2go.ConflictEntry{Path: "file-2", Mode: 0o100644},
-					Their:    git2go.ConflictEntry{Path: "file-2", Mode: 0o100644},
+					Ancestor: ConflictEntry{Path: "file-2", Mode: 0o100644},
+					Our:      ConflictEntry{Path: "file-2", Mode: 0o100644},
+					Their:    ConflictEntry{Path: "file-2", Mode: 0o100644},
 					Content:  []byte("<<<<<<< file-2\nb\n=======\nc\n>>>>>>> file-2\n"),
 				},
 			},
@@ -120,11 +120,11 @@ func TestConflicts(t *testing.T) {
 			theirs: []gittest.TreeEntry{
 				{Path: "different-file", Content: "unrelated", Mode: "100644"},
 			},
-			conflicts: []git2go.Conflict{
+			conflicts: []Conflict{
 				{
-					Ancestor: git2go.ConflictEntry{Path: "file", Mode: 0o100644},
-					Our:      git2go.ConflictEntry{Path: "file", Mode: 0o100644},
-					Their:    git2go.ConflictEntry{},
+					Ancestor: ConflictEntry{Path: "file", Mode: 0o100644},
+					Our:      ConflictEntry{Path: "file", Mode: 0o100644},
+					Their:    ConflictEntry{},
 					Content:  []byte("<<<<<<< file\nchanged\n=======\n>>>>>>> \n"),
 				},
 			},
@@ -143,23 +143,23 @@ func TestConflicts(t *testing.T) {
 			theirs: []gittest.TreeEntry{
 				{Path: "renamed-2", Content: "a\nb\nc\nd\ne\nf\ng\n", Mode: "100644"},
 			},
-			conflicts: []git2go.Conflict{
+			conflicts: []Conflict{
 				{
-					Ancestor: git2go.ConflictEntry{Path: "file", Mode: 0o100644},
-					Our:      git2go.ConflictEntry{},
-					Their:    git2go.ConflictEntry{},
+					Ancestor: ConflictEntry{Path: "file", Mode: 0o100644},
+					Our:      ConflictEntry{},
+					Their:    ConflictEntry{},
 					Content:  nil,
 				},
 				{
-					Ancestor: git2go.ConflictEntry{},
-					Our:      git2go.ConflictEntry{Path: "renamed-1", Mode: 0o100644},
-					Their:    git2go.ConflictEntry{},
+					Ancestor: ConflictEntry{},
+					Our:      ConflictEntry{Path: "renamed-1", Mode: 0o100644},
+					Their:    ConflictEntry{},
 					Content:  []byte("a\nb\nc\nd\ne\nf\ng\n"),
 				},
 				{
-					Ancestor: git2go.ConflictEntry{},
-					Our:      git2go.ConflictEntry{},
-					Their:    git2go.ConflictEntry{Path: "renamed-2", Mode: 0o100644},
+					Ancestor: ConflictEntry{},
+					Our:      ConflictEntry{},
+					Their:    ConflictEntry{Path: "renamed-2", Mode: 0o100644},
 					Content:  []byte("a\nb\nc\nd\ne\nf\ng\n"),
 				},
 			},
@@ -168,7 +168,7 @@ func TestConflicts(t *testing.T) {
 
 	for _, tc := range testcases {
 		cfg, repo, repoPath := testcfg.BuildWithRepo(t)
-		executor := buildExecutor(t, cfg)
+		executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 		testcfg.BuildGitalyGit2Go(t, cfg)
 
@@ -179,7 +179,7 @@ func TestConflicts(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := testhelper.Context(t)
 
-			response, err := executor.Conflicts(ctx, repo, git2go.ConflictsCommand{
+			response, err := executor.Conflicts(ctx, repo, ConflictsCommand{
 				Repository: repoPath,
 				Ours:       ours.String(),
 				Theirs:     theirs.String(),
@@ -195,7 +195,7 @@ func TestConflicts_checkError(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 	base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries())
 	validOID := glgit.ObjectID(base.String())
-	executor := buildExecutor(t, cfg)
+	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 	testcfg.BuildGitalyGit2Go(t, cfg)
 
@@ -210,13 +210,13 @@ func TestConflicts_checkError(t *testing.T) {
 			desc:   "ours is not set",
 			ours:   "",
 			theirs: validOID,
-			expErr: fmt.Errorf("conflicts: %w: missing ours", git2go.ErrInvalidArgument),
+			expErr: fmt.Errorf("conflicts: %w: missing ours", ErrInvalidArgument),
 		},
 		{
 			desc:   "theirs is not set",
 			ours:   validOID,
 			theirs: "",
-			expErr: fmt.Errorf("conflicts: %w: missing theirs", git2go.ErrInvalidArgument),
+			expErr: fmt.Errorf("conflicts: %w: missing theirs", ErrInvalidArgument),
 		},
 		{
 			desc:             "invalid repository",
@@ -265,7 +265,7 @@ func TestConflicts_checkError(t *testing.T) {
 			}
 			ctx := testhelper.Context(t)
 
-			_, err := executor.Conflicts(ctx, repo, git2go.ConflictsCommand{
+			_, err := executor.Conflicts(ctx, repo, ConflictsCommand{
 				Repository: repoPath,
 				Ours:       tc.ours.String(),
 				Theirs:     tc.theirs.String(),

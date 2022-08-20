@@ -1,6 +1,6 @@
 //go:build static && system_libgit2 && !gitaly_test_sha256
 
-package main
+package git2go
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
@@ -19,11 +19,11 @@ import (
 func TestCherryPick_validation(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 	testcfg.BuildGitalyGit2Go(t, cfg)
-	executor := buildExecutor(t, cfg)
+	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 	testcases := []struct {
 		desc        string
-		request     git2go.CherryPickCommand
+		request     CherryPickCommand
 		expectedErr string
 	}{
 		{
@@ -32,37 +32,37 @@ func TestCherryPick_validation(t *testing.T) {
 		},
 		{
 			desc:        "missing repository",
-			request:     git2go.CherryPickCommand{CommitterName: "Foo", CommitterMail: "foo@example.com", CommitterDate: time.Now(), Message: "Foo", Ours: "HEAD", Commit: "HEAD"},
+			request:     CherryPickCommand{CommitterName: "Foo", CommitterMail: "foo@example.com", CommitterDate: time.Now(), Message: "Foo", Ours: "HEAD", Commit: "HEAD"},
 			expectedErr: "cherry-pick: missing repository",
 		},
 		{
 			desc:        "missing committer name",
-			request:     git2go.CherryPickCommand{Repository: repoPath, CommitterMail: "foo@example.com", CommitterDate: time.Now(), Message: "Foo", Ours: "HEAD", Commit: "HEAD"},
+			request:     CherryPickCommand{Repository: repoPath, CommitterMail: "foo@example.com", CommitterDate: time.Now(), Message: "Foo", Ours: "HEAD", Commit: "HEAD"},
 			expectedErr: "cherry-pick: missing committer name",
 		},
 		{
 			desc:        "missing committer mail",
-			request:     git2go.CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterDate: time.Now(), Message: "Foo", Ours: "HEAD", Commit: "HEAD"},
+			request:     CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterDate: time.Now(), Message: "Foo", Ours: "HEAD", Commit: "HEAD"},
 			expectedErr: "cherry-pick: missing committer mail",
 		},
 		{
 			desc:        "missing committer date",
-			request:     git2go.CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Commit: "HEAD"},
+			request:     CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Commit: "HEAD"},
 			expectedErr: "cherry-pick: missing committer date",
 		},
 		{
 			desc:        "missing message",
-			request:     git2go.CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterMail: "foo@example.com", CommitterDate: time.Now(), Ours: "HEAD", Commit: "HEAD"},
+			request:     CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterMail: "foo@example.com", CommitterDate: time.Now(), Ours: "HEAD", Commit: "HEAD"},
 			expectedErr: "cherry-pick: missing message",
 		},
 		{
 			desc:        "missing ours",
-			request:     git2go.CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterMail: "foo@example.com", CommitterDate: time.Now(), Message: "Foo", Commit: "HEAD"},
+			request:     CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterMail: "foo@example.com", CommitterDate: time.Now(), Message: "Foo", Commit: "HEAD"},
 			expectedErr: "cherry-pick: missing ours",
 		},
 		{
 			desc:        "missing commit",
-			request:     git2go.CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterMail: "foo@example.com", CommitterDate: time.Now(), Message: "Foo", Ours: "HEAD"},
+			request:     CherryPickCommand{Repository: repoPath, CommitterName: "Foo", CommitterMail: "foo@example.com", CommitterDate: time.Now(), Message: "Foo", Ours: "HEAD"},
 			expectedErr: "cherry-pick: missing commit",
 		},
 	}
@@ -114,7 +114,7 @@ func TestCherryPick(t *testing.T) {
 			commit: []gittest.TreeEntry{
 				{Path: "file", Content: "foobar", Mode: "100644"},
 			},
-			expectedErr:    git2go.ConflictingFilesError{},
+			expectedErr:    ConflictingFilesError{},
 			expectedErrMsg: "cherry-pick: there are conflicting files",
 		},
 		{
@@ -128,7 +128,7 @@ func TestCherryPick(t *testing.T) {
 			commit: []gittest.TreeEntry{
 				{Path: "file", Content: "fooqux", Mode: "100644"},
 			},
-			expectedErr:    git2go.EmptyError{},
+			expectedErr:    EmptyError{},
 			expectedErrMsg: "cherry-pick: could not apply because the result was empty",
 		},
 		{
@@ -146,7 +146,7 @@ func TestCherryPick(t *testing.T) {
 	for _, tc := range testcases {
 		cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 		testcfg.BuildGitalyGit2Go(t, cfg)
-		executor := buildExecutor(t, cfg)
+		executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(tc.base...))
 
@@ -167,7 +167,7 @@ func TestCherryPick(t *testing.T) {
 				When:  time.Date(2021, 1, 17, 14, 45, 51, 0, time.FixedZone("", +2*60*60)),
 			}
 
-			response, err := executor.CherryPick(ctx, repo, git2go.CherryPickCommand{
+			response, err := executor.CherryPick(ctx, repo, CherryPickCommand{
 				Repository:    repoPath,
 				CommitterName: committer.Name,
 				CommitterMail: committer.Email,
@@ -198,7 +198,7 @@ func TestCherryPick(t *testing.T) {
 
 			commit, err := repo.LookupCommit(commitOid)
 			require.NoError(t, err)
-			require.Equal(t, &DefaultAuthor, commit.Author())
+			require.Equal(t, &defaultAuthor, commit.Author())
 			require.Equal(t, &committer, commit.Committer())
 
 			tree, err := commit.Tree()
@@ -223,7 +223,7 @@ func TestCherryPickStructuredErrors(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
 	testcfg.BuildGitalyGit2Go(t, cfg)
-	executor := buildExecutor(t, cfg)
+	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 	base := gittest.WriteCommit(
 		t,
@@ -257,7 +257,7 @@ func TestCherryPickStructuredErrors(t *testing.T) {
 		When:  time.Date(2021, 1, 17, 14, 45, 51, 0, time.FixedZone("", +2*60*60)),
 	}
 
-	_, err := executor.CherryPick(ctx, repo, git2go.CherryPickCommand{
+	_, err := executor.CherryPick(ctx, repo, CherryPickCommand{
 		Repository:    repoPath,
 		CommitterName: committer.Name,
 		CommitterMail: committer.Email,
@@ -268,5 +268,5 @@ func TestCherryPickStructuredErrors(t *testing.T) {
 	})
 
 	require.EqualError(t, err, "cherry-pick: there are conflicting files")
-	require.ErrorAs(t, err, &git2go.ConflictingFilesError{})
+	require.ErrorAs(t, err, &ConflictingFilesError{})
 }

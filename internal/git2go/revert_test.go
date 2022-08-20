@@ -1,6 +1,6 @@
 //go:build static && system_libgit2 && !gitaly_test_sha256
 
-package main
+package git2go
 
 import (
 	"errors"
@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
@@ -21,11 +20,11 @@ import (
 func TestRevert_validation(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 	testcfg.BuildGitalyGit2Go(t, cfg)
-	executor := buildExecutor(t, cfg)
+	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 	testcases := []struct {
 		desc        string
-		request     git2go.RevertCommand
+		request     RevertCommand
 		expectedErr string
 	}{
 		{
@@ -34,32 +33,32 @@ func TestRevert_validation(t *testing.T) {
 		},
 		{
 			desc:        "missing repository",
-			request:     git2go.RevertCommand{AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Revert: "HEAD"},
+			request:     RevertCommand{AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Revert: "HEAD"},
 			expectedErr: "revert: missing repository",
 		},
 		{
 			desc:        "missing author name",
-			request:     git2go.RevertCommand{Repository: repoPath, AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Revert: "HEAD"},
+			request:     RevertCommand{Repository: repoPath, AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Revert: "HEAD"},
 			expectedErr: "revert: missing author name",
 		},
 		{
 			desc:        "missing author mail",
-			request:     git2go.RevertCommand{Repository: repoPath, AuthorName: "Foo", Message: "Foo", Ours: "HEAD", Revert: "HEAD"},
+			request:     RevertCommand{Repository: repoPath, AuthorName: "Foo", Message: "Foo", Ours: "HEAD", Revert: "HEAD"},
 			expectedErr: "revert: missing author mail",
 		},
 		{
 			desc:        "missing message",
-			request:     git2go.RevertCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Ours: "HEAD", Revert: "HEAD"},
+			request:     RevertCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Ours: "HEAD", Revert: "HEAD"},
 			expectedErr: "revert: missing message",
 		},
 		{
 			desc:        "missing ours",
-			request:     git2go.RevertCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Revert: "HEAD"},
+			request:     RevertCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Revert: "HEAD"},
 			expectedErr: "revert: missing ours",
 		},
 		{
 			desc:        "missing revert",
-			request:     git2go.RevertCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD"},
+			request:     RevertCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD"},
 			expectedErr: "revert: missing revert",
 		},
 	}
@@ -126,7 +125,7 @@ func TestRevert_trees(t *testing.T) {
 				return oursOid.String(), revertOid.String()
 			},
 			expectedErr:   "revert: could not apply due to conflicts",
-			expectedErrAs: &git2go.HasConflictsError{},
+			expectedErrAs: &HasConflictsError{},
 		},
 		{
 			desc: "empty revert fails",
@@ -144,7 +143,7 @@ func TestRevert_trees(t *testing.T) {
 				return oursOid.String(), revertOid.String()
 			},
 			expectedErr:   "revert: could not apply because the result was empty",
-			expectedErrAs: &git2go.EmptyError{},
+			expectedErrAs: &EmptyError{},
 		},
 		{
 			desc: "nonexistent ours fails",
@@ -173,14 +172,14 @@ func TestRevert_trees(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 			testcfg.BuildGitalyGit2Go(t, cfg)
-			executor := buildExecutor(t, cfg)
+			executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 			ours, revert := tc.setupRepo(t, cfg, repoPath)
 			ctx := testhelper.Context(t)
 
 			authorDate := time.Date(2020, 7, 30, 7, 45, 50, 0, time.FixedZone("UTC+2", +2*60*60))
 
-			request := git2go.RevertCommand{
+			request := RevertCommand{
 				Repository: repoPath,
 				AuthorName: "Foo",
 				AuthorMail: "foo@example.com",

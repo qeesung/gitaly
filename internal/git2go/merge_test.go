@@ -1,6 +1,6 @@
 //go:build static && system_libgit2 && !gitaly_test_sha256
 
-package main
+package git2go
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go/git2goutil"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
@@ -23,11 +23,11 @@ func TestMerge_missingArguments(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
-	executor := buildExecutor(t, cfg)
+	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 	testcases := []struct {
 		desc        string
-		request     git2go.MergeCommand
+		request     MergeCommand
 		expectedErr string
 	}{
 		{
@@ -36,48 +36,48 @@ func TestMerge_missingArguments(t *testing.T) {
 		},
 		{
 			desc:        "missing repository",
-			request:     git2go.MergeCommand{AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Theirs: "HEAD"},
+			request:     MergeCommand{AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Theirs: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing repository",
 		},
 		{
 			desc:        "missing author name",
-			request:     git2go.MergeCommand{Repository: repoPath, AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Theirs: "HEAD"},
+			request:     MergeCommand{Repository: repoPath, AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Theirs: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing author name",
 		},
 		{
 			desc:        "missing author mail",
-			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", Message: "Foo", Ours: "HEAD", Theirs: "HEAD"},
+			request:     MergeCommand{Repository: repoPath, AuthorName: "Foo", Message: "Foo", Ours: "HEAD", Theirs: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing author mail",
 		},
 		{
 			desc:        "missing message",
-			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Ours: "HEAD", Theirs: "HEAD"},
+			request:     MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Ours: "HEAD", Theirs: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing message",
 		},
 		{
 			desc:        "missing ours",
-			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Theirs: "HEAD"},
+			request:     MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Theirs: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing ours",
 		},
 		{
 			desc:        "missing theirs",
-			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD"},
+			request:     MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing theirs",
 		},
 		// Committer* arguments are required only when at least one of them is non-empty
 		{
 			desc:        "missing committer mail",
-			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", CommitterName: "Bar", Message: "Foo", Theirs: "HEAD", Ours: "HEAD"},
+			request:     MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", CommitterName: "Bar", Message: "Foo", Theirs: "HEAD", Ours: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing committer mail",
 		},
 		{
 			desc:        "missing committer name",
-			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", CommitterMail: "bar@example.com", Message: "Foo", Theirs: "HEAD", Ours: "HEAD"},
+			request:     MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", CommitterMail: "bar@example.com", Message: "Foo", Theirs: "HEAD", Ours: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing committer name",
 		},
 		{
 			desc:        "missing committer date",
-			request:     git2go.MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", CommitterName: "Bar", CommitterMail: "bar@example.com", Message: "Foo", Theirs: "HEAD", Ours: "HEAD"},
+			request:     MergeCommand{Repository: repoPath, AuthorName: "Foo", AuthorMail: "foo@example.com", CommitterName: "Bar", CommitterMail: "bar@example.com", Message: "Foo", Theirs: "HEAD", Ours: "HEAD"},
 			expectedErr: "merge: invalid parameters: missing committer date",
 		},
 	}
@@ -97,9 +97,9 @@ func TestMerge_invalidRepositoryPath(t *testing.T) {
 
 	cfg, repo, _ := testcfg.BuildWithRepo(t)
 	testcfg.BuildGitalyGit2Go(t, cfg)
-	executor := buildExecutor(t, cfg)
+	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
-	_, err := executor.Merge(ctx, repo, git2go.MergeCommand{
+	_, err := executor.Merge(ctx, repo, MergeCommand{
 		Repository: "/does/not/exist", AuthorName: "Foo", AuthorMail: "foo@example.com", Message: "Foo", Ours: "HEAD", Theirs: "HEAD",
 	})
 	require.Error(t, err)
@@ -118,7 +118,7 @@ func TestMerge_trees(t *testing.T) {
 		expected         map[string]string
 		withCommitter    bool
 		squash           bool
-		expectedResponse git2go.MergeResult
+		expectedResponse MergeResult
 		expectedErr      error
 	}{
 		{
@@ -135,7 +135,7 @@ func TestMerge_trees(t *testing.T) {
 			expected: map[string]string{
 				"file": "a",
 			},
-			expectedResponse: git2go.MergeResult{
+			expectedResponse: MergeResult{
 				CommitID: "0db317551c49eddadde2b337550d8e57d9536886",
 			},
 		},
@@ -154,7 +154,7 @@ func TestMerge_trees(t *testing.T) {
 				"file": "a",
 			},
 			withCommitter: true,
-			expectedResponse: git2go.MergeResult{
+			expectedResponse: MergeResult{
 				CommitID: "38dcbe72d91ed5621286290f70df9a5dd08f5cb6",
 			},
 		},
@@ -173,7 +173,7 @@ func TestMerge_trees(t *testing.T) {
 				"file": "a",
 			},
 			squash: true,
-			expectedResponse: git2go.MergeResult{
+			expectedResponse: MergeResult{
 				CommitID: "a0781480ce3cbba80440e6c112c5ee7f718ed3c2",
 			},
 		},
@@ -191,7 +191,7 @@ func TestMerge_trees(t *testing.T) {
 			expected: map[string]string{
 				"file": "0\na\nb\nc\nd\ne\nf\n0\n",
 			},
-			expectedResponse: git2go.MergeResult{
+			expectedResponse: MergeResult{
 				CommitID: "3c030d1ee80bbb005666619375fa0629c86b9534",
 			},
 		},
@@ -210,7 +210,7 @@ func TestMerge_trees(t *testing.T) {
 				"file": "0\na\nb\nc\nd\ne\nf\n0\n",
 			},
 			squash: true,
-			expectedResponse: git2go.MergeResult{
+			expectedResponse: MergeResult{
 				CommitID: "43853c4a027a67c7e39afa8e7ef0a34a1874ef26",
 			},
 		},
@@ -236,7 +236,7 @@ func TestMerge_trees(t *testing.T) {
 				"2": "modified",
 				"3": "qux",
 			},
-			expectedResponse: git2go.MergeResult{
+			expectedResponse: MergeResult{
 				CommitID: "6be1fdb2c4116881c7a82575be41618e8a690ff4",
 			},
 		},
@@ -263,7 +263,7 @@ func TestMerge_trees(t *testing.T) {
 				"3": "qux",
 			},
 			squash: true,
-			expectedResponse: git2go.MergeResult{
+			expectedResponse: MergeResult{
 				CommitID: "fe094a98b22ac53e1da1a9eb16118ce49f01fdbe",
 			},
 		},
@@ -278,7 +278,7 @@ func TestMerge_trees(t *testing.T) {
 			theirs: []gittest.TreeEntry{
 				{Path: "1", Content: "qux", Mode: "100644"},
 			},
-			expectedErr: fmt.Errorf("merge: %w", git2go.ConflictingFilesError{
+			expectedErr: fmt.Errorf("merge: %w", ConflictingFilesError{
 				ConflictingFiles: []string{"1"},
 			}),
 		},
@@ -287,7 +287,7 @@ func TestMerge_trees(t *testing.T) {
 	for _, tc := range testcases {
 		cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 		testcfg.BuildGitalyGit2Go(t, cfg)
-		executor := buildExecutor(t, cfg)
+		executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 		base := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(tc.base...))
 		ours := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(tc.ours...))
@@ -297,7 +297,7 @@ func TestMerge_trees(t *testing.T) {
 		committerDate := time.Date(2021, 7, 30, 7, 45, 50, 0, time.FixedZone("UTC+2", +2*60*60))
 
 		t.Run(tc.desc, func(t *testing.T) {
-			mergeCommand := git2go.MergeCommand{
+			mergeCommand := MergeCommand{
 				Repository: repoPath,
 				AuthorName: "John Doe",
 				AuthorMail: "john.doe@example.com",
@@ -355,7 +355,7 @@ func TestMerge_squash(t *testing.T) {
 
 	cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 	testcfg.BuildGitalyGit2Go(t, cfg)
-	executor := buildExecutor(t, cfg)
+	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 	baseFile := gittest.TreeEntry{Path: "file.txt", Content: "b\nc", Mode: "100644"}
 	ourFile := gittest.TreeEntry{Path: "file.txt", Content: "a\nb\nc", Mode: "100644"}
@@ -368,7 +368,7 @@ func TestMerge_squash(t *testing.T) {
 	theirs2 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(theirs1), gittest.WithTreeEntries(theirFile2))
 
 	date := time.Date(2020, 7, 30, 7, 45, 50, 0, time.FixedZone("UTC+2", +2*60*60))
-	response, err := executor.Merge(ctx, repoProto, git2go.MergeCommand{
+	response, err := executor.Merge(ctx, repoProto, MergeCommand{
 		Repository: repoPath,
 		AuthorName: "John Doe",
 		AuthorMail: "john.doe@example.com",
@@ -416,7 +416,7 @@ func TestMerge_recursive(t *testing.T) {
 
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyGit2Go(t, cfg)
-	executor := buildExecutor(t, cfg)
+	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
@@ -426,13 +426,13 @@ func TestMerge_recursive(t *testing.T) {
 		gittest.TreeEntry{Path: "base", Content: "base\n", Mode: "100644"},
 	))
 
-	ours := make([]git.ObjectID, git2go.MergeRecursionLimit)
+	ours := make([]git.ObjectID, MergeRecursionLimit)
 	ours[0] = gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(
 		gittest.TreeEntry{Path: "base", Content: "base\n", Mode: "100644"},
 		gittest.TreeEntry{Path: "ours", Content: "ours-0\n", Mode: "100644"},
 	))
 
-	theirs := make([]git.ObjectID, git2go.MergeRecursionLimit)
+	theirs := make([]git.ObjectID, MergeRecursionLimit)
 	theirs[0] = gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(base), gittest.WithTreeEntries(
 		gittest.TreeEntry{Path: "base", Content: "base\n", Mode: "100644"},
 		gittest.TreeEntry{Path: "theirs", Content: "theirs-0\n", Mode: "100644"},
@@ -449,7 +449,7 @@ func TestMerge_recursive(t *testing.T) {
 	// We then merge ours with theirs. The peculiarity about this merge is that the merge base
 	// is not unique, and as a result the merge will generate virtual merge bases for each of
 	// the criss-cross merges. This operation may thus be heavily expensive to perform.
-	for i := 1; i < git2go.MergeRecursionLimit; i++ {
+	for i := 1; i < MergeRecursionLimit; i++ {
 		ours[i] = gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(ours[i-1], theirs[i-1]), gittest.WithTreeEntries(
 			gittest.TreeEntry{Path: "base", Content: "base\n", Mode: "100644"},
 			gittest.TreeEntry{Path: "ours", Content: fmt.Sprintf("ours-%d\n", i), Mode: "100644"},
@@ -483,7 +483,7 @@ func TestMerge_recursive(t *testing.T) {
 	// cases. We thus expect a merge conflict, which unfortunately
 	// demonstrates that restricting the recursion limit may cause us to
 	// fail resolution.
-	_, err := executor.Merge(ctx, repoProto, git2go.MergeCommand{
+	_, err := executor.Merge(ctx, repoProto, MergeCommand{
 		Repository: repoPath,
 		AuthorName: "John Doe",
 		AuthorMail: "john.doe@example.com",
@@ -492,21 +492,21 @@ func TestMerge_recursive(t *testing.T) {
 		Ours:       ours[len(ours)-1].String(),
 		Theirs:     theirs[len(theirs)-1].String(),
 	})
-	require.Equal(t, fmt.Errorf("merge: %w", git2go.ConflictingFilesError{
+	require.Equal(t, fmt.Errorf("merge: %w", ConflictingFilesError{
 		ConflictingFiles: []string{"theirs"},
 	}), err)
 
 	// Otherwise, if we're merging an earlier criss-cross merge which has
 	// half of the limit many criss-cross patterns, we exactly hit the
 	// recursion limit and thus succeed.
-	response, err := executor.Merge(ctx, repoProto, git2go.MergeCommand{
+	response, err := executor.Merge(ctx, repoProto, MergeCommand{
 		Repository: repoPath,
 		AuthorName: "John Doe",
 		AuthorMail: "john.doe@example.com",
 		AuthorDate: authorDate,
 		Message:    "Merge message",
-		Ours:       ours[git2go.MergeRecursionLimit/2].String(),
-		Theirs:     theirs[git2go.MergeRecursionLimit/2].String(),
+		Ours:       ours[MergeRecursionLimit/2].String(),
+		Theirs:     theirs[MergeRecursionLimit/2].String(),
 	})
 	require.NoError(t, err)
 

@@ -70,12 +70,12 @@ func (cmd *cherryPickSubcommand) cherryPick(ctx context.Context, r *git2go.Cherr
 	}
 	defer repo.Free()
 
-	ours, err := lookupCommit(repo, r.Ours)
+	ours, err := git2goutil.LookupCommit(repo, r.Ours)
 	if err != nil {
 		return "", fmt.Errorf("ours commit lookup: %w", err)
 	}
 
-	pick, err := lookupCommit(repo, r.Commit)
+	pick, err := git2goutil.LookupCommit(repo, r.Commit)
 	if err != nil {
 		return "", fmt.Errorf("commit lookup: %w", err)
 	}
