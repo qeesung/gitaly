@@ -119,7 +119,7 @@ func WithRateLimiters(ctx context.Context) SetupFunc {
 			if limitCfg.Burst > 0 && limitCfg.Interval > 0 {
 				serviceName, methodName := splitMethodName(limitCfg.RPC)
 				rateLimiter := NewRateLimiter(
-					limitCfg.Interval,
+					limitCfg.Interval.Duration(),
 					limitCfg.Burst,
 					helper.NewTimerTicker(5*time.Minute),
 					middleware.requestsDroppedMetric.With(prometheus.Labels{

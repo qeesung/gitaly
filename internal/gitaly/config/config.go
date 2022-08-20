@@ -13,13 +13,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/cgroups"
 	internallog "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/sentry"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 )
 
 const (
@@ -32,10 +33,10 @@ const (
 
 // DailyJob enables a daily task to be scheduled for specific storages
 type DailyJob struct {
-	Hour     uint          `toml:"start_hour"`
-	Minute   uint          `toml:"start_minute"`
-	Duration time.Duration `toml:"duration"`
-	Storages []string      `toml:"storages"`
+	Hour     uint              `toml:"start_hour"`
+	Minute   uint              `toml:"start_minute"`
+	Duration duration.Duration `toml:"duration"`
+	Storages []string          `toml:"storages"`
 
 	// Disabled will completely disable a daily job, even in cases where a
 	// default schedule is implied
@@ -62,7 +63,7 @@ type Cfg struct {
 	Hooks                  Hooks             `toml:"hooks"`
 	Concurrency            []Concurrency     `toml:"concurrency"`
 	RateLimiting           []RateLimiting    `toml:"rate_limiting"`
-	GracefulRestartTimeout time.Duration     `toml:"graceful_restart_timeout"`
+	GracefulRestartTimeout duration.Duration `toml:"graceful_restart_timeout"`
 	DailyMaintenance       DailyJob          `toml:"daily_maintenance"`
 	Cgroups                cgroups.Config    `toml:"cgroups"`
 	PackObjectsCache       StreamCacheConfig `toml:"pack_objects_cache"`
@@ -147,7 +148,7 @@ type Concurrency struct {
 	MaxQueueSize int `toml:"max_queue_size"`
 	// MaxQueueWait is the maximum time a request can remain in the concurrency queue
 	// waiting to be picked up by Gitaly
-	MaxQueueWait time.Duration `toml:"max_queue_wait"`
+	MaxQueueWait duration.Duration `toml:"max_queue_wait"`
 }
 
 // RateLimiting allows endpoints to be limited to a maximum request rate per
@@ -161,16 +162,16 @@ type RateLimiting struct {
 	RPC string `toml:"rpc"`
 	// Interval sets the interval with which the token bucket will
 	// be refilled to what is configured in Burst.
-	Interval time.Duration `toml:"interval"`
+	Interval duration.Duration `toml:"interval"`
 	// Burst sets the capacity of the token bucket (see above).
 	Burst int `toml:"burst"`
 }
 
 // StreamCacheConfig contains settings for a streamcache instance.
 type StreamCacheConfig struct {
-	Enabled bool          `toml:"enabled"` // Default: false
-	Dir     string        `toml:"dir"`     // Default: <FIRST STORAGE PATH>/+gitaly/PackObjectsCache
-	MaxAge  time.Duration `toml:"max_age"` // Default: 5m
+	Enabled bool              `toml:"enabled"` // Default: false
+	Dir     string            `toml:"dir"`     // Default: <FIRST STORAGE PATH>/+gitaly/PackObjectsCache
+	MaxAge  duration.Duration `toml:"max_age"` // Default: 5m
 }
 
 // Load initializes the Config variable from file and the environment.
@@ -219,8 +220,8 @@ func (cfg *Cfg) Validate() error {
 }
 
 func (cfg *Cfg) setDefaults() error {
-	if cfg.GracefulRestartTimeout == 0 {
-		cfg.GracefulRestartTimeout = time.Minute
+	if cfg.GracefulRestartTimeout.Duration() == 0 {
+		cfg.GracefulRestartTimeout = duration.Duration(time.Minute)
 	}
 
 	if cfg.Gitlab.SecretFile == "" {
@@ -462,7 +463,7 @@ func defaultMaintenanceWindow(storages []Storage) DailyJob {
 	return DailyJob{
 		Hour:     12,
 		Minute:   0,
-		Duration: 10 * time.Minute,
+		Duration: duration.Duration(10 * time.Minute),
 		Storages: storageNames,
 	}
 }
@@ -486,8 +487,8 @@ func (cfg *Cfg) validateMaintenance() error {
 	if dm.Minute > 59 {
 		return fmt.Errorf("daily maintenance specified minute '%d' outside range (0-59)", dm.Minute)
 	}
-	if dm.Duration > 24*time.Hour {
-		return fmt.Errorf("daily maintenance specified duration %s must be less than 24 hours", dm.Duration)
+	if dm.Duration.Duration() > 24*time.Hour {
+		return fmt.Errorf("daily maintenance specified duration %s must be less than 24 hours", dm.Duration.Duration())
 	}
 
 	return nil
@@ -524,7 +525,7 @@ func (cfg *Cfg) configurePackObjectsCache() error {
 	}
 
 	if poc.MaxAge == 0 {
-		poc.MaxAge = 5 * time.Minute
+		poc.MaxAge = duration.Duration(5 * time.Minute)
 	}
 
 	if poc.Dir == "" {
