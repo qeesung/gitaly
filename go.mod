@@ -10,6 +10,7 @@ require (
 	github.com/git-lfs/git-lfs/v3 v3.2.0
 	github.com/go-enry/go-enry/v2 v2.8.2
 	github.com/go-enry/go-license-detector/v4 v4.3.0
+	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/google/go-cmp v0.5.8
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
@@ -31,7 +32,6 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
-	gitlab.com/gitlab-org/gitlab-shell/v14 v14.11.0
 	gitlab.com/gitlab-org/labkit v1.16.0
 	go.uber.org/goleak v1.1.12
 	gocloud.dev v0.25.0
@@ -105,7 +105,6 @@ require (
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.4.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/pprof v0.0.0-20210804190019-f964ff605595 // indirect
