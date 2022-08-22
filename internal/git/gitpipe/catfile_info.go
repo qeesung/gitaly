@@ -185,6 +185,14 @@ func CatfileInfoAllObjects(
 	go func() {
 		defer close(resultChan)
 
+		objectHash, err := repo.ObjectHash(ctx)
+		if err != nil {
+			sendCatfileInfoResult(ctx, resultChan, CatfileInfoResult{
+				err: fmt.Errorf("detecting object hash: %w", err),
+			})
+			return
+		}
+
 		var stderr bytes.Buffer
 		cmd, err := repo.Exec(ctx, git.SubCmd{
 			Name: "cat-file",
@@ -204,7 +212,7 @@ func CatfileInfoAllObjects(
 
 		reader := bufio.NewReader(cmd)
 		for {
-			objectInfo, err := catfile.ParseObjectInfo(git.ObjectHashSHA1, reader)
+			objectInfo, err := catfile.ParseObjectInfo(objectHash, reader)
 			if err != nil {
 				if errors.Is(err, io.EOF) {
 					break

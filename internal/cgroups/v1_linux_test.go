@@ -38,22 +38,24 @@ func defaultCgroupsConfig() cgroups.Config {
 func TestSetup(t *testing.T) {
 	mock := newMock(t)
 
+	pid := 1
 	v1Manager := &CGroupV1Manager{
 		cfg:       defaultCgroupsConfig(),
 		hierarchy: mock.hierarchy,
+		pid:       pid,
 	}
 	require.NoError(t, v1Manager.Setup())
 
 	for i := 0; i < 3; i++ {
 		memoryPath := filepath.Join(
-			mock.root, "memory", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", i), "memory.limit_in_bytes",
+			mock.root, "memory", "gitaly", fmt.Sprintf("gitaly-%d", pid), fmt.Sprintf("repos-%d", i), "memory.limit_in_bytes",
 		)
 		memoryContent := readCgroupFile(t, memoryPath)
 
 		require.Equal(t, string(memoryContent), "1024000")
 
 		cpuPath := filepath.Join(
-			mock.root, "cpu", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", i), "cpu.shares",
+			mock.root, "cpu", "gitaly", fmt.Sprintf("gitaly-%d", pid), fmt.Sprintf("repos-%d", i), "cpu.shares",
 		)
 		cpuContent := readCgroupFile(t, cpuPath)
 
@@ -74,9 +76,11 @@ func TestAddCommand(t *testing.T) {
 	config.Repositories.MemoryBytes = 1024
 	config.Repositories.CPUShares = 16
 
+	pid := 1
 	v1Manager1 := &CGroupV1Manager{
 		cfg:       config,
 		hierarchy: mock.hierarchy,
+		pid:       pid,
 	}
 	require.NoError(t, v1Manager1.Setup())
 	ctx := testhelper.Context(t)
@@ -88,6 +92,7 @@ func TestAddCommand(t *testing.T) {
 	v1Manager2 := &CGroupV1Manager{
 		cfg:       config,
 		hierarchy: mock.hierarchy,
+		pid:       pid,
 	}
 
 	t.Run("without a repository", func(t *testing.T) {
@@ -99,13 +104,13 @@ func TestAddCommand(t *testing.T) {
 
 		for _, s := range mock.subsystems {
 			path := filepath.Join(mock.root, string(s.Name()), "gitaly",
-				fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", groupID), "cgroup.procs")
+				fmt.Sprintf("gitaly-%d", pid), fmt.Sprintf("repos-%d", groupID), "cgroup.procs")
 			content := readCgroupFile(t, path)
 
-			pid, err := strconv.Atoi(string(content))
+			cmdPid, err := strconv.Atoi(string(content))
 			require.NoError(t, err)
 
-			require.Equal(t, cmd2.Pid(), pid)
+			require.Equal(t, cmd2.Pid(), cmdPid)
 		}
 	})
 
@@ -121,13 +126,13 @@ func TestAddCommand(t *testing.T) {
 
 		for _, s := range mock.subsystems {
 			path := filepath.Join(mock.root, string(s.Name()), "gitaly",
-				fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", groupID), "cgroup.procs")
+				fmt.Sprintf("gitaly-%d", pid), fmt.Sprintf("repos-%d", groupID), "cgroup.procs")
 			content := readCgroupFile(t, path)
 
-			pid, err := strconv.Atoi(string(content))
+			cmdPid, err := strconv.Atoi(string(content))
 			require.NoError(t, err)
 
-			require.Equal(t, cmd2.Pid(), pid)
+			require.Equal(t, cmd2.Pid(), cmdPid)
 		}
 	})
 }
@@ -135,16 +140,18 @@ func TestAddCommand(t *testing.T) {
 func TestCleanup(t *testing.T) {
 	mock := newMock(t)
 
+	pid := 1
 	v1Manager := &CGroupV1Manager{
 		cfg:       defaultCgroupsConfig(),
 		hierarchy: mock.hierarchy,
+		pid:       pid,
 	}
 	require.NoError(t, v1Manager.Setup())
 	require.NoError(t, v1Manager.Cleanup())
 
 	for i := 0; i < 3; i++ {
-		memoryPath := filepath.Join(mock.root, "memory", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", i))
-		cpuPath := filepath.Join(mock.root, "cpu", "gitaly", fmt.Sprintf("gitaly-%d", os.Getpid()), fmt.Sprintf("repos-%d", i))
+		memoryPath := filepath.Join(mock.root, "memory", "gitaly", fmt.Sprintf("gitaly-%d", pid), fmt.Sprintf("repos-%d", i))
+		cpuPath := filepath.Join(mock.root, "cpu", "gitaly", fmt.Sprintf("gitaly-%d", pid), fmt.Sprintf("repos-%d", i))
 
 		require.NoDirExists(t, memoryPath)
 		require.NoDirExists(t, cpuPath)
@@ -165,7 +172,7 @@ func TestMetrics(t *testing.T) {
 	config.Repositories.MemoryBytes = 1048576
 	config.Repositories.CPUShares = 16
 
-	v1Manager1 := newV1Manager(config)
+	v1Manager1 := newV1Manager(config, 1)
 	v1Manager1.hierarchy = mock.hierarchy
 
 	mock.setupMockCgroupFiles(t, v1Manager1, 2)

@@ -9,12 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/sentry"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 )
 
 func TestConfigValidation(t *testing.T) {
@@ -205,14 +206,14 @@ func TestConfigValidation(t *testing.T) {
 		{
 			desc: "repositories_cleanup minimal duration is too low",
 			changeConfig: func(cfg *Config) {
-				cfg.RepositoriesCleanup.CheckInterval = config.Duration(minimalSyncCheckInterval - time.Nanosecond)
+				cfg.RepositoriesCleanup.CheckInterval = duration.Duration(minimalSyncCheckInterval - time.Nanosecond)
 			},
 			errMsg: `repositories_cleanup.check_interval is less then 1m0s, which could lead to a database performance problem`,
 		},
 		{
 			desc: "repositories_cleanup minimal duration is too low",
 			changeConfig: func(cfg *Config) {
-				cfg.RepositoriesCleanup.RunInterval = config.Duration(minimalSyncRunInterval - time.Nanosecond)
+				cfg.RepositoriesCleanup.RunInterval = duration.Duration(minimalSyncRunInterval - time.Nanosecond)
 			},
 			errMsg: `repositories_cleanup.run_interval is less then 1m0s, which could lead to a database performance problem`,
 		},
@@ -290,7 +291,7 @@ func TestConfigParsing(t *testing.T) {
 					},
 				},
 				Prometheus: prometheus.Config{
-					ScrapeTimeout:      time.Second,
+					ScrapeTimeout:      duration.Duration(time.Second),
 					GRPCLatencyBuckets: []float64{0.1, 0.2, 0.3},
 				},
 				PrometheusExcludeDatabaseFromDefaultMetrics: true,
@@ -317,28 +318,28 @@ func TestConfigParsing(t *testing.T) {
 					},
 				},
 				MemoryQueueEnabled:  true,
-				GracefulStopTimeout: config.Duration(30 * time.Second),
+				GracefulStopTimeout: duration.Duration(30 * time.Second),
 				Reconciliation: Reconciliation{
-					SchedulingInterval: config.Duration(time.Minute),
+					SchedulingInterval: duration.Duration(time.Minute),
 					HistogramBuckets:   []float64{1, 2, 3, 4, 5},
 				},
 				Replication: Replication{BatchSize: 1, ParallelStorageProcessingWorkers: 2},
 				Failover: Failover{
 					Enabled:                  true,
 					ElectionStrategy:         ElectionStrategyPerRepository,
-					ErrorThresholdWindow:     config.Duration(20 * time.Second),
+					ErrorThresholdWindow:     duration.Duration(20 * time.Second),
 					WriteErrorThresholdCount: 1500,
 					ReadErrorThresholdCount:  100,
-					BootstrapInterval:        config.Duration(1 * time.Second),
-					MonitorInterval:          config.Duration(3 * time.Second),
+					BootstrapInterval:        duration.Duration(1 * time.Second),
+					MonitorInterval:          duration.Duration(3 * time.Second),
 				},
 				RepositoriesCleanup: RepositoriesCleanup{
-					CheckInterval:       config.Duration(time.Second),
-					RunInterval:         config.Duration(3 * time.Second),
+					CheckInterval:       duration.Duration(time.Second),
+					RunInterval:         duration.Duration(3 * time.Second),
 					RepositoriesInBatch: 10,
 				},
 				BackgroundVerification: BackgroundVerification{
-					VerificationInterval: 24 * time.Hour,
+					VerificationInterval: duration.Duration(24 * time.Hour),
 					DeleteInvalidRecords: true,
 				},
 			},
@@ -347,7 +348,7 @@ func TestConfigParsing(t *testing.T) {
 			desc:     "overwriting default values in the config",
 			filePath: "testdata/config.overwritedefaults.toml",
 			expected: Config{
-				GracefulStopTimeout: config.Duration(time.Minute),
+				GracefulStopTimeout: duration.Duration(time.Minute),
 				Reconciliation: Reconciliation{
 					SchedulingInterval: 0,
 					HistogramBuckets:   []float64{1, 2, 3, 4, 5},
@@ -358,12 +359,12 @@ func TestConfigParsing(t *testing.T) {
 				Failover: Failover{
 					Enabled:           false,
 					ElectionStrategy:  "local",
-					BootstrapInterval: config.Duration(5 * time.Second),
-					MonitorInterval:   config.Duration(10 * time.Second),
+					BootstrapInterval: duration.Duration(5 * time.Second),
+					MonitorInterval:   duration.Duration(10 * time.Second),
 				},
 				RepositoriesCleanup: RepositoriesCleanup{
-					CheckInterval:       config.Duration(time.Second),
-					RunInterval:         config.Duration(4 * time.Second),
+					CheckInterval:       duration.Duration(time.Second),
+					RunInterval:         duration.Duration(4 * time.Second),
 					RepositoriesInBatch: 11,
 				},
 				BackgroundVerification: DefaultBackgroundVerificationConfig(),
@@ -373,7 +374,7 @@ func TestConfigParsing(t *testing.T) {
 			desc:     "empty config yields default values",
 			filePath: "testdata/config.empty.toml",
 			expected: Config{
-				GracefulStopTimeout: config.Duration(time.Minute),
+				GracefulStopTimeout: duration.Duration(time.Minute),
 				Prometheus:          prometheus.DefaultConfig(),
 				PrometheusExcludeDatabaseFromDefaultMetrics: true,
 				Reconciliation: DefaultReconciliationConfig(),
@@ -381,12 +382,12 @@ func TestConfigParsing(t *testing.T) {
 				Failover: Failover{
 					Enabled:           true,
 					ElectionStrategy:  ElectionStrategyPerRepository,
-					BootstrapInterval: config.Duration(time.Second),
-					MonitorInterval:   config.Duration(3 * time.Second),
+					BootstrapInterval: duration.Duration(time.Second),
+					MonitorInterval:   duration.Duration(3 * time.Second),
 				},
 				RepositoriesCleanup: RepositoriesCleanup{
-					CheckInterval:       config.Duration(30 * time.Minute),
-					RunInterval:         config.Duration(24 * time.Hour),
+					CheckInterval:       duration.Duration(30 * time.Minute),
+					RunInterval:         duration.Duration(24 * time.Hour),
 					RepositoriesInBatch: 16,
 				},
 				BackgroundVerification: DefaultBackgroundVerificationConfig(),
@@ -521,6 +522,6 @@ func TestSerialization(t *testing.T) {
 	t.Run("partially set", func(t *testing.T) {
 		out.Reset()
 		require.NoError(t, encoder.Encode(Config{ListenAddr: "localhost:5640"}))
-		require.Equal(t, "listen_addr = \"localhost:5640\"\n", out.String())
+		require.Equal(t, "listen_addr = 'localhost:5640'\n", out.String())
 	})
 }

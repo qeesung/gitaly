@@ -1,5 +1,3 @@
-//go:build !gitaly_test_sha256
-
 package gitpipe
 
 import (
@@ -19,14 +17,30 @@ import (
 )
 
 func TestPipeline_revlist(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
-		Seed:                   gittest.SeedGitLabTest,
 	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	blobA := gittest.WriteBlob(t, cfg, repoPath, []byte("blob a"))
+	blobB := gittest.WriteBlob(t, cfg, repoPath, []byte("b"))
+	blobC := gittest.WriteBlob(t, cfg, repoPath, []byte("longer blob c"))
+
+	subtree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{Path: "subblob", Mode: "100644", OID: blobA},
+	})
+	tree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{Path: "blob", Mode: "100644", OID: blobB},
+		{Path: "subtree", Mode: "040000", OID: subtree},
+	})
+
+	commitA := gittest.WriteCommit(t, cfg, repoPath)
+	commitB := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(commitA), gittest.WithTree(tree), gittest.WithBranch("main"))
 
 	for _, tc := range []struct {
 		desc               string
@@ -39,79 +53,81 @@ func TestPipeline_revlist(t *testing.T) {
 		{
 			desc: "single blob",
 			revisions: []string{
-				lfsPointer1,
+				blobA.String(),
 			},
 			revlistOptions: []RevlistOption{
 				WithObjects(),
 			},
 			expectedResults: []CatfileObjectResult{
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 6}}},
 			},
 		},
 		{
 			desc: "single blob without objects",
 			revisions: []string{
-				lfsPointer1,
+				blobA.String(),
 			},
 			expectedResults: nil,
 		},
 		{
 			desc: "multiple blobs",
 			revisions: []string{
-				lfsPointer1,
-				lfsPointer2,
-				lfsPointer3,
+				blobA.String(),
+				blobB.String(),
+				blobC.String(),
 			},
 			revlistOptions: []RevlistOption{
 				WithObjects(),
 			},
 			expectedResults: []CatfileObjectResult{
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}}},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}}},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer3, Type: "blob", Size: 127}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 6}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobB, Type: "blob", Size: 1}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobC, Type: "blob", Size: 13}}},
 			},
 		},
 		{
 			desc: "multiple blobs with filter",
 			revisions: []string{
-				lfsPointer1,
-				lfsPointer2,
-				lfsPointer3,
+				blobA.String(),
+				blobB.String(),
+				blobC.String(),
 			},
 			revlistOptions: []RevlistOption{
 				WithObjects(),
 				WithSkipRevlistResult(func(r *RevisionResult) bool {
-					return r.OID != lfsPointer2
+					return r.OID != blobB
 				}),
 			},
 			expectedResults: []CatfileObjectResult{
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobB, Type: "blob", Size: 1}}},
 			},
 		},
 		{
 			desc: "tree",
 			revisions: []string{
-				"b95c0fad32f4361845f91d9ce4c1721b52b82793",
+				tree.String(),
 			},
 			revlistOptions: []RevlistOption{
 				WithObjects(),
 			},
 			expectedResults: []CatfileObjectResult{
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "b95c0fad32f4361845f91d9ce4c1721b52b82793", Type: "tree", Size: 43}}},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "93e123ac8a3e6a0b600953d7598af629dec7b735", Type: "blob", Size: 59}}, ObjectName: []byte("branch-test.txt")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: tree, Type: "tree", Size: hashDependentObjectSize(66, 90)}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobB, Type: "blob", Size: 1}}, ObjectName: []byte("blob")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: subtree, Type: "tree", Size: hashDependentObjectSize(35, 47)}}, ObjectName: []byte("subtree")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 6}}, ObjectName: []byte("subtree/subblob")},
 			},
 		},
 		{
 			desc: "tree without objects",
 			revisions: []string{
-				"b95c0fad32f4361845f91d9ce4c1721b52b82793",
+				tree.String(),
 			},
 			expectedResults: nil,
 		},
 		{
 			desc: "tree with blob filter",
 			revisions: []string{
-				"b95c0fad32f4361845f91d9ce4c1721b52b82793",
+				tree.String(),
 			},
 			revlistOptions: []RevlistOption{
 				WithObjects(),
@@ -122,37 +138,35 @@ func TestPipeline_revlist(t *testing.T) {
 				}),
 			},
 			expectedResults: []CatfileObjectResult{
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "93e123ac8a3e6a0b600953d7598af629dec7b735", Type: "blob", Size: 59}}, ObjectName: []byte("branch-test.txt")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobB, Type: "blob", Size: 1}}, ObjectName: []byte("blob")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 6}}, ObjectName: []byte("subtree/subblob")},
 			},
 		},
 		{
 			desc: "revision range",
 			revisions: []string{
-				"^master~",
-				"master",
+				"^" + commitB.String() + "~",
+				commitB.String(),
 			},
 			revlistOptions: []RevlistOption{
 				WithObjects(),
 			},
 			expectedResults: []CatfileObjectResult{
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "1e292f8fedd741b75372e19097c76d327140c312", Type: "commit", Size: 388}}},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "07f8147e8e73aab6c935c296e8cdc5194dee729b", Type: "tree", Size: 780}}},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "ceb102b8d3f9a95c2eb979213e49f7cc1b23d56e", Type: "tree", Size: 258}}, ObjectName: []byte("files")},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "2132d150328bd9334cc4e62a16a5d998a7e399b9", Type: "tree", Size: 31}}, ObjectName: []byte("files/flat")},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "f3942dc8b824a2c9359e518d48e68f84461bd2f7", Type: "tree", Size: 34}}, ObjectName: []byte("files/flat/path")},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "ea7249055466085d0a6c69951908ef47757e92f4", Type: "tree", Size: 39}}, ObjectName: []byte("files/flat/path/correct")},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "c1c67abbaf91f624347bb3ae96eabe3a1b742478", Type: "commit", Size: 326}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: commitB, Type: "commit", Size: hashDependentObjectSize(225, 273)}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: tree, Type: "tree", Size: hashDependentObjectSize(66, 90)}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobB, Type: "blob", Size: 1}}, ObjectName: []byte("blob")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: subtree, Type: "tree", Size: hashDependentObjectSize(35, 47)}}, ObjectName: []byte("subtree")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 6}}, ObjectName: []byte("subtree/subblob")},
 			},
 		},
 		{
 			desc: "revision range without objects",
 			revisions: []string{
-				"^master~",
-				"master",
+				"^" + commitB.String() + "~",
+				commitB.String(),
 			},
 			expectedResults: []CatfileObjectResult{
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "1e292f8fedd741b75372e19097c76d327140c312", Type: "commit", Size: 388}}},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: "c1c67abbaf91f624347bb3ae96eabe3a1b742478", Type: "commit", Size: 326}}},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: commitB, Type: "commit", Size: hashDependentObjectSize(225, 273)}}},
 			},
 		},
 		{
@@ -163,20 +177,19 @@ func TestPipeline_revlist(t *testing.T) {
 			revlistOptions: []RevlistOption{
 				WithObjects(),
 				WithSkipRevlistResult(func(r *RevisionResult) bool {
-					// Let through two LFS pointers and a tree.
-					return r.OID != "b95c0fad32f4361845f91d9ce4c1721b52b82793" &&
-						r.OID != lfsPointer1 && r.OID != lfsPointer2
+					// Let through two blobs and a tree.
+					return r.OID != tree && r.OID != blobA && r.OID != blobB
 				}),
 			},
 			catfileInfoOptions: []CatfileInfoOption{
 				WithSkipCatfileInfoResult(func(objectInfo *catfile.ObjectInfo) bool {
-					// Only let through blobs, so only the two LFS pointers remain.
+					// Only let through blobs, so only the two blobs remain.
 					return objectInfo.Type != "blob"
 				}),
 			},
 			expectedResults: []CatfileObjectResult{
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer1, Type: "blob", Size: 133}}, ObjectName: []byte("files/lfs/lfs_object.iso")},
-				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: lfsPointer2, Type: "blob", Size: 127}}, ObjectName: []byte("another.lfs")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobB, Type: "blob", Size: 1}}, ObjectName: []byte("blob")},
+				{Object: &catfile.Object{ObjectInfo: catfile.ObjectInfo{Oid: blobA, Type: "blob", Size: 6}}, ObjectName: []byte("subtree/subblob")},
 			},
 		},
 		{
@@ -192,9 +205,9 @@ func TestPipeline_revlist(t *testing.T) {
 		{
 			desc: "mixed valid and invalid revision",
 			revisions: []string{
-				lfsPointer1,
+				blobA.String(),
 				"doesnotexist",
-				lfsPointer2,
+				blobB.String(),
 			},
 			expectedErr: errors.New("rev-list pipeline command: exit status 128, stderr: " +
 				"\"fatal: ambiguous argument 'doesnotexist': unknown revision or path not in the working tree.\\n" +
@@ -309,7 +322,7 @@ func TestPipeline_revlist(t *testing.T) {
 			_, err := io.Copy(io.Discard, catfileObjectIter.Result())
 			require.NoError(t, err)
 
-			if i == 3 {
+			if i == 1 {
 				cancel()
 			}
 		}
@@ -368,19 +381,27 @@ func TestPipeline_revlist(t *testing.T) {
 
 		// We could in theory assert the exact amount of objects, but this would make it
 		// harder than necessary to change the test repo's contents.
-		require.Greater(t, i, 1000)
+		require.Equal(t, i, 7)
 	})
 }
 
 func TestPipeline_forEachRef(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
-	repoProto, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
-		Seed:                   gittest.SeedGitLabTest,
 	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	keepaliveCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithReference("refs/keep-alive/a"), gittest.WithMessage("keepalive"))
+	mainCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithMessage("main"))
+	featureCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("feature"), gittest.WithMessage("feature"))
+	tag := gittest.WriteTag(t, cfg, repoPath, "v1.0.0", mainCommit.Revision(), gittest.WriteTagConfig{
+		Message: "annotated",
+	})
 
 	catfileCache := catfile.NewCache(cfg)
 	defer catfileCache.Stop()
@@ -406,6 +427,22 @@ func TestPipeline_forEachRef(t *testing.T) {
 		content []byte
 	}
 
+	expectedRefs := map[git.ReferenceName]object{
+		"refs/keep-alive/a":  {oid: keepaliveCommit, content: []byte("xx")},
+		"refs/heads/main":    {oid: mainCommit, content: []byte("xx")},
+		"refs/heads/feature": {oid: featureCommit, content: []byte("xx")},
+		"refs/tags/v1.0.0":   {oid: tag, content: []byte("xx")},
+	}
+	for expectedRef, expectedObject := range expectedRefs {
+		content, err := repo.ReadObject(ctx, expectedObject.oid)
+		require.NoError(t, err)
+
+		expectedRefs[expectedRef] = object{
+			oid:     expectedObject.oid,
+			content: content,
+		}
+	}
+
 	objectsByRef := make(map[git.ReferenceName]object)
 	for catfileObjectIter.Next() {
 		result := catfileObjectIter.Result()
@@ -420,24 +457,5 @@ func TestPipeline_forEachRef(t *testing.T) {
 		}
 	}
 	require.NoError(t, catfileObjectIter.Err())
-	require.Greater(t, len(objectsByRef), 90)
-
-	// We certainly don't want to hard-code all the references, so we just cross-check with the
-	// localrepo implementation to verify that both return the same data.
-	refs, err := repo.GetReferences(ctx)
-	require.NoError(t, err)
-	require.Equal(t, len(refs), len(objectsByRef))
-
-	expectedObjectsByRef := make(map[git.ReferenceName]object)
-	for _, ref := range refs {
-		oid := git.ObjectID(ref.Target)
-		content, err := repo.ReadObject(ctx, oid)
-		require.NoError(t, err)
-
-		expectedObjectsByRef[ref.Name] = object{
-			oid:     oid,
-			content: content,
-		}
-	}
-	require.Equal(t, expectedObjectsByRef, objectsByRef)
+	require.Equal(t, expectedRefs, objectsByRef)
 }

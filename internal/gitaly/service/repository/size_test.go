@@ -30,7 +30,10 @@ const testRepoMinSizeKB = 10000
 func TestRepositorySize_SuccessfulRequest(t *testing.T) {
 	t.Parallel()
 
-	featureSet := testhelper.NewFeatureSets(featureflag.RevlistForRepoSize)
+	featureSet := testhelper.NewFeatureSets(
+		featureflag.RevlistForRepoSize,
+		featureflag.CatfileRepoSize,
+	)
 
 	featureSet.Run(t, testSuccessfulRepositorySizeRequest)
 	featureSet.Run(t, testSuccessfulRepositorySizeRequestPoolMember)
@@ -94,7 +97,8 @@ func testSuccessfulRepositorySizeRequestPoolMember(t *testing.T, ctx context.Con
 	response, err = repoClient.RepositorySize(ctx, sizeRequest)
 	require.NoError(t, err)
 
-	if featureflag.RevlistForRepoSize.IsEnabled(ctx) {
+	if featureflag.RevlistForRepoSize.IsEnabled(ctx) ||
+		featureflag.CatfileRepoSize.IsEnabled(ctx) {
 		assert.Equal(t, int64(0), response.GetSize())
 	} else {
 		assert.Less(t, response.GetSize(), sizeBeforePool)

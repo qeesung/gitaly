@@ -583,45 +583,77 @@ func TestFindAllTags_sorted(t *testing.T) {
 
 	require.NoError(t, repo.ExecAndWait(ctx, git.SubCmd{
 		Name: "tag",
-		Args: []string{"not-annotated", headCommit.Id},
+		Args: []string{"v1.2.0", headCommit.Id},
+	}, git.WithDisabledHooks()))
+
+	require.NoError(t, repo.ExecAndWait(ctx, git.SubCmd{
+		Name: "tag",
+		Args: []string{"v1.10.0", headCommit.Id},
 	}, git.WithDisabledHooks()))
 
 	for _, tc := range []struct {
 		desc   string
 		sortBy *gitalypb.FindAllTagsRequest_SortBy
-		exp    []string
+		exp    map[string]string
 	}{
 		{
 			desc:   "by name",
 			sortBy: &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_REFNAME},
-			exp: []string{
-				annotatedTagID.String(),
-				headCommit.Id,
-				"f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
-				"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
-				"8f03acbcd11c53d9c9468078f32a2622005a4841",
+			exp: map[string]string{
+				"annotated": annotatedTagID.String(),
+				"v1.0.0":    "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+				"v1.1.0":    "8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+				"v1.1.1":    "8f03acbcd11c53d9c9468078f32a2622005a4841",
+				"v1.10.0":   headCommit.Id,
+				"v1.2.0":    headCommit.Id,
+			},
+		},
+		{
+			desc:   "by semantic name in ascending order",
+			sortBy: &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_VERSION_REFNAME, Direction: gitalypb.SortDirection_ASCENDING},
+			exp: map[string]string{
+				"annotated": annotatedTagID.String(),
+				"v1.0.0":    "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+				"v1.1.0":    "8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+				"v1.1.1":    "8f03acbcd11c53d9c9468078f32a2622005a4841",
+				"v1.2.0":    headCommit.Id,
+				"v1.10.0":   headCommit.Id,
+			},
+		},
+		{
+			desc:   "by semantic name in descending order",
+			sortBy: &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_VERSION_REFNAME, Direction: gitalypb.SortDirection_DESCENDING},
+			exp: map[string]string{
+				"v1.10.0":   headCommit.Id,
+				"v1.2.0":    headCommit.Id,
+				"v1.1.1":    "8f03acbcd11c53d9c9468078f32a2622005a4841",
+				"v1.1.0":    "8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+				"v1.0.0":    "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+				"annotated": annotatedTagID.String(),
 			},
 		},
 		{
 			desc:   "by updated in ascending order",
 			sortBy: &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_CREATORDATE, Direction: gitalypb.SortDirection_ASCENDING},
-			exp: []string{
-				"f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
-				"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
-				headCommit.Id,
-				"8f03acbcd11c53d9c9468078f32a2622005a4841",
-				annotatedTagID.String(),
+			exp: map[string]string{
+				"v1.0.0":    "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+				"v1.1.0":    "8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+				"v1.10.0":   headCommit.Id,
+				"v1.2.0":    headCommit.Id,
+				"v1.1.1":    "8f03acbcd11c53d9c9468078f32a2622005a4841",
+				"annotated": annotatedTagID.String(),
 			},
 		},
 		{
 			desc:   "by updated in descending order",
 			sortBy: &gitalypb.FindAllTagsRequest_SortBy{Key: gitalypb.FindAllTagsRequest_SortBy_CREATORDATE, Direction: gitalypb.SortDirection_DESCENDING},
-			exp: []string{
-				annotatedTagID.String(),
-				"8f03acbcd11c53d9c9468078f32a2622005a4841",
-				headCommit.Id,
-				"8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
-				"f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
+			exp: map[string]string{
+				"annotated": annotatedTagID.String(),
+				"v1.1.0":    "8a2a6eb295bb170b34c24c76c49ed0e9b2eaf34b",
+				"v1.10.0":   headCommit.Id,
+				"v1.2.0":    headCommit.Id,
+				"v1.1.1":    "8f03acbcd11c53d9c9468078f32a2622005a4841",
+				"v1.0.0":    "f4e6814c3e4e7a0de82a9e7cd20c626cc963a2f8",
 			},
 		},
 	} {
@@ -632,7 +664,7 @@ func TestFindAllTags_sorted(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			var tags []string
+			tags := make(map[string]string)
 			for {
 				r, err := c.Recv()
 				if err == io.EOF {
@@ -640,7 +672,7 @@ func TestFindAllTags_sorted(t *testing.T) {
 				}
 				require.NoError(t, err)
 				for _, tag := range r.GetTags() {
-					tags = append(tags, tag.Id)
+					tags[string(tag.Name)] = tag.Id
 				}
 			}
 

@@ -4,48 +4,25 @@ import (
 	"fmt"
 	"path/filepath"
 	"time"
+
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 )
 
 // Ruby contains setting for Ruby worker processes
 type Ruby struct {
-	Dir                       string   `toml:"dir"`
-	MaxRSS                    int      `toml:"max_rss"`
-	GracefulRestartTimeout    Duration `toml:"graceful_restart_timeout"`
-	RestartDelay              Duration `toml:"restart_delay"`
-	NumWorkers                int      `toml:"num_workers"`
-	LinguistLanguagesPath     string   `toml:"linguist_languages_path"`
-	RuggedGitConfigSearchPath string   `toml:"rugged_git_config_search_path"`
-}
-
-// Duration is a trick to let our TOML library parse durations from strings.
-type Duration time.Duration
-
-//nolint: stylecheck // This is unintentionally missing documentation.
-func (d *Duration) Duration() time.Duration {
-	if d != nil {
-		return time.Duration(*d)
-	}
-	return 0
-}
-
-//nolint: stylecheck // This is unintentionally missing documentation.
-func (d *Duration) UnmarshalText(text []byte) error {
-	td, err := time.ParseDuration(string(text))
-	if err == nil {
-		*d = Duration(td)
-	}
-	return err
-}
-
-//nolint: stylecheck // This is unintentionally missing documentation.
-func (d Duration) MarshalText() ([]byte, error) {
-	return []byte(time.Duration(d).String()), nil
+	Dir                       string            `toml:"dir"`
+	MaxRSS                    int               `toml:"max_rss"`
+	GracefulRestartTimeout    duration.Duration `toml:"graceful_restart_timeout"`
+	RestartDelay              duration.Duration `toml:"restart_delay"`
+	NumWorkers                int               `toml:"num_workers"`
+	LinguistLanguagesPath     string            `toml:"linguist_languages_path"`
+	RuggedGitConfigSearchPath string            `toml:"rugged_git_config_search_path"`
 }
 
 // ConfigureRuby validates the gitaly-ruby configuration and sets default values.
 func (cfg *Cfg) ConfigureRuby() error {
 	if cfg.Ruby.GracefulRestartTimeout.Duration() == 0 {
-		cfg.Ruby.GracefulRestartTimeout = Duration(10 * time.Minute)
+		cfg.Ruby.GracefulRestartTimeout = duration.Duration(10 * time.Minute)
 	}
 
 	if cfg.Ruby.MaxRSS == 0 {
@@ -53,7 +30,7 @@ func (cfg *Cfg) ConfigureRuby() error {
 	}
 
 	if cfg.Ruby.RestartDelay.Duration() == 0 {
-		cfg.Ruby.RestartDelay = Duration(5 * time.Minute)
+		cfg.Ruby.RestartDelay = duration.Duration(5 * time.Minute)
 	}
 
 	if len(cfg.Ruby.Dir) == 0 {

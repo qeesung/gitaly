@@ -1,5 +1,52 @@
 # Gitaly changelog
 
+## 15.3.0 (2022-08-19)
+
+### Added (2 changes)
+
+- [praefect: Add -db-only flag to remove repository](gitlab-org/gitaly@2d958aba0c67cc9887e667ee9b60f0bf165b355a) ([merge request](gitlab-org/gitaly!4715))
+- [proto: Introduce structured UserCreateTagError](gitlab-org/gitaly@d3c675691d366b9c751f0f17d1eb61c87b509ab6) ([merge request](gitlab-org/gitaly!4741))
+
+### Fixed (16 changes)
+
+- [objectpool: Default-enable pruning of refs to fix reference conflicts](gitlab-org/gitaly@02082a58a64fae83ae59aba60aa8c44e882e66e4) ([merge request](gitlab-org/gitaly!4807))
+- [git: Fix warning on startup about Git binary fallback](gitlab-org/gitaly@96bdc9439798f202647360242cb5109cece5e2d8) ([merge request](gitlab-org/gitaly!4805))
+- [linguist: Ensure empty files are omitted in totals](gitlab-org/gitaly@0b310f3cb26889f74f8b3024efc683279b2c6ef6) ([merge request](gitlab-org/gitaly!4791))
+- [repository: Fix passing zero OID to WriteRef](gitlab-org/gitaly@2db323c12071fc8f1ff16f42ecadac09db0b95fd) ([merge request](gitlab-org/gitaly!4794))
+- [localrepo: Speed up fetches by disabling computation of forced updates](gitlab-org/gitaly@c466baa1c30afd14838f8cba97c6bca958ecc3f1) ([merge request](gitlab-org/gitaly!4783))
+- [objectpool: Speed up fetches by disabling computation of forced updates](gitlab-org/gitaly@8b14bc6b52f0ca20bf25a9c22abea76917a31cea) ([merge request](gitlab-org/gitaly!4783))
+- [server: Give clients grace-period for keepalives](gitlab-org/gitaly@6a02746cd6edc7d3e87e8c340ad271e8859b4956) ([merge request](gitlab-org/gitaly!4772))
+- [ref: Fix `Internal` errors in `FindTag()` when tag doesn't exist](gitlab-org/gitaly@453ac57fc19b14da7f579df8d5c3a36adaa2ef3a) ([merge request](gitlab-org/gitaly!4771))
+- [ssh: Fix silent errors when SSHReceivePack fails](gitlab-org/gitaly@83a8bf540aecf84c8aed6275b2219a00bedf1dfd) ([merge request](gitlab-org/gitaly!4766))
+- [ssh: Handle timeout waiting on packfile negotiation with proper errors](gitlab-org/gitaly@5caeaa1d3e5694a1f9179b5cf09aa663f4f75b42) ([merge request](gitlab-org/gitaly!4761))
+- [objectpool: Fix conflicting references when fetching into pools](gitlab-org/gitaly@018958fb1cb4a8550d15bbd096b55fdee9f2a3b4) ([merge request](gitlab-org/gitaly!4745))
+- [operations: Introduce structured errors for UserCreateTag](gitlab-org/gitaly@0fedeb41fda77a8024f923060b646648dbb753bb) ([merge request](gitlab-org/gitaly!4743))
+- [operations: Validate tag name more thoroughly in UserCreateTag](gitlab-org/gitaly@928c1f5793058730bc1e5eefdd08ae3a067205ea) ([merge request](gitlab-org/gitaly!4740))
+- [ssh: Improve errors for fetches canceled by the user](gitlab-org/gitaly@a2fee3dd53319f08a5971d9474c48cf1a58e031a) ([merge request](gitlab-org/gitaly!4731))
+- [git: Don't advertise internal references via git-upload-pack(1)](gitlab-org/gitaly@4a789524c7a786a2c8fb0019c3ac20a66c1f9431) ([merge request](gitlab-org/gitaly!4727))
+- [updateref: Ignore failures of custom post-receive hooks](gitlab-org/gitaly@13a18236e716994437345474f1879afca64e3b3f) ([merge request](gitlab-org/gitaly!4714))
+
+### Changed (9 changes)
+
+- [Use semantic sort for tags](gitlab-org/gitaly@7750e95b0c1642eba9e325cf2dffbdd25b37c928) ([merge request](gitlab-org/gitaly!4336))
+- [Default enable Praefect generated replica paths](gitlab-org/gitaly@60f197836831e160ca82d1eecd36110c1e7f4b13) ([merge request](gitlab-org/gitaly!4809))
+- [git: Upgrade default Git distribution to v2.37.1.gl1](gitlab-org/gitaly@4e8e6fc81206f73218b976d44156b9bd00f60a1a) ([merge request](gitlab-org/gitaly!4787))
+- [git: Default-enable use of Git v2.37.1.gl1](gitlab-org/gitaly@aa2dda0777880de1744efbd58fa1a95b4c2fbfa4) ([merge request](gitlab-org/gitaly!4782))
+- [Update nokogiri gem to v1.13.8](gitlab-org/gitaly@2c74a182c4b8ce4d4094b3bfca859204ac82bd63) ([merge request](gitlab-org/gitaly!4776))
+- [refs: Return structured errors for DeleteRefs](gitlab-org/gitaly@ae728915534c37a9e44fad0d78ef936c6abea765) ([merge request](gitlab-org/gitaly!4554))
+- [Update google-protobuf Ruby gem to v3.21.3](gitlab-org/gitaly@c8cf249ff66ac6011ab25298119210e56745ff8c) ([merge request](gitlab-org/gitaly!4762))
+- [Bump all Rails-related gems to v6.1.6.1](gitlab-org/gitaly@a3535f2bf3963e4a9aaf4feed645c05abed45432) ([merge request](gitlab-org/gitaly!4759))
+- [objectpool: Remove feature flag guarding heuristical repo maintenance](gitlab-org/gitaly@fe6d9ada1acab1bac4c298047cbf9299b4c833b4) ([merge request](gitlab-org/gitaly!4757))
+
+### Removed (1 change)
+
+- [Remove 'exact_pagination_token_match' feature flag](gitlab-org/gitaly@5624136ef16c77cf1b795e5ea658e09991243ae4) ([merge request](gitlab-org/gitaly!4724))
+
+### Security (2 changes)
+
+- [Exclude github.com/gin-gonic/gin vulnerable to CVE-2020-28483](gitlab-org/gitaly@790de3895243fac0c550c8f60e230fb9eb58febb) ([merge request](gitlab-org/gitaly!4784))
+- [git: Fix missing consistency checks for clones](gitlab-org/gitaly@b5d0d04155ad7b464ab5c63440b55e9ca514ae6e)
+
 ## 15.2.2 (2022-08-01)
 
 No changes.

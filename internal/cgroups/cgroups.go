@@ -1,9 +1,13 @@
 package cgroups
 
 import (
+	"path/filepath"
+
 	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/cgroups"
 )
 
@@ -24,10 +28,33 @@ type Manager interface {
 }
 
 // NewManager returns the appropriate Cgroups manager
-func NewManager(cfg cgroups.Config) Manager {
+func NewManager(cfg cgroups.Config, pid int) Manager {
 	if cfg.Repositories.Count > 0 {
-		return newV1Manager(cfg)
+		return newV1Manager(cfg, pid)
 	}
 
 	return &NoopManager{}
+}
+
+// PruneOldCgroups prunes old cgroups for both the memory and cpu subsystems
+func PruneOldCgroups(cfg cgroups.Config, logger log.FieldLogger) {
+	if cfg.HierarchyRoot == "" {
+		return
+	}
+
+	if err := config.PruneOldGitalyProcessDirectories(
+		logger,
+		filepath.Join(cfg.Mountpoint, "memory",
+			cfg.HierarchyRoot),
+	); err != nil {
+		logger.WithError(err).Error("failed to clean up memory cgroups")
+	}
+
+	if err := config.PruneOldGitalyProcessDirectories(
+		logger,
+		filepath.Join(cfg.Mountpoint, "cpu",
+			cfg.HierarchyRoot),
+	); err != nil {
+		logger.WithError(err).Error("failed to clean up cpu cgroups")
+	}
 }

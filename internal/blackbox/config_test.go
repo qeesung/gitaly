@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 )
 
 func TestConfigParseFailures(t *testing.T) {
@@ -77,16 +78,16 @@ func TestConfigSleep(t *testing.T) {
 	testCases := []struct {
 		desc string
 		in   string
-		out  time.Duration
+		out  duration.Duration
 	}{
 		{
 			desc: "default sleep time",
-			out:  15 * time.Minute,
+			out:  duration.Duration(15 * time.Minute),
 		},
 		{
 			desc: "1 second",
 			in:   "sleep = 1\n",
-			out:  time.Second,
+			out:  duration.Duration(time.Second),
 		},
 	}
 

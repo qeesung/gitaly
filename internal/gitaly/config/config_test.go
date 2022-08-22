@@ -6,19 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/sentry"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
@@ -158,7 +157,7 @@ func TestLoadPrometheus(t *testing.T) {
 
 	require.Equal(t, ":9236", cfg.PrometheusListenAddr)
 	require.Equal(t, prometheus.Config{
-		ScrapeTimeout:      time.Second,
+		ScrapeTimeout:      duration.Duration(time.Second),
 		GRPCLatencyBuckets: []float64{0, 1, 2},
 	}, cfg.Prometheus)
 }
@@ -576,16 +575,16 @@ func TestLoadGracefulRestartTimeout(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   string
-		expected time.Duration
+		expected duration.Duration
 	}{
 		{
 			name:     "default value",
-			expected: 1 * time.Minute,
+			expected: duration.Duration(1 * time.Minute),
 		},
 		{
 			name:     "8m03s",
 			config:   `graceful_restart_timeout = "8m03s"`,
-			expected: 8*time.Minute + 3*time.Second,
+			expected: duration.Duration(8*time.Minute + 3*time.Second),
 		},
 	}
 	for _, test := range tests {
@@ -595,7 +594,7 @@ func TestLoadGracefulRestartTimeout(t *testing.T) {
 			cfg, err := Load(tmpFile)
 			assert.NoError(t, err)
 
-			assert.Equal(t, test.expected, cfg.GracefulRestartTimeout.Duration())
+			assert.Equal(t, test.expected, cfg.GracefulRestartTimeout)
 		})
 	}
 }
@@ -715,7 +714,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			expect: DailyJob{
 				Hour:     11,
 				Minute:   23,
-				Duration: Duration(45 * time.Minute),
+				Duration: duration.Duration(45 * time.Minute),
 				Storages: []string{"default"},
 			},
 		},
@@ -753,7 +752,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			expect: DailyJob{
 				Hour:     0,
 				Minute:   59,
-				Duration: Duration(24*time.Hour + time.Second),
+				Duration: duration.Duration(24*time.Hour + time.Second),
 			},
 			validateErr: errors.New("daily maintenance specified duration 24h0m1s must be less than 24 hours"),
 		},
@@ -761,7 +760,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			rawCfg: `[daily_maintenance]
 			duration = "meow"`,
 			expect:  DailyJob{},
-			loadErr: errors.New("load toml: (2, 4): unmarshal text: time: invalid duration"),
+			loadErr: errors.New("load toml: toml: time: invalid duration \"meow\""),
 		},
 		{
 			rawCfg: `[daily_maintenance]
@@ -780,7 +779,7 @@ func TestLoadDailyMaintenance(t *testing.T) {
 			expect: DailyJob{
 				Hour:     12,
 				Minute:   0,
-				Duration: Duration(10 * time.Minute),
+				Duration: duration.Duration(10 * time.Minute),
 				Storages: []string{"default"},
 			},
 		},
@@ -1127,7 +1126,7 @@ path="/foobar"
 			in: storageConfig + `[pack_objects_cache]
 enabled = true
 `,
-			out: StreamCacheConfig{Enabled: true, MaxAge: Duration(5 * time.Minute), Dir: "/foobar/+gitaly/PackObjectsCache"},
+			out: StreamCacheConfig{Enabled: true, MaxAge: duration.Duration(5 * time.Minute), Dir: "/foobar/+gitaly/PackObjectsCache"},
 		},
 		{
 			desc: "enabled with custom values",
@@ -1136,7 +1135,7 @@ enabled = true
 dir = "/bazqux"
 max_age = "10m"
 `,
-			out: StreamCacheConfig{Enabled: true, MaxAge: Duration(10 * time.Minute), Dir: "/bazqux"},
+			out: StreamCacheConfig{Enabled: true, MaxAge: duration.Duration(10 * time.Minute), Dir: "/bazqux"},
 		},
 		{
 			desc: "enabled with 0 storages",
@@ -1297,91 +1296,6 @@ func TestSetupRuntimeDirectory(t *testing.T) {
 				err := (&Cfg{RuntimeDir: tc.runtimeDir}).validateRuntimeDir()
 				require.Equal(t, tc.expectedErr, err)
 			})
-		}
-	})
-}
-
-func TestPruneRuntimeDirectories(t *testing.T) {
-	t.Run("no runtime directories", func(t *testing.T) {
-		require.NoError(t, PruneRuntimeDirectories(testhelper.NewDiscardingLogEntry(t), testhelper.TempDir(t)))
-	})
-
-	t.Run("unset runtime directory", func(t *testing.T) {
-		require.EqualError(t, PruneRuntimeDirectories(testhelper.NewDiscardingLogEntry(t), ""), "list runtime directory: open : no such file or directory")
-	})
-
-	t.Run("non-existent runtime directory", func(t *testing.T) {
-		require.EqualError(t, PruneRuntimeDirectories(testhelper.NewDiscardingLogEntry(t), "/path/does/not/exist"), "list runtime directory: open /path/does/not/exist: no such file or directory")
-	})
-
-	t.Run("invalid, stale and active runtime directories", func(t *testing.T) {
-		baseDir := testhelper.TempDir(t)
-		cfg := Cfg{RuntimeDir: baseDir}
-
-		// Setup a runtime directory for our process, it can't be stale as long as
-		// we are running.
-		ownRuntimeDir, err := SetupRuntimeDirectory(cfg, os.Getpid())
-		require.NoError(t, err)
-
-		expectedLogs := map[string]string{}
-
-		// Setup runtime directories for processes that have finished.
-		var prunableDirs []string
-		for i := 0; i < 2; i++ {
-			cmd := exec.Command("cat")
-			require.NoError(t, cmd.Run())
-
-			staleRuntimeDir, err := SetupRuntimeDirectory(cfg, cmd.Process.Pid)
-			require.NoError(t, err)
-
-			prunableDirs = append(prunableDirs, staleRuntimeDir)
-			expectedLogs[staleRuntimeDir] = "removing leftover runtime directory"
-		}
-
-		// Setup runtime directory with pid of process not owned by git user
-		rootRuntimeDir, err := SetupRuntimeDirectory(cfg, 1)
-		require.NoError(t, err)
-		expectedLogs[rootRuntimeDir] = "removing leftover runtime directory"
-		prunableDirs = append(prunableDirs, rootRuntimeDir)
-
-		// Create an unexpected file in the runtime directory
-		unexpectedFilePath := filepath.Join(baseDir, "unexpected-file")
-		require.NoError(t, os.WriteFile(unexpectedFilePath, []byte(""), os.ModePerm))
-		expectedLogs[unexpectedFilePath] = "runtime directory contains an unexpected file"
-
-		nonPrunableDirs := []string{ownRuntimeDir}
-
-		// Setup some unexpected directories in the runtime directory
-		for _, dirName := range []string{
-			"nohyphen",
-			"too-many-hyphens",
-			"invalidprefix-3",
-			"gitaly-invalidpid",
-		} {
-			dirPath := filepath.Join(baseDir, dirName)
-			require.NoError(t, os.Mkdir(dirPath, os.ModePerm))
-			expectedLogs[dirPath] = "runtime directory contains an unexpected directory"
-			nonPrunableDirs = append(nonPrunableDirs, dirPath)
-		}
-
-		logger, hook := test.NewNullLogger()
-		require.NoError(t, PruneRuntimeDirectories(logger, cfg.RuntimeDir))
-
-		actualLogs := map[string]string{}
-		for _, entry := range hook.Entries {
-			actualLogs[entry.Data["path"].(string)] = entry.Message
-		}
-
-		require.Equal(t, expectedLogs, actualLogs)
-
-		require.FileExists(t, unexpectedFilePath)
-
-		for _, nonPrunableEntry := range nonPrunableDirs {
-			require.DirExists(t, nonPrunableEntry, nonPrunableEntry)
-		}
-
-		for _, prunableEntry := range prunableDirs {
-			require.NoDirExists(t, prunableEntry, prunableEntry)
 		}
 	})
 }

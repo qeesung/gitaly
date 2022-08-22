@@ -16,7 +16,7 @@ def main(params)
     if params[:"bundled-git"]
       ['', true]
     else
-      [File.join(build_dir, 'deps', 'git', 'install', 'bin', 'git'), false]
+      [File.join(build_dir, 'deps', 'git-distribution', 'bin-wrappers', 'git'), false]
     end
 
   version = IO.popen("#{File.join(bin_dir, 'gitaly')} -version").read.delete_prefix('Gitaly, version ').strip

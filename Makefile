@@ -40,7 +40,7 @@ exec_prefix      ?= ${prefix}
 bindir           ?= ${exec_prefix}/bin
 INSTALL_DEST_DIR := ${DESTDIR}${bindir}
 ## The prefix where Git will be installed to.
-GIT_PREFIX       ?= ${GIT_DEFAULT_PREFIX}
+GIT_PREFIX       ?= ${PREFIX}
 
 # Tools
 GIT                         := $(shell command -v git)
@@ -133,9 +133,6 @@ endif
 
 # Git target
 GIT_REPO_URL       ?= https://gitlab.com/gitlab-org/gitlab-git.git
-# The default prefix specifies where Git will be installed to if no GIT_PREFIX
-# was given. This directory will be cleaned up before we install into it.
-GIT_DEFAULT_PREFIX := ${DEPENDENCY_DIR}/git/install
 GIT_QUIET          :=
 ifeq (${Q},@)
     GIT_QUIET = --quiet
@@ -361,9 +358,9 @@ install: install-bundled-git
 
 export GITALY_TESTING_BUNDLED_GIT_PATH ?= ${BUILD_DIR}/bin
 else
-prepare-tests: git
+prepare-tests: ${DEPENDENCY_DIR}/git-distribution/git
 
-export GITALY_TESTING_GIT_BINARY ?= ${GIT_PREFIX}/bin/git
+export GITALY_TESTING_GIT_BINARY ?= ${DEPENDENCY_DIR}/git-distribution/bin-wrappers/git
 endif
 
 .PHONY: prepare-tests
@@ -536,8 +533,13 @@ upgrade-module:
 	${Q}${MAKE} proto
 
 .PHONY: git
-## Build Git.
-git: ${GIT_PREFIX}/bin/git
+# This target is deprecated and will eventually be removed.
+git: install-git
+
+.PHONY: install-git
+## Install Git.
+install-git: ${DEPENDENCY_DIR}/git-distribution/Makefile
+	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "${DEPENDENCY_DIR}/git-distribution" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS} install
 
 .PHONY: libgit2
 ## Build libgit2.
@@ -567,15 +569,9 @@ ${TOOLS_DIR}: | ${BUILD_DIR}
 ${DEPENDENCY_DIR}: | ${BUILD_DIR}
 	${Q}mkdir -p ${DEPENDENCY_DIR}
 
-# This target builds a full Git distribution and installs it into GIT_PREFIX.
-${GIT_PREFIX}/bin/git: ${DEPENDENCY_DIR}/git-distribution/Makefile
-	@ # Remove the Git installation first in case GIT_PREFIX is the default
-	@ # prefix which always points into our build directory. This is done so
-	@ # we never end up with mixed Git installations on developer machines.
-	@ # We cannot ever remove GIT_PREFIX though in case they're different
-	@ # because it may point to a user-controlled directory.
-	${Q}if [ "x${GIT_DEFAULT_PREFIX}" = "x${GIT_PREFIX}" ]; then rm -rf "${GIT_DEFAULT_PREFIX}"; fi
-	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "$(<D)" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS} install
+# This target builds a full Git distribution.
+${DEPENDENCY_DIR}/git-distribution/git: ${DEPENDENCY_DIR}/git-distribution/Makefile
+	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "$(<D)" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS}
 	${Q}touch $@
 
 ${BUILD_DIR}/bin/gitaly-%-v2.35.1.gl1: override GIT_PATCHES := $(sort $(wildcard ${SOURCE_DIR}/_support/git-patches/v2.35.1.gl1/*))

@@ -87,8 +87,17 @@ type DistributedGitEnvironmentConstructor struct{}
 // `GITALY_TESTING_GIT_BINARY` environment variable is set.
 func (c DistributedGitEnvironmentConstructor) Construct(cfg config.Cfg) (ExecutionEnvironment, error) {
 	binaryPath := cfg.Git.BinPath
+	var environmentVariables []string
 	if override := os.Getenv("GITALY_TESTING_GIT_BINARY"); binaryPath == "" && override != "" {
 		binaryPath = override
+		environmentVariables = []string{
+			// When using Git's bin-wrappers as testing binary then the wrapper will
+			// automatically set up the location of the Git templates and export the
+			// environment variable. This would override our own defaults though and
+			// thus leads to diverging behaviour. To fix this we simply ask the bin
+			// wrappers not to do this.
+			"NO_SET_GIT_TEMPLATE_DIR=YesPlease",
+		}
 	}
 
 	if binaryPath == "" {
@@ -96,7 +105,8 @@ func (c DistributedGitEnvironmentConstructor) Construct(cfg config.Cfg) (Executi
 	}
 
 	return ExecutionEnvironment{
-		BinaryPath: binaryPath,
+		BinaryPath:           binaryPath,
+		EnvironmentVariables: environmentVariables,
 	}, nil
 }
 

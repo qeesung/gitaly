@@ -8,18 +8,18 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/cgroups"
 	internallog "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/sentry"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 )
 
 const (
@@ -32,10 +32,10 @@ const (
 
 // DailyJob enables a daily task to be scheduled for specific storages
 type DailyJob struct {
-	Hour     uint     `toml:"start_hour"`
-	Minute   uint     `toml:"start_minute"`
-	Duration Duration `toml:"duration"`
-	Storages []string `toml:"storages"`
+	Hour     uint              `toml:"start_hour"`
+	Minute   uint              `toml:"start_minute"`
+	Duration duration.Duration `toml:"duration"`
+	Storages []string          `toml:"storages"`
 
 	// Disabled will completely disable a daily job, even in cases where a
 	// default schedule is implied
@@ -62,7 +62,7 @@ type Cfg struct {
 	Hooks                  Hooks             `toml:"hooks"`
 	Concurrency            []Concurrency     `toml:"concurrency"`
 	RateLimiting           []RateLimiting    `toml:"rate_limiting"`
-	GracefulRestartTimeout Duration          `toml:"graceful_restart_timeout"`
+	GracefulRestartTimeout duration.Duration `toml:"graceful_restart_timeout"`
 	DailyMaintenance       DailyJob          `toml:"daily_maintenance"`
 	Cgroups                cgroups.Config    `toml:"cgroups"`
 	PackObjectsCache       StreamCacheConfig `toml:"pack_objects_cache"`
@@ -148,7 +148,7 @@ type Concurrency struct {
 	MaxQueueSize int `toml:"max_queue_size"`
 	// MaxQueueWait is the maximum time a request can remain in the concurrency queue
 	// waiting to be picked up by Gitaly
-	MaxQueueWait Duration `toml:"max_queue_wait"`
+	MaxQueueWait duration.Duration `toml:"max_queue_wait"`
 }
 
 // RateLimiting allows endpoints to be limited to a maximum request rate per
@@ -162,16 +162,16 @@ type RateLimiting struct {
 	RPC string `toml:"rpc"`
 	// Interval sets the interval with which the token bucket will
 	// be refilled to what is configured in Burst.
-	Interval time.Duration `toml:"interval"`
+	Interval duration.Duration `toml:"interval"`
 	// Burst sets the capacity of the token bucket (see above).
 	Burst int `toml:"burst"`
 }
 
 // StreamCacheConfig contains settings for a streamcache instance.
 type StreamCacheConfig struct {
-	Enabled bool     `toml:"enabled"` // Default: false
-	Dir     string   `toml:"dir"`     // Default: <FIRST STORAGE PATH>/+gitaly/PackObjectsCache
-	MaxAge  Duration `toml:"max_age"` // Default: 5m
+	Enabled bool              `toml:"enabled"` // Default: false
+	Dir     string            `toml:"dir"`     // Default: <FIRST STORAGE PATH>/+gitaly/PackObjectsCache
+	MaxAge  duration.Duration `toml:"max_age"` // Default: 5m
 }
 
 // Load initializes the Config variable from file and the environment.
@@ -221,7 +221,7 @@ func (cfg *Cfg) Validate() error {
 
 func (cfg *Cfg) setDefaults() error {
 	if cfg.GracefulRestartTimeout.Duration() == 0 {
-		cfg.GracefulRestartTimeout = Duration(time.Minute)
+		cfg.GracefulRestartTimeout = duration.Duration(time.Minute)
 	}
 
 	if cfg.Gitlab.SecretFile == "" {
@@ -463,7 +463,7 @@ func defaultMaintenanceWindow(storages []Storage) DailyJob {
 	return DailyJob{
 		Hour:     12,
 		Minute:   0,
-		Duration: Duration(10 * time.Minute),
+		Duration: duration.Duration(10 * time.Minute),
 		Storages: storageNames,
 	}
 }
@@ -525,7 +525,7 @@ func (cfg *Cfg) configurePackObjectsCache() error {
 	}
 
 	if poc.MaxAge == 0 {
-		poc.MaxAge = Duration(5 * time.Minute)
+		poc.MaxAge = duration.Duration(5 * time.Minute)
 	}
 
 	if poc.Dir == "" {
@@ -538,72 +538,6 @@ func (cfg *Cfg) configurePackObjectsCache() error {
 
 	if !filepath.IsAbs(poc.Dir) {
 		return errPackObjectsCacheRelativePath
-	}
-
-	return nil
-}
-
-// PruneRuntimeDirectories removes leftover runtime directories that belonged to processes that
-// no longer exist. The removals are logged prior to being executed. Unexpected directory entries
-// are logged but not removed
-func PruneRuntimeDirectories(log log.FieldLogger, runtimeDir string) error {
-	entries, err := os.ReadDir(runtimeDir)
-	if err != nil {
-		return fmt.Errorf("list runtime directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		if err := func() error {
-			log := log.WithField("path", filepath.Join(runtimeDir, entry.Name()))
-			if !entry.IsDir() {
-				// There should be no files, only the runtime directories.
-				log.Error("runtime directory contains an unexpected file")
-				return nil
-			}
-
-			components := strings.Split(entry.Name(), "-")
-			if len(components) != 2 || components[0] != "gitaly" {
-				// This directory does not match the runtime directory naming format
-				// of `gitaly-<process id>.
-				log.Error("runtime directory contains an unexpected directory")
-				return nil
-			}
-
-			processID, err := strconv.ParseInt(components[1], 10, 64)
-			if err != nil {
-				// This is not a runtime directory as the section after the hyphen is not a process id.
-				log.Error("runtime directory contains an unexpected directory")
-				return nil
-			}
-
-			process, err := os.FindProcess(int(processID))
-			if err != nil {
-				return fmt.Errorf("find process: %w", err)
-			}
-			defer func() {
-				if err := process.Release(); err != nil {
-					log.WithError(err).Error("failed releasing process")
-				}
-			}()
-
-			if err := process.Signal(syscall.Signal(0)); err != nil {
-				// Either the process does not exist, or the pid has been re-used by for a
-				// process owned by another user and is not a Gitaly process.
-				if !errors.Is(err, os.ErrProcessDone) && !errors.Is(err, syscall.EPERM) {
-					return fmt.Errorf("signal: %w", err)
-				}
-
-				log.Info("removing leftover runtime directory")
-
-				if err := os.RemoveAll(filepath.Join(runtimeDir, entry.Name())); err != nil {
-					return fmt.Errorf("remove leftover runtime directory: %w", err)
-				}
-			}
-
-			return nil
-		}(); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -638,7 +572,7 @@ func SetupRuntimeDirectory(cfg Cfg, processID int) (string, error) {
 		// PID exists. Furthermore, it allows easier debugging in case one wants to inspect
 		// the runtime directory of a running Gitaly node.
 
-		runtimeDir = filepath.Join(cfg.RuntimeDir, fmt.Sprintf("gitaly-%d", processID))
+		runtimeDir = GetGitalyProcessTempDir(cfg.RuntimeDir, processID)
 
 		if _, err := os.Stat(runtimeDir); err != nil && !os.IsNotExist(err) {
 			return "", fmt.Errorf("statting runtime directory: %w", err)

@@ -6,13 +6,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	promclient "github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/sentry"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/duration"
 )
 
 // ElectionStrategy is a Praefect primary election strategy.
@@ -44,16 +45,16 @@ const (
 type Failover struct {
 	Enabled bool `toml:"enabled,omitempty"`
 	// ElectionStrategy is the strategy to use for electing primaries nodes.
-	ElectionStrategy         ElectionStrategy `toml:"election_strategy,omitempty"`
-	ErrorThresholdWindow     config.Duration  `toml:"error_threshold_window,omitempty"`
-	WriteErrorThresholdCount uint32           `toml:"write_error_threshold_count,omitempty"`
-	ReadErrorThresholdCount  uint32           `toml:"read_error_threshold_count,omitempty"`
+	ElectionStrategy         ElectionStrategy  `toml:"election_strategy,omitempty"`
+	ErrorThresholdWindow     duration.Duration `toml:"error_threshold_window,omitempty"`
+	WriteErrorThresholdCount uint32            `toml:"write_error_threshold_count,omitempty"`
+	ReadErrorThresholdCount  uint32            `toml:"read_error_threshold_count,omitempty"`
 	// BootstrapInterval allows set a time duration that would be used on startup to make initial health check.
 	// The default value is 1s.
-	BootstrapInterval config.Duration `toml:"bootstrap_interval,omitempty"`
+	BootstrapInterval duration.Duration `toml:"bootstrap_interval,omitempty"`
 	// MonitorInterval allows set a time duration that would be used after bootstrap is completed to execute health checks.
 	// The default value is 3s.
-	MonitorInterval config.Duration `toml:"monitor_interval,omitempty"`
+	MonitorInterval duration.Duration `toml:"monitor_interval,omitempty"`
 }
 
 // ErrorThresholdsConfigured checks whether returns whether the errors thresholds are configured. If they
@@ -82,7 +83,7 @@ func (f Failover) ErrorThresholdsConfigured() (bool, error) {
 type BackgroundVerification struct {
 	// VerificationInterval determines the duration after a replica due for reverification.
 	// The feature is disabled if verification interval is 0 or below.
-	VerificationInterval time.Duration `toml:"verification_interval,omitempty"`
+	VerificationInterval duration.Duration `toml:"verification_interval,omitempty"`
 	// DeleteInvalidRecords controls whether the background verifier will actually delete the metadata
 	// records that point to non-existent replicas.
 	DeleteInvalidRecords bool `toml:"delete_invalid_records"`
@@ -90,14 +91,14 @@ type BackgroundVerification struct {
 
 // DefaultBackgroundVerificationConfig returns the default background verification configuration.
 func DefaultBackgroundVerificationConfig() BackgroundVerification {
-	return BackgroundVerification{VerificationInterval: 7 * 24 * time.Hour}
+	return BackgroundVerification{VerificationInterval: duration.Duration(7 * 24 * time.Hour)}
 }
 
 // Reconciliation contains reconciliation specific configuration options.
 type Reconciliation struct {
 	// SchedulingInterval the interval between each automatic reconciliation run. If set to 0,
 	// automatic reconciliation is disabled.
-	SchedulingInterval config.Duration `toml:"scheduling_interval,omitempty"`
+	SchedulingInterval duration.Duration `toml:"scheduling_interval,omitempty"`
 	// HistogramBuckets configures the reconciliation scheduling duration histogram's buckets.
 	HistogramBuckets []float64 `toml:"histogram_buckets,omitempty"`
 }
@@ -105,7 +106,7 @@ type Reconciliation struct {
 // DefaultReconciliationConfig returns the default values for reconciliation configuration.
 func DefaultReconciliationConfig() Reconciliation {
 	return Reconciliation{
-		SchedulingInterval: 5 * config.Duration(time.Minute),
+		SchedulingInterval: 5 * duration.Duration(time.Minute),
 		HistogramBuckets:   promclient.DefBuckets,
 	}
 }
@@ -152,7 +153,7 @@ type Config struct {
 	// Keep for legacy reasons: remove after Omnibus has switched
 	FailoverEnabled     bool                `toml:"failover_enabled,omitempty"`
 	MemoryQueueEnabled  bool                `toml:"memory_queue_enabled,omitempty"`
-	GracefulStopTimeout config.Duration     `toml:"graceful_stop_timeout,omitempty"`
+	GracefulStopTimeout duration.Duration   `toml:"graceful_stop_timeout,omitempty"`
 	RepositoriesCleanup RepositoriesCleanup `toml:"repositories_cleanup,omitempty"`
 }
 
@@ -295,16 +296,16 @@ func (c *Config) NeedsSQL() bool {
 
 func (c *Config) setDefaults() {
 	if c.GracefulStopTimeout.Duration() == 0 {
-		c.GracefulStopTimeout = config.Duration(time.Minute)
+		c.GracefulStopTimeout = duration.Duration(time.Minute)
 	}
 
 	if c.Failover.Enabled {
 		if c.Failover.BootstrapInterval.Duration() == 0 {
-			c.Failover.BootstrapInterval = config.Duration(time.Second)
+			c.Failover.BootstrapInterval = duration.Duration(time.Second)
 		}
 
 		if c.Failover.MonitorInterval.Duration() == 0 {
-			c.Failover.MonitorInterval = config.Duration(3 * time.Second)
+			c.Failover.MonitorInterval = duration.Duration(3 * time.Second)
 		}
 	}
 }
@@ -383,9 +384,9 @@ type RepositoriesCleanup struct {
 	// CheckInterval is a time period used to check if operation should be executed.
 	// It is recommended to keep it less than run_interval configuration as some
 	// nodes may be out of service, so they can be stale for too long.
-	CheckInterval config.Duration `toml:"check_interval,omitempty"`
+	CheckInterval duration.Duration `toml:"check_interval,omitempty"`
 	// RunInterval: the check runs if the previous operation was done at least RunInterval before.
-	RunInterval config.Duration `toml:"run_interval,omitempty"`
+	RunInterval duration.Duration `toml:"run_interval,omitempty"`
 	// RepositoriesInBatch is the number of repositories to pass as a batch for processing.
 	RepositoriesInBatch int `toml:"repositories_in_batch,omitempty"`
 }
@@ -393,8 +394,8 @@ type RepositoriesCleanup struct {
 // DefaultRepositoriesCleanup contains default configuration values for the RepositoriesCleanup.
 func DefaultRepositoriesCleanup() RepositoriesCleanup {
 	return RepositoriesCleanup{
-		CheckInterval:       config.Duration(30 * time.Minute),
-		RunInterval:         config.Duration(24 * time.Hour),
+		CheckInterval:       duration.Duration(30 * time.Minute),
+		RunInterval:         duration.Duration(24 * time.Hour),
 		RepositoriesInBatch: 16,
 	}
 }

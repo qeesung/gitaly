@@ -234,6 +234,8 @@ func getTagSortField(sortBy *gitalypb.FindAllTagsRequest_SortBy) (string, error)
 		key = "refname"
 	case gitalypb.FindAllTagsRequest_SortBy_CREATORDATE:
 		key = "creatordate"
+	case gitalypb.FindAllTagsRequest_SortBy_VERSION_REFNAME:
+		key = "version:refname"
 	default:
 		return "", fmt.Errorf("unsupported sorting key: %s", sortBy.Key)
 	}
