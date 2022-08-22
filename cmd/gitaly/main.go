@@ -122,10 +122,6 @@ func configure(configPath string) (config.Cfg, error) {
 
 	glog.Configure(glog.Loggers, cfg.Logging.Format, cfg.Logging.Level)
 
-	if err := cgroups.NewManager(cfg.Cgroups).Setup(); err != nil {
-		return config.Cfg{}, fmt.Errorf("failed setting up cgroups: %w", err)
-	}
-
 	sentry.ConfigureSentry(version.GetVersion(), sentry.Config(cfg.Logging.Sentry))
 	cfg.Prometheus.Configure()
 	tracing.Initialize(tracing.WithServiceName("gitaly"))
@@ -149,7 +145,7 @@ func run(cfg config.Cfg) error {
 	defer cancel()
 
 	if cfg.RuntimeDir != "" {
-		if err := config.PruneRuntimeDirectories(log.StandardLogger(), cfg.RuntimeDir); err != nil {
+		if err := config.PruneOldGitalyProcessDirectories(log.StandardLogger(), cfg.RuntimeDir); err != nil {
 			return fmt.Errorf("prune runtime directories: %w", err)
 		}
 	}
@@ -159,6 +155,23 @@ func run(cfg config.Cfg) error {
 		return fmt.Errorf("setup runtime directory: %w", err)
 	}
 	cfg.RuntimeDir = runtimeDir
+
+	// When cgroups are configured, we create a directory structure each
+	// time a gitaly process is spawned. Look through the hierarchy root
+	// to find any cgroup directories that belong to old gitaly processes
+	// and remove them.
+	cgroups.PruneOldCgroups(cfg.Cgroups, log.StandardLogger())
+	cgroupMgr := cgroups.NewManager(cfg.Cgroups, os.Getpid())
+
+	if err := cgroupMgr.Setup(); err != nil {
+		return fmt.Errorf("failed setting up cgroups: %w", err)
+	}
+
+	defer func() {
+		if err := cgroupMgr.Cleanup(); err != nil {
+			log.WithError(err).Warn("error cleaning up cgroups")
+		}
+	}()
 
 	defer func() {
 		if err := os.RemoveAll(cfg.RuntimeDir); err != nil {
@@ -379,12 +392,6 @@ func run(cfg config.Cfg) error {
 		return fmt.Errorf("initialize auxiliary workers: %v", err)
 	}
 	defer shutdownWorkers()
-
-	defer func() {
-		if err := cgroups.NewManager(cfg.Cgroups).Cleanup(); err != nil {
-			log.WithError(err).Warn("error cleaning up cgroups")
-		}
-	}()
 
 	gracefulStopTicker := helper.NewTimerTicker(cfg.GracefulRestartTimeout.Duration())
 	defer gracefulStopTicker.Stop()

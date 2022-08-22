@@ -7,6 +7,6 @@ import (
 )
 
 // For systems other than Linux, we return a noop manager if cgroups was enabled.
-func newV1Manager(cfg cgroups.Config) *NoopManager {
+func newV1Manager(cfg cgroups.Config, pid int) *NoopManager {
 	return &NoopManager{}
 }

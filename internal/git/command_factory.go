@@ -128,7 +128,7 @@ func NewExecCommandFactory(cfg config.Cfg, opts ...ExecCommandFactoryOption) (_ 
 		cfg:            cfg,
 		execEnvs:       execEnvs,
 		locator:        config.NewLocator(cfg),
-		cgroupsManager: cgroups.NewManager(cfg.Cgroups),
+		cgroupsManager: cgroups.NewManager(cfg.Cgroups, os.Getpid()),
 		invalidCommandsMetric: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "gitaly_invalid_commands_total",

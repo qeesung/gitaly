@@ -6,13 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/auth"
@@ -1298,91 +1296,6 @@ func TestSetupRuntimeDirectory(t *testing.T) {
 				err := (&Cfg{RuntimeDir: tc.runtimeDir}).validateRuntimeDir()
 				require.Equal(t, tc.expectedErr, err)
 			})
-		}
-	})
-}
-
-func TestPruneRuntimeDirectories(t *testing.T) {
-	t.Run("no runtime directories", func(t *testing.T) {
-		require.NoError(t, PruneRuntimeDirectories(testhelper.NewDiscardingLogEntry(t), testhelper.TempDir(t)))
-	})
-
-	t.Run("unset runtime directory", func(t *testing.T) {
-		require.EqualError(t, PruneRuntimeDirectories(testhelper.NewDiscardingLogEntry(t), ""), "list runtime directory: open : no such file or directory")
-	})
-
-	t.Run("non-existent runtime directory", func(t *testing.T) {
-		require.EqualError(t, PruneRuntimeDirectories(testhelper.NewDiscardingLogEntry(t), "/path/does/not/exist"), "list runtime directory: open /path/does/not/exist: no such file or directory")
-	})
-
-	t.Run("invalid, stale and active runtime directories", func(t *testing.T) {
-		baseDir := testhelper.TempDir(t)
-		cfg := Cfg{RuntimeDir: baseDir}
-
-		// Setup a runtime directory for our process, it can't be stale as long as
-		// we are running.
-		ownRuntimeDir, err := SetupRuntimeDirectory(cfg, os.Getpid())
-		require.NoError(t, err)
-
-		expectedLogs := map[string]string{}
-
-		// Setup runtime directories for processes that have finished.
-		var prunableDirs []string
-		for i := 0; i < 2; i++ {
-			cmd := exec.Command("cat")
-			require.NoError(t, cmd.Run())
-
-			staleRuntimeDir, err := SetupRuntimeDirectory(cfg, cmd.Process.Pid)
-			require.NoError(t, err)
-
-			prunableDirs = append(prunableDirs, staleRuntimeDir)
-			expectedLogs[staleRuntimeDir] = "removing leftover runtime directory"
-		}
-
-		// Setup runtime directory with pid of process not owned by git user
-		rootRuntimeDir, err := SetupRuntimeDirectory(cfg, 1)
-		require.NoError(t, err)
-		expectedLogs[rootRuntimeDir] = "removing leftover runtime directory"
-		prunableDirs = append(prunableDirs, rootRuntimeDir)
-
-		// Create an unexpected file in the runtime directory
-		unexpectedFilePath := filepath.Join(baseDir, "unexpected-file")
-		require.NoError(t, os.WriteFile(unexpectedFilePath, []byte(""), os.ModePerm))
-		expectedLogs[unexpectedFilePath] = "runtime directory contains an unexpected file"
-
-		nonPrunableDirs := []string{ownRuntimeDir}
-
-		// Setup some unexpected directories in the runtime directory
-		for _, dirName := range []string{
-			"nohyphen",
-			"too-many-hyphens",
-			"invalidprefix-3",
-			"gitaly-invalidpid",
-		} {
-			dirPath := filepath.Join(baseDir, dirName)
-			require.NoError(t, os.Mkdir(dirPath, os.ModePerm))
-			expectedLogs[dirPath] = "runtime directory contains an unexpected directory"
-			nonPrunableDirs = append(nonPrunableDirs, dirPath)
-		}
-
-		logger, hook := test.NewNullLogger()
-		require.NoError(t, PruneRuntimeDirectories(logger, cfg.RuntimeDir))
-
-		actualLogs := map[string]string{}
-		for _, entry := range hook.Entries {
-			actualLogs[entry.Data["path"].(string)] = entry.Message
-		}
-
-		require.Equal(t, expectedLogs, actualLogs)
-
-		require.FileExists(t, unexpectedFilePath)
-
-		for _, nonPrunableEntry := range nonPrunableDirs {
-			require.DirExists(t, nonPrunableEntry, nonPrunableEntry)
-		}
-
-		for _, prunableEntry := range prunableDirs {
-			require.NoDirExists(t, prunableEntry, prunableEntry)
 		}
 	})
 }

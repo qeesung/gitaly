@@ -3,7 +3,7 @@ package cgroups
 import (
 	"fmt"
 	"hash/crc32"
-	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/containerd/cgroups"
@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	cgroupscfg "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
 )
@@ -21,11 +22,13 @@ type CGroupV1Manager struct {
 	hierarchy                            func() ([]cgroups.Subsystem, error)
 	memoryReclaimAttemptsTotal, cpuUsage *prometheus.GaugeVec
 	procs                                *prometheus.GaugeVec
+	pid                                  int
 }
 
-func newV1Manager(cfg cgroupscfg.Config) *CGroupV1Manager {
+func newV1Manager(cfg cgroupscfg.Config, pid int) *CGroupV1Manager {
 	return &CGroupV1Manager{
 		cfg: cfg,
+		pid: pid,
 		hierarchy: func() ([]cgroups.Subsystem, error) {
 			return defaultSubsystems(cfg.Mountpoint)
 		},
@@ -214,11 +217,11 @@ func (cg *CGroupV1Manager) Cleanup() error {
 }
 
 func (cg *CGroupV1Manager) repoPath(groupID int) string {
-	return fmt.Sprintf("%s/repos-%d", cg.currentProcessCgroup(), groupID)
+	return filepath.Join(cg.currentProcessCgroup(), fmt.Sprintf("repos-%d", groupID))
 }
 
 func (cg *CGroupV1Manager) currentProcessCgroup() string {
-	return fmt.Sprintf("/%s/gitaly-%d", cg.cfg.HierarchyRoot, os.Getpid())
+	return config.GetGitalyProcessTempDir(cg.cfg.HierarchyRoot, cg.pid)
 }
 
 func defaultSubsystems(root string) ([]cgroups.Subsystem, error) {
