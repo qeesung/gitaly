@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/go-enry/go-license-detector/v4/licensedb"
+	"github.com/go-enry/go-license-detector/v4/licensedb/api"
 	"github.com/go-enry/go-license-detector/v4/licensedb/filer"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
@@ -19,6 +21,23 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
+
+// The `github.com/go-enry/go-license-detector` package uses https://spdx.org/licenses/
+// as the source of the licenses. That package doesn't provide `nickname` info.
+// But because the `nickname` is required by the FindLicense RPC interface, we had to manually
+// extract the list of all license-to-nickname pairs from the Licensee license
+// database which is https://github.com/github/choosealicense.com/tree/gh-pages/_licenses
+// and store them here.
+var nicknameByLicenseIdentifier = map[string]string{
+	"agpl-3.0":           "GNU AGPLv3",
+	"lgpl-3.0":           "GNU LGPLv3",
+	"bsd-3-clause-clear": "Clear BSD",
+	"odbl-1.0":           "ODbL",
+	"ncsa":               "UIUC/NCSA",
+	"lgpl-2.1":           "GNU LGPLv2.1",
+	"gpl-3.0":            "GNU GPLv3",
+	"gpl-2.0":            "GNU GPLv2",
+}
 
 func (s *server) FindLicense(ctx context.Context, req *gitalypb.FindLicenseRequest) (*gitalypb.FindLicenseResponse, error) {
 	if featureflag.GoFindLicense.IsEnabled(ctx) {
@@ -32,36 +51,77 @@ func (s *server) FindLicense(ctx context.Context, req *gitalypb.FindLicenseReque
 			return &gitalypb.FindLicenseResponse{}, nil
 		}
 
-		repoFiler := &gitFiler{ctx, repo, false}
-
-		licenses, err := licensedb.Detect(repoFiler)
+		repoFiler := &gitFiler{ctx: ctx, repo: repo}
+		detectedLicenses, err := licensedb.Detect(repoFiler)
 		if err != nil {
 			if errors.Is(err, licensedb.ErrNoLicenseFound) {
-				licenseShortName := ""
 				if repoFiler.foundLicense {
-					// The Ruby implementation of FindLicense returned 'other' when a license file
-					// was found and '' when no license file was found. `Detect` method returns ErrNoLicenseFound
-					// if it doesn't identify the license. To retain backwards compatibility, the repoFiler records
-					// whether it encountered any license files. That information is used here to then determine that
-					// we need to send back 'other'.
-					licenseShortName = "other"
+					// In case the license is not identified, but a file containing some
+					// sort of license is found, we return a predefined response.
+					return &gitalypb.FindLicenseResponse{
+						LicenseName:      "Other",
+						LicenseShortName: "other",
+						LicenseUrl:       "http://choosealicense.com/licenses/other/",
+						LicensePath:      repoFiler.path,
+					}, nil
 				}
-
-				return &gitalypb.FindLicenseResponse{LicenseShortName: licenseShortName}, nil
+				return &gitalypb.FindLicenseResponse{}, nil
 			}
 			return nil, helper.ErrInternal(fmt.Errorf("FindLicense: Err: %w", err))
 		}
 
-		var result string
-		var bestConfidence float32
-		for candidate, match := range licenses {
-			if match.Confidence > bestConfidence {
-				result = candidate
-				bestConfidence = match.Confidence
-			}
+		// This should not happen as the error must be returned, but let's keep it safe to avoid panics.
+		if len(detectedLicenses) == 0 {
+			return &gitalypb.FindLicenseResponse{}, nil
 		}
 
-		return &gitalypb.FindLicenseResponse{LicenseShortName: strings.ToLower(result)}, nil
+		type bestMatch struct {
+			shortName string
+			api.Match
+		}
+		bestMatches := make([]bestMatch, 0, len(detectedLicenses))
+		for candidate, match := range detectedLicenses {
+			bestMatches = append(bestMatches, bestMatch{Match: match, shortName: candidate})
+		}
+		sort.Slice(bestMatches, func(i, j int) bool {
+			// Because there could be multiple matches with the same confidence, we need
+			// to make sure the function is consistent and returns the same license on
+			// each invocation. That is why we sort by the short name as well.
+			if bestMatches[i].Confidence == bestMatches[j].Confidence {
+				return trimDeprecatedPrefix(bestMatches[i].shortName) < trimDeprecatedPrefix(bestMatches[j].shortName)
+			}
+			return bestMatches[i].Confidence > bestMatches[j].Confidence
+		})
+
+		// We also don't want to return the prefix back to the caller if it exists.
+		shortName := trimDeprecatedPrefix(bestMatches[0].shortName)
+
+		name, err := licensedb.LicenseName(shortName)
+		if err != nil {
+			return nil, helper.ErrInternal(fmt.Errorf("license name by id %q: %w", shortName, err))
+		}
+
+		urls, err := licensedb.LicenseURLs(shortName)
+		if err != nil {
+			return nil, helper.ErrInternal(fmt.Errorf("license URLs by id %q: %w", shortName, err))
+		}
+		var url string
+		if len(urls) > 0 {
+			// The URL list is returned in an ordered slice, so we just pick up the first one from the list.
+			url = urls[0]
+		}
+
+		// The license identifier used by `github.com/go-enry/go-license-detector` is
+		// case-sensitive, but the API requires all license identifiers to be lower-cased.
+		shortName = strings.ToLower(shortName)
+		nickname := nicknameByLicenseIdentifier[shortName]
+		return &gitalypb.FindLicenseResponse{
+			LicenseShortName: shortName,
+			LicensePath:      bestMatches[0].File,
+			LicenseName:      name,
+			LicenseUrl:       url,
+			LicenseNickname:  nickname,
+		}, nil
 	}
 
 	client, err := s.ruby.RepositoryServiceClient(ctx)
@@ -75,12 +135,21 @@ func (s *server) FindLicense(ctx context.Context, req *gitalypb.FindLicenseReque
 	return client.FindLicense(clientCtx, req)
 }
 
+// For the deprecated licenses, the `github.com/go-enry/go-license-detector` package
+// uses the "deprecated_" prefix in the identifier. But the license database stores
+// information using the identifier without prefix, so we need to cut off the
+// prefix before searching for full license name and license URLs.
+func trimDeprecatedPrefix(name string) string {
+	return strings.TrimPrefix(name, "deprecated_")
+}
+
 var readmeRegexp = regexp.MustCompile(`(readme|guidelines)(\.md|\.rst|\.html|\.txt)?$`)
 
 type gitFiler struct {
 	ctx          context.Context
 	repo         *localrepo.Repo
 	foundLicense bool
+	path         string
 }
 
 func (f *gitFiler) ReadFile(path string) ([]byte, error) {
@@ -102,6 +171,9 @@ func (f *gitFiler) ReadFile(path string) ([]byte, error) {
 	// be licenses.
 	if !f.foundLicense {
 		f.foundLicense = !readmeRegexp.MatchString(strings.ToLower(path))
+		if f.foundLicense {
+			f.path = path
+		}
 	}
 
 	return stdout.Bytes(), nil

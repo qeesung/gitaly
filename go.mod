@@ -2,6 +2,9 @@ module gitlab.com/gitlab-org/gitaly/v15
 
 go 1.17
 
+// It is a temporary solution, please see https://gitlab.com/gitlab-org/gitaly/-/issues/4423 for details.
+replace github.com/go-enry/go-license-detector/v4 => github.com/pavelmemory/go-license-detector/v4 v4.3.1-0.20220801101717-a7c9e28533cf
+
 require (
 	github.com/beevik/ntp v0.3.0
 	github.com/cloudflare/tableflip v1.2.3

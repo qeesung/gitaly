@@ -773,10 +773,23 @@ message FindLicenseRequest {
   Repository repository = 1 [(target_repository)=true];
 }
 
-// This comment is left unintentionally blank.
+// FindLicenseResponse contains the result of detecting the license used in the repository.
+// If there is nothing that looks like a license file, the empty response is returned.
+// If there is something that looks like a license, but that license can't be found in the
+// list of known licenses, we return a pre-defined response with "Other" license.
 message FindLicenseResponse {
-  // This comment is left unintentionally blank.
+  // LicenseShortName is the license unique SPDX identifier or a short name.
+  // It is always returned lower-cased.
   string license_short_name = 1;
+  // LicenseName is the license full name.
+  string license_name = 2;
+  // LicenseUrl is a URL to the license on the internet.
+  string license_url = 3;
+  // LicensePath is a path to the file that contains the text of the license.
+  string license_path = 4;
+  // LicenseNickname is a shortened full name for better readability.
+  // It exists only for a small set of licenses and an empty value is returned in most cases.
+  string license_nickname = 5;
 }
 
 // This comment is left unintentionally blank.
