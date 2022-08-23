@@ -1,6 +1,6 @@
 //go:build static && system_libgit2 && !gitaly_test_sha256
 
-package main
+package git2go
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/cmd/gitaly-git2go/git2goutil"
 	gitalygit "gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
@@ -22,12 +22,12 @@ var masterRevision = "1e292f8fedd741b75372e19097c76d327140c312"
 func TestRebase_validation(t *testing.T) {
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 	testcfg.BuildGitalyGit2Go(t, cfg)
-	committer := git2go.NewSignature("Foo", "foo@example.com", time.Now())
-	executor := buildExecutor(t, cfg)
+	committer := NewSignature("Foo", "foo@example.com", time.Now())
+	executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 	testcases := []struct {
 		desc        string
-		request     git2go.RebaseCommand
+		request     RebaseCommand
 		expectedErr string
 	}{
 		{
@@ -36,37 +36,37 @@ func TestRebase_validation(t *testing.T) {
 		},
 		{
 			desc:        "missing repository",
-			request:     git2go.RebaseCommand{Committer: committer, BranchName: "feature", UpstreamRevision: masterRevision},
+			request:     RebaseCommand{Committer: committer, BranchName: "feature", UpstreamRevision: masterRevision},
 			expectedErr: "rebase: missing repository",
 		},
 		{
 			desc:        "missing committer name",
-			request:     git2go.RebaseCommand{Repository: repoPath, Committer: git2go.Signature{Email: "foo@example.com"}, BranchName: "feature", UpstreamRevision: masterRevision},
+			request:     RebaseCommand{Repository: repoPath, Committer: Signature{Email: "foo@example.com"}, BranchName: "feature", UpstreamRevision: masterRevision},
 			expectedErr: "rebase: missing committer name",
 		},
 		{
 			desc:        "missing committer email",
-			request:     git2go.RebaseCommand{Repository: repoPath, Committer: git2go.Signature{Name: "Foo"}, BranchName: "feature", UpstreamRevision: masterRevision},
+			request:     RebaseCommand{Repository: repoPath, Committer: Signature{Name: "Foo"}, BranchName: "feature", UpstreamRevision: masterRevision},
 			expectedErr: "rebase: missing committer email",
 		},
 		{
 			desc:        "missing branch name",
-			request:     git2go.RebaseCommand{Repository: repoPath, Committer: committer, UpstreamRevision: masterRevision},
+			request:     RebaseCommand{Repository: repoPath, Committer: committer, UpstreamRevision: masterRevision},
 			expectedErr: "rebase: missing branch name",
 		},
 		{
 			desc:        "missing upstream branch",
-			request:     git2go.RebaseCommand{Repository: repoPath, Committer: committer, BranchName: "feature"},
+			request:     RebaseCommand{Repository: repoPath, Committer: committer, BranchName: "feature"},
 			expectedErr: "rebase: missing upstream revision",
 		},
 		{
 			desc:        "both branch name and commit ID",
-			request:     git2go.RebaseCommand{Repository: repoPath, Committer: committer, BranchName: "feature", CommitID: "a"},
+			request:     RebaseCommand{Repository: repoPath, Committer: committer, BranchName: "feature", CommitID: "a"},
 			expectedErr: "rebase: both branch name and commit ID",
 		},
 		{
 			desc:        "both upstream revision and upstream commit ID",
-			request:     git2go.RebaseCommand{Repository: repoPath, Committer: committer, BranchName: "feature", UpstreamRevision: "a", UpstreamCommitID: "a"},
+			request:     RebaseCommand{Repository: repoPath, Committer: committer, BranchName: "feature", UpstreamRevision: "a", UpstreamCommitID: "a"},
 			expectedErr: "rebase: both upstream revision and upstream commit ID",
 		},
 	}
@@ -116,14 +116,14 @@ func TestRebase_rebase(t *testing.T) {
 			desc:   "Partially merged branch",
 			branch: "branch-merged-plus-one",
 			setupRepo: func(tb testing.TB, repo *git.Repository) {
-				head, err := lookupCommit(repo, "branch-merged")
+				head, err := git2goutil.LookupCommit(repo, "branch-merged")
 				require.NoError(tb, err)
 
-				other, err := lookupCommit(repo, "gitaly-rename-test")
+				other, err := git2goutil.LookupCommit(repo, "gitaly-rename-test")
 				require.NoError(tb, err)
 				tree, err := other.Tree()
 				require.NoError(tb, err)
-				newOid, err := repo.CreateCommitFromIds("refs/heads/branch-merged-plus-one", &DefaultAuthor, &DefaultAuthor, "Message", tree.Object.Id(), head.Object.Id())
+				newOid, err := repo.CreateCommitFromIds("refs/heads/branch-merged-plus-one", &defaultAuthor, &defaultAuthor, "Message", tree.Object.Id(), head.Object.Id())
 				require.NoError(tb, err)
 				require.Equal(tb, "8665d9b4b56f6b8ab8c4128a5549d1820bf68bf5", newOid.String())
 			},
@@ -134,9 +134,9 @@ func TestRebase_rebase(t *testing.T) {
 			desc:   "With upstream merged into",
 			branch: "csv-plus-merge",
 			setupRepo: func(tb testing.TB, repo *git.Repository) {
-				ours, err := lookupCommit(repo, "csv")
+				ours, err := git2goutil.LookupCommit(repo, "csv")
 				require.NoError(tb, err)
-				theirs, err := lookupCommit(repo, "b83d6e391c22777fca1ed3012fce84f633d7fed0")
+				theirs, err := git2goutil.LookupCommit(repo, "b83d6e391c22777fca1ed3012fce84f633d7fed0")
 				require.NoError(tb, err)
 
 				index, err := repo.MergeCommits(ours, theirs, nil)
@@ -144,7 +144,7 @@ func TestRebase_rebase(t *testing.T) {
 				tree, err := index.WriteTreeTo(repo)
 				require.NoError(tb, err)
 
-				newOid, err := repo.CreateCommitFromIds("refs/heads/csv-plus-merge", &DefaultAuthor, &DefaultAuthor, "Message", tree, ours.Object.Id(), theirs.Object.Id())
+				newOid, err := repo.CreateCommitFromIds("refs/heads/csv-plus-merge", &defaultAuthor, &defaultAuthor, "Message", tree, ours.Object.Id(), theirs.Object.Id())
 				require.NoError(tb, err)
 				require.Equal(tb, "5b2d6bd7be0b1b9f7e46b64d02fe9882c133a128", newOid.String())
 			},
@@ -167,13 +167,13 @@ func TestRebase_rebase(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := testhelper.Context(t)
 
-			committer := git2go.NewSignature(string(gittest.TestUser.Name),
+			committer := NewSignature(string(gittest.TestUser.Name),
 				string(gittest.TestUser.Email),
 				time.Date(2021, 3, 1, 13, 45, 50, 0, time.FixedZone("", +2*60*60)))
 
 			cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 			testcfg.BuildGitalyGit2Go(t, cfg)
-			executor := buildExecutor(t, cfg)
+			executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 			repo, err := git2goutil.OpenRepository(repoPath)
 			require.NoError(t, err)
@@ -182,10 +182,10 @@ func TestRebase_rebase(t *testing.T) {
 				tc.setupRepo(t, repo)
 			}
 
-			branchCommit, err := lookupCommit(repo, tc.branch)
+			branchCommit, err := git2goutil.LookupCommit(repo, tc.branch)
 			require.NoError(t, err)
 
-			for desc, request := range map[string]git2go.RebaseCommand{
+			for desc, request := range map[string]RebaseCommand{
 				"with branch and upstream": {
 					Repository:       repoPath,
 					Committer:        committer,
@@ -221,13 +221,13 @@ func TestRebase_rebase(t *testing.T) {
 						result := response.String()
 						require.Equal(t, tc.expected, result)
 
-						commit, err := lookupCommit(repo, result)
+						commit, err := git2goutil.LookupCommit(repo, result)
 						require.NoError(t, err)
 
 						for i := tc.commitsAhead; i > 0; i-- {
 							commit = commit.Parent(0)
 						}
-						masterCommit, err := lookupCommit(repo, masterRevision)
+						masterCommit, err := git2goutil.LookupCommit(repo, masterRevision)
 						require.NoError(t, err)
 						require.Equal(t, masterCommit, commit)
 					}
@@ -279,9 +279,9 @@ func TestRebase_skipEmptyCommit(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			response, err := buildExecutor(t, cfg).Rebase(ctx, repoProto, git2go.RebaseCommand{
+			response, err := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg)).Rebase(ctx, repoProto, RebaseCommand{
 				Repository:       repoPath,
-				Committer:        git2go.NewSignature("Foo", "foo@example.com", time.Now()),
+				Committer:        NewSignature("Foo", "foo@example.com", time.Now()),
 				CommitID:         ours,
 				UpstreamCommitID: theirs,
 				SkipEmptyCommits: tc.skipEmptyCommits,

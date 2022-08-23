@@ -21,10 +21,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
 
-func TestMain(m *testing.M) {
-	testhelper.Run(m)
-}
-
 type commit struct {
 	Parent    git.ObjectID
 	Author    Signature

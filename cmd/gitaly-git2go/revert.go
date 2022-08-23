@@ -65,12 +65,12 @@ func (cmd *revertSubcommand) revert(ctx context.Context, request *git2go.RevertC
 	}
 	defer repo.Free()
 
-	ours, err := lookupCommit(repo, request.Ours)
+	ours, err := git2goutil.LookupCommit(repo, request.Ours)
 	if err != nil {
 		return "", fmt.Errorf("ours commit lookup: %w", err)
 	}
 
-	revert, err := lookupCommit(repo, request.Revert)
+	revert, err := git2goutil.LookupCommit(repo, request.Revert)
 	if err != nil {
 		return "", fmt.Errorf("revert commit lookup: %w", err)
 	}

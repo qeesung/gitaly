@@ -1,6 +1,4 @@
-//go:build static && system_libgit2
-
-package main
+package git2goutil
 
 import (
 	"fmt"
@@ -8,7 +6,8 @@ import (
 	git "github.com/libgit2/git2go/v33"
 )
 
-func lookupCommit(repo *git.Repository, ref string) (*git.Commit, error) {
+// LookupCommit returns commit by ref.
+func LookupCommit(repo *git.Repository, ref string) (*git.Commit, error) {
 	object, err := repo.RevparseSingle(ref)
 	if err != nil {
 		return nil, fmt.Errorf("lookup commit %q: %w", ref, err)

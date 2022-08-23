@@ -39,12 +39,12 @@ func (cmd resolveSubcommand) Run(_ context.Context, decoder *gob.Decoder, encode
 		return fmt.Errorf("could not open repository: %w", err)
 	}
 
-	ours, err := lookupCommit(repo, request.Ours)
+	ours, err := git2goutil.LookupCommit(repo, request.Ours)
 	if err != nil {
 		return fmt.Errorf("ours commit lookup: %w", err)
 	}
 
-	theirs, err := lookupCommit(repo, request.Theirs)
+	theirs, err := git2goutil.LookupCommit(repo, request.Theirs)
 	if err != nil {
 		return fmt.Errorf("theirs commit lookup: %w", err)
 	}

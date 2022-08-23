@@ -1,6 +1,6 @@
 //go:build static && system_libgit2 && !gitaly_test_sha256
 
-package main
+package git2go
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/lstree"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
@@ -22,12 +22,12 @@ func TestSubmodule(t *testing.T) {
 
 	testCases := []struct {
 		desc           string
-		command        git2go.SubmoduleCommand
+		command        SubmoduleCommand
 		expectedStderr string
 	}{
 		{
 			desc: "Update submodule",
-			command: git2go.SubmoduleCommand{
+			command: SubmoduleCommand{
 				AuthorName: string(gittest.TestUser.Name),
 				AuthorMail: string(gittest.TestUser.Email),
 				Message:    string(commitMessage),
@@ -38,7 +38,7 @@ func TestSubmodule(t *testing.T) {
 		},
 		{
 			desc: "Update submodule inside folder",
-			command: git2go.SubmoduleCommand{
+			command: SubmoduleCommand{
 				AuthorName: string(gittest.TestUser.Name),
 				AuthorMail: string(gittest.TestUser.Email),
 				Message:    string(commitMessage),
@@ -49,7 +49,7 @@ func TestSubmodule(t *testing.T) {
 		},
 		{
 			desc: "Invalid branch",
-			command: git2go.SubmoduleCommand{
+			command: SubmoduleCommand{
 				AuthorName: string(gittest.TestUser.Name),
 				AuthorMail: string(gittest.TestUser.Email),
 				Message:    string(commitMessage),
@@ -61,7 +61,7 @@ func TestSubmodule(t *testing.T) {
 		},
 		{
 			desc: "Invalid submodule",
-			command: git2go.SubmoduleCommand{
+			command: SubmoduleCommand{
 				AuthorName: string(gittest.TestUser.Name),
 				AuthorMail: string(gittest.TestUser.Email),
 				Message:    string(commitMessage),
@@ -73,7 +73,7 @@ func TestSubmodule(t *testing.T) {
 		},
 		{
 			desc: "Duplicate reference",
-			command: git2go.SubmoduleCommand{
+			command: SubmoduleCommand{
 				AuthorName: string(gittest.TestUser.Name),
 				AuthorMail: string(gittest.TestUser.Email),
 				Message:    string(commitMessage),
@@ -90,7 +90,7 @@ func TestSubmodule(t *testing.T) {
 			cfg, repoProto, repoPath := testcfg.BuildWithRepo(t)
 			testcfg.BuildGitalyGit2Go(t, cfg)
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
-			executor := buildExecutor(t, cfg)
+			executor := NewExecutor(cfg, gittest.NewCommandFactory(t, cfg), config.NewLocator(cfg))
 
 			tc.command.Repository = repoPath
 			ctx := testhelper.Context(t)
