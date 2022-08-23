@@ -28,6 +28,8 @@ type ResolveResult struct {
 
 // Resolve will attempt merging and resolving conflicts for the provided request
 func (b *Executor) Resolve(ctx context.Context, repo repository.GitRepo, r ResolveCommand) (ResolveResult, error) {
+	r.SigningKey = b.signingKey
+
 	if err := r.verify(); err != nil {
 		return ResolveResult{}, fmt.Errorf("resolve: %w: %s", ErrInvalidArgument, err.Error())
 	}

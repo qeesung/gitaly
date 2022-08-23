@@ -30,9 +30,13 @@ type RebaseCommand struct {
 	// and which are thus empty to be skipped. If unset, empty commits will cause the rebase to
 	// fail.
 	SkipEmptyCommits bool
+	// SigningKey is a path to the key to sign commit using OpenPGP
+	SigningKey string
 }
 
 // Rebase performs the rebase via gitaly-git2go
 func (b *Executor) Rebase(ctx context.Context, repo repository.GitRepo, r RebaseCommand) (git.ObjectID, error) {
+	r.SigningKey = b.signingKey
+
 	return b.runWithGob(ctx, repo, "rebase", r)
 }

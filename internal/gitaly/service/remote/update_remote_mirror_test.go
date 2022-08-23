@@ -560,7 +560,7 @@ func TestUpdateRemoteMirror(t *testing.T) {
 					for _, commit := range commits {
 						var err error
 						commitOID, err = executor.Commit(ctx, gittest.RewrittenRepository(ctx, t, cfg, c.repoProto),
-							git2go.CommitParams{
+							git2go.CommitCommand{
 								Repository: c.repoPath,
 								Author:     commitSignature,
 								Committer:  commitSignature,

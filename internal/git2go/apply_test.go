@@ -41,7 +41,7 @@ func TestExecutor_Apply(t *testing.T) {
 	author := NewSignature("Test Author", "test.author@example.com", time.Now())
 	committer := NewSignature("Test Committer", "test.committer@example.com", time.Now())
 
-	parentCommitSHA, err := executor.Commit(ctx, repo, CommitParams{
+	parentCommitSHA, err := executor.Commit(ctx, repo, CommitCommand{
 		Repository: repoPath,
 		Author:     author,
 		Committer:  committer,
@@ -50,7 +50,7 @@ func TestExecutor_Apply(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	noCommonAncestor, err := executor.Commit(ctx, repo, CommitParams{
+	noCommonAncestor, err := executor.Commit(ctx, repo, CommitCommand{
 		Repository: repoPath,
 		Author:     author,
 		Committer:  committer,
@@ -59,7 +59,7 @@ func TestExecutor_Apply(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	updateToA, err := executor.Commit(ctx, repo, CommitParams{
+	updateToA, err := executor.Commit(ctx, repo, CommitCommand{
 		Repository: repoPath,
 		Author:     author,
 		Committer:  committer,
@@ -69,7 +69,7 @@ func TestExecutor_Apply(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	updateToB, err := executor.Commit(ctx, repo, CommitParams{
+	updateToB, err := executor.Commit(ctx, repo, CommitCommand{
 		Repository: repoPath,
 		Author:     author,
 		Committer:  committer,
@@ -79,7 +79,7 @@ func TestExecutor_Apply(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	updateFromAToB, err := executor.Commit(ctx, repo, CommitParams{
+	updateFromAToB, err := executor.Commit(ctx, repo, CommitCommand{
 		Repository: repoPath,
 		Author:     author,
 		Committer:  committer,
@@ -89,7 +89,7 @@ func TestExecutor_Apply(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	otherFile, err := executor.Commit(ctx, repo, CommitParams{
+	otherFile, err := executor.Commit(ctx, repo, CommitCommand{
 		Repository: repoPath,
 		Author:     author,
 		Committer:  committer,
@@ -214,7 +214,7 @@ func TestExecutor_Apply(t *testing.T) {
 				Author:    author,
 				Committer: committer,
 				Message:   tc.patches[len(tc.patches)-1].Message,
-			}, getCommit(t, ctx, repo, commitID))
+			}, getCommit(t, ctx, repo, commitID, false))
 			gittest.RequireTree(t, cfg, repoPath, commitID.String(), tc.tree)
 		})
 	}

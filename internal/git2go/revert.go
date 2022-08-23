@@ -26,9 +26,13 @@ type RevertCommand struct {
 	Revert string
 	// Mainline is the parent to be considered the mainline
 	Mainline uint
+	// SigningKey is a path to the key to sign commit using OpenPGP
+	SigningKey string
 }
 
 // Revert reverts a commit via gitaly-git2go.
 func (b *Executor) Revert(ctx context.Context, repo repository.GitRepo, r RevertCommand) (git.ObjectID, error) {
+	r.SigningKey = b.signingKey
+
 	return b.runWithGob(ctx, repo, "revert", r)
 }

@@ -73,6 +73,7 @@ func (cmd *rebaseSubcommand) rebase(ctx context.Context, request *git2go.RebaseC
 		return "", fmt.Errorf("get rebase options: %w", err)
 	}
 	opts.InMemory = 1
+	opts.CommitCreateCallback = git2goutil.NewCommitSubmitter(repo, request.SigningKey).Commit
 
 	var commit *git.AnnotatedCommit
 	if request.BranchName != "" {

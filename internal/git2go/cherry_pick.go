@@ -8,9 +8,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 )
 
-// CherryPickCommand contains parameters to perform a cherry pick.
+// CherryPickCommand contains parameters to perform a cherry-pick.
 type CherryPickCommand struct {
-	// Repository is the path where to execute the cherry pick.
+	// Repository is the path where to execute the cherry-pick.
 	Repository string
 	// CommitterName is the committer name for the resulting commit.
 	CommitterName string
@@ -26,9 +26,13 @@ type CherryPickCommand struct {
 	Commit string
 	// Mainline is the parent to be considered the mainline
 	Mainline uint
+	// SigningKey is a path to the key to sign commit using OpenPGP
+	SigningKey string
 }
 
-// CherryPick performs a cherry pick via gitaly-git2go.
+// CherryPick performs a cherry-pick via gitaly-git2go.
 func (b *Executor) CherryPick(ctx context.Context, repo repository.GitRepo, m CherryPickCommand) (git.ObjectID, error) {
+	m.SigningKey = b.signingKey
+
 	return b.runWithGob(ctx, repo, "cherry-pick", m)
 }

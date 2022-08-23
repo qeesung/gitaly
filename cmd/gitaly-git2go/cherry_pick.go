@@ -102,21 +102,26 @@ func (cmd *cherryPickSubcommand) cherryPick(ctx context.Context, r *git2go.Cherr
 		}
 	}
 
-	tree, err := index.WriteTreeTo(repo)
+	treeOID, err := index.WriteTreeTo(repo)
 	if err != nil {
 		return "", fmt.Errorf("could not write tree: %w", err)
 	}
+	tree, err := repo.LookupTree(treeOID)
+	if err != nil {
+		return "", fmt.Errorf("lookup tree: %w", err)
+	}
 
-	if tree.Equal(ours.TreeId()) {
+	if treeOID.Equal(ours.TreeId()) {
 		return "", git2go.EmptyError{}
 	}
 
 	committer := git.Signature(git2go.NewSignature(r.CommitterName, r.CommitterMail, r.CommitterDate))
 
-	commit, err := repo.CreateCommitFromIds("", pick.Author(), &committer, r.Message, tree, ours.Id())
+	commitID, err := git2goutil.NewCommitSubmitter(repo, r.SigningKey).
+		Commit(pick.Author(), &committer, git.MessageEncodingUTF8, r.Message, tree, ours)
 	if err != nil {
-		return "", fmt.Errorf("could not create cherry-pick commit: %w", err)
+		return "", fmt.Errorf("create not create cherry-pick commit: %w", err)
 	}
 
-	return commit.String(), nil
+	return commitID.String(), nil
 }

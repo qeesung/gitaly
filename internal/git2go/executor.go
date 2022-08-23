@@ -31,6 +31,7 @@ var (
 // Executor executes gitaly-git2go.
 type Executor struct {
 	binaryPath          string
+	signingKey          string
 	gitCmdFactory       git.CommandFactory
 	locator             storage.Locator
 	logFormat, logLevel string
@@ -41,6 +42,7 @@ type Executor struct {
 func NewExecutor(cfg config.Cfg, gitCmdFactory git.CommandFactory, locator storage.Locator) *Executor {
 	return &Executor{
 		binaryPath:    cfg.BinaryPath(BinaryName),
+		signingKey:    cfg.Git.SigningKey,
 		gitCmdFactory: gitCmdFactory,
 		locator:       locator,
 		logFormat:     cfg.Logging.Format,

@@ -1,9 +1,7 @@
 package git2go
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
@@ -42,8 +40,8 @@ func (err DirectoryExistsError) Error() string {
 	return fmt.Sprintf("directory exists: %q", string(err))
 }
 
-// CommitParams contains the information and the steps to build a commit.
-type CommitParams struct {
+// CommitCommand contains the information and the steps to build a commit.
+type CommitCommand struct {
 	// Repository is the path of the repository to operate on.
 	Repository string
 	// Author is the author of the commit.
@@ -56,34 +54,14 @@ type CommitParams struct {
 	Parent string
 	// Actions are the steps to build the commit.
 	Actions []Action
+	// SigningKey is a path to the key to sign commit using OpenPGP
+	SigningKey string
 }
 
 // Commit builds a commit from the actions, writes it to the object database and
 // returns its object id.
-func (b *Executor) Commit(ctx context.Context, repo repository.GitRepo, params CommitParams) (git.ObjectID, error) {
-	input := &bytes.Buffer{}
-	if err := gob.NewEncoder(input).Encode(params); err != nil {
-		return "", err
-	}
+func (b *Executor) Commit(ctx context.Context, repo repository.GitRepo, c CommitCommand) (git.ObjectID, error) {
+	c.SigningKey = b.signingKey
 
-	output, err := b.run(ctx, repo, input, "commit")
-	if err != nil {
-		return "", err
-	}
-
-	var result Result
-	if err := gob.NewDecoder(output).Decode(&result); err != nil {
-		return "", err
-	}
-
-	if result.Err != nil {
-		return "", result.Err
-	}
-
-	commitID, err := git.ObjectHashSHA1.FromHex(result.CommitID)
-	if err != nil {
-		return "", fmt.Errorf("could not parse commit ID: %w", err)
-	}
-
-	return commitID, nil
+	return b.runWithGob(ctx, repo, "commit", c)
 }

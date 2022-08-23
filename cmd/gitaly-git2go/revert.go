@@ -85,20 +85,25 @@ func (cmd *revertSubcommand) revert(ctx context.Context, request *git2go.RevertC
 		return "", git2go.HasConflictsError{}
 	}
 
-	tree, err := index.WriteTreeTo(repo)
+	treeOID, err := index.WriteTreeTo(repo)
 	if err != nil {
 		return "", fmt.Errorf("write tree: %w", err)
 	}
+	tree, err := repo.LookupTree(treeOID)
+	if err != nil {
+		return "", fmt.Errorf("lookup tree: %w", err)
+	}
 
-	if tree.Equal(ours.TreeId()) {
+	if treeOID.Equal(ours.TreeId()) {
 		return "", git2go.EmptyError{}
 	}
 
 	committer := git.Signature(git2go.NewSignature(request.AuthorName, request.AuthorMail, request.AuthorDate))
-	commit, err := repo.CreateCommitFromIds("", &committer, &committer, request.Message, tree, ours.Id())
+	commitID, err := git2goutil.NewCommitSubmitter(repo, request.SigningKey).
+		Commit(&committer, &committer, git.MessageEncodingUTF8, request.Message, tree, ours)
 	if err != nil {
-		return "", fmt.Errorf("create revert commit: %w", err)
+		return "", fmt.Errorf("create commit: %w", err)
 	}
 
-	return commit.String(), nil
+	return commitID.String(), nil
 }

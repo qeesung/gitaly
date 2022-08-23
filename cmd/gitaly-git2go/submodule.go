@@ -121,14 +121,16 @@ func (cmd *submoduleSubcommand) run(request git2go.SubmoduleCommand) (*git2go.Su
 			request.AuthorDate,
 		),
 	)
-	newCommitOID, err := repo.CreateCommit(
-		"", // caller should update branch with hooks
-		&committer,
-		&committer,
-		request.Message,
-		newTree,
-		startCommit,
-	)
+
+	newCommitOID, err := git2goutil.NewCommitSubmitter(repo, request.SigningKey).
+		Commit(
+			&committer,
+			&committer,
+			git.MessageEncodingUTF8,
+			request.Message,
+			newTree,
+			startCommit,
+		)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"%s: %w",

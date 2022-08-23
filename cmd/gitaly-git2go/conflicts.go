@@ -32,7 +32,7 @@ func (cmd *conflictsSubcommand) Run(_ context.Context, decoder *gob.Decoder, enc
 	return encoder.Encode(res)
 }
 
-func (conflictsSubcommand) conflicts(request git2go.ConflictsCommand) git2go.ConflictsResult {
+func (*conflictsSubcommand) conflicts(request git2go.ConflictsCommand) git2go.ConflictsResult {
 	repo, err := git2goutil.OpenRepository(request.Repository)
 	if err != nil {
 		return conflictError(codes.Internal, fmt.Errorf("could not open repository: %w", err).Error())

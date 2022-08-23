@@ -18,8 +18,7 @@ import (
 type mergeSubcommand struct{}
 
 func (cmd *mergeSubcommand) Flags() *flag.FlagSet {
-	flags := flag.NewFlagSet("merge", flag.ExitOnError)
-	return flags
+	return flag.NewFlagSet("merge", flag.ExitOnError)
 }
 
 func (cmd *mergeSubcommand) Run(_ context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
@@ -32,7 +31,7 @@ func (cmd *mergeSubcommand) Run(_ context.Context, decoder *gob.Decoder, encoder
 		request.AuthorDate = time.Now()
 	}
 
-	commitID, err := merge(request)
+	commitID, err := cmd.merge(request)
 
 	return encoder.Encode(git2go.Result{
 		CommitID: commitID,
@@ -40,7 +39,7 @@ func (cmd *mergeSubcommand) Run(_ context.Context, decoder *gob.Decoder, encoder
 	})
 }
 
-func merge(request git2go.MergeCommand) (string, error) {
+func (cmd *mergeSubcommand) merge(request git2go.MergeCommand) (string, error) {
 	repo, err := git2goutil.OpenRepository(request.Repository)
 	if err != nil {
 		return "", fmt.Errorf("could not open repository: %w", err)
@@ -86,9 +85,13 @@ func merge(request git2go.MergeCommand) (string, error) {
 		}
 	}
 
-	tree, err := index.WriteTreeTo(repo)
+	treeOID, err := index.WriteTreeTo(repo)
 	if err != nil {
 		return "", fmt.Errorf("could not write tree: %w", err)
+	}
+	tree, err := repo.LookupTree(treeOID)
+	if err != nil {
+		return "", fmt.Errorf("lookup tree: %w", err)
 	}
 
 	author := git.Signature(git2go.NewSignature(request.AuthorName, request.AuthorMail, request.AuthorDate))
@@ -97,18 +100,20 @@ func merge(request git2go.MergeCommand) (string, error) {
 		committer = git.Signature(git2go.NewSignature(request.CommitterName, request.CommitterMail, request.CommitterDate))
 	}
 
-	var parents []*git.Oid
+	var parents []*git.Commit
 	if request.Squash {
-		parents = []*git.Oid{ours.Id()}
+		parents = []*git.Commit{ours}
 	} else {
-		parents = []*git.Oid{ours.Id(), theirs.Id()}
+		parents = []*git.Commit{ours, theirs}
 	}
-	commit, err := repo.CreateCommitFromIds("", &author, &committer, request.Message, tree, parents...)
+
+	commitID, err := git2goutil.NewCommitSubmitter(repo, request.SigningKey).
+		Commit(&author, &committer, git.MessageEncodingUTF8, request.Message, tree, parents...)
 	if err != nil {
 		return "", fmt.Errorf("could not create merge commit: %w", err)
 	}
 
-	return commit.String(), nil
+	return commitID.String(), nil
 }
 
 func resolveConflicts(repo *git.Repository, index *git.Index) error {

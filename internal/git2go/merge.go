@@ -47,6 +47,8 @@ type MergeCommand struct {
 	// If set to `true`, then the resulting commit will have `Ours` as its only parent.
 	// Otherwise, a merge commit will be created with `Ours` and `Theirs` as its parents.
 	Squash bool
+	// SigningKey is a path to the key to sign commit using OpenPGP
+	SigningKey string
 }
 
 // MergeResult contains results from a merge.
@@ -60,6 +62,7 @@ func (b *Executor) Merge(ctx context.Context, repo repository.GitRepo, m MergeCo
 	if err := m.verify(); err != nil {
 		return MergeResult{}, fmt.Errorf("merge: %w: %s", ErrInvalidArgument, err.Error())
 	}
+	m.SigningKey = b.signingKey
 
 	commitID, err := b.runWithGob(ctx, repo, "merge", m)
 	if err != nil {

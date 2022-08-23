@@ -6,9 +6,9 @@ import (
 	"io"
 
 	"gocloud.dev/blob"
-	_ "gocloud.dev/blob/azureblob" // nolint:nolintlint,golint,gci
-	_ "gocloud.dev/blob/gcsblob"   // nolint:nolintlint,golint,gci
-	_ "gocloud.dev/blob/s3blob"    // nolint:nolintlint,golint,gci
+	_ "gocloud.dev/blob/azureblob" //nolint:nolintlint,golint,gci
+	_ "gocloud.dev/blob/gcsblob"   //nolint:nolintlint,golint,gci
+	_ "gocloud.dev/blob/s3blob"    //nolint:nolintlint,golint,gci
 	"gocloud.dev/gcerrors"
 )
 

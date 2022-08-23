@@ -12,8 +12,10 @@ import (
 
 type commitSubcommand struct{}
 
-func (commitSubcommand) Flags() *flag.FlagSet { return flag.NewFlagSet("commit", flag.ExitOnError) }
+func (cmd *commitSubcommand) Flags() *flag.FlagSet {
+	return flag.NewFlagSet("commit", flag.ExitOnError)
+}
 
-func (commitSubcommand) Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
+func (cmd *commitSubcommand) Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
 	return commit.Run(ctx, decoder, encoder)
 }

@@ -15,7 +15,7 @@ import (
 
 // Run runs the commit subcommand.
 func Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error {
-	var params git2go.CommitParams
+	var params git2go.CommitCommand
 	if err := decoder.Decode(&params); err != nil {
 		return err
 	}
@@ -27,8 +27,8 @@ func Run(ctx context.Context, decoder *gob.Decoder, encoder *gob.Encoder) error 
 	})
 }
 
-func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
-	repo, err := git2goutil.OpenRepository(params.Repository)
+func commit(ctx context.Context, request git2go.CommitCommand) (string, error) {
+	repo, err := git2goutil.OpenRepository(request.Repository)
 	if err != nil {
 		return "", fmt.Errorf("open repository: %w", err)
 	}
@@ -38,19 +38,19 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 		return "", fmt.Errorf("new index: %w", err)
 	}
 
-	var parents []*git.Oid
-	if params.Parent != "" {
-		parentOID, err := git.NewOid(params.Parent)
+	var parents []*git.Commit
+	if request.Parent != "" {
+		parentOID, err := git.NewOid(request.Parent)
 		if err != nil {
 			return "", fmt.Errorf("parse base commit oid: %w", err)
 		}
-
-		parents = []*git.Oid{parentOID}
 
 		baseCommit, err := repo.LookupCommit(parentOID)
 		if err != nil {
 			return "", fmt.Errorf("lookup commit: %w", err)
 		}
+
+		parents = []*git.Commit{baseCommit}
 
 		baseTree, err := baseCommit.Tree()
 		if err != nil {
@@ -62,7 +62,7 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 		}
 	}
 
-	for _, action := range params.Actions {
+	for _, action := range request.Actions {
 		if err := apply(action, repo, index); err != nil {
 			if git.IsErrorClass(err, git.ErrorClassIndex) {
 				err = git2go.IndexError(err.Error())
@@ -76,10 +76,15 @@ func commit(ctx context.Context, params git2go.CommitParams) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("write tree: %w", err)
 	}
+	tree, err := repo.LookupTree(treeOID)
+	if err != nil {
+		return "", fmt.Errorf("lookup tree: %w", err)
+	}
 
-	author := git.Signature(params.Author)
-	committer := git.Signature(params.Committer)
-	commitID, err := repo.CreateCommitFromIds("", &author, &committer, params.Message, treeOID, parents...)
+	author := git.Signature(request.Author)
+	committer := git.Signature(request.Committer)
+	commitID, err := git2goutil.NewCommitSubmitter(repo, request.SigningKey).
+		Commit(&author, &committer, git.MessageEncodingUTF8, request.Message, tree, parents...)
 	if err != nil {
 		if git.IsErrorClass(err, git.ErrorClassInvalid) {
 			return "", git2go.InvalidArgumentError(err.Error())
