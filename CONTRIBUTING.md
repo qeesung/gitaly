@@ -224,15 +224,8 @@ Signed-off-by: Alice <alice@example.com>
 
 ## Gitaly Maintainers
 
-- @8bitlife
-- @avar
-- @chriscool
-- @jcaigitlab
-- @pks-t
-- @proglottis
-- @samihiltunen
-- @toon
-- @wchandler
+This project is maintained by the [members](https://gitlab.com/groups/gl-gitaly/-/group_members)
+of @gl-gitaly.
 
 ## Development Process
 
