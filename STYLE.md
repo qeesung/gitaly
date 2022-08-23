@@ -243,6 +243,21 @@ tests are supposed to set up required state as part of the tests themselves. All
 `TestMain()` functions must call `testhelper.Run()` though, which performs the
 setup of global state required for tests.
 
+### Test data
+
+Tests should not rely on static Git data but instead generate test data at
+runtime if possible. This is done so that we can easily adapt to changes in
+Git's repository or object format, e.g. in the transition from the SHA1 to the
+SHA256 object hash. Using seed repositories is thus discouraged.
+
+As an alternative, tests can rely on the following helper functions to generate
+their test data:
+
+- `gittest.WriteCommit()`
+- `gittest.WriteTree()`
+- `gittest.WriteBlob()`
+- `gittest.WriteTag()`
+
 ## Black box and white box testing
 
 The dominant style of testing in Gitaly is "white box" testing, meaning
