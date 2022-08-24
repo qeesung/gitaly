@@ -2,19 +2,17 @@ package server
 
 import (
 	"context"
-	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
-// ClockSynced checks if system clock is synced.
+// ClockSynced returns whether the system clock has an acceptable time drift when compared to NTP service.
 func (s *Server) ClockSynced(_ context.Context, req *gitalypb.ClockSyncedRequest) (*gitalypb.ClockSyncedResponse, error) {
-	driftThreshold := req.DriftThreshold.AsDuration()
-	if !req.DriftThreshold.IsValid() || driftThreshold == time.Duration(0) {
-		driftThreshold = time.Duration(req.DriftThresholdMillis * int64(time.Millisecond)) //nolint:staticcheck
+	if err := req.DriftThreshold.CheckValid(); err != nil {
+		return nil, helper.ErrInvalidArgument(err)
 	}
-	synced, err := helper.CheckClockSync(req.NtpHost, driftThreshold)
+	synced, err := helper.CheckClockSync(req.NtpHost, req.DriftThreshold.AsDuration())
 	if err != nil {
 		return nil, err
 	}

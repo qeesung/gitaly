@@ -81,9 +81,8 @@ message ClockSyncedRequest {
   // NtpHost is a URL to the external NTP service that should be used for clock sync check.
   // Default is "ntp.pool.org"
   string ntp_host = 1;
-  // DriftThresholdMillis is an allowed drift from the NTP service in milliseconds.
-  // Deprecated: DriftThreshold field should be used instead. See https://gitlab.com/gitlab-org/gitaly/-/issues/4417.
-  int64 drift_threshold_millis = 2 [deprecated = true];
+  reserved "drift_threshold_millis";
+  reserved 2;
   // DriftThreshold is an allowed drift from the NTP service.
   google.protobuf.Duration drift_threshold = 3;
 }

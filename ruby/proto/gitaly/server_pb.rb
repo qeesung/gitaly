@@ -34,7 +34,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.ClockSyncedRequest" do
       optional :ntp_host, :string, 1
-      optional :drift_threshold_millis, :int64, 2
       optional :drift_threshold, :message, 3, "google.protobuf.Duration"
     end
     add_message "gitaly.ClockSyncedResponse" do
