@@ -20,9 +20,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/bootstrap/starter"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/limithandler"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -34,20 +34,21 @@ import (
 
 func TestGitalyServerFactory(t *testing.T) {
 	ctx := testhelper.Context(t)
+	grp, ctx := errgroup.WithContext(ctx)
+	t.Cleanup(func() { assert.NoError(t, grp.Wait()) })
 
 	checkHealth := func(t *testing.T, sf *GitalyServerFactory, schema, addr string) healthpb.HealthClient {
 		t.Helper()
 
 		var cc *grpc.ClientConn
 		if schema == starter.TLS {
-			listener, err := net.Listen(starter.TCP, addr)
-			require.NoError(t, err)
-			t.Cleanup(func() { listener.Close() })
-
 			srv, err := sf.CreateExternal(true)
 			require.NoError(t, err)
 			healthpb.RegisterHealthServer(srv, health.NewServer())
-			go srv.Serve(listener)
+
+			listener, err := net.Listen(starter.TCP, addr)
+			require.NoError(t, err)
+			grp.Go(func() error { return srv.Serve(listener) })
 
 			certPool, err := x509.SystemCertPool()
 			require.NoError(t, err)
@@ -63,14 +64,13 @@ func TestGitalyServerFactory(t *testing.T) {
 			cc, err = grpc.DialContext(ctx, listener.Addr().String(), grpc.WithTransportCredentials(creds))
 			require.NoError(t, err)
 		} else {
-			listener, err := net.Listen(schema, addr)
-			require.NoError(t, err)
-			t.Cleanup(func() { listener.Close() })
-
 			srv, err := sf.CreateExternal(false)
 			require.NoError(t, err)
 			healthpb.RegisterHealthServer(srv, health.NewServer())
-			go srv.Serve(listener)
+
+			listener, err := net.Listen(schema, addr)
+			require.NoError(t, err)
+			grp.Go(func() error { return srv.Serve(listener) })
 
 			endpoint, err := starter.ComposeEndpoint(schema, listener.Addr().String())
 			require.NoError(t, err)
@@ -78,11 +78,9 @@ func TestGitalyServerFactory(t *testing.T) {
 			cc, err = client.Dial(endpoint, nil)
 			require.NoError(t, err)
 		}
-
-		t.Cleanup(func() { cc.Close() })
+		t.Cleanup(func() { assert.NoError(t, cc.Close()) })
 
 		healthClient := healthpb.NewHealthClient(cc)
-
 		resp, err := healthClient.Check(ctx, &healthpb.HealthCheckRequest{})
 		require.NoError(t, err)
 		require.Equal(t, healthpb.HealthCheckResponse_SERVING, resp.Status)
@@ -96,8 +94,9 @@ func TestGitalyServerFactory(t *testing.T) {
 			testhelper.NewDiscardingLogEntry(t),
 			backchannel.NewRegistry(),
 			cache.New(cfg, config.NewLocator(cfg)),
-			[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
+			nil,
 		)
+		t.Cleanup(sf.Stop)
 
 		checkHealth(t, sf, starter.TCP, "localhost:0")
 	})
@@ -115,7 +114,7 @@ func TestGitalyServerFactory(t *testing.T) {
 			testhelper.NewDiscardingLogEntry(t),
 			backchannel.NewRegistry(),
 			cache.New(cfg, config.NewLocator(cfg)),
-			[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
+			nil,
 		)
 		t.Cleanup(sf.Stop)
 
@@ -129,7 +128,7 @@ func TestGitalyServerFactory(t *testing.T) {
 			testhelper.NewDiscardingLogEntry(t),
 			backchannel.NewRegistry(),
 			cache.New(cfg, config.NewLocator(cfg)),
-			[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
+			nil,
 		)
 		t.Cleanup(sf.Stop)
 
@@ -159,8 +158,9 @@ func TestGitalyServerFactory(t *testing.T) {
 			logger.WithContext(ctx),
 			backchannel.NewRegistry(),
 			cache.New(cfg, config.NewLocator(cfg)),
-			[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
+			nil,
 		)
+		t.Cleanup(sf.Stop)
 
 		checkHealth(t, sf, starter.TCP, "localhost:0")
 
@@ -193,7 +193,7 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 		testhelper.NewDiscardingLogEntry(t),
 		backchannel.NewRegistry(),
 		cache.New(cfg, config.NewLocator(cfg)),
-		[]*limithandler.LimiterMiddleware{limithandler.New(cfg, limithandler.LimitConcurrencyByRepo, limithandler.WithConcurrencyLimiters)},
+		nil,
 	)
 	defer sf.Stop()
 
