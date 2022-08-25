@@ -17,9 +17,9 @@ Many custom metrics were also added.
 
 ### Grafana
 
-To display the prometheus metrics, GitLab leverages Grafana. Two instances are
-available to view the dashboards. The dashboards can be found at:
-[dashboards.gitlab.com](https://dashboards.gitlab.com).
+To display the prometheus metrics, GitLab leverages Grafana. The instance is
+available only for GitLab team members to view the dashboards. The dashboards can be found at:
+[dashboards.gitlab.net](https://dashboards.gitlab.net).
 
 #### Editing Gitaly dashboards
 
@@ -32,7 +32,7 @@ necessary.
 
 If you want to make a change across a tiled Grafana dashboard such as
 the [feature request rate
-overview](https://performance.gitlab.net/dashboard/db/gitaly-features-overview),
+overview](https://dashboards.gitlab.net/dashboard/db/gitaly-features-overview),
 then edit the first tile (top left). Its settings get applied to the
 other tiles as well. If you edit any tile other than the first your
 changes will be lost.

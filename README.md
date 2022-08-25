@@ -45,13 +45,13 @@ GitLab.com, read about our [observability story](doc/observability.md)!
 
 ![image](https://gitlab.com/gitlab-org/gitaly/uploads/c3aa987884d5e78c3567a3a7469ea6c2/overview.png)
 
-[Dashboard](https://dashboards.gitlab.net/d/gitaly-main/gitaly-overview)
+[Dashboard](https://dashboards.gitlab.net/d/gitaly-main/gitaly-overview) (The link can be accessed by GitLab team members.)
 
 ##### By Feature
 
 ![image](https://gitlab.com/gitlab-org/gitaly/uploads/3e8a5616863fa17c5bf08cb67c1bb385/feature.png)
 
-[Dashboard](https://dashboards.gitlab.net/d/000000198/gitaly-features-overview?orgId=1)
+[Dashboard](https://dashboards.gitlab.net/d/000000198/gitaly-features-overview?orgId=1) (The link can be accessed by GitLab team members.)
 
 ## Installation
 
@@ -226,7 +226,7 @@ For more information on how to set it up, see the [LabKit monitoring docs](https
   -  [Part 7: How Gitaly uses Prometheus monitoring, 2019-07-09](https://youtu.be/R6F674Nj3wI)
 
       What is [Prometheus](https://prometheus.io/). Reconstructing a
-     [Grafana](https://dashboards.gitlab.com) dashboard panel
+     [Grafana](https://dashboards.gitlab.net) dashboard panel
       with
       [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
       Adding a new counter to Gitaly. Querying Prometheus in Gitaly
