@@ -39,6 +39,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "gitaly.FindLocalBranchesResponse" do
       repeated :branches, :message, 1, "gitaly.FindLocalBranchResponse"
+      repeated :local_branches, :message, 2, "gitaly.Branch"
     end
     add_message "gitaly.FindLocalBranchResponse" do
       optional :name, :bytes, 1

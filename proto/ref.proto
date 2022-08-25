@@ -213,8 +213,12 @@ message FindLocalBranchesRequest {
 
 // This comment is left unintentionally blank.
 message FindLocalBranchesResponse {
-  // This comment is left unintentionally blank.
+  // This field is duplicated by 'local_branches' and will be marked deprecated
+  // as we add the implementation for 'local_branches'.
+  // Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/1294
   repeated FindLocalBranchResponse branches = 1;
+  // This comment is left unintentionally blank.
+  repeated Branch local_branches = 2;
 }
 
 // This comment is left unintentionally blank.
