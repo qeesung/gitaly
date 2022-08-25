@@ -8,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -59,10 +60,32 @@ func (s *Server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateB
 
 	if err := s.updateReferenceWithHooks(ctx, req.GetRepository(), req.User, quarantineDir, referenceName, startPointOID, git.ObjectHashSHA1.ZeroOID); err != nil {
 		var customHookErr updateref.CustomHookError
+
 		if errors.As(err, &customHookErr) {
-			return &gitalypb.UserCreateBranchResponse{
-				PreReceiveError: customHookErr.Error(),
-			}, nil
+			if featureflag.UserCreateBranchStructuredErrors.IsEnabled(ctx) {
+				detailedErr, err := helper.ErrWithDetails(
+					// We explicitly don't include the custom hook error itself
+					// in the returned error because that would also contain the
+					// standard output or standard error in the error message.
+					// It's thus needlessly verbose and duplicates information
+					// we have available in the structured error anyway.
+					helper.ErrPermissionDeniedf("creation denied by custom hooks"),
+					&gitalypb.UserCreateBranchError{
+						Error: &gitalypb.UserCreateBranchError_CustomHook{
+							CustomHook: customHookErr.Proto(),
+						},
+					},
+				)
+				if err != nil {
+					return nil, helper.ErrInternalf("error details: %w", err)
+				}
+
+				return nil, detailedErr
+			} else {
+				return &gitalypb.UserCreateBranchResponse{
+					PreReceiveError: customHookErr.Error(),
+				}, nil
+			}
 		}
 
 		var updateRefError updateref.Error

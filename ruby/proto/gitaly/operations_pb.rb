@@ -19,6 +19,11 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :branch, :message, 1, "gitaly.Branch"
       optional :pre_receive_error, :string, 2
     end
+    add_message "gitaly.UserCreateBranchError" do
+      oneof :error do
+        optional :custom_hook, :message, 1, "gitaly.CustomHookError"
+      end
+    end
     add_message "gitaly.UserUpdateBranchRequest" do
       optional :repository, :message, 1, "gitaly.Repository"
       optional :branch_name, :bytes, 2
@@ -307,6 +312,7 @@ end
 module Gitaly
   UserCreateBranchRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCreateBranchRequest").msgclass
   UserCreateBranchResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCreateBranchResponse").msgclass
+  UserCreateBranchError = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserCreateBranchError").msgclass
   UserUpdateBranchRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserUpdateBranchRequest").msgclass
   UserUpdateBranchResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserUpdateBranchResponse").msgclass
   UserDeleteBranchRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("gitaly.UserDeleteBranchRequest").msgclass

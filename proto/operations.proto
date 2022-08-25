@@ -186,6 +186,16 @@ message UserCreateBranchResponse {
   string pre_receive_error = 2;
 }
 
+// UserCreateBranchError is an error returned by the UserCreateBranch RPC in some specific well
+// defined error cases.
+message UserCreateBranchError {
+  oneof error {
+    // CustomHookError is set if any custom hook which has running as part of
+    // this RPC call has returned a non-zero exit code.
+    CustomHookError custom_hook = 1;
+  }
+}
+
 // This comment is left unintentionally blank.
 message UserUpdateBranchRequest {
   // This comment is left unintentionally blank.

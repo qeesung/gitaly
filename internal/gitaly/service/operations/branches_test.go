@@ -18,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -42,7 +43,11 @@ func (s *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalyp
 
 func TestUserCreateBranch_successful(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchSuccessful)
+}
+
+func testUserCreateBranchSuccessful(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
@@ -117,9 +122,13 @@ func TestUserCreateBranch_successful(t *testing.T) {
 	}
 }
 
-func TestUserCreateBranch_transactions(t *testing.T) {
+func TestUserCreateBranch_Transactions(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchTransactions)
+}
+
+func testUserCreateBranchTransactions(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
@@ -193,7 +202,11 @@ func TestUserCreateBranch_transactions(t *testing.T) {
 
 func TestUserCreateBranch_hook(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchHook)
+}
+
+func testUserCreateBranchHook(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
@@ -223,7 +236,11 @@ func TestUserCreateBranch_hook(t *testing.T) {
 
 func TestUserCreateBranch_startPoint(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchStartPoint)
+}
+
+func testUserCreateBranchStartPoint(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
@@ -296,7 +313,11 @@ func TestUserCreateBranch_startPoint(t *testing.T) {
 
 func TestUserCreateBranch_hookFailure(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchHookFailure)
+}
+
+func testUserCreateBranchHookFailure(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, _, repo, repoPath, client := setupOperationsService(t, ctx)
 
@@ -306,22 +327,42 @@ func TestUserCreateBranch_hookFailure(t *testing.T) {
 		StartPoint: []byte("c7fbe50c7c7419d9701eebe64b1fdacc3df5b9dd"),
 		User:       gittest.TestUser,
 	}
-	// Write a hook that will fail with the environment as the error message
-	// so we can check that string for our env variables.
-	hookContent := []byte("#!/bin/sh\nprintenv | paste -sd ' ' -\nexit 1")
+
+	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
+
+	expectedObject := "GL_ID=" + gittest.TestUser.GlId
 
 	for _, hookName := range gitlabPreHooks {
 		gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
 		response, err := client.UserCreateBranch(ctx, request)
-		require.Nil(t, err)
-		require.Contains(t, response.PreReceiveError, "GL_USERNAME="+gittest.TestUser.GlUsername)
+
+		if featureflag.UserCreateBranchStructuredErrors.IsEnabled(ctx) {
+			testhelper.RequireGrpcError(t, errWithDetails(t,
+				helper.ErrPermissionDeniedf("creation denied by custom hooks"),
+				&gitalypb.UserCreateBranchError{
+					Error: &gitalypb.UserCreateBranchError_CustomHook{
+						CustomHook: &gitalypb.CustomHookError{
+							HookType: gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
+							Stdout:   []byte(expectedObject + "\n"),
+						},
+					},
+				},
+			), err)
+		} else {
+			require.Nil(t, err)
+			require.Contains(t, response.PreReceiveError, expectedObject)
+		}
 	}
 }
 
-func TestUserCreateBranch_failure(t *testing.T) {
+func TestUserCreateBranch_Failure(t *testing.T) {
 	t.Parallel()
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchFailure)
+}
+
+func testUserCreateBranchFailure(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
@@ -747,8 +788,11 @@ func TestUserDeleteBranch_hookFailure(t *testing.T) {
 
 func TestBranchHookOutput(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testBranchHookOutput)
+}
 
-	ctx := testhelper.Context(t)
+func testBranchHookOutput(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
@@ -833,8 +877,24 @@ func TestBranchHookOutput(t *testing.T) {
 				expectedError := testCase.output(hookFilename)
 
 				createResponse, err := client.UserCreateBranch(ctx, createRequest)
-				require.NoError(t, err)
-				require.Equal(t, expectedError, createResponse.PreReceiveError)
+
+				if featureflag.UserCreateBranchStructuredErrors.IsEnabled(ctx) {
+					testhelper.RequireGrpcError(t, errWithDetails(t,
+						helper.ErrPermissionDeniedf("creation denied by custom hooks"),
+						&gitalypb.UserCreateBranchError{
+							Error: &gitalypb.UserCreateBranchError_CustomHook{
+								CustomHook: &gitalypb.CustomHookError{
+									HookType: hookTestCase.hookType,
+									Stdout:   []byte(testCase.expectedStdout),
+									Stderr:   []byte(testCase.expectedStderr),
+								},
+							},
+						},
+					), err)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, expectedError, createResponse.PreReceiveError)
+				}
 
 				gittest.Exec(t, cfg, "-C", repoPath, "branch", branchNameInput)
 				defer gittest.Exec(t, cfg, "-C", repoPath, "branch", "-d", branchNameInput)
