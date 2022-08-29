@@ -170,6 +170,9 @@ Gitaly supports Continuous Profiling through [LabKit][] using [Stackdriver Profi
 For more information on how to set it up, see the [LabKit monitoring docs](https://gitlab.com/gitlab-org/labkit/-/blob/master/monitoring/doc.go).
 
 ## Presentations
+- [Praefect code walkthrough](https://youtu.be/w2R4ptDLPH4)
+
+    A walkthrough of the Praefect codebase.
 
 - [How to configure backpressure in Gitaly](https://youtu.be/wX9CtFdLYxE)
 
