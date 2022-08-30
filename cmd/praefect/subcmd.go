@@ -12,6 +12,7 @@ import (
 
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/service"
@@ -121,6 +122,8 @@ func subCmdDial(ctx context.Context, addr, token string, timeout time.Duration, 
 
 	opts = append(opts,
 		grpc.WithBlock(),
+		internalclient.UnaryInterceptor(),
+		internalclient.StreamInterceptor(),
 	)
 
 	if len(token) > 0 {

@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/labkit/tracing"
 	"google.golang.org/grpc"
@@ -143,7 +144,7 @@ func dialOpts() []grpc.DialOption {
 		connOpts = append(connOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(token)))
 	}
 
-	return connOpts
+	return append(connOpts, internalclient.UnaryInterceptor(), internalclient.StreamInterceptor())
 }
 
 func useSidechannel() bool { return os.Getenv("GITALY_USE_SIDECHANNEL") == "1" }

@@ -140,6 +140,8 @@ func Dial(ctx context.Context, node *config.Node, registry *protoregistry.Regist
 		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(node.Token)),
 		grpc.WithChainStreamInterceptor(streamInterceptors...),
 		grpc.WithChainUnaryInterceptor(unaryInterceptors...),
+		client.UnaryInterceptor(),
+		client.StreamInterceptor(),
 	}
 
 	return client.Dial(ctx, node.Address, dialOpts, handshaker)

@@ -57,6 +57,8 @@ type Handshaker interface {
 // If handshaker is provided, it's passed the transport credentials which would be otherwise set. The transport credentials
 // returned by handshaker are then set instead.
 func Dial(ctx context.Context, rawAddress string, connOpts []grpc.DialOption, handshaker Handshaker) (*grpc.ClientConn, error) {
+	connOpts = cloneOpts(connOpts) // copy to avoid potentially mutating the backing array of the passed slice
+
 	var canonicalAddress string
 	var err error
 	var transportCredentials credentials.TransportCredentials
@@ -127,11 +129,6 @@ func Dial(ctx context.Context, rawAddress string, connOpts []grpc.DialOption, ha
 			Time:                20 * time.Second,
 			PermitWithoutStream: true,
 		}),
-		UnaryInterceptor(),
-		grpc.WithChainStreamInterceptor(
-			grpctracing.StreamClientTracingInterceptor(),
-			grpccorrelation.StreamClientCorrelationInterceptor(),
-		),
 	)
 
 	conn, err := grpc.DialContext(ctx, canonicalAddress, connOpts...)
@@ -142,10 +139,24 @@ func Dial(ctx context.Context, rawAddress string, connOpts []grpc.DialOption, ha
 	return conn, nil
 }
 
+// StreamInterceptor returns the stream interceptors that should be configured for a client.
+func StreamInterceptor() grpc.DialOption {
+	return grpc.WithChainStreamInterceptor(
+		grpctracing.StreamClientTracingInterceptor(),
+		grpccorrelation.StreamClientCorrelationInterceptor(),
+	)
+}
+
 // UnaryInterceptor returns the unary interceptors that should be configured for a client.
 func UnaryInterceptor() grpc.DialOption {
 	return grpc.WithChainUnaryInterceptor(
 		grpctracing.UnaryClientTracingInterceptor(),
 		grpccorrelation.UnaryClientCorrelationInterceptor(),
 	)
+}
+
+func cloneOpts(opts []grpc.DialOption) []grpc.DialOption {
+	clone := make([]grpc.DialOption, len(opts))
+	copy(clone, opts)
+	return clone
 }

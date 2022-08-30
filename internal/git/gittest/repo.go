@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
@@ -104,7 +105,7 @@ type CreateRepositoryConfig struct {
 }
 
 func dialService(ctx context.Context, tb testing.TB, cfg config.Cfg) *grpc.ClientConn {
-	dialOptions := []grpc.DialOption{}
+	dialOptions := []grpc.DialOption{internalclient.UnaryInterceptor(), internalclient.StreamInterceptor()}
 	if cfg.Auth.Token != "" {
 		dialOptions = append(dialOptions, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(cfg.Auth.Token)))
 	}

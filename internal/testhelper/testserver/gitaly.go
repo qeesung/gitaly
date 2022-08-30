@@ -19,6 +19,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/auth"
 	gitalylog "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/log"
@@ -127,6 +128,8 @@ func (gs GitalyServer) Address() string {
 func waitHealthy(ctx context.Context, tb testing.TB, addr string, authToken string) {
 	grpcOpts := []grpc.DialOption{
 		grpc.WithBlock(),
+		internalclient.UnaryInterceptor(),
+		internalclient.StreamInterceptor(),
 	}
 	if authToken != "" {
 		grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(authToken)))
@@ -255,7 +258,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg, r
 	}
 
 	if gsd.conns == nil {
-		gsd.conns = client.NewPool()
+		gsd.conns = client.NewPool(internalclient.UnaryInterceptor(), internalclient.StreamInterceptor())
 	}
 
 	if gsd.locator == nil {

@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/uber/jaeger-client-go"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	gitalyx509 "gitlab.com/gitlab-org/gitaly/v15/internal/x509"
 	"gitlab.com/gitlab-org/labkit/correlation"
@@ -300,7 +301,9 @@ func TestDial_Correlation(t *testing.T) {
 		defer grpcServer.Stop()
 		ctx := testhelper.Context(t)
 
-		cc, err := DialContext(ctx, "unix://"+serverSocketPath, nil)
+		cc, err := DialContext(ctx, "unix://"+serverSocketPath, []grpc.DialOption{
+			internalclient.UnaryInterceptor(), internalclient.StreamInterceptor(),
+		})
 		require.NoError(t, err)
 		defer cc.Close()
 
@@ -333,7 +336,9 @@ func TestDial_Correlation(t *testing.T) {
 		defer grpcServer.Stop()
 		ctx := testhelper.Context(t)
 
-		cc, err := DialContext(ctx, "unix://"+serverSocketPath, nil)
+		cc, err := DialContext(ctx, "unix://"+serverSocketPath, []grpc.DialOption{
+			internalclient.UnaryInterceptor(), internalclient.StreamInterceptor(),
+		})
 		require.NoError(t, err)
 		defer cc.Close()
 
@@ -404,7 +409,9 @@ func TestDial_Tracing(t *testing.T) {
 
 		// This needs to be run after setting up the global tracer as it will cause us to
 		// create the span when executing the RPC call further down below.
-		cc, err := DialContext(ctx, "unix://"+serverSocketPath, nil)
+		cc, err := DialContext(ctx, "unix://"+serverSocketPath, []grpc.DialOption{
+			internalclient.UnaryInterceptor(), internalclient.StreamInterceptor(),
+		})
 		require.NoError(t, err)
 		defer cc.Close()
 
@@ -461,7 +468,9 @@ func TestDial_Tracing(t *testing.T) {
 
 		// This needs to be run after setting up the global tracer as it will cause us to
 		// create the span when executing the RPC call further down below.
-		cc, err := DialContext(ctx, "unix://"+serverSocketPath, nil)
+		cc, err := DialContext(ctx, "unix://"+serverSocketPath, []grpc.DialOption{
+			internalclient.UnaryInterceptor(), internalclient.StreamInterceptor(),
+		})
 		require.NoError(t, err)
 		defer cc.Close()
 
@@ -626,7 +635,11 @@ func TestHealthCheckDialer(t *testing.T) {
 	_, err := HealthCheckDialer(DialContext)(ctx, addr, nil)
 	testhelper.RequireGrpcError(t, status.Error(codes.Unauthenticated, "authentication required"), err)
 
-	cc, err := HealthCheckDialer(DialContext)(ctx, addr, []grpc.DialOption{grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2("token"))})
+	cc, err := HealthCheckDialer(DialContext)(ctx, addr, []grpc.DialOption{
+		grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2("token")),
+		internalclient.UnaryInterceptor(),
+		internalclient.StreamInterceptor(),
+	})
 	require.NoError(t, err)
 	require.NoError(t, cc.Close())
 }

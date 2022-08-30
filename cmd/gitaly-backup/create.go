@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/backup"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
@@ -52,7 +53,7 @@ func (cmd *createSubcommand) Run(ctx context.Context, stdin io.Reader, stdout io
 		return fmt.Errorf("create: resolve locator: %w", err)
 	}
 
-	pool := client.NewPool()
+	pool := client.NewPool(internalclient.UnaryInterceptor(), internalclient.StreamInterceptor())
 	defer pool.Close()
 
 	manager := backup.NewManager(sink, locator, pool, cmd.backupID)

@@ -25,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git2go"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/sentry"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
@@ -246,7 +247,11 @@ func run(cfg config.Cfg) error {
 
 	conns := client.NewPoolWithOptions(
 		client.WithDialer(client.HealthCheckDialer(client.DialContext)),
-		client.WithDialOptions(client.FailOnNonTempDialError()...),
+		client.WithDialOptions(append(
+			client.FailOnNonTempDialError(),
+			internalclient.UnaryInterceptor(),
+			internalclient.StreamInterceptor())...,
+		),
 	)
 	defer conns.Close()
 

@@ -10,6 +10,7 @@ import (
 
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
@@ -72,6 +73,8 @@ func (p *Ping) Address() string {
 func (p *Ping) dial(ctx context.Context) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
+		internalclient.UnaryInterceptor(),
+		internalclient.StreamInterceptor(),
 	}
 
 	if len(p.token) > 0 {

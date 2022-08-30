@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/backchannel"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/voting"
@@ -66,7 +67,11 @@ type PoolManager struct {
 func NewManager(cfg config.Cfg, backchannels *backchannel.Registry) *PoolManager {
 	return &PoolManager{
 		backchannels: backchannels,
-		conns:        client.NewPoolWithOptions(client.WithDialOptions(client.FailOnNonTempDialError()...)),
+		conns: client.NewPoolWithOptions(client.WithDialOptions(append(
+			client.FailOnNonTempDialError(),
+			internalclient.UnaryInterceptor(),
+			internalclient.StreamInterceptor())...,
+		)),
 		votingDelayMetric: prometheus.NewHistogram(
 			prometheus.HistogramOpts{
 				Name:    "gitaly_hook_transaction_voting_delay_seconds",

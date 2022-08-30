@@ -12,6 +12,7 @@ import (
 	migrate "github.com/rubenv/sql-migrate"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v15/auth"
 	"gitlab.com/gitlab-org/gitaly/v15/client"
+	internalclient "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/client"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
@@ -245,7 +246,11 @@ func NewClockSyncCheck(clockDriftCheck func(ntpHost string, driftThreshold time.
 					for j := range conf.VirtualStorages[i].Nodes {
 						node := conf.VirtualStorages[i].Nodes[j]
 						g.Go(func() error {
-							opts := []grpc.DialOption{grpc.WithBlock()}
+							opts := []grpc.DialOption{
+								grpc.WithBlock(),
+								internalclient.UnaryInterceptor(),
+								internalclient.StreamInterceptor(),
+							}
 							if len(node.Token) > 0 {
 								opts = append(opts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(node.Token)))
 							}
