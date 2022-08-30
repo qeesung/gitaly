@@ -7,7 +7,7 @@ Enable the `:feature_name` feature flag ...
 ## Owners
 
 - Team: Gitaly
-- Most appropriate slack channel to reach out to: `#g_create_gitaly`
+- Most appropriate slack channel to reach out to: `#g_gitaly`
 - Best individual to reach out to: NAME
 
 ## Expectations
