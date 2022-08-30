@@ -121,7 +121,7 @@ func findLocalBranchResponsesEqual(a *gitalypb.FindLocalBranchResponse, b *gital
 		findLocalBranchCommitAuthorsEqual(a.CommitCommitter, b.CommitCommitter)
 }
 
-func assertContainsBranch(t *testing.T, branches []*gitalypb.FindAllBranchesResponse_Branch, branch *gitalypb.FindAllBranchesResponse_Branch) {
+func assertContainsAllBranchesResponseBranch(t *testing.T, branches []*gitalypb.FindAllBranchesResponse_Branch, branch *gitalypb.FindAllBranchesResponse_Branch) {
 	t.Helper()
 
 	var branchNames [][]byte
@@ -129,6 +129,22 @@ func assertContainsBranch(t *testing.T, branches []*gitalypb.FindAllBranchesResp
 	for _, b := range branches {
 		if bytes.Equal(branch.Name, b.Name) {
 			testhelper.ProtoEqual(t, b.Target, branch.Target)
+			return // Found the branch and it matches. Success!
+		}
+		branchNames = append(branchNames, b.Name)
+	}
+
+	t.Errorf("Expected to find branch %q in branches %s", branch.Name, branchNames)
+}
+
+func assertContainsBranch(t *testing.T, branches []*gitalypb.Branch, branch *gitalypb.Branch) {
+	t.Helper()
+
+	var branchNames [][]byte
+
+	for _, b := range branches {
+		if bytes.Equal(branch.Name, b.Name) {
+			testhelper.ProtoEqual(t, b.TargetCommit, branch.TargetCommit)
 			return // Found the branch and it matches. Success!
 		}
 		branchNames = append(branchNames, b.Name)

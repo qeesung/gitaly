@@ -8,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/lines"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
@@ -84,23 +85,48 @@ func buildBranch(ctx context.Context, objectReader catfile.ObjectReader, element
 
 func newFindLocalBranchesWriter(stream gitalypb.RefService_FindLocalBranchesServer, objectReader catfile.ObjectReader) lines.Sender {
 	return func(refs [][]byte) error {
-		var branches []*gitalypb.FindLocalBranchResponse
 		ctx := stream.Context()
+		var response *gitalypb.FindLocalBranchesResponse
 
-		for _, ref := range refs {
-			elements, err := parseRef(ref)
-			if err != nil {
-				return err
+		if featureflag.SimplifyFindLocalBranchesResponse.IsEnabled(ctx) {
+			var branches []*gitalypb.Branch
+
+			for _, ref := range refs {
+				elements, err := parseRef(ref)
+				if err != nil {
+					return err
+				}
+
+				branch, err := buildBranch(ctx, objectReader, elements)
+				if err != nil {
+					return err
+				}
+
+				branches = append(branches, branch)
 			}
 
-			target, err := catfile.GetCommit(ctx, objectReader, git.Revision(elements[1]))
-			if err != nil {
-				return err
+			response = &gitalypb.FindLocalBranchesResponse{LocalBranches: branches}
+		} else {
+			var branches []*gitalypb.FindLocalBranchResponse
+
+			for _, ref := range refs {
+				elements, err := parseRef(ref)
+				if err != nil {
+					return err
+				}
+
+				target, err := catfile.GetCommit(ctx, objectReader, git.Revision(elements[1]))
+				if err != nil {
+					return err
+				}
+
+				branches = append(branches, buildLocalBranch(elements[0], target))
 			}
 
-			branches = append(branches, buildLocalBranch(elements[0], target))
+			response = &gitalypb.FindLocalBranchesResponse{Branches: branches}
 		}
-		return stream.Send(&gitalypb.FindLocalBranchesResponse{Branches: branches})
+
+		return stream.Send(response)
 	}
 }
 
