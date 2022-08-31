@@ -42,6 +42,7 @@ var subcommands = map[string]subcmd{
 	setReplicationFactorCmdName:   newSetReplicatioFactorSubcommand(os.Stdout),
 	removeRepositoryCmdName:       newRemoveRepository(logger, os.Stdout),
 	trackRepositoryCmdName:        newTrackRepository(logger, os.Stdout),
+	trackRepositoriesCmdName:      newTrackRepositories(logger, os.Stdout),
 	listUntrackedRepositoriesName: newListUntrackedRepositories(logger, os.Stdout),
 	checkCmdName:                  newCheckSubcommand(os.Stdout, service.AllChecks()...),
 	metadataCmdName:               newMetadataSubcommand(os.Stdout),
