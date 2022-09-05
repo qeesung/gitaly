@@ -1,9 +1,10 @@
 package blob
 
 import (
-	"fmt"
+	"errors"
 	"io"
 
+	gitalyerrors "gitlab.com/gitlab-org/gitaly/v15/internal/errors"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
@@ -14,15 +15,15 @@ import (
 func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobService_GetBlobServer) error {
 	ctx := stream.Context()
 
-	repo := s.localrepo(in.GetRepository())
-
 	if err := validateRequest(in); err != nil {
-		return helper.ErrInvalidArgumentf("GetBlob: %v", err)
+		return helper.ErrInvalidArgument(err)
 	}
+
+	repo := s.localrepo(in.GetRepository())
 
 	objectReader, cancel, err := s.catfileCache.ObjectReader(stream.Context(), repo)
 	if err != nil {
-		return helper.ErrInternalf("GetBlob: %v", err)
+		return helper.ErrInternalf("create object reader: %w", err)
 	}
 	defer cancel()
 
@@ -31,7 +32,7 @@ func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobServic
 		if catfile.IsNotFound(err) {
 			return helper.ErrUnavailable(stream.Send(&gitalypb.GetBlobResponse{}))
 		}
-		return helper.ErrInternalf("GetBlob: %v", err)
+		return helper.ErrInternalf("read object: %w", err)
 	}
 
 	if blob.Type != "blob" {
@@ -63,15 +64,19 @@ func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobServic
 
 	_, err = io.CopyN(sw, blob, readLimit)
 	if err != nil {
-		return helper.ErrUnavailablef("GetBlob: send: %v", err)
+		return helper.ErrUnavailablef("send: %w", err)
 	}
 
 	return nil
 }
 
 func validateRequest(in *gitalypb.GetBlobRequest) error {
+	if in.GetRepository() == nil {
+		return gitalyerrors.ErrEmptyRepository
+	}
+
 	if len(in.GetOid()) == 0 {
-		return fmt.Errorf("empty Oid")
+		return errors.New("empty Oid")
 	}
 	return nil
 }

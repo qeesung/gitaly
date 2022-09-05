@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	gitalyerrors "gitlab.com/gitlab-org/gitaly/v15/internal/errors"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gitpipe"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
@@ -19,7 +20,7 @@ import (
 
 func verifyListBlobsRequest(req *gitalypb.ListBlobsRequest) error {
 	if req.GetRepository() == nil {
-		return errors.New("empty repository")
+		return gitalyerrors.ErrEmptyRepository
 	}
 	if len(req.GetRevisions()) == 0 {
 		return errors.New("missing revisions")
@@ -141,7 +142,7 @@ func (s *server) processBlobs(
 
 		catfileObjectIter, err := gitpipe.CatfileObject(ctx, objectReader, objectIter)
 		if err != nil {
-			return helper.ErrInternalf("creating catfile object iterator: %w", err)
+			return helper.ErrInternalf("creating object iterator: %w", err)
 		}
 
 		var i uint32
@@ -237,7 +238,7 @@ func (s *server) ListAllBlobs(req *gitalypb.ListAllBlobsRequest, stream gitalypb
 	ctx := stream.Context()
 
 	if req.GetRepository() == nil {
-		return helper.ErrInvalidArgumentf("empty repository")
+		return helper.ErrInvalidArgument(gitalyerrors.ErrEmptyRepository)
 	}
 
 	repo := s.localrepo(req.GetRepository())
