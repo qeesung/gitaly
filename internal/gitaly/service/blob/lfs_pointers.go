@@ -13,8 +13,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/chunk"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -31,14 +29,14 @@ func (s *server) ListLFSPointers(in *gitalypb.ListLFSPointersRequest, stream git
 	ctx := stream.Context()
 
 	if in.GetRepository() == nil {
-		return status.Error(codes.InvalidArgument, "empty repository")
+		return helper.ErrInvalidArgument(gitalyerrors.ErrEmptyRepository)
 	}
 	if len(in.Revisions) == 0 {
-		return status.Error(codes.InvalidArgument, "missing revisions")
+		return helper.ErrInvalidArgumentf("missing revisions")
 	}
 	for _, revision := range in.Revisions {
 		if strings.HasPrefix(revision, "-") && revision != "--all" && revision != "--not" {
-			return status.Errorf(codes.InvalidArgument, "invalid revision: %q", revision)
+			return helper.ErrInvalidArgumentf("invalid revision: %q", revision)
 		}
 	}
 
@@ -82,7 +80,7 @@ func (s *server) ListAllLFSPointers(in *gitalypb.ListAllLFSPointersRequest, stre
 	ctx := stream.Context()
 
 	if in.GetRepository() == nil {
-		return status.Error(codes.InvalidArgument, "empty repository")
+		return helper.ErrInvalidArgument(gitalyerrors.ErrEmptyRepository)
 	}
 
 	repo := s.localrepo(in.GetRepository())
@@ -97,7 +95,7 @@ func (s *server) ListAllLFSPointers(in *gitalypb.ListAllLFSPointersRequest, stre
 
 	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
-		return helper.ErrInternal(fmt.Errorf("creating object reader: %w", err))
+		return helper.ErrInternalf("creating object reader: %w", err)
 	}
 	defer cancel()
 
@@ -126,7 +124,7 @@ func (s *server) GetLFSPointers(req *gitalypb.GetLFSPointersRequest, stream gita
 	ctx := stream.Context()
 
 	if err := validateGetLFSPointersRequest(req); err != nil {
-		return status.Errorf(codes.InvalidArgument, "GetLFSPointers: %v", err)
+		return helper.ErrInvalidArgument(err)
 	}
 
 	repo := s.localrepo(req.GetRepository())
