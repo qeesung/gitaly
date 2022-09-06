@@ -10,6 +10,7 @@ Please complete all but the "Reading material" section in your first few working
   - [ ] [#g_gitaly](https://gitlab.slack.com/archives/g_gitaly) (important communication also outside the team)
   - [ ] [#git-core](https://gitlab.slack.com/archives/git-core) (conversations re git itself)
   - [ ] [#s_enablement](https://gitlab.slack.com/archives/s_enablement) (section-wide communication)
+  - [ ] [#gitaly-alerts](https://gitlab.slack.com/archives/gitaly-alerts) (Alerts for gitaly releases and failures)
 - Ask your manager or your mentor in order to:
   - [ ] get Maintainer access to the [@gl-gitaly](https://gitlab.com/groups/gl-gitaly/-/group_members) group
   - [ ] be added to the weekly team meeting and [meeting notes](https://docs.google.com/document/d/1k1hY0ZdeFUnSqF6GUToFaJEtVIN_SjWeaRdx1V0i25E/edit)
