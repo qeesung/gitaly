@@ -335,3 +335,62 @@ func TestCatfileInfoAllObjects(t *testing.T) {
 		}, it.Result())
 	})
 }
+
+func TestCatfileInfo_WithDiskUsageSize(t *testing.T) {
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+	ctx := testhelper.Context(t)
+
+	repoProto, repoPath := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	tree1 := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{
+			Path: "foobar",
+			Mode: "100644",
+			OID:  gittest.WriteBlob(t, cfg, repoPath, bytes.Repeat([]byte("a"), 100)),
+		},
+	})
+	initialCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(tree1))
+
+	tree2 := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{
+			Path: "foobar",
+			Mode: "100644",
+			// take advantage of compression
+			OID: gittest.WriteBlob(t, cfg, repoPath, append(bytes.Repeat([]byte("a"), 100),
+				'\n',
+				'b',
+			)),
+		},
+	})
+	gittest.WriteCommit(
+		t,
+		cfg,
+		repoPath,
+		gittest.WithTree(tree2),
+		gittest.WithParents(initialCommitID),
+		gittest.WithBranch("master"),
+	)
+
+	gittest.Exec(t, cfg, "-C", repoPath, "gc")
+
+	itWithoutDiskSize := CatfileInfoAllObjects(ctx, repo)
+	itWithDiskSize := CatfileInfoAllObjects(ctx, repo, WithDiskUsageSize())
+
+	var totalWithoutDiskSize, totalWithDiskSize int64
+	for itWithoutDiskSize.Next() {
+		totalWithoutDiskSize += itWithoutDiskSize.Result().ObjectSize()
+	}
+	require.NoError(t, itWithoutDiskSize.Err())
+
+	for itWithDiskSize.Next() {
+		totalWithDiskSize += itWithDiskSize.Result().ObjectSize()
+	}
+	require.NoError(t, itWithDiskSize.Err())
+
+	require.Less(t, totalWithDiskSize, totalWithoutDiskSize)
+}
