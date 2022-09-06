@@ -27,6 +27,7 @@ type CatfileInfoResult struct {
 
 type catfileInfoConfig struct {
 	skipResult func(*catfile.ObjectInfo) bool
+	diskUsage  bool
 }
 
 // CatfileInfoOption is an option for the CatfileInfo and CatfileInfoAllObjects pipeline steps.
@@ -38,6 +39,14 @@ type CatfileInfoOption func(cfg *catfileInfoConfig)
 func WithSkipCatfileInfoResult(skipResult func(*catfile.ObjectInfo) bool) CatfileInfoOption {
 	return func(cfg *catfileInfoConfig) {
 		cfg.skipResult = skipResult
+	}
+}
+
+// WithDiskUsageSize will cause the size of the object to be returned to be the
+// size it takes up on disk. This value will override the existing size field.
+func WithDiskUsageSize() CatfileInfoOption {
+	return func(cfg *catfileInfoConfig) {
+		cfg.diskUsage = true
 	}
 }
 
@@ -193,12 +202,19 @@ func CatfileInfoAllObjects(
 			return
 		}
 
+		batchCheckOption := git.Flag{Name: "--batch-check"}
+
+		if cfg.diskUsage {
+			batchCheckOption.Name = batchCheckOption.Name +
+				fmt.Sprintf("=%%(objectname) %%(objecttype) %%(objectsize:disk)")
+		}
+
 		var stderr bytes.Buffer
 		cmd, err := repo.Exec(ctx, git.SubCmd{
 			Name: "cat-file",
 			Flags: []git.Option{
+				batchCheckOption,
 				git.Flag{Name: "--batch-all-objects"},
-				git.Flag{Name: "--batch-check"},
 				git.Flag{Name: "--buffer"},
 				git.Flag{Name: "--unordered"},
 			},

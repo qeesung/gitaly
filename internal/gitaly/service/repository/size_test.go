@@ -7,6 +7,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
@@ -18,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
@@ -33,6 +36,7 @@ func TestRepositorySize_SuccessfulRequest(t *testing.T) {
 	featureSet := testhelper.NewFeatureSets(
 		featureflag.RevlistForRepoSize,
 		featureflag.CatfileRepoSize,
+		featureflag.UseNewRepoSize,
 	)
 
 	featureSet.Run(t, testSuccessfulRepositorySizeRequest)
@@ -97,8 +101,9 @@ func testSuccessfulRepositorySizeRequestPoolMember(t *testing.T, ctx context.Con
 	response, err = repoClient.RepositorySize(ctx, sizeRequest)
 	require.NoError(t, err)
 
-	if featureflag.RevlistForRepoSize.IsEnabled(ctx) ||
-		featureflag.CatfileRepoSize.IsEnabled(ctx) {
+	if featureflag.UseNewRepoSize.IsEnabled(ctx) &&
+		(featureflag.RevlistForRepoSize.IsEnabled(ctx) ||
+			featureflag.CatfileRepoSize.IsEnabled(ctx)) {
 		assert.Equal(t, int64(0), response.GetSize())
 	} else {
 		assert.Less(t, response.GetSize(), sizeBeforePool)
@@ -106,7 +111,8 @@ func testSuccessfulRepositorySizeRequestPoolMember(t *testing.T, ctx context.Con
 }
 
 func testSuccessfulRepositorySizeRequest(t *testing.T, ctx context.Context) {
-	cfg, repo, repoPath, client := setupRepositoryService(ctx, t)
+	logger, hook := test.NewNullLogger()
+	cfg, repo, repoPath, client := setupRepositoryService(ctx, t, testserver.WithLogger(logger))
 
 	request := &gitalypb.RepositorySizeRequest{Repository: repo}
 	response, err := client.RepositorySize(ctx, request)
@@ -136,14 +142,60 @@ func testSuccessfulRepositorySizeRequest(t *testing.T, ctx context.Context) {
 	responseAfterRefs, err := client.RepositorySize(ctx, request)
 	require.NoError(t, err)
 
-	if featureflag.RevlistForRepoSize.IsEnabled(ctx) {
-		assert.Equal(
-			t,
-			response.Size,
-			responseAfterRefs.Size,
-			"excluded refs do not contribute to the repository size",
-		)
-	} else {
+	// We expect two log entries with "repository size calculated"
+	// since we called RepositorySize twice, but we are really interested
+	// in the results of the second log.
+	var entries []*logrus.Entry
+	switch {
+	case featureflag.RevlistForRepoSize.IsEnabled(ctx):
+		for _, entry := range hook.AllEntries() {
+			_, ok := entry.Data["repo_size_revlist_bytes"]
+			if ok {
+				entries = append(entries, entry)
+			}
+		}
+
+		require.Len(t, entries, 2)
+		revlistSizeInLog, ok := entries[1].Data["repo_size_revlist_bytes"]
+		require.True(t, ok)
+		require.Equal(t, "repository size calculated", entries[1].Message)
+
+		duSizeInLog, ok := entries[1].Data["repo_size_du_bytes"]
+		require.True(t, ok)
+
+		require.Less(t, revlistSizeInLog, duSizeInLog)
+		if featureflag.UseNewRepoSize.IsEnabled(ctx) {
+			assert.Equal(
+				t,
+				response.Size,
+				responseAfterRefs.Size,
+				"excluded refs do not contribute to the repository size",
+			)
+		}
+	case featureflag.CatfileRepoSize.IsEnabled(ctx):
+		for _, entry := range hook.AllEntries() {
+			_, ok := entry.Data["repo_size_catfile_bytes"]
+			if ok {
+				entries = append(entries, entry)
+			}
+		}
+
+		require.Len(t, entries, 2)
+		catfileSizeInLog, ok := entries[1].Data["repo_size_catfile_bytes"]
+		require.True(t, ok)
+		duSizeInLog, ok := entries[1].Data["repo_size_du_bytes"]
+		require.True(t, ok)
+
+		require.Equal(t, "repository size calculated", entries[1].Message)
+
+		require.Less(t, catfileSizeInLog, duSizeInLog)
+
+		if featureflag.UseNewRepoSize.IsEnabled(ctx) {
+			// Because we divide by 1024 to get kibibytes, small
+			// differences might not appear in the final size.
+			assert.LessOrEqual(t, response.Size, responseAfterRefs.Size)
+		}
+	default:
 		assert.Less(t, response.Size, responseAfterRefs.Size)
 	}
 }
