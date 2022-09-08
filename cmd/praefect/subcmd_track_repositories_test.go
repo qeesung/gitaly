@@ -109,9 +109,9 @@ func TestAddRepositories_Exec_invalidInput(t *testing.T) {
 			expectedError: "no repository information found",
 		},
 		{
-			input:          `{"foo":"bar"}`,
-			desc:           "unexpected key in JSON",
-			expectedOutput: `json: unknown field "foo"`,
+			input:          "@hashed/01/23/01234567890123456789.git",
+			desc:           "invalid JSON",
+			expectedOutput: "invalid character '@' looking for beginning of value",
 			expectedError:  invalidEntryErr,
 		},
 		{
