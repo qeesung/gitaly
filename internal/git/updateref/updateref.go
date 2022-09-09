@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -25,11 +26,14 @@ func (e *ErrAlreadyLocked) Error() string {
 // that allows references to be easily updated in bulk. It is not suitable for
 // concurrent use.
 type Updater struct {
-	repo       git.RepositoryExecutor
-	cmd        *command.Command
-	stdout     *bufio.Reader
-	stderr     *bytes.Buffer
-	objectHash git.ObjectHash
+	repo                git.RepositoryExecutor
+	cmd                 *command.Command
+	stdout              *bufio.Reader
+	stderr              *bytes.Buffer
+	objectHash          git.ObjectHash
+	disableTransactions bool
+
+	updates, deletes int
 
 	// withStatusFlushing determines whether the Git version used supports proper flushing of
 	// status messages.
@@ -37,16 +41,12 @@ type Updater struct {
 }
 
 // UpdaterOpt is a type representing options for the Updater.
-type UpdaterOpt func(*updaterConfig)
-
-type updaterConfig struct {
-	disableTransactions bool
-}
+type UpdaterOpt func(*Updater)
 
 // WithDisabledTransactions disables hooks such that no reference-transactions
 // are used for the updater.
 func WithDisabledTransactions() UpdaterOpt {
-	return func(cfg *updaterConfig) {
+	return func(cfg *Updater) {
 		cfg.disableTransactions = true
 	}
 }
@@ -58,18 +58,34 @@ func WithDisabledTransactions() UpdaterOpt {
 // It is important that ctx gets canceled somewhere. If it doesn't, the process
 // spawned by New() may never terminate.
 func New(ctx context.Context, repo git.RepositoryExecutor, opts ...UpdaterOpt) (*Updater, error) {
-	var cfg updaterConfig
-	for _, opt := range opts {
-		opt(&cfg)
+	objectHash, err := repo.ObjectHash(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("detecting object hash: %w", err)
 	}
 
-	txOption := git.WithRefTxHook(repo)
-	if cfg.disableTransactions {
-		txOption = git.WithDisabledHooks()
+	gitVersion, err := repo.GitVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("determining git version: %w", err)
 	}
 
 	var stderr bytes.Buffer
-	cmd, err := repo.Exec(ctx,
+	updater := Updater{
+		repo:               repo,
+		stderr:             &stderr,
+		objectHash:         objectHash,
+		withStatusFlushing: gitVersion.FlushesUpdaterefStatus(),
+	}
+
+	for _, opt := range opts {
+		opt(&updater)
+	}
+
+	txOption := git.WithRefTxHook(repo)
+	if updater.disableTransactions {
+		txOption = git.WithDisabledHooks()
+	}
+
+	updater.cmd, err = repo.Exec(ctx,
 		git.SubCmd{
 			Name:  "update-ref",
 			Flags: []git.Option{git.Flag{Name: "-z"}, git.Flag{Name: "--stdin"}},
@@ -82,24 +98,7 @@ func New(ctx context.Context, repo git.RepositoryExecutor, opts ...UpdaterOpt) (
 		return nil, err
 	}
 
-	gitVersion, err := repo.GitVersion(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("determining git version: %w", err)
-	}
-
-	objectHash, err := repo.ObjectHash(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("detecting object hash: %w", err)
-	}
-
-	updater := &Updater{
-		repo:               repo,
-		cmd:                cmd,
-		stderr:             &stderr,
-		stdout:             bufio.NewReader(cmd),
-		objectHash:         objectHash,
-		withStatusFlushing: gitVersion.FlushesUpdaterefStatus(),
-	}
+	updater.stdout = bufio.NewReader(updater.cmd)
 
 	// By writing an explicit "start" to the command, we enable
 	// transactional behaviour. Which effectively means that without an
@@ -109,7 +108,7 @@ func New(ctx context.Context, repo git.RepositoryExecutor, opts ...UpdaterOpt) (
 		return nil, err
 	}
 
-	return updater, nil
+	return &updater, nil
 }
 
 // Update commands the reference to be updated to point at the object ID specified in newOID. If
@@ -117,6 +116,11 @@ func New(ctx context.Context, repo git.RepositoryExecutor, opts ...UpdaterOpt) (
 // the reference will only be updated if its current value matches the old value. If the old value
 // is the zero OID, then the branch must not exist.
 func (u *Updater) Update(reference git.ReferenceName, newOID, oldOID git.ObjectID) error {
+	if newOID == u.objectHash.ZeroOID {
+		u.deletes++
+	} else {
+		u.updates++
+	}
 	_, err := fmt.Fprintf(u.cmd, "update %s\x00%s\x00%s\x00", reference.String(), newOID, oldOID)
 	return err
 }
@@ -158,6 +162,10 @@ func (u *Updater) Commit() error {
 
 	if err := u.cmd.Wait(); err != nil {
 		return fmt.Errorf("git update-ref: %v, stderr: %q", err, u.stderr)
+	}
+
+	if !u.disableTransactions && u.updates == 0 && u.deletes > 0 {
+		return errors.New("updater: delete-only transactions must be manually voted on")
 	}
 
 	return nil
