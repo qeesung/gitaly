@@ -410,3 +410,57 @@ func TestPostReceive_quarantine(t *testing.T) {
 		})
 	}
 }
+
+func Test_getEnvVar(t *testing.T) {
+	type args struct {
+		key  string
+		vars []string
+	}
+	tests := []struct {
+		desc string
+		args args
+		want string
+	}{
+		{
+			desc: "success found key from key-value pairs",
+			args: args{
+				key: "key",
+				vars: []string{
+					"key1=value1",
+					"key=value",
+					"key2=value2",
+				},
+			},
+			want: "value",
+		},
+		{
+			desc: "invalid key-value format, only key name",
+			args: args{
+				key: "key",
+				vars: []string{
+					"key",
+					"key=value",
+					"key2=value2",
+				},
+			},
+			want: "value",
+		},
+		{
+			desc: "key not found",
+			args: args{
+				key: "key",
+				vars: []string{
+					"key",
+					"key1=value1",
+					"key2=value2",
+				},
+			},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			assert.Equalf(t, tt.want, getEnvVar(tt.args.key, tt.args.vars), "getEnvVar(%v, %v)", tt.args.key, tt.args.vars)
+		})
+	}
+}

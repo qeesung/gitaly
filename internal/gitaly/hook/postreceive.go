@@ -34,6 +34,9 @@ const (
 func getEnvVar(key string, vars []string) string {
 	for _, varPair := range vars {
 		kv := strings.SplitN(varPair, "=", 2)
+		if len(kv) < 2 {
+			continue
+		}
 		if kv[0] == key {
 			return kv[1]
 		}
