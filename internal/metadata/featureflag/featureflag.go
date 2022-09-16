@@ -3,6 +3,7 @@ package featureflag
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -36,6 +37,18 @@ var (
 	flagsByName = map[string]FeatureFlag{}
 )
 
+// Feature flags must contain at least 2 characters. Can only contain lowercase letters,
+// digits, and '_'. They must start with a letter, and cannot end with '_'.
+// Feature flag name would be used to construct the corresponding metadata key, so:
+//   - Only characters allowed by grpc metadata keys can be used and uppercase letters
+//     would be normalized to lowercase, see
+//     https://pkg.go.dev/google.golang.org/grpc/metadata#New
+//   - It is critical that feature flags don't contain a dash, because the client converts
+//     dashes to underscores when converting a feature flag's name to the metadata key,
+//     and vice versa. The name wouldn't round-trip in case it had underscores and must
+//     thus use dashes instead.
+var ffNameRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*[a-z0-9]$`)
+
 const (
 	// ffPrefix is the prefix used for Gitaly-scoped feature flags.
 	ffPrefix = "gitaly-feature-"
@@ -64,14 +77,8 @@ type FeatureFlag struct {
 // input that are not used for anything but only for the sake of linking to the feature flag rollout
 // issue in the Gitaly project.
 func NewFeatureFlag(name, version, rolloutIssueURL string, onByDefault bool) FeatureFlag {
-	if strings.ContainsAny(name, "-:") {
-		// It is critical that feature flags don't contain either a dash nor a colon:
-		//
-		// - We convert dashes to underscores when converting a feature flag's name to the
-		//   metadata key, and vice versa. The name wouldn't round-trip in case it had
-		//   underscores and must thus use dashes instead.
-		// - We use colons to separate feature flags and their values.
-		panic("Feature flags must not contain dashes or colons.")
+	if !ffNameRegexp.MatchString(name) {
+		panic("invalid feature flag name.")
 	}
 
 	featureFlag := FeatureFlag{
