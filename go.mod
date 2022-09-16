@@ -14,7 +14,7 @@ require (
 	github.com/git-lfs/git-lfs/v3 v3.2.0
 	github.com/go-enry/go-enry/v2 v2.8.2
 	github.com/go-enry/go-license-detector/v4 v4.3.0
-	github.com/golang-jwt/jwt/v4 v4.4.1
+	github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/google/go-cmp v0.5.8
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
