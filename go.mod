@@ -23,7 +23,7 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/jackc/pgconn v1.13.0
 	github.com/jackc/pgtype v1.12.0
-	github.com/jackc/pgx/v4 v4.17.0
+	github.com/jackc/pgx/v4 v4.17.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/libgit2/git2go/v33 v33.0.9
 	github.com/olekukonko/tablewriter v0.0.5
