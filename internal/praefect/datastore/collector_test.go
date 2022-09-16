@@ -206,17 +206,13 @@ func TestRepositoryStoreCollector(t *testing.T) {
 			logger, hook := test.NewNullLogger()
 			c := NewRepositoryStoreCollector(logger, []string{"virtual-storage-1", "virtual-storage-2"}, tx, timeout)
 			err := testutil.CollectAndCompare(c, strings.NewReader(fmt.Sprintf(`
-# HELP gitaly_praefect_read_only_repositories Number of repositories in read-only mode within a virtual storage.
-# TYPE gitaly_praefect_read_only_repositories gauge
-gitaly_praefect_read_only_repositories{virtual_storage="virtual-storage-1"} %d
-gitaly_praefect_read_only_repositories{virtual_storage="virtual-storage-2"} 0
 # HELP gitaly_praefect_unavailable_repositories Number of repositories that have no healthy, up to date replicas.
 # TYPE gitaly_praefect_unavailable_repositories gauge
 gitaly_praefect_unavailable_repositories{virtual_storage="virtual-storage-1"} %d
 gitaly_praefect_unavailable_repositories{virtual_storage="virtual-storage-2"} 0
-			`, tc.count, tc.count)))
+			`, tc.count)))
 			if tc.error != nil {
-				require.Equal(t, "failed collecting read-only repository count metric", hook.Entries[0].Message)
+				require.Equal(t, "failed collecting unavailable repository count metric", hook.Entries[0].Message)
 				require.Equal(t, logrus.Fields{"error": tc.error, "component": "RepositoryStoreCollector"}, hook.Entries[0].Data)
 				return
 			}
