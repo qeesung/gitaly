@@ -20,7 +20,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/text"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 )
@@ -220,7 +219,6 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 	})
 
 	t.Run("set using GITALY_TESTING_BUNDLED_GIT_PATH", func(t *testing.T) {
-		ctx := featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV2371Gl1, true)
 		suffix := "-v2.37.1.gl1"
 
 		bundledGitDir := testhelper.TempDir(t)
