@@ -27,12 +27,6 @@ var (
 	ExecutionEnvironmentConstructors = []ExecutionEnvironmentConstructor{
 		BundledGitEnvironmentConstructor{
 			Suffix: "-v2.37.1.gl1",
-			FeatureFlags: []featureflag.FeatureFlag{
-				featureflag.GitV2371Gl1,
-			},
-		},
-		BundledGitEnvironmentConstructor{
-			Suffix: "-v2.35.1.gl1",
 		},
 		DistributedGitEnvironmentConstructor{},
 	}
