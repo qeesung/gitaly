@@ -115,7 +115,7 @@ PROTOC_GEN_GO_GRPC_VERSION?= v1.2.0
 # compatibility matrix.
 GIT2GO_VERSION            ?= v33
 LIBGIT2_VERSION           ?= v1.3.2
-DELVE_VERSION             ?= v1.8.3
+DELVE_VERSION             ?= v1.9.1
 
 # protoc target
 PROTOC_REPO_URL ?= https://github.com/protocolbuffers/protobuf
