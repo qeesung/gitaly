@@ -41,6 +41,11 @@ include:
     file:
       - '/ci/danger-review.yml'
 
+  # Include Reviewers.gitlab-ci.yml to recommend code reviewers for a given MR
+  - project: gitlab-org/modelops/applied-ml/review-recommender/ci-templates
+    ref: v0.2.0
+    file: recommender/Reviewers.gitlab-ci.yml
+
 .cache_deps:
   cache: &cache_deps_configuration
     key:
@@ -124,6 +129,11 @@ include:
       junit: ${TEST_REPORT}
     when: on_failure
     expire_in: 1 week
+
+reviewers-recommender:
+  stage: build
+  variables:
+    RECOMMENDER_REPORT_FILENAME: _build/reports/gl-recommended-reviewers-report.json
 
 danger-review:
   needs: []
