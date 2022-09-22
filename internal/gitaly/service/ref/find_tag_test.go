@@ -3,7 +3,6 @@
 package ref
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -15,7 +14,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
@@ -263,12 +261,8 @@ func TestFindTag_nestedTag(t *testing.T) {
 
 func TestFindTag_notFound(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.FindTagStructuredError).Run(t, testFindTagNotFound)
-}
 
-func testFindTagNotFound(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, client := setupRefServiceWithoutRepo(t)
 	repoProto, _ := gittest.CreateRepository(ctx, t, cfg)
 
@@ -277,23 +271,19 @@ func testFindTagNotFound(t *testing.T, ctx context.Context) {
 		TagName:    []byte("does-not-exist"),
 	})
 	require.Nil(t, response)
-	if featureflag.FindTagStructuredError.IsEnabled(ctx) {
-		expectedErr, errGeneratingDetails := helper.ErrWithDetails(
-			helper.ErrNotFoundf("tag does not exist"),
-			&gitalypb.FindTagError{
-				Error: &gitalypb.FindTagError_TagNotFound{
-					TagNotFound: &gitalypb.ReferenceNotFoundError{
-						ReferenceName: []byte("refs/tags/does-not-exist"),
-					},
+
+	expectedErr, errGeneratingDetails := helper.ErrWithDetails(
+		helper.ErrNotFoundf("tag does not exist"),
+		&gitalypb.FindTagError{
+			Error: &gitalypb.FindTagError_TagNotFound{
+				TagNotFound: &gitalypb.ReferenceNotFoundError{
+					ReferenceName: []byte("refs/tags/does-not-exist"),
 				},
 			},
-		)
-		require.NoError(t, errGeneratingDetails)
-
-		testhelper.RequireGrpcError(t, expectedErr, err)
-	} else {
-		testhelper.RequireGrpcError(t, helper.ErrInternalf("no tag found"), err)
-	}
+		},
+	)
+	require.NoError(t, errGeneratingDetails)
+	testhelper.RequireGrpcError(t, expectedErr, err)
 }
 
 func TestFindTag_invalidRequest(t *testing.T) {

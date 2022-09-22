@@ -10,7 +10,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
@@ -95,25 +94,21 @@ func (s *server) findTag(ctx context.Context, repo git.RepositoryExecutor, tagNa
 			return nil, err
 		}
 	} else {
-		if featureflag.FindTagStructuredError.IsEnabled(ctx) {
-			detailedErr, err := helper.ErrWithDetails(
-				helper.ErrNotFoundf("tag does not exist"),
-				&gitalypb.FindTagError{
-					Error: &gitalypb.FindTagError_TagNotFound{
-						TagNotFound: &gitalypb.ReferenceNotFoundError{
-							ReferenceName: []byte(fmt.Sprintf("refs/tags/%s", tagName)),
-						},
+		detailedErr, err := helper.ErrWithDetails(
+			helper.ErrNotFoundf("tag does not exist"),
+			&gitalypb.FindTagError{
+				Error: &gitalypb.FindTagError_TagNotFound{
+					TagNotFound: &gitalypb.ReferenceNotFoundError{
+						ReferenceName: []byte(fmt.Sprintf("refs/tags/%s", tagName)),
 					},
 				},
-			)
-			if err != nil {
-				return nil, helper.ErrInternalf("generating detailed error: %w", err)
-			}
-
-			return nil, detailedErr
+			},
+		)
+		if err != nil {
+			return nil, helper.ErrInternalf("generating detailed error: %w", err)
 		}
 
-		return nil, errors.New("no tag found")
+		return nil, detailedErr
 	}
 
 	if err = tagCmd.Wait(); err != nil {
