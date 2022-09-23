@@ -18,7 +18,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -43,12 +42,8 @@ func (s *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalyp
 
 func TestUserCreateBranch_successful(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchSuccessful)
-}
 
-func testUserCreateBranchSuccessful(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -124,12 +119,8 @@ func testUserCreateBranchSuccessful(t *testing.T, ctx context.Context) {
 
 func TestUserCreateBranch_Transactions(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchTransactions)
-}
 
-func testUserCreateBranchTransactions(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath := testcfg.BuildWithRepo(t)
 
 	transactionServer := &testTransactionServer{}
@@ -202,12 +193,8 @@ func testUserCreateBranchTransactions(t *testing.T, ctx context.Context) {
 
 func TestUserCreateBranch_hook(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchHook)
-}
 
-func testUserCreateBranchHook(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	branchName := "new-branch"
@@ -236,12 +223,8 @@ func testUserCreateBranchHook(t *testing.T, ctx context.Context) {
 
 func TestUserCreateBranch_startPoint(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchStartPoint)
-}
 
-func testUserCreateBranchStartPoint(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
 
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -313,12 +296,8 @@ func testUserCreateBranchStartPoint(t *testing.T, ctx context.Context) {
 
 func TestUserCreateBranch_hookFailure(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchHookFailure)
-}
 
-func testUserCreateBranchHookFailure(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, _, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	request := &gitalypb.UserCreateBranchRequest{
@@ -335,35 +314,27 @@ func testUserCreateBranchHookFailure(t *testing.T, ctx context.Context) {
 	for _, hookName := range gitlabPreHooks {
 		gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
-		response, err := client.UserCreateBranch(ctx, request)
+		_, err := client.UserCreateBranch(ctx, request)
 
-		if featureflag.UserCreateBranchStructuredErrors.IsEnabled(ctx) {
-			testhelper.RequireGrpcError(t, errWithDetails(t,
-				helper.ErrPermissionDeniedf("creation denied by custom hooks"),
-				&gitalypb.UserCreateBranchError{
-					Error: &gitalypb.UserCreateBranchError_CustomHook{
-						CustomHook: &gitalypb.CustomHookError{
-							HookType: gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
-							Stdout:   []byte(expectedObject + "\n"),
-						},
+		testhelper.RequireGrpcError(t, errWithDetails(t,
+			helper.ErrPermissionDeniedf("creation denied by custom hooks"),
+			&gitalypb.UserCreateBranchError{
+				Error: &gitalypb.UserCreateBranchError_CustomHook{
+					CustomHook: &gitalypb.CustomHookError{
+						HookType: gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
+						Stdout:   []byte(expectedObject + "\n"),
 					},
 				},
-			), err)
-		} else {
-			require.Nil(t, err)
-			require.Contains(t, response.PreReceiveError, expectedObject)
-		}
+			},
+		), err)
+
 	}
 }
 
 func TestUserCreateBranch_Failure(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testUserCreateBranchFailure)
-}
 
-func testUserCreateBranchFailure(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, _, repo, _, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
@@ -788,12 +759,8 @@ func TestUserDeleteBranch_hookFailure(t *testing.T) {
 
 func TestBranchHookOutput(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.UserCreateBranchStructuredErrors).Run(t, testBranchHookOutput)
-}
 
-func testBranchHookOutput(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx, cfg, repo, repoPath, client := setupOperationsService(t, ctx)
 
 	testCases := []struct {
@@ -876,25 +843,20 @@ func testBranchHookOutput(t *testing.T, ctx context.Context) {
 				hookFilename := gittest.WriteCustomHook(t, repoPath, hookTestCase.hookName, []byte(testCase.hookContent))
 				expectedError := testCase.output(hookFilename)
 
-				createResponse, err := client.UserCreateBranch(ctx, createRequest)
+				_, err := client.UserCreateBranch(ctx, createRequest)
 
-				if featureflag.UserCreateBranchStructuredErrors.IsEnabled(ctx) {
-					testhelper.RequireGrpcError(t, errWithDetails(t,
-						helper.ErrPermissionDeniedf("creation denied by custom hooks"),
-						&gitalypb.UserCreateBranchError{
-							Error: &gitalypb.UserCreateBranchError_CustomHook{
-								CustomHook: &gitalypb.CustomHookError{
-									HookType: hookTestCase.hookType,
-									Stdout:   []byte(testCase.expectedStdout),
-									Stderr:   []byte(testCase.expectedStderr),
-								},
+				testhelper.RequireGrpcError(t, errWithDetails(t,
+					helper.ErrPermissionDeniedf("creation denied by custom hooks"),
+					&gitalypb.UserCreateBranchError{
+						Error: &gitalypb.UserCreateBranchError_CustomHook{
+							CustomHook: &gitalypb.CustomHookError{
+								HookType: hookTestCase.hookType,
+								Stdout:   []byte(testCase.expectedStdout),
+								Stderr:   []byte(testCase.expectedStderr),
 							},
 						},
-					), err)
-				} else {
-					require.NoError(t, err)
-					require.Equal(t, expectedError, createResponse.PreReceiveError)
-				}
+					},
+				), err)
 
 				gittest.Exec(t, cfg, "-C", repoPath, "branch", branchNameInput)
 				defer gittest.Exec(t, cfg, "-C", repoPath, "branch", "-d", branchNameInput)
