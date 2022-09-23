@@ -17,7 +17,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/transaction/voting"
 )
 
@@ -58,10 +57,8 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *localrepo.Repo
 	// `--atomic` and `--prune` together then it still wouldn't be able to recover from the D/F
 	// conflict. So we first to a preliminary prune that only prunes refs without fetching
 	// objects yet to avoid that scenario.
-	if featureflag.FetchIntoObjectPoolPruneRefs.IsEnabled(ctx) {
-		if err := o.pruneReferences(ctx, origin); err != nil {
-			return fmt.Errorf("pruning references: %w", err)
-		}
+	if err := o.pruneReferences(ctx, origin); err != nil {
+		return fmt.Errorf("pruning references: %w", err)
 	}
 
 	var stderr bytes.Buffer

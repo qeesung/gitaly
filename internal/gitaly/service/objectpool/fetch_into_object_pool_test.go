@@ -22,9 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testserver"
@@ -40,12 +38,8 @@ import (
 
 func TestFetchIntoObjectPool_Success(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolPruneRefs).Run(t, testFetchIntoObjectPoolSuccess)
-}
 
-func testFetchIntoObjectPoolSuccess(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, locator, client := setup(ctx, t)
 
 	repoCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(t.Name()))
@@ -98,11 +92,6 @@ func testFetchIntoObjectPoolSuccess(t *testing.T, ctx context.Context) {
 
 func TestFetchIntoObjectPool_transactional(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolPruneRefs).Run(t, testFetchIntoObjectPoolTransactional)
-}
-
-func testFetchIntoObjectPoolTransactional(t *testing.T, ctx context.Context) {
-	t.Parallel()
 
 	var votes []voting.Vote
 	var votesMutex sync.Mutex
@@ -115,6 +104,7 @@ func testFetchIntoObjectPoolTransactional(t *testing.T, ctx context.Context) {
 		},
 	}
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runObjectPoolServer(
 		t, cfg, config.NewLocator(cfg),
@@ -163,17 +153,13 @@ func testFetchIntoObjectPoolTransactional(t *testing.T, ctx context.Context) {
 		})
 		require.NoError(t, err)
 
-		if featureflag.FetchIntoObjectPoolPruneRefs.IsEnabled(ctx) {
-			require.Equal(t, []voting.Vote{
-				// We expect to see two votes that demonstrate we're voting on no deleted
-				// references.
-				voting.VoteFromData(nil), voting.VoteFromData(nil),
-				// It is a bug though that we don't have a vote on the unchanged references
-				// in git-fetch(1).
-			}, votes)
-		} else {
-			require.Nil(t, votes)
-		}
+		require.Equal(t, []voting.Vote{
+			// We expect to see two votes that demonstrate we're voting on no deleted
+			// references.
+			voting.VoteFromData(nil), voting.VoteFromData(nil),
+			// It is a bug though that we don't have a vote on the unchanged references
+			// in git-fetch(1).
+		}, votes)
 	})
 
 	t.Run("with a new reference", func(t *testing.T) {
@@ -192,17 +178,13 @@ func testFetchIntoObjectPoolTransactional(t *testing.T, ctx context.Context) {
 		vote := voting.VoteFromData([]byte(fmt.Sprintf(
 			"%s %s refs/remotes/origin/heads/new-branch\n", git.ObjectHashSHA1.ZeroOID, repoCommit,
 		)))
-		if featureflag.FetchIntoObjectPoolPruneRefs.IsEnabled(ctx) {
-			require.Equal(t, []voting.Vote{
-				// The first two votes stem from the fact that we're voting on no
-				// deleted references.
-				voting.VoteFromData(nil), voting.VoteFromData(nil),
-				// And the other two votes are from the new branch we pull in.
-				vote, vote,
-			}, votes)
-		} else {
-			require.Equal(t, []voting.Vote{vote, vote}, votes)
-		}
+		require.Equal(t, []voting.Vote{
+			// The first two votes stem from the fact that we're voting on no
+			// deleted references.
+			voting.VoteFromData(nil), voting.VoteFromData(nil),
+			// And the other two votes are from the new branch we pull in.
+			vote, vote,
+		}, votes)
 	})
 
 	t.Run("with a stale reference in pool", func(t *testing.T) {
@@ -220,28 +202,19 @@ func testFetchIntoObjectPoolTransactional(t *testing.T, ctx context.Context) {
 		})
 		require.NoError(t, err)
 
-		if featureflag.FetchIntoObjectPoolPruneRefs.IsEnabled(ctx) {
-			// We expect a single vote on the reference we have deleted.
-			vote := voting.VoteFromData([]byte(fmt.Sprintf(
-				"%[1]s %[1]s %s\n", git.ObjectHashSHA1.ZeroOID, reference,
-			)))
-			require.Equal(t, []voting.Vote{vote, vote}, votes)
-		} else {
-			require.Nil(t, votes)
-		}
+		// We expect a single vote on the reference we have deleted.
+		vote := voting.VoteFromData([]byte(fmt.Sprintf(
+			"%[1]s %[1]s %s\n", git.ObjectHashSHA1.ZeroOID, reference,
+		)))
+		require.Equal(t, []voting.Vote{vote, vote}, votes)
 
 		exists, err := pool.Repo.HasRevision(ctx, git.Revision(reference))
 		require.NoError(t, err)
-		require.Equal(t, exists, featureflag.FetchIntoObjectPoolPruneRefs.IsDisabled(ctx))
+		require.False(t, exists)
 	})
 }
 
 func TestFetchIntoObjectPool_CollectLogStatistics(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolPruneRefs).Run(t, testFetchIntoObjectPoolCollectLogStatistics)
-}
-
-func testFetchIntoObjectPoolCollectLogStatistics(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -252,6 +225,7 @@ func testFetchIntoObjectPoolCollectLogStatistics(t *testing.T, ctx context.Conte
 	logger, hook := test.NewNullLogger()
 	cfg.SocketPath = runObjectPoolServer(t, cfg, locator, logger)
 
+	ctx := testhelper.Context(t)
 	ctx = ctxlogrus.ToContext(ctx, log.WithField("test", "logging"))
 	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{
 		Seed: gittest.SeedGitLabTest,
@@ -371,12 +345,8 @@ func TestFetchIntoObjectPool_Failure(t *testing.T) {
 
 func TestFetchIntoObjectPool_dfConflict(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.FetchIntoObjectPoolPruneRefs).Run(t, testFetchIntoObjectPoolDfConflict)
-}
 
-func testFetchIntoObjectPoolDfConflict(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg, repo, repoPath, _, client := setup(ctx, t)
 
 	pool := initObjectPool(t, cfg, cfg.Storages[0])
@@ -401,15 +371,6 @@ func testFetchIntoObjectPoolDfConflict(t *testing.T, ctx context.Context) {
 	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "-d", "refs/heads/branch")
 	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("branch/conflict"))
 
-	gitVersion, err := gittest.NewCommandFactory(t, cfg).GitVersion(ctx)
-	require.NoError(t, err)
-
-	// Due to a bug in old Git versions we may get an unexpected exit status.
-	expectedExitStatus := 254
-	if !gitVersion.FlushesUpdaterefStatus() {
-		expectedExitStatus = 1
-	}
-
 	// Verify that we can still fetch into the object pool regardless of the D/F conflict. While
 	// it is not possible to store both references at the same time due to the conflict, we
 	// should know to delete the old conflicting reference and replace it with the new one.
@@ -417,20 +378,11 @@ func testFetchIntoObjectPoolDfConflict(t *testing.T, ctx context.Context) {
 		ObjectPool: pool.ToProto(),
 		Origin:     repo,
 	})
-	if featureflag.FetchIntoObjectPoolPruneRefs.IsEnabled(ctx) {
-		require.NoError(t, err)
+	require.NoError(t, err)
 
-		poolPath, err := config.NewLocator(cfg).GetRepoPath(gittest.RewrittenRepository(ctx, t, cfg, pool.ToProto().GetRepository()))
-		require.NoError(t, err)
+	poolPath, err := config.NewLocator(cfg).GetRepoPath(gittest.RewrittenRepository(ctx, t, cfg, pool.ToProto().GetRepository()))
+	require.NoError(t, err)
 
-		// Verify that the conflicting reference exists now.
-		gittest.Exec(t, cfg, "-C", poolPath, "rev-parse", "refs/remotes/origin/heads/branch/conflict")
-	} else {
-		// But right now it fails due to a bug.
-		testhelper.RequireGrpcError(t, helper.ErrInternalf(
-			"fetch into object pool: exit status %d, stderr: %q",
-			expectedExitStatus,
-			"error: cannot lock ref 'refs/remotes/origin/heads/branch/conflict': 'refs/remotes/origin/heads/branch' exists; cannot create 'refs/remotes/origin/heads/branch/conflict'\n",
-		), err)
-	}
+	// Verify that the conflicting reference exists now.
+	gittest.Exec(t, cfg, "-C", poolPath, "rev-parse", "refs/remotes/origin/heads/branch/conflict")
 }
