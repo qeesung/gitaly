@@ -6,5 +6,5 @@ var SimplifyFindLocalBranchesResponse = NewFeatureFlag(
 	"simplify_find_local_branches_response",
 	"v15.4.0",
 	"https://gitlab.com/gitlab-org/gitaly/-/issues/1294",
-	true,
+	false,
 )
