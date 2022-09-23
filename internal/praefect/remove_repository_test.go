@@ -124,7 +124,7 @@ func TestRemoveRepositoryHandler(t *testing.T) {
 			)
 			defer srv.Stop()
 
-			go func() { srv.Serve(ln) }()
+			go testhelper.MustServe(t, srv, ln)
 
 			clientConn, err := grpc.DialContext(ctx, "unix:"+ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)

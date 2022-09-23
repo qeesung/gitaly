@@ -8,11 +8,13 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	mrand "math/rand"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -100,6 +102,25 @@ func MustRunCommand(tb testing.TB, stdin io.Reader, name string, args ...string)
 // be executed early already.
 func MustClose(tb testing.TB, closer io.Closer) {
 	require.NoError(tb, closer.Close())
+}
+
+// Server is an interface for a server that can serve requests on a specific listener. This
+// interface is used by the MustServe helper function.
+type Server interface {
+	Serve(net.Listener) error
+}
+
+// MustServe starts to serve the given server with the listener. This function asserts that the
+// server was able to successfully serve and is useful in contexts where one wants to simply spawn a
+// server in a Goroutine.
+func MustServe(tb testing.TB, server Server, listener net.Listener) {
+	tb.Helper()
+
+	// `http.Server.Serve()` is expected to return `http.ErrServerClosed`, so we special-case
+	// this error here.
+	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		require.NoError(tb, err)
+	}
 }
 
 // CopyFile copies a file at the path src to a file at the path dst

@@ -45,10 +45,10 @@ func TestDeleteObjectPoolHandler(t *testing.T) {
 	secondaryLn, secondaryAddr := testhelper.GetLocalhostListener(t)
 
 	defer primarySrv.Stop()
-	go primarySrv.Serve(primaryLn)
+	go testhelper.MustServe(t, primarySrv, primaryLn)
 
 	defer secondarySrv.Stop()
-	go secondarySrv.Serve(secondaryLn)
+	go testhelper.MustServe(t, secondarySrv, secondaryLn)
 
 	db := testdb.New(t)
 	rs := datastore.NewPostgresRepositoryStore(db, nil)
@@ -96,7 +96,7 @@ func TestDeleteObjectPoolHandler(t *testing.T) {
 	}, struct{}{})
 
 	defer praefectSrv.Stop()
-	go praefectSrv.Serve(praefectLn)
+	go testhelper.MustServe(t, praefectSrv, praefectLn)
 
 	praefectConn, err := grpc.Dial(praefectAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)

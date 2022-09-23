@@ -157,16 +157,15 @@ func startServer(t *testing.T, th testHandler, opts ...grpc.ServerOption) string
 	opts = append(opts, grpc.Creds(lm))
 
 	s := grpc.NewServer(opts...)
-	t.Cleanup(func() { s.Stop() })
+	t.Cleanup(s.Stop)
 
 	handler := &server{testHandler: th}
 	healthpb.RegisterHealthServer(s, handler)
 
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
-	t.Cleanup(func() { lis.Close() })
 
-	go func() { s.Serve(lis) }()
+	go testhelper.MustServe(t, s, lis)
 
 	return lis.Addr().String()
 }
@@ -187,7 +186,10 @@ func call(ctx context.Context, conn *grpc.ClientConn, registry *Registry, handle
 	client := healthpb.NewHealthClient(conn)
 
 	ctxOut, waiter := RegisterSidechannel(ctx, registry, handler)
-	defer waiter.Close()
+	defer func() {
+		// We aleady check the error further down.
+		_ = waiter.Close()
+	}()
 
 	if _, err := client.Check(ctxOut, &healthpb.HealthCheckRequest{}); err != nil {
 		return err

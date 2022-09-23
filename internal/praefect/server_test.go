@@ -94,7 +94,7 @@ func TestNewBackchannelServerFactory(t *testing.T) {
 	ln, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 
-	go server.Serve(ln)
+	go testhelper.MustServe(t, server, ln)
 	ctx := testhelper.Context(t)
 
 	nodeSet, err := DialNodes(ctx, []*config.VirtualStorage{{
@@ -848,7 +848,7 @@ func TestProxyWrites(t *testing.T) {
 	listener, err := net.Listen("unix", socket)
 	require.NoError(t, err)
 
-	go server.Serve(listener)
+	go testhelper.MustServe(t, server, listener)
 	defer server.Stop()
 
 	client, _ := newSmartHTTPClient(t, "unix://"+socket)
@@ -1002,7 +1002,7 @@ func TestErrorThreshold(t *testing.T) {
 			listener, err := net.Listen("unix", socket)
 			require.NoError(t, err)
 
-			go server.Serve(listener)
+			go testhelper.MustServe(t, server, listener)
 			defer server.Stop()
 
 			conn, err := dial("unix://"+socket, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())})

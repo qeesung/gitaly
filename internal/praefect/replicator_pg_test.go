@@ -45,7 +45,7 @@ func TestReplicatorInvalidSourceRepository(t *testing.T) {
 		},
 	})
 	defer srv.Stop()
-	go srv.Serve(ln)
+	go testhelper.MustServe(t, srv, ln)
 
 	targetCC, err := client.Dial(ln.Addr().Network()+":"+ln.Addr().String(), nil)
 	require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestReplicatorDestroy(t *testing.T) {
 				return stream.SendMsg(&gitalypb.RemoveRepositoryResponse{})
 			}))
 
-			go srv.Serve(ln)
+			go testhelper.MustServe(t, srv, ln)
 			defer srv.Stop()
 
 			clientConn, err := grpc.Dial(ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))

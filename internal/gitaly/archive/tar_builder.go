@@ -196,7 +196,7 @@ func (t *TarBuilder) Close() error {
 	if t.err != nil {
 		// Ignore any close error in favour of reporting the previous one, but
 		// ensure the tar writer is closed to avoid resource leaks
-		t.tarWriter.Close()
+		_ = t.tarWriter.Close()
 		return t.err
 	}
 

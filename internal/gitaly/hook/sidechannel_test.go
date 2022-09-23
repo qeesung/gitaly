@@ -47,7 +47,7 @@ func testSidechannelWithRuntimeDir(t *testing.T, runtimeDir string) {
 		},
 	)
 	require.NoError(t, err)
-	defer wt.Close()
+	defer testhelper.MustClose(t, wt)
 
 	require.DirExists(t, wt.socketDir)
 
@@ -85,7 +85,6 @@ func testSidechannelCleanupWithRuntimeDir(t *testing.T, runtimeDir string) {
 		func(c *net.UnixConn) error { return nil },
 	)
 	require.NoError(t, err)
-	defer wt.Close()
 
 	require.DirExists(t, wt.socketDir)
 	_ = wt.Close()

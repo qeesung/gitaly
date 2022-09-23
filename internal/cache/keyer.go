@@ -56,7 +56,7 @@ func newLeaseKeyer(locator storage.Locator, countErr func(error) error) leaseKey
 	}
 }
 
-func (keyer leaseKeyer) updateLatest(ctx context.Context, repo *gitalypb.Repository) (string, error) {
+func (keyer leaseKeyer) updateLatest(ctx context.Context, repo *gitalypb.Repository) (_ string, returnedErr error) {
 	repoStatePath, err := keyer.getRepoStatePath(repo)
 	if err != nil {
 		return "", err
@@ -71,7 +71,13 @@ func (keyer leaseKeyer) updateLatest(ctx context.Context, repo *gitalypb.Reposit
 	if err != nil {
 		return "", err
 	}
-	defer latest.Close()
+	defer func() {
+		if err := latest.Close(); err != nil && returnedErr == nil {
+			if !errors.Is(err, safe.ErrAlreadyDone) {
+				returnedErr = err
+			}
+		}
+	}()
 
 	nextGenID := uuid.New().String()
 	if nextGenID == "" {

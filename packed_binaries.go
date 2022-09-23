@@ -40,14 +40,20 @@ func UnpackAuxiliaryBinaries(destinationDir string) error {
 			if err != nil {
 				return fmt.Errorf("open packed binary %q: %w", packedPath, err)
 			}
-			defer packedFile.Close()
+			defer func() {
+				// We already check the error below.
+				_ = packedFile.Close()
+			}()
 
 			unpackedPath := filepath.Join(destinationDir, entry.Name())
 			unpackedFile, err := os.OpenFile(unpackedPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o700)
 			if err != nil {
 				return err
 			}
-			defer unpackedFile.Close()
+			defer func() {
+				// We already check the error below.
+				_ = unpackedFile.Close()
+			}()
 
 			if _, err := io.Copy(unpackedFile, packedFile); err != nil {
 				return fmt.Errorf("unpack %q: %w", unpackedPath, err)
@@ -55,6 +61,10 @@ func UnpackAuxiliaryBinaries(destinationDir string) error {
 
 			if err := unpackedFile.Close(); err != nil {
 				return fmt.Errorf("close %q: %w", unpackedPath, err)
+			}
+
+			if err := packedFile.Close(); err != nil {
+				return fmt.Errorf("close packed file %q: %w", packedPath, err)
 			}
 
 			return nil

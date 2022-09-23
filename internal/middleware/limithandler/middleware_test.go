@@ -572,7 +572,7 @@ func runServer(t *testing.T, s pb.TestServer, opt ...grpc.ServerOption) (*grpc.S
 	lis, err := net.Listen("unix", serverSocketPath)
 	require.NoError(t, err)
 
-	go grpcServer.Serve(lis)
+	go testhelper.MustServe(t, grpcServer, lis)
 
 	return grpcServer, "unix://" + serverSocketPath
 }

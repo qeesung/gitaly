@@ -225,7 +225,7 @@ func runServer(t *testing.T, cfg config.Cfg) string {
 	listener, err := net.Listen("unix", serverSocketPath)
 	require.NoError(t, err)
 	t.Cleanup(srv.Stop)
-	go srv.Serve(listener)
+	go testhelper.MustServe(t, srv, listener)
 
 	return "unix://" + serverSocketPath
 }
@@ -256,7 +256,7 @@ func runSecureServer(t *testing.T, cfg config.Cfg) string {
 
 	listener, hostPort := testhelper.GetLocalhostListener(t)
 	t.Cleanup(srv.Stop)
-	go srv.Serve(listener)
+	go testhelper.MustServe(t, srv, listener)
 
 	return hostPort
 }

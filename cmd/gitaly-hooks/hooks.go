@@ -334,7 +334,10 @@ func handlePackObjectsWithSidechannel(ctx context.Context, payload git.HooksPayl
 	if err != nil {
 		return fmt.Errorf("SetupSidechannel: %w", err)
 	}
-	defer wt.Close()
+	defer func() {
+		// We aleady check the error further down.
+		_ = wt.Close()
+	}()
 
 	var glID, glUsername, gitProtocol string
 
@@ -376,5 +379,13 @@ func handlePackObjectsWithSidechannel(ctx context.Context, payload git.HooksPayl
 		return fmt.Errorf("call PackObjectsHookWithSidechannel: %w", err)
 	}
 
-	return wt.Wait()
+	if err := wt.Wait(); err != nil {
+		return err
+	}
+
+	if err := wt.Close(); err != nil {
+		return fmt.Errorf("closing sidechannel: %w", err)
+	}
+
+	return nil
 }

@@ -247,7 +247,7 @@ func TestDialSidechannel(t *testing.T) {
 
 				return nil
 			})
-			defer scw.Close()
+			defer testhelper.MustClose(t, scw)
 
 			req := &healthpb.HealthCheckRequest{Service: "test sidechannel"}
 			_, err = healthpb.NewHealthClient(conn).Check(ctx, req)
@@ -296,7 +296,7 @@ func TestDial_Correlation(t *testing.T) {
 		}
 		grpc_testing.RegisterTestServiceServer(grpcServer, svc)
 
-		go func() { assert.NoError(t, grpcServer.Serve(listener)) }()
+		go testhelper.MustServe(t, grpcServer, listener)
 
 		defer grpcServer.Stop()
 		ctx := testhelper.Context(t)
@@ -332,7 +332,7 @@ func TestDial_Correlation(t *testing.T) {
 		}
 		grpc_testing.RegisterTestServiceServer(grpcServer, svc)
 
-		go func() { assert.NoError(t, grpcServer.Serve(listener)) }()
+		go testhelper.MustServe(t, grpcServer, listener)
 		defer grpcServer.Stop()
 		ctx := testhelper.Context(t)
 
@@ -395,7 +395,7 @@ func TestDial_Tracing(t *testing.T) {
 	}
 	grpc_testing.RegisterTestServiceServer(grpcServer, svc)
 
-	go func() { require.NoError(t, grpcServer.Serve(listener)) }()
+	go testhelper.MustServe(t, grpcServer, listener)
 	defer grpcServer.Stop()
 	ctx := testhelper.Context(t)
 
@@ -543,7 +543,7 @@ func startTCPListener(tb testing.TB, factory func(credentials.TransportCredentia
 	address := fmt.Sprintf("%d", tcpPort)
 
 	grpcServer := factory(insecure.NewCredentials())
-	go grpcServer.Serve(listener)
+	go testhelper.MustServe(tb, grpcServer, listener)
 
 	return func() {
 		grpcServer.Stop()
@@ -558,7 +558,7 @@ func startUnixListener(tb testing.TB, factory func(credentials.TransportCredenti
 	require.NoError(tb, err)
 
 	grpcServer := factory(insecure.NewCredentials())
-	go grpcServer.Serve(listener)
+	go testhelper.MustServe(tb, grpcServer, listener)
 
 	return func() {
 		grpcServer.Stop()
@@ -583,7 +583,7 @@ func startTLSListener(tb testing.TB, factory func(credentials.TransportCredentia
 			MinVersion:   tls.VersionTLS12,
 		}),
 	)
-	go grpcServer.Serve(listener)
+	go testhelper.MustServe(tb, grpcServer, listener)
 
 	return func() {
 		grpcServer.Stop()

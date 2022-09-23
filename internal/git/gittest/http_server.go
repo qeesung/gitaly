@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
 // HTTPServer starts an HTTP server with git-http-backend(1) as CGI handler. The repository is
@@ -43,7 +44,7 @@ func HTTPServer(ctx context.Context, tb testing.TB, gitCmdFactory git.CommandFac
 		})
 	}
 
-	go s.Serve(listener)
+	go testhelper.MustServe(tb, &s, listener)
 
 	return listener.Addr().(*net.TCPAddr).Port, s.Close
 }

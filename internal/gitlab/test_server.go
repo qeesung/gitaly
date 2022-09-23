@@ -569,7 +569,7 @@ func startSocketHTTPServer(tb testing.TB, mux *http.ServeMux, tlsCfg *tls.Config
 		TLSConfig: tlsCfg,
 	}
 
-	go server.Serve(socketListener)
+	go testhelper.MustServe(tb, &server, socketListener)
 
 	url := "http+unix://" + filename
 	cleanup := func() {

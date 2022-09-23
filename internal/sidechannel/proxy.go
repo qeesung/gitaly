@@ -18,14 +18,19 @@ func NewUnaryProxy(registry *Registry) grpc.UnaryClientInterceptor {
 		}
 
 		ctx, waiter := RegisterSidechannel(ctx, registry, proxy(ctx))
-		defer waiter.Close()
+		defer func() {
+			// We aleady check the error further down.
+			_ = waiter.Close()
+		}()
 
 		if err := invoker(ctx, method, req, reply, cc, opts...); err != nil {
 			return err
 		}
+
 		if err := waiter.Close(); err != nil && err != ErrCallbackDidNotRun {
 			return fmt.Errorf("sidechannel: proxy callback: %w", err)
 		}
+
 		return nil
 	}
 }

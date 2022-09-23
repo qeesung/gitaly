@@ -344,7 +344,7 @@ func TestProxyErrorPropagation(t *testing.T) {
 			backendServer := grpc.NewServer(grpc.UnknownServiceHandler(func(interface{}, grpc.ServerStream) error {
 				return tc.backendError
 			}))
-			go func() { backendServer.Serve(backendListener) }()
+			go testhelper.MustServe(t, backendServer, backendListener)
 			defer backendServer.Stop()
 			ctx := testhelper.Context(t)
 
@@ -374,7 +374,7 @@ func TestProxyErrorPropagation(t *testing.T) {
 				})),
 			)
 
-			go func() { proxyServer.Serve(proxyListener) }()
+			go testhelper.MustServe(t, proxyServer, proxyListener)
 			defer proxyServer.Stop()
 
 			proxyClientConn, err := grpc.DialContext(ctx, "unix://"+proxyListener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -488,7 +488,7 @@ func TestRegisterStreamHandlers(t *testing.T) {
 			proxy.RegisterStreamHandlers(server, grpc_testing.TestService_ServiceDesc.ServiceName, registeredHandlers)
 
 			listener := newListener(t)
-			go server.Serve(listener)
+			go testhelper.MustServe(t, server, listener)
 			defer server.Stop()
 
 			conn, err := client.Dial("tcp://"+listener.Addr().String(), []grpc.DialOption{grpc.WithBlock()})

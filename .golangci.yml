@@ -46,6 +46,26 @@ linters-settings:
     include-go-root: true
     packages-with-error-message:
       - io/ioutil: "ioutil is deprecated starting with Go 1.16"
+  errcheck:
+    # The following are functions for which we are currently not consistently
+    # checking returned errors. This is not intended as a list of known-okay
+    # cases to skip the checks, but rather as a list of things we should
+    # eventually fix.
+    exclude-functions:
+      - (*database/sql.DB).Close
+      - (*database/sql.Rows).Close
+      - (*gitlab.com/gitlab-org/gitaly/v15/client.Pool).Close
+      - (*gitlab.com/gitlab-org/gitaly/v15/internal/sidechannel.ServerConn).Close
+      - (*gitlab.com/gitlab-org/gitaly/v15/internal/streamcache.pipe).Close
+      - (*gitlab.com/gitlab-org/gitaly/v15/internal/streamcache.pipeReader).Close
+      - (*google.golang.org/grpc.ClientConn).Close
+      - (*google.golang.org/grpc.ServerConn).Close
+      - (*io.PipeReader).Close
+      - (*io.PipeWriter).Close
+      - (*os.File).Close
+      - (io.Closer).Close
+      - (net.Conn).Close
+      - (net.Listener).Close
   forbidigo:
     forbid:
       # Tests and code which use timing-based setups have repeatedly resulted
@@ -95,9 +115,6 @@ issues:
         - forbidigo
       # This fine thing excludes all paths which don't end with "_test.go".
       path: "^([^_]|_([^t]|t([^e]|e([^s]|s([^t]|t([^\\.]|\\.([^g]|g[^o])))))))*$"
-    - linters:
-        - errcheck
-      text: "Error return value of `[^`]+.(Close|Serve)` is not checked"
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
   # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.

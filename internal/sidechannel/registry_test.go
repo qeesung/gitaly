@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
 func TestRegistry(t *testing.T) {
@@ -25,7 +26,7 @@ func TestRegistry(t *testing.T) {
 			<-triggerCallback
 			return nil
 		})
-		defer waiter.Close()
+		defer testhelper.MustClose(t, waiter)
 
 		require.Equal(t, 1, registry.waiting())
 
@@ -57,7 +58,7 @@ func TestRegistry(t *testing.T) {
 
 					return conn.CloseWrite()
 				})
-				defer waiter.Close()
+				defer testhelper.MustClose(t, waiter)
 
 				require.NoError(t, registry.receive(waiter.id, client))
 				require.NoError(t, waiter.Close())

@@ -107,7 +107,10 @@ func (wt *SidechannelWaiter) run(callback func(*net.UnixConn) error) {
 		if err != nil {
 			return err
 		}
-		defer c.Close()
+		defer func() {
+			// Error is already checked below.
+			_ = c.Close()
+		}()
 
 		// Eagerly remove the socket directory, in case the process exits before
 		// wt.Close() can run.
@@ -115,7 +118,15 @@ func (wt *SidechannelWaiter) run(callback func(*net.UnixConn) error) {
 			return err
 		}
 
-		return callback(c)
+		if err := callback(c); err != nil {
+			return err
+		}
+
+		if err := c.Close(); err != nil {
+			return err
+		}
+
+		return nil
 	}()
 }
 

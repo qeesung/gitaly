@@ -44,6 +44,8 @@ func TestGitalyServerFactory(t *testing.T) {
 		if schema == starter.TLS {
 			srv, err := sf.CreateExternal(true)
 			require.NoError(t, err)
+			t.Cleanup(srv.Stop)
+
 			healthpb.RegisterHealthServer(srv, health.NewServer())
 
 			listener, err := net.Listen(starter.TCP, addr)
@@ -66,6 +68,8 @@ func TestGitalyServerFactory(t *testing.T) {
 		} else {
 			srv, err := sf.CreateExternal(false)
 			require.NoError(t, err)
+			t.Cleanup(srv.Stop)
+
 			healthpb.RegisterHealthServer(srv, health.NewServer())
 
 			listener, err := net.Listen(schema, addr)
@@ -299,7 +303,7 @@ func TestGitalyServerFactory_closeOrder(t *testing.T) {
 		require.NoError(t, err)
 		defer ln.Close()
 
-		go server.Serve(ln)
+		go testhelper.MustServe(t, server, ln)
 
 		conn, err := grpc.DialContext(ctx, ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		require.NoError(t, err)

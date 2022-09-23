@@ -272,7 +272,7 @@ func (irc instrumentedReadCloser) Read(p []byte) (n int, err error) {
 
 // PutStream will store a stream in a repo-namespace keyed by the digest of the
 // request protobuf message.
-func (c *DiskCache) PutStream(ctx context.Context, repo *gitalypb.Repository, req proto.Message, src io.Reader) error {
+func (c *DiskCache) PutStream(ctx context.Context, repo *gitalypb.Repository, req proto.Message, src io.Reader) (returnedErr error) {
 	reqPath, err := c.KeyPath(ctx, repo, req)
 	if err != nil {
 		return err
@@ -298,7 +298,13 @@ func (c *DiskCache) PutStream(ctx context.Context, repo *gitalypb.Repository, re
 	if err != nil {
 		return err
 	}
-	defer sf.Close()
+	defer func() {
+		if err := sf.Close(); err != nil && returnedErr == nil {
+			if !errors.Is(err, safe.ErrAlreadyDone) {
+				returnedErr = err
+			}
+		}
+	}()
 
 	n, err = io.Copy(sf, src)
 	if err != nil {

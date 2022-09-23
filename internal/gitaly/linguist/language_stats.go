@@ -135,7 +135,10 @@ func (c *languageStats) save(repo *localrepo.Repo, commitID string) error {
 	}()
 
 	w := zlib.NewWriter(file)
-	defer w.Close()
+	defer func() {
+		// We already check the error further down.
+		_ = w.Close()
+	}()
 
 	if err = json.NewEncoder(w).Encode(c); err != nil {
 		return fmt.Errorf("languageStats encode json: %w", err)

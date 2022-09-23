@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/hashicorp/yamux"
@@ -136,10 +137,17 @@ func (s *ServerHandshaker) Handshake(conn net.Conn, authInfo credentials.AuthInf
 			Conn: clientToServerStream,
 			close: func() error {
 				s.registry.RemoveBackchannel(id)
-				backchannelConn.Close()
-				muxSession.Close()
-				logger.Close()
-				return nil
+
+				var firstErr error
+				for _, closer := range []io.Closer{
+					backchannelConn, muxSession, logger,
+				} {
+					if err := closer.Close(); err != nil && firstErr == nil {
+						firstErr = err
+					}
+				}
+
+				return firstErr
 			},
 		},
 		withSessionInfo(authInfo, id, muxSession),

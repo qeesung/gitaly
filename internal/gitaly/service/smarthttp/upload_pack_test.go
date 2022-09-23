@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -613,7 +614,6 @@ func makePostUploadPackWithSidechannelRequest(ctx context.Context, t *testing.T,
 
 		return <-errC
 	})
-	defer waiter.Close()
 
 	rpcRequest := &gitalypb.PostUploadPackWithSidechannelRequest{
 		Repository:       in.GetRepository(),
@@ -622,7 +622,11 @@ func makePostUploadPackWithSidechannelRequest(ctx context.Context, t *testing.T,
 	}
 	_, err := client.PostUploadPackWithSidechannel(ctxOut, rpcRequest)
 	if err == nil {
-		require.NoError(t, waiter.Close())
+		testhelper.MustClose(t, waiter)
+	} else if err := waiter.Close(); err != nil && !errors.Is(err, sidechannel.ErrCallbackDidNotRun) {
+		// When the request failed the sidechannel may not even have been used, so we need
+		// to catch the `ErrCallbackDidNotRun` error here.
+		require.NoError(t, err)
 	}
 
 	return responseBuffer, err

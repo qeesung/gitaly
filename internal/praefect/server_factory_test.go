@@ -165,7 +165,7 @@ func TestServerFactory(t *testing.T) {
 
 			return nil
 		})
-		defer waiter.Close()
+		defer testhelper.MustClose(t, waiter)
 
 		_, err = gitalypb.NewSmartHTTPServiceClient(cc).PostUploadPackWithSidechannel(ctx,
 			&gitalypb.PostUploadPackWithSidechannelRequest{Repository: repo},
@@ -184,9 +184,8 @@ func TestServerFactory(t *testing.T) {
 
 		listener, err := net.Listen(starter.TCP, "localhost:0")
 		require.NoError(t, err)
-		defer func() { require.NoError(t, listener.Close()) }()
 
-		go praefectServerFactory.Serve(listener, false)
+		go func() { require.NoError(t, praefectServerFactory.Serve(listener, false)) }()
 
 		praefectAddr, err := starter.ComposeEndpoint(listener.Addr().Network(), listener.Addr().String())
 		require.NoError(t, err)
@@ -217,9 +216,8 @@ func TestServerFactory(t *testing.T) {
 
 		listener, err := net.Listen(starter.TCP, "localhost:0")
 		require.NoError(t, err)
-		defer func() { require.NoError(t, listener.Close()) }()
 
-		go praefectServerFactory.Serve(listener, true)
+		go func() { require.NoError(t, praefectServerFactory.Serve(listener, true)) }()
 		ctx := testhelper.Context(t)
 
 		certPool, err := x509.SystemCertPool()
@@ -260,9 +258,8 @@ func TestServerFactory(t *testing.T) {
 		// start with tcp address
 		tcpListener, err := net.Listen(starter.TCP, "localhost:0")
 		require.NoError(t, err)
-		defer tcpListener.Close()
 
-		go praefectServerFactory.Serve(tcpListener, false)
+		go func() { require.NoError(t, praefectServerFactory.Serve(tcpListener, false)) }()
 
 		praefectTCPAddr, err := starter.ComposeEndpoint(tcpListener.Addr().Network(), tcpListener.Addr().String())
 		require.NoError(t, err)
@@ -276,9 +273,8 @@ func TestServerFactory(t *testing.T) {
 		// start with tls address
 		tlsListener, err := net.Listen(starter.TCP, "localhost:0")
 		require.NoError(t, err)
-		defer tlsListener.Close()
 
-		go praefectServerFactory.Serve(tlsListener, true)
+		go func() { require.NoError(t, praefectServerFactory.Serve(tlsListener, true)) }()
 
 		praefectTLSAddr, err := starter.ComposeEndpoint(tcpListener.Addr().Network(), tcpListener.Addr().String())
 		require.NoError(t, err)
@@ -294,9 +290,8 @@ func TestServerFactory(t *testing.T) {
 		defer func() { require.NoError(t, os.RemoveAll(socketPath)) }()
 		socketListener, err := net.Listen(starter.Unix, socketPath)
 		require.NoError(t, err)
-		defer socketListener.Close()
 
-		go praefectServerFactory.Serve(socketListener, false)
+		go func() { require.NoError(t, praefectServerFactory.Serve(socketListener, false)) }()
 
 		praefectSocketAddr, err := starter.ComposeEndpoint(socketListener.Addr().Network(), socketListener.Addr().String())
 		require.NoError(t, err)

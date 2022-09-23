@@ -167,7 +167,7 @@ func runServer(t *testing.T, secure bool, cfg config.Cfg, connectionType string,
 	listener, err := net.Listen(connectionType, addr)
 	require.NoError(t, err)
 
-	go srv.Serve(listener)
+	go testhelper.MustServe(t, srv, listener)
 
 	port := 0
 	if connectionType != "unix" {

@@ -134,7 +134,7 @@ func testServerPackObjectsHookSeparateContextWithRuntimeDir(t *testing.T, ctx co
 		},
 	)
 	require.NoError(t, err)
-	defer wt1.Close()
+	defer testhelper.MustClose(t, wt1)
 
 	go func() {
 		defer wg.Done()
@@ -174,7 +174,7 @@ func testServerPackObjectsHookSeparateContextWithRuntimeDir(t *testing.T, ctx co
 		},
 	)
 	require.NoError(t, err)
-	defer wt2.Close()
+	defer testhelper.MustClose(t, wt2)
 
 	go func() {
 		defer wg.Done()
@@ -240,7 +240,7 @@ func testServerPackObjectsHookUsesCache(t *testing.T, ctx context.Context, runti
 			},
 		)
 		require.NoError(t, err)
-		defer wt.Close()
+		defer testhelper.MustClose(t, wt)
 
 		client, conn := newHooksClient(t, cfg.SocketPath)
 		defer conn.Close()
@@ -346,7 +346,7 @@ func testServerPackObjectsHookWithSidechannelWithRuntimeDir(t *testing.T, ctx co
 				},
 			)
 			require.NoError(t, err)
-			defer wt.Close()
+			defer testhelper.MustClose(t, wt)
 
 			client, conn := newHooksClient(t, cfg.SocketPath)
 			defer conn.Close()
@@ -539,7 +539,7 @@ func testServerPackObjectsHookWithSidechannelCanceledWithRuntimeDir(t *testing.T
 		},
 	)
 	require.NoError(t, err)
-	defer wt.Close()
+	defer testhelper.MustClose(t, wt)
 
 	cfg.SocketPath = runHooksServer(t, cfg, nil)
 	repo, _ := gittest.CreateRepository(ctx, t, cfg, gittest.CreateRepositoryConfig{

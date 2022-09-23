@@ -54,7 +54,7 @@ func TestDialNodes(t *testing.T) {
 		srv := grpc.NewServer()
 		grpc_health_v1.RegisterHealthServer(srv, healthSrv)
 		defer srv.Stop()
-		go srv.Serve(ln)
+		go testhelper.MustServe(t, srv, ln)
 
 		cfgNodes = append(cfgNodes, &config.Node{
 			Storage: n.storage,

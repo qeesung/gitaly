@@ -41,7 +41,7 @@ func newBackendPinger(tb testing.TB, ctx context.Context) (*grpc.ClientConn, *in
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		srvr.Serve(listener)
+		require.NoError(tb, srvr.Serve(listener))
 	}()
 
 	cc, err := grpc.DialContext(
@@ -83,7 +83,7 @@ func newProxy(tb testing.TB, ctx context.Context, director proxy.StreamDirector,
 	listener := newListener(tb)
 	go func() {
 		defer close(done)
-		proxySrvr.Serve(listener)
+		require.NoError(tb, proxySrvr.Serve(listener))
 	}()
 
 	proxyCC, err := grpc.DialContext(

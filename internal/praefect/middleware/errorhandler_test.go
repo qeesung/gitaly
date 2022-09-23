@@ -64,7 +64,7 @@ func TestStreamInterceptor(t *testing.T) {
 
 	mock.RegisterSimpleServiceServer(internalSrv, &simpleService{})
 
-	go internalSrv.Serve(lis)
+	go testhelper.MustServe(t, internalSrv, lis)
 	defer internalSrv.Stop()
 
 	srvOptions := []grpc.ServerOption{
@@ -92,7 +92,7 @@ func TestStreamInterceptor(t *testing.T) {
 
 	praefectSrv := grpc.NewServer(srvOptions...)
 	defer praefectSrv.Stop()
-	go praefectSrv.Serve(praefectLis)
+	go testhelper.MustServe(t, praefectSrv, praefectLis)
 
 	praefectCC, err := grpc.Dial("unix://"+praefectSocket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	defer testhelper.MustClose(t, praefectCC)

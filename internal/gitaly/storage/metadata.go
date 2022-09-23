@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -21,7 +22,7 @@ type Metadata struct {
 }
 
 // WriteMetadataFile marshals and writes a metadata file
-func WriteMetadataFile(storagePath string) error {
+func WriteMetadataFile(storagePath string) (returnedErr error) {
 	path := filepath.Join(storagePath, metadataFilename)
 
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -32,7 +33,13 @@ func WriteMetadataFile(storagePath string) error {
 	if err != nil {
 		return err
 	}
-	defer fw.Close()
+	defer func() {
+		if err := fw.Close(); err != nil && returnedErr == nil {
+			if !errors.Is(err, safe.ErrAlreadyDone) {
+				returnedErr = err
+			}
+		}
+	}()
 
 	if err = json.NewEncoder(fw).Encode(&Metadata{
 		GitalyFilesystemID: uuid.New().String(),

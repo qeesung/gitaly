@@ -22,7 +22,7 @@ import (
 
 const attributesFileMode os.FileMode = 0o644
 
-func (s *server) applyGitattributes(ctx context.Context, repo *localrepo.Repo, objectReader catfile.ObjectReader, repoPath string, revision []byte) error {
+func (s *server) applyGitattributes(ctx context.Context, repo *localrepo.Repo, objectReader catfile.ObjectReader, repoPath string, revision []byte) (returnedErr error) {
 	infoPath := filepath.Join(repoPath, "info")
 	attributesPath := filepath.Join(infoPath, "attributes")
 
@@ -85,7 +85,13 @@ func (s *server) applyGitattributes(ctx context.Context, repo *localrepo.Repo, o
 	if err != nil {
 		return fmt.Errorf("creating gitattributes writer: %w", err)
 	}
-	defer writer.Close()
+	defer func() {
+		if err := writer.Close(); err != nil && returnedErr == nil {
+			if !errors.Is(err, safe.ErrAlreadyDone) {
+				returnedErr = err
+			}
+		}
+	}()
 
 	if _, err := io.Copy(writer, blobObj); err != nil {
 		return err
