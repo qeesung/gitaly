@@ -14,7 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
 
@@ -90,7 +90,7 @@ func DailyOptimizationWorker(cfg config.Cfg, optimizer Optimizer) WorkerFunc {
 			OptimizeReposRandomly(
 				cfg.Storages,
 				optimizer,
-				helper.NewTimerTicker(1*time.Second),
+				tick.NewTimerTicker(1*time.Second),
 				rand.New(rand.NewSource(time.Now().UnixNano())),
 			),
 		)
@@ -136,7 +136,7 @@ func walkReposShuffled(
 	l logrus.FieldLogger,
 	s config.Storage,
 	o Optimizer,
-	ticker helper.Ticker,
+	ticker tick.Ticker,
 ) error {
 	for {
 		fi, path, err := walker.next()
@@ -160,7 +160,7 @@ func walkReposShuffled(
 		case <-ticker.C():
 		}
 
-		// Reset the ticker before doing the optimization such that we essentially limit
+		// Reset the tick before doing the optimization such that we essentially limit
 		// ourselves to doing optimizations once per tick, not once per tick plus the time
 		// it takes to do the optimization. It's best effort given that traversing the
 		// directory hierarchy takes some time, too, but it should be good enough for now.
@@ -180,7 +180,7 @@ func walkReposShuffled(
 //
 // Any errors during the optimization will be logged. Any other errors will be returned and cause
 // the walk to end prematurely.
-func OptimizeReposRandomly(storages []config.Storage, optimizer Optimizer, ticker helper.Ticker, rand *rand.Rand) StoragesJob {
+func OptimizeReposRandomly(storages []config.Storage, optimizer Optimizer, ticker tick.Ticker, rand *rand.Rand) StoragesJob {
 	return func(ctx context.Context, l logrus.FieldLogger, enabledStorageNames []string) error {
 		enabledNames := map[string]struct{}{}
 		for _, sName := range enabledStorageNames {

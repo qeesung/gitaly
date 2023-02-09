@@ -11,7 +11,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/commonerr"
@@ -1060,7 +1060,7 @@ func TestReconciler(t *testing.T) {
 
 				runCtx, cancelRun := context.WithCancel(ctx)
 				var stopped, resetted bool
-				ticker := helper.NewManualTicker()
+				ticker := tick.NewManualTicker()
 				ticker.StopFunc = func() { stopped = true }
 				ticker.ResetFunc = func() {
 					if resetted {
@@ -1215,7 +1215,7 @@ func TestReconciler_renames(t *testing.T) {
 
 			runCtx, cancelRun := context.WithCancel(ctx)
 			var resetted bool
-			ticker := helper.NewManualTicker()
+			ticker := tick.NewManualTicker()
 			ticker.ResetFunc = func() {
 				if resetted {
 					cancelRun()

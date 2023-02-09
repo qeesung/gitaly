@@ -13,6 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata"
 	"gitlab.com/gitlab-org/labkit/correlation"
 )
@@ -55,8 +56,8 @@ type cacheable interface {
 type ProcessCache struct {
 	// ttl is the fixed ttl for cache entries
 	ttl time.Duration
-	// monitorTicker is the ticker used for the monitoring Goroutine.
-	monitorTicker helper.Ticker
+	// monitorTicker is the tick used for the monitoring Goroutine.
+	monitorTicker tick.Ticker
 	monitorDone   chan interface{}
 
 	objectReaders     processes
@@ -71,10 +72,10 @@ type ProcessCache struct {
 
 // NewCache creates a new catfile process cache.
 func NewCache(cfg config.Cfg) *ProcessCache {
-	return newCache(defaultBatchfileTTL, cfg.Git.CatfileCacheSize, helper.NewTimerTicker(defaultEvictionInterval))
+	return newCache(defaultBatchfileTTL, cfg.Git.CatfileCacheSize, tick.NewTimerTicker(defaultEvictionInterval))
 }
 
-func newCache(ttl time.Duration, maxLen int, monitorTicker helper.Ticker) *ProcessCache {
+func newCache(ttl time.Duration, maxLen int, monitorTicker tick.Ticker) *ProcessCache {
 	if maxLen <= 0 {
 		maxLen = defaultMaxLen
 	}

@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
@@ -365,7 +366,7 @@ func (r ReplMgr) ProcessBacklog(ctx context.Context, b BackoffFactory) {
 
 // ProcessStale starts a background process to acknowledge stale replication jobs.
 // It will process jobs until ctx is Done.
-func (r ReplMgr) ProcessStale(ctx context.Context, ticker helper.Ticker, staleAfter time.Duration) chan struct{} {
+func (r ReplMgr) ProcessStale(ctx context.Context, ticker tick.Ticker, staleAfter time.Duration) chan struct{} {
 	done := make(chan struct{})
 
 	go func() {

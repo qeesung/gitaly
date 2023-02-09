@@ -38,8 +38,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitlab"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	glog "gitlab.com/gitlab-org/gitaly/v15/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/limithandler"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/streamcache"
@@ -291,8 +291,8 @@ func run(cfg config.Cfg) error {
 	packObjectsLimiter := limithandler.NewConcurrencyLimiter(
 		packObjectsConcurrencyLimit,
 		0,
-		func() helper.Ticker {
-			return helper.NewTimerTicker(cfg.PackObjectsLimiting.MaxQueueWait.Duration())
+		func() tick.Ticker {
+			return tick.NewTimerTicker(cfg.PackObjectsLimiting.MaxQueueWait.Duration())
 		},
 		packObjectsMonitor,
 	)
@@ -419,7 +419,7 @@ func run(cfg config.Cfg) error {
 	}
 	defer shutdownWorkers()
 
-	gracefulStopTicker := helper.NewTimerTicker(cfg.GracefulRestartTimeout.Duration())
+	gracefulStopTicker := tick.NewTimerTicker(cfg.GracefulRestartTimeout.Duration())
 	defer gracefulStopTicker.Stop()
 
 	return b.Wait(gracefulStopTicker, gitalyServerFactory.GracefulStop)

@@ -10,7 +10,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -24,7 +24,7 @@ var ErrMaxQueueTime = errors.New("maximum time in concurrency queue reached")
 var ErrMaxQueueSize = errors.New("maximum queue size reached")
 
 // QueueTickerCreator is a function that provides a ticker
-type QueueTickerCreator func() helper.Ticker
+type QueueTickerCreator func() tick.Ticker
 
 // keyedConcurrencyLimiter is a concurrency limiter that applies to a specific keyed resource.
 type keyedConcurrencyLimiter struct {
@@ -80,11 +80,11 @@ func (sem *keyedConcurrencyLimiter) acquire(ctx context.Context) (returnedErr er
 	defer sem.monitor.Dequeued(ctx)
 
 	// Set up the ticker that keeps us from waiting indefinitely on the concurrency token.
-	var ticker helper.Ticker
+	var ticker tick.Ticker
 	if sem.maxQueuedTickerCreator != nil {
 		ticker = sem.maxQueuedTickerCreator()
 	} else {
-		ticker = helper.Ticker(helper.NewManualTicker())
+		ticker = tick.Ticker(tick.NewManualTicker())
 	}
 
 	defer ticker.Stop()
@@ -291,13 +291,13 @@ func WithConcurrencyLimiters(cfg config.Cfg, middleware *LimiterMiddleware) {
 	for _, limit := range cfg.Concurrency {
 		limit := limit
 
-		newTickerFunc := func() helper.Ticker {
-			return helper.NewManualTicker()
+		newTickerFunc := func() tick.Ticker {
+			return tick.NewManualTicker()
 		}
 
 		if limit.MaxQueueWait > 0 {
-			newTickerFunc = func() helper.Ticker {
-				return helper.NewTimerTicker(limit.MaxQueueWait.Duration())
+			newTickerFunc = func() tick.Ticker {
+				return tick.NewTimerTicker(limit.MaxQueueWait.Duration())
 			}
 		}
 
@@ -316,8 +316,8 @@ func WithConcurrencyLimiters(cfg config.Cfg, middleware *LimiterMiddleware) {
 		result[replicateRepositoryFullMethod] = NewConcurrencyLimiter(
 			1,
 			0,
-			func() helper.Ticker {
-				return helper.NewManualTicker()
+			func() tick.Ticker {
+				return tick.NewManualTicker()
 			},
 			newPerRPCPromMonitor("gitaly", replicateRepositoryFullMethod, queuedMetric,
 				inProgressMetric, acquiringSecondsMetric, middleware.requestsDroppedMetric))

@@ -16,6 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/sidechannel"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/stream"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/structerr"
@@ -137,7 +138,7 @@ func (s *server) sshUploadPack(rpcContext context.Context, req sshUploadPackRequ
 		return 0, err
 	}
 
-	timeoutTicker := helper.NewTimerTicker(s.uploadPackRequestTimeout)
+	timeoutTicker := tick.NewTimerTicker(s.uploadPackRequestTimeout)
 
 	// upload-pack negotiation is terminated by either a flush, or the "done"
 	// packet: https://github.com/git/git/blob/v2.20.0/Documentation/technical/pack-protocol.txt#L335

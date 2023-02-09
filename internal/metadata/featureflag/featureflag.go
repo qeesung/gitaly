@@ -136,6 +136,10 @@ func (ff FeatureFlag) IsEnabled(ctx context.Context) bool {
 			}
 		}
 
+		if val, found := ff.fromCache(ctx); found {
+			return val
+		}
+
 		return ff.OnByDefault
 	}
 
@@ -172,4 +176,8 @@ func (ff FeatureFlag) valueFromContext(ctx context.Context) (string, bool) {
 	}
 
 	return val[0], true
+}
+
+func (ff FeatureFlag) fromCache(ctx context.Context) (bool, bool) {
+	return GetCache().Get(ctx, ff.Name)
 }

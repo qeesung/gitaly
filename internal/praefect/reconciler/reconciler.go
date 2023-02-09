@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/advisorylock"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
@@ -61,7 +61,7 @@ func (r *Reconciler) Collect(ch chan<- prometheus.Metric) {
 
 // Run reconciles on each tick the Ticker emits. Run returns
 // when the context is canceled, returning the error from the context.
-func (r *Reconciler) Run(ctx context.Context, ticker helper.Ticker) error {
+func (r *Reconciler) Run(ctx context.Context, ticker tick.Ticker) error {
 	r.log.WithField("storages", r.storages).Info("automatic reconciler started")
 	defer r.log.Info("automatic reconciler stopped")
 

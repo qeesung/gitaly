@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testdb"
@@ -532,7 +532,7 @@ func TestHealthManager(t *testing.T) {
 				}
 
 				runCtx, cancelRun := context.WithCancel(ctx)
-				require.Equal(t, context.Canceled, hm.Run(runCtx, helper.NewCountTicker(1, cancelRun)))
+				require.Equal(t, context.Canceled, hm.Run(runCtx, tick.NewCountTicker(1, cancelRun)))
 
 				// we need to sort the storages so the require.Equal matches, ElementsMatch does not work with a map.
 				actualHealthyNodes := hm.HealthyNodes()
@@ -579,7 +579,7 @@ func TestHealthManager_databaseTimeout(t *testing.T) {
 	// Run an update and leave the transaction open to block the other client.
 	blockingMgr := newHealthManager(blockingTx)
 	runCtx, cancelRun := context.WithCancel(ctx)
-	require.Equal(t, context.Canceled, blockingMgr.Run(runCtx, helper.NewCountTicker(1, cancelRun)))
+	require.Equal(t, context.Canceled, blockingMgr.Run(runCtx, tick.NewCountTicker(1, cancelRun)))
 
 	blockedMgr := newHealthManager(db)
 
@@ -593,7 +593,7 @@ func TestHealthManager_databaseTimeout(t *testing.T) {
 	blockedErr := make(chan error)
 	// This will block in database waiting for a lock.
 	go func() {
-		blockedErr <- blockedMgr.Run(ctx, helper.NewCountTicker(1, func() {}))
+		blockedErr <- blockedMgr.Run(ctx, tick.NewCountTicker(1, func() {}))
 	}()
 
 	// Wait until the blocked query is waiting.

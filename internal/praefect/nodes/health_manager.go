@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -89,7 +89,7 @@ func NewHealthManager(
 
 // Run runs the health check on every tick by the Ticker until the context is
 // canceled. Returns the error from the context.
-func (hm *HealthManager) Run(ctx context.Context, ticker helper.Ticker) error {
+func (hm *HealthManager) Run(ctx context.Context, ticker tick.Ticker) error {
 	hm.log.Info("health manager started")
 	defer hm.log.Info("health manager stopped")
 

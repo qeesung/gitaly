@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 )
 
 // ClusterPath represents path on the cluster to the storage.
@@ -75,7 +75,7 @@ func (ss *StorageCleanup) AcquireNextStorage(ctx context.Context, inactive, upda
 	stop := make(chan struct{}, 1)
 	stopped := make(chan struct{})
 	go func() {
-		trigger := helper.NewTimerTicker(updatePeriod - 100*time.Millisecond)
+		trigger := tick.NewTimerTicker(updatePeriod - 100*time.Millisecond)
 		defer func() {
 			trigger.Stop()
 			close(stopped)

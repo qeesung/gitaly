@@ -12,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/labkit/tracing"
 )
 
@@ -145,10 +145,10 @@ func watch(p *Process) {
 		go monitorHealth(p.healthCheck, p.events, p.Name, healthShutdown)
 	}
 
-	notificationTicker := helper.NewTimerTicker(1 * time.Minute)
+	notificationTicker := tick.NewTimerTicker(1 * time.Minute)
 	defer notificationTicker.Stop()
 
-	crashResetTicker := helper.NewTimerTicker(p.config.CrashResetTime)
+	crashResetTicker := tick.NewTimerTicker(p.config.CrashResetTime)
 	defer crashResetTicker.Stop()
 
 spawnLoop:

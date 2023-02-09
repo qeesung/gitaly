@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
@@ -61,7 +61,7 @@ func TestRateLimiter_pruneUnusedLimiters(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := testhelper.Context(t)
-			ticker := helper.NewManualTicker()
+			ticker := tick.NewManualTicker()
 			ch := make(chan struct{})
 			ticker.ResetFunc = func() {
 				ch <- struct{}{}

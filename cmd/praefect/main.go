@@ -77,7 +77,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/bootstrap/starter"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config/sentry"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
@@ -271,7 +271,7 @@ func run(
 				return fmt.Errorf("caching storage provider: %w", err)
 			}
 
-			resilientListenerTicker := helper.NewTimerTicker(5 * time.Second)
+			resilientListenerTicker := tick.NewTimerTicker(5 * time.Second)
 			notificationsListener := datastore.NewResilientListener(conf.DB, resilientListenerTicker, logger)
 			go func() {
 				err := notificationsListener.Listen(ctx, storagesCached, datastore.StorageRepositoriesUpdatesChannel, datastore.RepositoriesUpdatesChannel)
@@ -343,7 +343,7 @@ func run(
 
 		healthManager := nodes.NewHealthManager(logger, db, nodes.GeneratePraefectName(conf, logger), nodeSet.HealthClients())
 		go func() {
-			if err := healthManager.Run(ctx, helper.NewTimerTicker(time.Second)); err != nil {
+			if err := healthManager.Run(ctx, tick.NewTimerTicker(time.Second)); err != nil {
 				logger.WithError(err).Error("health manager exited")
 			}
 		}()
@@ -383,13 +383,13 @@ func run(
 			promreg.MustRegister(verifier)
 
 			go func() {
-				if err := verifier.Run(ctx, helper.NewTimerTicker(2*time.Second)); err != nil {
+				if err := verifier.Run(ctx, tick.NewTimerTicker(2*time.Second)); err != nil {
 					logger.WithError(err).Error("metadata verifier finished")
 				}
 			}()
 
 			go func() {
-				if err := verifier.RunExpiredLeaseReleaser(ctx, helper.NewTimerTicker(10*time.Second)); err != nil {
+				if err := verifier.RunExpiredLeaseReleaser(ctx, tick.NewTimerTicker(10*time.Second)); err != nil {
 					logger.WithError(err).Error("expired verification lease releaser finished")
 				}
 			}()
@@ -538,7 +538,7 @@ func run(
 
 	go repl.ProcessBacklog(ctx, praefect.ExpBackoffFactory{Start: time.Second, Max: 5 * time.Second})
 
-	staleTicker := helper.NewTimerTicker(30 * time.Second)
+	staleTicker := tick.NewTimerTicker(30 * time.Second)
 	defer staleTicker.Stop()
 
 	logger.Info("background started: processing of the replication events")
@@ -558,7 +558,7 @@ func run(
 			)
 			promreg.MustRegister(r)
 			go func() {
-				if err := r.Run(ctx, helper.NewTimerTicker(interval)); err != nil {
+				if err := r.Run(ctx, tick.NewTimerTicker(interval)); err != nil {
 					logger.WithError(err).Error("reconciler finished execution")
 				}
 			}()
@@ -575,7 +575,7 @@ func run(
 					RepositoriesInBatch: conf.RepositoriesCleanup.RepositoriesInBatch,
 				}
 				repoCleaner := repocleaner.NewRunner(cfg, logger, healthChecker, nodeSet.Connections(), storageSync, storageSync, repocleaner.NewLogWarnAction(logger))
-				if err := repoCleaner.Run(ctx, helper.NewTimerTicker(conf.RepositoriesCleanup.CheckInterval.Duration())); err != nil && !errors.Is(context.Canceled, err) {
+				if err := repoCleaner.Run(ctx, tick.NewTimerTicker(conf.RepositoriesCleanup.CheckInterval.Duration())); err != nil && !errors.Is(context.Canceled, err) {
 					logger.WithError(err).Error("repository cleaner finished execution")
 				} else {
 					logger.Info("repository cleaner finished execution")
@@ -588,7 +588,7 @@ func run(
 		logger.Warn(`Repository cleanup background task disabled as "repositories_cleanup.run_interval" is not set or 0.`)
 	}
 
-	gracefulStopTicker := helper.NewTimerTicker(conf.GracefulStopTimeout.Duration())
+	gracefulStopTicker := tick.NewTimerTicker(conf.GracefulStopTimeout.Duration())
 	defer gracefulStopTicker.Stop()
 
 	return b.Wait(gracefulStopTicker, srvFactory.GracefulStop)

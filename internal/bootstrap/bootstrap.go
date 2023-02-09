@@ -10,8 +10,8 @@ import (
 	"github.com/cloudflare/tableflip"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/env"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"golang.org/x/sys/unix"
 )
 
@@ -30,7 +30,7 @@ type Listener interface {
 	// Start starts all registered starters to accept connections.
 	Start() error
 	// Wait terminates all registered starters.
-	Wait(gracePeriodTicker helper.Ticker, stopAction func()) error
+	Wait(gracePeriodTicker tick.Ticker, stopAction func()) error
 }
 
 // Bootstrap handles graceful upgrades
@@ -165,7 +165,7 @@ func (b *Bootstrap) Start() error {
 // SIGTERM, SIGINT and a runtime error will trigger an immediate shutdown
 // in case of an upgrade there will be a grace period to complete the ongoing requests
 // stopAction will be invoked during a graceful stop. It must wait until the shutdown is completed.
-func (b *Bootstrap) Wait(gracePeriodTicker helper.Ticker, stopAction func()) error {
+func (b *Bootstrap) Wait(gracePeriodTicker tick.Ticker, stopAction func()) error {
 	signals := []os.Signal{syscall.SIGTERM, syscall.SIGINT}
 	immediateShutdown := make(chan os.Signal, len(signals))
 	signal.Notify(immediateShutdown, signals...)
@@ -193,7 +193,7 @@ func (b *Bootstrap) Wait(gracePeriodTicker helper.Ticker, stopAction func()) err
 	return err
 }
 
-func (b *Bootstrap) waitGracePeriod(gracePeriodTicker helper.Ticker, kill <-chan os.Signal, stopAction func()) error {
+func (b *Bootstrap) waitGracePeriod(gracePeriodTicker tick.Ticker, kill <-chan os.Signal, stopAction func()) error {
 	log.Warn("starting grace period")
 
 	allServersDone := make(chan struct{})
@@ -261,7 +261,7 @@ func (n *Noop) Start() error {
 }
 
 // Wait terminates all registered starters.
-func (n *Noop) Wait(_ helper.Ticker, stopAction func()) error {
+func (n *Noop) Wait(_ tick.Ticker, stopAction func()) error {
 	select {
 	case <-n.shutdown:
 		if stopAction != nil {

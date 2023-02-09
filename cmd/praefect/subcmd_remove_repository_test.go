@@ -20,7 +20,7 @@ import (
 	gitalycfg "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
@@ -339,7 +339,7 @@ func TestRemoveRepository_removeReplicationEvents(t *testing.T) {
 	require.Equal(t, []uint64{failedEvent.ID}, acknowledgedJobIDs)
 
 	resetCh := make(chan struct{})
-	ticker := helper.NewManualTicker()
+	ticker := tick.NewManualTicker()
 	ticker.ResetFunc = func() {
 		resetCh <- struct{}{}
 	}

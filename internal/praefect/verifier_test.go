@@ -21,7 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/setup"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
@@ -654,7 +654,7 @@ func TestVerifier(t *testing.T) {
 				hook.Reset()
 
 				runCtx, cancelRun := context.WithCancel(ctx)
-				err = verifier.Run(runCtx, helper.NewCountTicker(1, cancelRun))
+				err = verifier.Run(runCtx, tick.NewCountTicker(1, cancelRun))
 				require.Equal(t, context.Canceled, err)
 
 				// Ensure the removals and errors are correctly logged
@@ -826,7 +826,7 @@ func TestVerifier_runExpiredLeaseReleaser(t *testing.T) {
 	require.NoError(t, err)
 
 	runCtx, cancelRun := context.WithCancel(ctx)
-	ticker := helper.NewCountTicker(1, cancelRun)
+	ticker := tick.NewCountTicker(1, cancelRun)
 
 	err = verifier.RunExpiredLeaseReleaser(runCtx, ticker)
 	require.Equal(t, context.Canceled, err)

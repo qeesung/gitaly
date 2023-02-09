@@ -17,7 +17,7 @@ import (
 	repo "gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -86,7 +86,7 @@ func TestOptimizeReposRandomly(t *testing.T) {
 			tickerDone := false
 			tickerCount := 0
 
-			ticker := helper.NewManualTicker()
+			ticker := tick.NewManualTicker()
 			ticker.ResetFunc = func() {
 				tickerCount++
 				ticker.Tick()

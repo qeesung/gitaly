@@ -12,7 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/labkit/correlation"
@@ -171,7 +171,7 @@ func TestProcesses_EnforceTTL(t *testing.T) {
 func TestCache_autoExpiry(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	monitorTicker := helper.NewManualTicker()
+	monitorTicker := tick.NewManualTicker()
 
 	c := newCache(time.Hour, 10, monitorTicker)
 	defer c.Stop()
@@ -213,7 +213,7 @@ func TestCache_ObjectReader(t *testing.T) {
 
 	repoExecutor := newRepoExecutor(t, cfg, repo)
 
-	cache := newCache(time.Hour, 10, helper.NewManualTicker())
+	cache := newCache(time.Hour, 10, tick.NewManualTicker())
 	defer cache.Stop()
 
 	t.Run("uncacheable", func(t *testing.T) {
@@ -313,7 +313,7 @@ func TestCache_ObjectInfoReader(t *testing.T) {
 
 	repoExecutor := newRepoExecutor(t, cfg, repo)
 
-	cache := newCache(time.Hour, 10, helper.NewManualTicker())
+	cache := newCache(time.Hour, 10, tick.NewManualTicker())
 	defer cache.Stop()
 
 	t.Run("uncacheable", func(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"golang.org/x/time/rate"
@@ -22,7 +22,7 @@ type RateLimiter struct {
 	refillInterval                   time.Duration
 	burst                            int
 	requestsDroppedMetric            prometheus.Counter
-	ticker                           helper.Ticker
+	ticker                           tick.Ticker
 }
 
 // ErrRateLimit is returned when RateLimiter determined a request has breached
@@ -84,7 +84,7 @@ func (r *RateLimiter) pruneUnusedLimiters() {
 func NewRateLimiter(
 	refillInterval time.Duration,
 	burst int,
-	ticker helper.Ticker,
+	ticker tick.Ticker,
 	requestsDroppedMetric prometheus.Counter,
 ) *RateLimiter {
 	r := &RateLimiter{
@@ -109,7 +109,7 @@ func WithRateLimiters(ctx context.Context) SetupFunc {
 				rateLimiter := NewRateLimiter(
 					limitCfg.Interval.Duration(),
 					limitCfg.Burst,
-					helper.NewTimerTicker(5*time.Minute),
+					tick.NewTimerTicker(5*time.Minute),
 					middleware.requestsDroppedMetric.With(prometheus.Labels{
 						"system":       "gitaly",
 						"grpc_service": serviceName,

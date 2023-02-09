@@ -10,7 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v15/streamio"
@@ -62,7 +62,7 @@ func (s *server) sshUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveSer
 		return err
 	}
 
-	timeoutTicker := helper.NewTimerTicker(s.uploadArchiveRequestTimeout)
+	timeoutTicker := tick.NewTimerTicker(s.uploadArchiveRequestTimeout)
 
 	// upload-archive expects a list of options terminated by a flush packet:
 	// https://github.com/git/git/blob/v2.22.0/builtin/upload-archive.c#L38

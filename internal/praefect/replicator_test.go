@@ -26,7 +26,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/metadatahandler"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
@@ -831,7 +831,7 @@ func TestReplMgr_ProcessStale(t *testing.T) {
 		return 0, nil
 	})
 
-	ticker := helper.NewManualTicker()
+	ticker := tick.NewManualTicker()
 
 	done := mgr.ProcessStale(ctx, ticker, time.Second)
 	for i := 0; i < iterations; i++ {

@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -327,7 +327,7 @@ func (b *blockingDequeueCounter) Dequeued(context.Context) {
 func TestLimitConcurrency_queueWaitTime(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	ticker := helper.NewManualTicker()
+	ticker := tick.NewManualTicker()
 
 	dequeuedCh := make(chan struct{})
 	monitor := &blockingDequeueCounter{dequeuedCh: dequeuedCh}
@@ -335,7 +335,7 @@ func TestLimitConcurrency_queueWaitTime(t *testing.T) {
 	limiter := NewConcurrencyLimiter(
 		1,
 		0,
-		func() helper.Ticker {
+		func() tick.Ticker {
 			return ticker
 		},
 		monitor,

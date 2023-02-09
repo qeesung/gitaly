@@ -13,7 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/repository"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -64,7 +64,7 @@ func setupObjectReader(t *testing.T, ctx context.Context) (config.Cfg, ObjectCon
 	})
 	repoExecutor := newRepoExecutor(t, cfg, repo)
 
-	cache := newCache(1*time.Hour, 1000, helper.NewTimerTicker(defaultEvictionInterval))
+	cache := newCache(1*time.Hour, 1000, tick.NewTimerTicker(defaultEvictionInterval))
 	t.Cleanup(cache.Stop)
 
 	objectReader, cancel, err := cache.ObjectReader(ctx, repoExecutor)

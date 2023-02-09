@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
@@ -75,7 +75,7 @@ func NewRunner(cfg Cfg, logger logrus.FieldLogger, healthChecker praefect.Health
 // Run scans healthy gitaly nodes for the repositories, verifies if
 // found repositories are known by praefect and runs a special action.
 // It runs on each tick of the provided ticker and finishes with context cancellation.
-func (gs *Runner) Run(ctx context.Context, ticker helper.Ticker) error {
+func (gs *Runner) Run(ctx context.Context, ticker tick.Ticker) error {
 	gs.logger.Info("started")
 	defer gs.logger.Info("completed")
 
@@ -89,7 +89,7 @@ func (gs *Runner) Run(ctx context.Context, ticker helper.Ticker) error {
 		}
 	}
 
-	var tick helper.Ticker
+	var tick tick.Ticker
 	for {
 		// We use a local tick variable to run the first cycle
 		// without wait. All the other iterations are waiting

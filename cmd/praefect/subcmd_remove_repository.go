@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
@@ -125,7 +125,7 @@ func (cmd *removeRepository) exec(ctx context.Context, logger logrus.FieldLogger
 		return nil
 	}
 
-	ticker := helper.NewTimerTicker(time.Second)
+	ticker := tick.NewTimerTicker(time.Second)
 	defer ticker.Stop()
 
 	if cmd.dbOnly {
@@ -181,18 +181,18 @@ func (cmd *removeRepository) removeRepository(ctx context.Context, repo *gitalyp
 	return true, nil
 }
 
-func (cmd *removeRepository) removeReplicationEvents(ctx context.Context, logger logrus.FieldLogger, db *sql.DB, ticker helper.Ticker) error {
+func (cmd *removeRepository) removeReplicationEvents(ctx context.Context, logger logrus.FieldLogger, db *sql.DB, periodicTicker tick.Ticker) error {
 	// Wait for the completion of the repository replication jobs.
 	// As some of them could be a repository creation jobs we need to remove those newly created
 	// repositories after replication finished.
 	start := time.Now()
-	var tick helper.Ticker
+	var tick tick.Ticker
 	for found := true; found; {
 		if tick != nil {
 			tick.Reset()
 			<-tick.C()
 		} else {
-			tick = ticker
+			tick = periodicTicker
 		}
 
 		if int(time.Since(start).Seconds())%5 == 0 {

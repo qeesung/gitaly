@@ -16,7 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/setup"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore"
@@ -194,7 +194,7 @@ func TestRunner_Run(t *testing.T) {
 		},
 	})
 
-	ticker := helper.NewManualTicker()
+	ticker := tick.NewManualTicker()
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -312,7 +312,7 @@ func TestRunner_Run_noAvailableStorages(t *testing.T) {
 			},
 		})
 		ctx, cancel := context.WithCancel(testhelper.Context(t))
-		ticker := helper.NewManualTicker()
+		ticker := tick.NewManualTicker()
 
 		done := make(chan struct{})
 		go func() {
@@ -340,7 +340,7 @@ func TestRunner_Run_noAvailableStorages(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		assert.Equal(t, context.Canceled, runner.Run(ctx, helper.NewManualTicker()))
+		assert.Equal(t, context.Canceled, runner.Run(ctx, tick.NewManualTicker()))
 	}()
 	// Once the second runner completes we can proceed with execution of the first.
 	waitReceive(t, releaseFirst)

@@ -17,7 +17,7 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/config"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
@@ -193,7 +193,7 @@ func TestResilientListener_Listen(t *testing.T) {
 
 	lis := NewResilientListener(
 		testdb.GetConfig(t, db.Name),
-		helper.NewCountTicker(1, func() {}),
+		tick.NewCountTicker(1, func() {}),
 		logger,
 	)
 	done := make(chan struct{})

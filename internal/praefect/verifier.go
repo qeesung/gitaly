@@ -9,7 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/praefect/datastore/glsql"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 )
@@ -114,7 +114,7 @@ type verificationResult struct {
 }
 
 // Run runs the metadata verifier. It keeps running until the context is canceled.
-func (v *MetadataVerifier) Run(ctx context.Context, ticker helper.Ticker) error {
+func (v *MetadataVerifier) Run(ctx context.Context, ticker tick.Ticker) error {
 	defer ticker.Stop()
 
 	for {
@@ -133,7 +133,7 @@ func (v *MetadataVerifier) Run(ctx context.Context, ticker helper.Ticker) error 
 
 // RunExpiredLeaseReleaser releases expired leases on every tick. It keeps running until the context is
 // canceled.
-func (v *MetadataVerifier) RunExpiredLeaseReleaser(ctx context.Context, ticker helper.Ticker) error {
+func (v *MetadataVerifier) RunExpiredLeaseReleaser(ctx context.Context, ticker tick.Ticker) error {
 	defer ticker.Stop()
 
 	for {

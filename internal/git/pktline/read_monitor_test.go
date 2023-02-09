@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/testhelper"
 )
 
@@ -27,7 +27,7 @@ func TestReadMonitorTimeout(t *testing.T) {
 	r, monitor, cleanup, err := NewReadMonitor(ctx, in)
 	require.NoError(t, err)
 
-	timeoutTicker := helper.NewManualTicker()
+	timeoutTicker := tick.NewManualTicker()
 
 	startTime := time.Now()
 	go monitor.Monitor(ctx, PktDone(), timeoutTicker, cancel)
@@ -67,7 +67,7 @@ func TestReadMonitorSuccess(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	timeoutTicker := helper.NewManualTicker()
+	timeoutTicker := tick.NewManualTicker()
 
 	stopCh := make(chan interface{})
 	timeoutTicker.StopFunc = func() {

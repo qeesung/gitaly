@@ -6,7 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/ps"
 )
 
@@ -35,7 +35,7 @@ type monitorProcess struct {
 func monitorRss(procs <-chan monitorProcess, done chan<- struct{}, events chan<- Event, name string, threshold int) {
 	log.WithField("supervisor.name", name).WithField("supervisor.rss_threshold", threshold).Info("starting RSS monitor")
 
-	t := helper.NewTimerTicker(15 * time.Second)
+	t := tick.NewTimerTicker(15 * time.Second)
 	defer t.Stop()
 
 	defer close(done)

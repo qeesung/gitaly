@@ -22,7 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/config"
 	hookPkg "gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/hook"
-	"gitlab.com/gitlab-org/gitaly/v15/internal/helper"
+	"gitlab.com/gitlab-org/gitaly/v15/internal/helper/tick"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/metadata/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/middleware/limithandler"
 	"gitlab.com/gitlab-org/gitaly/v15/internal/streamcache"
@@ -641,7 +641,7 @@ func testPackObjectsConcurrency(t *testing.T, ctx context.Context) {
 		keyType = "user"
 	}
 
-	ticker := helper.NewManualTicker()
+	ticker := tick.NewManualTicker()
 	monitor := limithandler.NewPackObjectsConcurrencyMonitor(
 		keyType,
 		cfg.Prometheus.GRPCLatencyBuckets,
@@ -649,7 +649,7 @@ func testPackObjectsConcurrency(t *testing.T, ctx context.Context) {
 	limiter := limithandler.NewConcurrencyLimiter(
 		1,
 		0,
-		func() helper.Ticker { return ticker },
+		func() tick.Ticker { return ticker },
 		monitor,
 	)
 
