@@ -39,6 +39,8 @@ type HealthManager struct {
 	// clients contains connections to the configured physical storages within each
 	// virtual storage.
 	clients HealthClients
+	// Tracks the time of the first not ready event per node
+	notReadyTracker sync.Map
 	// praefectName is the identifier of the Praefect running the HealthManager. It should
 	// be stable through the restarts as they are used to identify quorum members.
 	praefectName string
@@ -73,6 +75,7 @@ func NewHealthManager(
 			log.WithError(err).Error("checking health failed")
 			return nil
 		},
+		notReadyTracker:    sync.Map{},
 		praefectName:       praefectName,
 		healthCheckTimeout: healthcheckTimeout,
 		databaseTimeout: func(ctx context.Context) (context.Context, func()) {
@@ -102,8 +105,8 @@ func (hm *HealthManager) Run(ctx context.Context, ticker helper.Ticker) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C():
-			virtualStorages, physicalStorages, healthy := hm.performHealthChecks(ctx)
-			if err := hm.updateHealthChecks(ctx, virtualStorages, physicalStorages, healthy); err != nil {
+			virtualStorages, physicalStorages, healthy, ready := hm.performHealthChecks(ctx)
+			if err := hm.updateHealthChecks(ctx, virtualStorages, physicalStorages, healthy, ready); err != nil {
 				if err := hm.handleError(err); err != nil {
 					return err
 				}
@@ -126,7 +129,7 @@ func (hm *HealthManager) HealthyNodes() map[string][]string {
 	return hm.locallyHealthy.Load().(map[string][]string)
 }
 
-func (hm *HealthManager) updateHealthChecks(ctx context.Context, virtualStorages, physicalStorages []string, healthy []bool) error {
+func (hm *HealthManager) updateHealthChecks(ctx context.Context, virtualStorages, physicalStorages []string, healthy []bool, ready []bool) error {
 	locallyHealthy := map[string][]string{}
 	for i := range virtualStorages {
 		if !healthy[i] {
@@ -143,11 +146,11 @@ func (hm *HealthManager) updateHealthChecks(ctx context.Context, virtualStorages
 
 	if _, err := hm.db.ExecContext(ctx, `
 INSERT INTO node_status (praefect_name, shard_name, node_name, last_contact_attempt_at, last_seen_active_at)
-SELECT $1, shard_name, node_name, NOW(), CASE WHEN is_healthy THEN NOW() ELSE NULL END
+SELECT $1, shard_name, node_name, NOW(), CASE WHEN is_ready THEN NOW() ELSE NULL END
 FROM (
     SELECT unnest($2::text[]) AS shard_name,
            unnest($3::text[]) AS node_name,
-           unnest($4::boolean[]) AS is_healthy
+           unnest($4::boolean[]) AS is_ready
     ORDER BY shard_name, node_name
 ) AS results
 ON CONFLICT (praefect_name, shard_name, node_name)
@@ -158,7 +161,7 @@ ON CONFLICT (praefect_name, shard_name, node_name)
 		hm.praefectName,
 		virtualStorages,
 		physicalStorages,
-		healthy,
+		ready,
 	); err != nil {
 		return fmt.Errorf("update checks: %w", err)
 	}
@@ -171,7 +174,7 @@ ON CONFLICT (praefect_name, shard_name, node_name)
 	return nil
 }
 
-func (hm *HealthManager) performHealthChecks(ctx context.Context) ([]string, []string, []bool) {
+func (hm *HealthManager) performHealthChecks(ctx context.Context) ([]string, []string, []bool, []bool) {
 	nodeCount := 0
 	for _, physicalStorages := range hm.clients {
 		nodeCount += len(physicalStorages)
@@ -180,6 +183,7 @@ func (hm *HealthManager) performHealthChecks(ctx context.Context) ([]string, []s
 	virtualStorages := make([]string, nodeCount)
 	physicalStorages := make([]string, nodeCount)
 	healthy := make([]bool, nodeCount)
+	ready := make([]bool, nodeCount)
 
 	var wg sync.WaitGroup
 	wg.Add(nodeCount)
@@ -198,16 +202,34 @@ func (hm *HealthManager) performHealthChecks(ctx context.Context) ([]string, []s
 				correlationID := correlation.SafeRandomID()
 				ctx := correlation.ContextWithCorrelation(ctx, correlationID)
 				resp, err := client.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+				logger := hm.log.WithFields(logrus.Fields{
+					logrus.ErrorKey:   err,
+					"virtual_storage": virtualStorages[i],
+					"storage":         physicalStorages[i],
+					"correlation_id":  correlationID,
+				})
 				if err != nil {
-					hm.log.WithFields(logrus.Fields{
-						logrus.ErrorKey:   err,
-						"virtual_storage": virtualStorages[i],
-						"storage":         physicalStorages[i],
-						"correlation_id":  correlationID,
-					}).Error("failed checking node health")
+					logger.Error("failed checking node health")
 				}
 
-				healthy[i] = resp != nil && resp.Status == grpc_health_v1.HealthCheckResponse_SERVING
+				// We consider any responses from gitaly node as healthy
+				healthy[i] = resp != nil
+				// We consider only `HealthCheckResponse_SERVING` as not ready
+				ready[i] = resp != nil && resp.Status == grpc_health_v1.HealthCheckResponse_SERVING
+
+				key := fmt.Sprintf("%s-%s", virtualStorages[i], physicalStorages[i])
+				if !ready[i] && healthy[i] {
+					actual, _ := hm.notReadyTracker.LoadOrStore(key, time.Now())
+					lastReadyState := actual.(time.Time)
+					if time.Since(lastReadyState) > 12*time.Second {
+						healthy[i] = false
+						logger.Warn("node not ready since more than 12s, making it unhealthy")
+					} else {
+						logger.Warnf("node not ready since %s", time.Since(lastReadyState))
+					}
+				} else {
+					hm.notReadyTracker.Delete(key)
+				}
 			}(i, client)
 			i++
 		}
@@ -215,5 +237,5 @@ func (hm *HealthManager) performHealthChecks(ctx context.Context) ([]string, []s
 
 	wg.Wait()
 
-	return virtualStorages, physicalStorages, healthy
+	return virtualStorages, physicalStorages, healthy, ready
 }

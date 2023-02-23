@@ -637,20 +637,20 @@ func TestHealthManager_orderedWrites(t *testing.T) {
 
 	hm1 := NewHealthManager(testhelper.NewDiscardingLogger(t), tx1, praefectName, nil)
 	hm1.handleError = returnErr
-	require.NoError(t, hm1.updateHealthChecks(ctx, []string{virtualStorage}, []string{"gitaly-1"}, []bool{true}))
+	require.NoError(t, hm1.updateHealthChecks(ctx, []string{virtualStorage}, []string{"gitaly-1"}, []bool{true}, []bool{true}))
 
 	tx2Err := make(chan error, 1)
 	hm2 := NewHealthManager(testhelper.NewDiscardingLogger(t), tx2, praefectName, nil)
 	hm2.handleError = returnErr
 	go func() {
-		tx2Err <- hm2.updateHealthChecks(ctx, []string{virtualStorage, virtualStorage}, []string{"gitaly-2", "gitaly-1"}, []bool{true, true})
+		tx2Err <- hm2.updateHealthChecks(ctx, []string{virtualStorage, virtualStorage}, []string{"gitaly-2", "gitaly-1"}, []bool{true, true}, []bool{true, true})
 	}()
 
 	// Wait for tx2 to be blocked on the gitaly-1 lock acquired by tx1
 	testdb.WaitForBlockedQuery(t, ctx, db, "INSERT INTO node_status")
 
 	// Ensure tx1 can acquire lock on gitaly-2.
-	require.NoError(t, hm1.updateHealthChecks(ctx, []string{virtualStorage}, []string{"gitaly-2"}, []bool{true}))
+	require.NoError(t, hm1.updateHealthChecks(ctx, []string{virtualStorage}, []string{"gitaly-2"}, []bool{true}, []bool{true}))
 	// Committing tx1 releases locks and unblocks tx2.
 	require.NoError(t, tx1.Commit())
 
