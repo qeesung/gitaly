@@ -50,6 +50,8 @@ import (
 	"gitlab.com/gitlab-org/labkit/monitoring"
 	labkittracing "gitlab.com/gitlab-org/labkit/tracing"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 var flagVersion = flag.Bool("version", false, "Print version and exit")
@@ -327,6 +329,8 @@ func run(cfg config.Cfg) error {
 	concurrencyTracker := hook.NewConcurrencyTracker()
 	prometheus.MustRegister(concurrencyTracker)
 
+	var healthServers []*health.Server
+
 	for _, c := range []starter.Config{
 		{Name: starter.Unix, Addr: cfg.SocketPath, HandoverOnUpgrade: true},
 		{Name: starter.Unix, Addr: cfg.InternalSocketPath(), HandoverOnUpgrade: false},
@@ -368,6 +372,9 @@ func run(cfg config.Cfg) error {
 			HousekeepingManager:           housekeepingManager,
 		})
 		b.RegisterStarter(starter.New(c, srv))
+		healthServer := health.NewServer()
+		healthServers = append(healthServers, healthServer)
+		healthpb.RegisterHealthServer(srv, healthServer)
 	}
 
 	if addr := cfg.PrometheusListenAddr; addr != "" {
@@ -427,5 +434,15 @@ func run(cfg config.Cfg) error {
 	gracefulStopTicker := helper.NewTimerTicker(cfg.GracefulRestartTimeout.Duration())
 	defer gracefulStopTicker.Stop()
 
-	return b.Wait(gracefulStopTicker, gitalyServerFactory.GracefulStop)
+	return b.Wait(gracefulStopTicker, func() {
+		log.Info("Making gitaly server unhealthy")
+		for _, healthServer := range healthServers {
+			healthServer.Shutdown()
+		}
+
+		// Wait for praefect to shut down
+		time.Sleep(20 * time.Second)
+
+		gitalyServerFactory.GracefulStop()
+	})
 }

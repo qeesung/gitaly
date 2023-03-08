@@ -23,8 +23,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v15/internal/gitaly/service/ssh"
 	"gitlab.com/gitlab-org/gitaly/v15/proto/go/gitalypb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -147,7 +145,6 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 	))
 	gitalypb.RegisterInternalGitalyServer(srv, internalgitaly.NewServer(deps.GetCfg().Storages))
 
-	healthpb.RegisterHealthServer(srv, health.NewServer())
 	reflection.Register(srv)
 	grpcprometheus.Register(srv)
 }

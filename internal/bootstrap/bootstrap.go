@@ -185,7 +185,10 @@ func (b *Bootstrap) Wait(gracePeriodTicker helper.Ticker, stopAction func()) err
 
 		err = fmt.Errorf("graceful upgrade: %v", waitError)
 	case s := <-immediateShutdown:
-		err = fmt.Errorf("received signal %q", s)
+		// On a kubernetes context, a statefulSet shutdown the old gitaly before starting the new one
+		// So we need to gracefully wait for request to be done before quitting
+		waitError := b.waitGracePeriod(gracePeriodTicker, immediateShutdown, stopAction)
+		err = fmt.Errorf("received signal %q %v", s, waitError)
 		b.upgrader.Stop()
 	case err = <-b.errChan:
 	}
