@@ -96,8 +96,34 @@ func TestDatalossSubcommand(t *testing.T) {
 			error: unexpectedPositionalArgsError{Command: "dataloss"},
 		},
 		{
+			desc:  "the fully-available flag is not permitted to appear with a partially-unavailable flag",
+			args:  []string{"-virtual-storage=virtual-storage-1", "-fully-unavailable", "-partially-unavailable"},
+			error: errDatalossFlagsConflict,
+		},
+		{
+			desc: "check deprecated partially-unavailable flag could work for backward compatibility",
+			args: []string{"-virtual-storage=virtual-storage-1", "-partially-unavailable"},
+			output: `Virtual storage: virtual-storage-1
+  Repositories:
+    repository-1:
+      Primary: gitaly-1
+      In-Sync Storages:
+        gitaly-1, assigned host
+      Outdated Storages:
+        gitaly-2 is behind by 1 change or less, assigned host, unhealthy
+        gitaly-3 is behind by 1 change or less
+    repository-2 (unavailable):
+      Primary: gitaly-3
+      In-Sync Storages:
+        gitaly-2, unhealthy
+      Outdated Storages:
+        gitaly-1 is behind by 2 changes or less, assigned host
+        gitaly-3 is behind by 1 change or less, assigned host
+`,
+		},
+		{
 			desc: "data loss with unavailable repositories",
-			args: []string{"-virtual-storage=virtual-storage-1"},
+			args: []string{"-virtual-storage=virtual-storage-1", "-fully-unavailable"},
 			output: `Virtual storage: virtual-storage-1
   Repositories:
     repository-2 (unavailable):
@@ -111,7 +137,7 @@ func TestDatalossSubcommand(t *testing.T) {
 		},
 		{
 			desc: "data loss with partially unavailable repositories",
-			args: []string{"-virtual-storage=virtual-storage-1", "-partially-unavailable"},
+			args: []string{"-virtual-storage=virtual-storage-1"},
 			output: `Virtual storage: virtual-storage-1
   Repositories:
     repository-1:
@@ -133,6 +159,7 @@ func TestDatalossSubcommand(t *testing.T) {
 		{
 			desc:            "multiple virtual storages with unavailable repositories",
 			virtualStorages: []*config.VirtualStorage{{Name: "virtual-storage-2"}, {Name: "virtual-storage-1"}},
+			args:            []string{"-fully-unavailable"},
 			output: `Virtual storage: virtual-storage-1
   Repositories:
     repository-2 (unavailable):
@@ -148,7 +175,6 @@ Virtual storage: virtual-storage-2
 		},
 		{
 			desc:            "multiple virtual storages with partially unavailable repositories",
-			args:            []string{"-partially-unavailable"},
 			virtualStorages: []*config.VirtualStorage{{Name: "virtual-storage-2"}, {Name: "virtual-storage-1"}},
 			output: `Virtual storage: virtual-storage-1
   Repositories:
