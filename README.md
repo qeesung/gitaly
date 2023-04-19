@@ -71,7 +71,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Name
 
 Gitaly is a tribute to Git and the town of [Aly](https://en.wikipedia.org/wiki/Aly). Where the town of
-Aly has zero inhabitants most of the year we would like to reduce the number of
+Aly has zero inhabitants most of the year, we would like to reduce the number of
 disk operations to zero for most actions. It doesn't hurt that it sounds like
 Italy, the capital of which is [the destination of all roads](https://en.wikipedia.org/wiki/All_roads_lead_to_Rome). All Git actions in
 GitLab end up in Gitaly.
@@ -115,7 +115,7 @@ by assigning one or more standby servers ("secondaries") to it, each of
 which contains a full copy of all the repository data on the primary
 Gitaly server.
 
-To implement this we are building a new GitLab component called
+To implement this, we are building a new GitLab component called
 Praefect, which is hosted alongside the rest of Gitaly in this
 repository. As we currently envision it, Praefect will have four
 responsibilities:
