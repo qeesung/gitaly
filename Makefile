@@ -437,8 +437,7 @@ lint-docs:
 ## Test Go tests in tools/golangci-lint/gitaly folder
 ## That folder has its own go.mod file. Hence linter must run the context of that folder.
 lint-gitaly-linters: ${GOLANGCI_LINT} ${TOOLS_DIR}/gitaly-linters.so
-	${Q}cd ${SOURCE_DIR}/tools/golangci-lint/gitaly
-	${Q}${GOLANGCI_LINT} run --out-format tab --config ${GOLANGCI_LINT_CONFIG} .
+	${Q}cd ${SOURCE_DIR}/tools/golangci-lint/gitaly && ${GOLANGCI_LINT} run --out-format tab --config ${GOLANGCI_LINT_CONFIG} .
 
 .PHONY: format
 ## Run Go formatter and adjust imports.
