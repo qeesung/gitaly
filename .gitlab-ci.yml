@@ -516,7 +516,7 @@ build-package-and-qa:
       allow_failure: true
 
 qa:nightly-praefect-migration-test:
-  needs: []
+  needs: [job: ]
   stage: qa
   trigger:
     project: gitlab-org/quality/praefect-migration-testing
