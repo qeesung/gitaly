@@ -121,17 +121,12 @@ func TestListStoragesSubcommand(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			var expectedOutput bytes.Buffer
 			table := tablewriter.NewWriter(&expectedOutput)
-			table.SetHeader([]string{"VIRTUAL_STORAGE", "NODE", "ADDRESS"})
+			table.SetHeader([]string{"Virtual storage", "Gitaly node", "Gitaly node address"})
 			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 			table.SetAutoFormatHeaders(false)
 			table.SetAlignment(tablewriter.ALIGN_LEFT)
-			table.SetCenterSeparator("")
-			table.SetColumnSeparator("")
-			table.SetRowSeparator("")
-			table.SetHeaderLine(false)
-			table.SetBorder(false)
-			table.SetTablePadding("\t") // pad with tabs
-			table.SetNoWhiteSpace(true)
+			table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+			table.SetCenterSeparator("|")
 			tc.expectedOutput(table)
 			table.Render()
 

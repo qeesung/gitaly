@@ -11,10 +11,13 @@ import (
 func newDialNodesCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "dial-nodes",
-		Usage: "check connection with remote nodes",
-		Description: "The subcommand \"dial-nodes\" helps diagnose connection problems to Gitaly or\n" +
-			"Praefect. The subcommand works by sourcing the connection information from\n" +
-			"the config file, and then dialing and health checking the remote nodes.",
+		Usage: "check connections",
+		Description: `Check connections with Gitaly nodes.
+
+Diagnoses connection problems with Gitaly or Praefect. Sources connection information from the
+configuration file, and then dials and health checks the nodes.
+
+Example: _build/bin/praefect --config praefect.config.toml dial-nodes`,
 		HideHelpCommand: true,
 		Action:          dialNodesAction,
 		Flags: []cli.Flag{
