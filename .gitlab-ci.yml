@@ -39,7 +39,9 @@ variables:
   # chosen as a semi-random value so as to not interfer with any preexisting
   # users.
   TEST_UID: 9999
-  RAILS_BRANCH_FOR_MERGE_REQUEST: "gitaly-merge-requests-$CI_MERGE_REQUEST_IID"
+  RAILS_BRANCH_FOR_JOB: "gitaly-ci-jobs-$CI_COMMIT_SHORT_SHA-$CI_PIPELINE_ID"
+  BRANCH_VARIABLE: "wchandler-downstream-test-$GIT_VERSION"
+  CI_DEBUG_TRACE: 1
 
 include:
   - template: Security/License-Scanning.gitlab-ci.yml
@@ -521,16 +523,16 @@ start-rails-specs:
   stage: qa
   script:
     - |
-      curl --request POST --header "PRIVATE-TOKEN: $GITLAB_PROJECT_TOKEN" \
-      "https://gitlab.com/api/v4/projects/278964/repository/branches?branch=$RAILS_BRANCH_FOR_MERGE_REQUEST&ref=master"
+      curl --fail --request POST --header "PRIVATE-TOKEN: $GITLAB_PROJECT_TOKEN" \
+      "https://gitlab.com/api/v4/projects/278964/repository/branches?ref=master&branch=$RAILS_BRANCH_FOR_JOB"
     - |
-      curl --request PUT --header "PRIVATE-TOKEN: $GITLAB_PROJECT_TOKEN" \
-      --data "branch=$RAILS_BRANCH_FOR_MERGE_REQUEST" \
-      --data "content=$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA" \
-      --data "commit_message=Updating GITALY_SERVER_VERSION to $CI_MERGE_REQUEST_SOURCE_BRANCH_SHA" \
-      https://gitlab.com/api/v4/projects/278964/repository/files/GITALY_SERVER_VERSION
+      curl --fail --request PUT --header "PRIVATE-TOKEN: $GITLAB_PROJECT_TOKEN" \
+      --data "branch=$RAILS_BRANCH_FOR_JOB" \
+      --data "content=$CI_COMMIT_SHA" \
+      --data "commit_message=Updating GITALY_SERVER_VERSION to $CI_COMMIT_SHA" \
+      "https://gitlab.com/api/v4/projects/278964/repository/files/GITALY_SERVER_VERSION"
   environment:
-    name: merge-requests/$CI_MERGE_REQUEST_IID
+    name: merge-requests/$RAILS_BRANCH_FOR_JOB
     on_stop: rails-specs-cleanup
   rules:
     - when: manual
@@ -541,23 +543,28 @@ rails-specs:
   stage: qa
   trigger:
     project: gitlab-org/gitlab
-    branch: "gitaly-merge-requests-$CI_MERGE_REQUEST_IID"
+    branch: $BRANCH_VARIABLE
     strategy: depend
   variables:
     GITALY_TEST: "true"
     FORCE_GITLAB_CI: "true"
-  allow_failure: true
+  rules:
+    - when: manual
+      allow_failure: true
 
 rails-specs-cleanup:
   stage: qa
   needs: ["rails-specs"]
   script:
     - |
-      curl --request DELETE --header "PRIVATE-TOKEN: $GITLAB_PROJECT_TOKEN" \
-      "https://gitlab.com/api/v4/projects/278964/repository/branches/$RAILS_BRANCH_FOR_MERGE_REQUEST"
+      curl --fail --request DELETE --header "PRIVATE-TOKEN: $GITLAB_PROJECT_TOKEN" \
+      "https://gitlab.com/api/v4/projects/278964/repository/branches/$RAILS_BRANCH_FOR_JOB"
   environment:
-    name: merge-requests/$CI_MERGE_REQUEST_IID
+    name: merge-requests/$RAILS_BRANCH_FOR_JOB
     action: stop
+  rules:
+    - when: manual
+      allow_failure: true
 
 cleanup-rails-spec-test-env:
   needs: ["rails-specs-cleanup"]
@@ -567,8 +574,8 @@ cleanup-rails-spec-test-env:
      - apt install -y jq
   script:
      - |
-       ENV_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: $GITALY_PROJECT_TOKEN" "https://gitlab.com/api/v4/projects/2009901/environments?name=merge-requests%2F$CI_MERGE_REQUEST_IID" | jq '.[0].id')
-       curl -s --request DELETE --header "PRIVATE-TOKEN: $GITALY_PROJECT_TOKEN" "https://gitlab.com/api/v4/projects/2009901/environments/$ENV_ID"
+       ENV_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: $GITALY_PROJECT_TOKEN" "https://gitlab.com/api/v4/projects/2009901/environments" --data-urlencode "name=merge-requests/$RAILS_BRANCH_FOR_JOB" | jq '.[0].id')
+       curl --fail -s --request DELETE --header "PRIVATE-TOKEN: $GITALY_PROJECT_TOKEN" "https://gitlab.com/api/v4/projects/2009901/environments/$ENV_ID"
 
 build-package-and-qa:
   needs: []
