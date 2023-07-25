@@ -14,9 +14,12 @@ func newConfigurationValidateCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "validate",
 		Usage: "validates configuration",
-		Description: "The command accepts configuration in toml format on STDIN. It applies " +
-			"validation rules to the received configuration and returns all the found " +
-			"validation errors in JSON format back on STDOUT.",
+		Description: `Validate Praefect configuration.
+
+Applies validation rules to Praefect configuration provided on stdin and returns validation
+errors in JSON format on stdout.
+
+Example: praefect configuration validate < praefect.config.toml`,
 		HideHelpCommand: true,
 		Action:          configurationValidateAction,
 	}

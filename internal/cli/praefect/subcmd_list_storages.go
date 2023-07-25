@@ -11,10 +11,21 @@ import (
 func newListStoragesCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "list-storages",
-		Usage: "show virtual storages and their associated storages",
-		Description: "This command lists virtual storages and their associated storages.\n" +
-			"Passing a virtual-storage argument will print out the storage associated with\n" +
-			"that particular virtual storage.\n",
+		Usage: "list virtual storages and their associated Gitaly nodes",
+		Description: `List virtual storages and Gitaly nodes associated with the virtual storages.
+
+Returns a table with the following columns:
+
+- Virtual storage: Name of the virtual storage Praefect provides to clients.
+- Gitaly node: Name of a Gitaly node that manages storage for the virtual storage.
+- Gitaly node address: Address of the Gitaly node that manages storage for the virtual storage.
+
+If the virtual-storage flag:
+
+- Is specified, list only Gitaly nodes for a particular virtual storage.
+- Is not specified, list Gitaly nodes for all virtual storages.
+
+Example: praefect --config praefect.config.toml list-storages --virtual-storage default`,
 		HideHelpCommand: true,
 		Action:          listStoragesAction,
 		Flags: []cli.Flag{
@@ -41,17 +52,12 @@ func listStoragesAction(ctx *cli.Context) error {
 	}
 
 	table := tablewriter.NewWriter(ctx.App.Writer)
-	table.SetHeader([]string{"VIRTUAL_STORAGE", "NODE", "ADDRESS"})
+	table.SetHeader([]string{"Virtual storage", "Gitaly node", "Gitaly node address"})
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAutoFormatHeaders(false)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderLine(false)
-	table.SetBorder(false)
-	table.SetTablePadding("\t") // pad with tabs
-	table.SetNoWhiteSpace(true)
+	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+	table.SetCenterSeparator("|")
 
 	if pickedVirtualStorage := ctx.String(paramVirtualStorage); pickedVirtualStorage != "" {
 		for _, virtualStorage := range conf.VirtualStorages {

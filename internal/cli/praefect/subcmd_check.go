@@ -14,9 +14,11 @@ import (
 
 func newCheckCommand(checkFuncs []service.CheckFunc) *cli.Command {
 	return &cli.Command{
-		Name:            "check",
-		Usage:           "run startup checks",
-		Description:     "Run Praefect startup checks.",
+		Name:  "check",
+		Usage: "run startup checks",
+		Description: `Run Praefect startup checks.
+
+Example: praefect --config praefect.config.toml check`,
 		HideHelpCommand: true,
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
