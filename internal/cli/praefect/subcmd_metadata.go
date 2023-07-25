@@ -12,12 +12,23 @@ import (
 func newMetadataCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "metadata",
-		Usage: "show metadata information about repository",
-		Description: "The command provides metadata information about the repository. It includes " +
-			"identifier of the repository, path on the disk for it and it's replicas, information " +
-			"about replicas such as if it is assigned or not, its generation, health state, the storage, " +
-			"if it is a valid primary, etc. It can be invoked by providing repository identifier or " +
-			"virtual repository name and relative path.",
+		Usage: "show metadata about a repository",
+		Description: `Show detailed information about a repository. To specify a repository, provide either:
+
+- A repository ID.
+- A virtual storage and Gitaly relative path.
+
+The output includes the following information about the specified repositry:
+
+- Repository ID.
+- Virtual storage.
+- Which Gitaly node is the primary.
+- Detailed information about Gitaly nodes.
+
+Examples:
+
+- praefect --config praefect.config.toml metadata --repository-id 1
+- praefect --config praefect.config.toml metadata --virtual-storage default --relative-path <gitaly_relative_path>`,
 		HideHelpCommand: true,
 		Action:          metadataAction,
 		Flags: []cli.Flag{
@@ -75,7 +86,7 @@ func metadataAction(appCtx *cli.Context) error {
 			},
 		}
 	default:
-		return errors.New("repository id or virtual storage and relative path required")
+		return errors.New("repository ID or virtual storage and relative path required")
 	}
 
 	nodeAddr, err := getNodeAddress(conf)
@@ -95,14 +106,14 @@ func metadataAction(appCtx *cli.Context) error {
 	}
 
 	fmt.Fprintf(appCtx.App.Writer, "Repository ID: %d\n", metadata.RepositoryId)
-	fmt.Fprintf(appCtx.App.Writer, "Virtual Storage: %q\n", metadata.VirtualStorage)
-	fmt.Fprintf(appCtx.App.Writer, "Relative Path: %q\n", metadata.RelativePath)
-	fmt.Fprintf(appCtx.App.Writer, "Replica Path: %q\n", metadata.ReplicaPath)
-	fmt.Fprintf(appCtx.App.Writer, "Primary: %q\n", metadata.Primary)
+	fmt.Fprintf(appCtx.App.Writer, "Virtual storage: %q\n", metadata.VirtualStorage)
+	fmt.Fprintf(appCtx.App.Writer, "Gitaly relative path: %q\n", metadata.RelativePath)
+	fmt.Fprintf(appCtx.App.Writer, "Replica path: %q\n", metadata.ReplicaPath)
+	fmt.Fprintf(appCtx.App.Writer, "Primary Gitaly node: %q\n", metadata.Primary)
 	fmt.Fprintf(appCtx.App.Writer, "Generation: %d\n", metadata.Generation)
-	fmt.Fprintf(appCtx.App.Writer, "Replicas:\n")
+	fmt.Fprintf(appCtx.App.Writer, "Gitaly nodes:\n")
 	for _, replica := range metadata.Replicas {
-		fmt.Fprintf(appCtx.App.Writer, "- Storage: %q\n", replica.Storage)
+		fmt.Fprintf(appCtx.App.Writer, "- Gitaly node: %q\n", replica.Storage)
 		fmt.Fprintf(appCtx.App.Writer, "  Assigned: %v\n", replica.Assigned)
 
 		generationText := fmt.Sprintf("%d, fully up to date", replica.Generation)

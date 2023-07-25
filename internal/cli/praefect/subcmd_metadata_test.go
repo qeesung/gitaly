@@ -47,7 +47,7 @@ func TestMetadataSubcommand(t *testing.T) {
 		},
 		{
 			desc:  "missing parameters fails",
-			error: errors.New("repository id or virtual storage and relative path required"),
+			error: errors.New("repository ID or virtual storage and relative path required"),
 		},
 		{
 			desc:  "repository id with virtual storage fails",
@@ -132,25 +132,25 @@ func TestMetadataSubcommand(t *testing.T) {
 			}
 
 			require.Equal(t, `Repository ID: 1
-Virtual Storage: "virtual-storage"
-Relative Path: "relative-path"
-Replica Path: "replica-path"
-Primary: "primary"
+Virtual storage: "virtual-storage"
+Gitaly relative path: "relative-path"
+Replica path: "replica-path"
+Primary Gitaly node: "primary"
 Generation: 1
-Replicas:
-- Storage: "primary"
+Gitaly nodes:
+- Gitaly node: "primary"
   Assigned: true
   Generation: 1, fully up to date
   Healthy: true
   Valid Primary: true
   Verified At: 2021-04-01 10:04:20 +0000 UTC
-- Storage: "secondary-1"
+- Gitaly node: "secondary-1"
   Assigned: true
   Generation: 0, behind by 1 changes
   Healthy: true
   Valid Primary: false
   Verified At: unverified
-- Storage: "secondary-2"
+- Gitaly node: "secondary-2"
   Assigned: true
   Generation: replica not yet created
   Healthy: false
