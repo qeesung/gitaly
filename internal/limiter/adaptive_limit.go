@@ -4,10 +4,10 @@ import "sync/atomic"
 
 // AdaptiveSetting is a struct that holds the configuration parameters for an adaptive limiter.
 type AdaptiveSetting struct {
-	Initial        int
-	Max            int
-	Min            int
-	BackoffBackoff float64
+	Initial       int
+	Max           int
+	Min           int
+	BackoffFactor float64
 }
 
 // AdaptiveLimiter is an interface for managing and updating adaptive limits.

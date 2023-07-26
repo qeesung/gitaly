@@ -262,7 +262,7 @@ func (c *AdaptiveCalculator) calibrateLimits(ctx context.Context) {
 			}).Debugf("Additive increase")
 		} else {
 			// Multiplicative decrease
-			newLimit = int(math.Floor(float64(limit.Current()) * setting.BackoffBackoff))
+			newLimit = int(math.Floor(float64(limit.Current()) * setting.BackoffFactor))
 			if newLimit < setting.Min {
 				newLimit = setting.Min
 			}
