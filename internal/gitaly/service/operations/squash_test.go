@@ -46,7 +46,6 @@ func TestUserSquash_successful(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashSuccessful)
 }
@@ -108,7 +107,6 @@ func TestUserSquash_transaction(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashTransactional)
 }
@@ -229,7 +227,6 @@ func TestUserSquash_stableID(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashStableID)
 }
@@ -294,7 +291,6 @@ func TestUserSquash_threeWayMerge(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashThreeWayMerge)
 }
@@ -335,7 +331,6 @@ func TestUserSquash_splitIndex(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashSplitIndex)
 }
@@ -365,7 +360,6 @@ func TestUserSquash_renames(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashRenames)
 }
@@ -443,7 +437,6 @@ func TestUserSquash_missingFileOnTargetBranch(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashMissingFileOnTargetBranch)
 }
@@ -472,7 +465,6 @@ func TestUserSquash_emptyCommit(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashEmptyCommit)
 }
@@ -678,7 +670,6 @@ func TestUserSquash_conflicts(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashConflicts)
 }
@@ -734,7 +725,6 @@ func TestUserSquash_ancestry(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashAncestry)
 }
@@ -776,7 +766,6 @@ func TestUserSquash_gitError(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashGitError)
 }
@@ -885,7 +874,6 @@ func TestUserSquash_squashingMerge(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.SquashInGit,
 		featureflag.GPGSigning,
 	).Run(t, testUserSquashSquashingMerge)
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git2go"
@@ -87,11 +86,6 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		return "", structerr.NewInternal("creating quarantine: %w", err)
 	}
 
-	quarantineRepoPath, err := quarantineRepo.Path()
-	if err != nil {
-		return "", structerr.NewInternal("getting quarantine path: %w", err)
-	}
-
 	// We need to retrieve the start commit such that we can create the new commit with
 	// all parents of the start commit.
 	startCommit, err := quarantineRepo.ResolveRevision(ctx, git.Revision(req.GetStartSha()+"^{commit}"))
@@ -135,40 +129,21 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		message += "\n"
 	}
 
-	var commitID string
-	if featureflag.SquashInGit.IsEnabled(ctx) {
-		commitID, err = s.merge(
-			ctx,
-			quarantineRepo,
-			string(req.GetAuthor().GetName()),
-			string(req.GetAuthor().GetEmail()),
-			commitDate,
-			string(req.GetUser().GetName()),
-			string(req.GetUser().GetEmail()),
-			commitDate,
-			message,
-			startCommit.String(),
-			endCommit.String(),
-			true,
-			false,
-		)
-	} else {
-		commitID, err = s.mergeWithGit2Go(
-			ctx,
-			quarantineRepo,
-			quarantineRepoPath,
-			string(req.GetAuthor().GetName()),
-			string(req.GetAuthor().GetEmail()),
-			commitDate,
-			string(req.GetUser().GetName()),
-			string(req.GetUser().GetEmail()),
-			commitDate,
-			message,
-			startCommit.String(),
-			endCommit.String(),
-			true,
-		)
-	}
+	commitID, err := s.merge(
+		ctx,
+		quarantineRepo,
+		string(req.GetAuthor().GetName()),
+		string(req.GetAuthor().GetEmail()),
+		commitDate,
+		string(req.GetUser().GetName()),
+		string(req.GetUser().GetEmail()),
+		commitDate,
+		message,
+		startCommit.String(),
+		endCommit.String(),
+		true,
+		false,
+	)
 	if err != nil {
 		var conflictErr git2go.ConflictingFilesError
 
