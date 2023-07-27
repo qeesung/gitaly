@@ -23,7 +23,6 @@ func TestUserMergeToRef_successful(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.MergeToRefWithGit,
 	).Run(
 		t,
 		testUserMergeToRefSuccessful,
@@ -161,7 +160,6 @@ func TestUserMergeToRef_conflicts(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.MergeToRefWithGit,
 	).Run(
 		t,
 		testUserMergeToRefConflicts,
@@ -227,7 +225,6 @@ func TestUserMergeToRef_stableMergeID(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.MergeToRefWithGit,
 	).Run(
 		t,
 		testUserMergeToRefStableMergeID,
@@ -307,7 +304,6 @@ func testUserMergeToRefStableMergeID(t *testing.T, ctx context.Context) {
 func TestUserMergeToRef_failure(t *testing.T) {
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.MergeToRefWithGit,
 	).Run(t, testUserMergeToRefFailure)
 }
 
@@ -436,7 +432,6 @@ func TestUserMergeToRef_ignoreHooksRequest(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.MergeToRefWithGit,
 	).Run(
 		t,
 		testUserMergeToRefIgnoreHooksRequest,
