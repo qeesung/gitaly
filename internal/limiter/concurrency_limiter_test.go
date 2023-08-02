@@ -3,6 +3,7 @@ package limiter
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
@@ -86,9 +88,16 @@ func (c *counter) Dropped(_ context.Context, _ string, _ int, _ int, _ time.Dura
 	}
 }
 
-func TestLimiter(t *testing.T) {
+func TestLimiter_static(t *testing.T) {
 	t.Parallel()
 
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter).Run(t, func(t *testing.T, ctx context.Context) {
+		// Limiter works with static limits regardless of semaphore implementation
+		testLimiterStatic(t, ctx)
+	})
+}
+
+func testLimiterStatic(t *testing.T, ctx context.Context) {
 	tests := []struct {
 		name             string
 		concurrency      int
@@ -145,7 +154,6 @@ func TestLimiter(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			ctx := testhelper.Context(t)
 
 			expectedGaugeMax := tt.maxConcurrency * tt.buckets
 			if tt.maxConcurrency <= 0 {
@@ -155,7 +163,7 @@ func TestLimiter(t *testing.T) {
 			gauge := &counter{}
 
 			limiter := NewConcurrencyLimiter(
-				tt.maxConcurrency,
+				NewAdaptiveLimit("staticLimit", AdaptiveSetting{Initial: tt.maxConcurrency}),
 				0,
 				nil,
 				gauge,
@@ -229,6 +237,555 @@ func TestLimiter(t *testing.T) {
 	}
 }
 
+func TestLimiter_dynamic(t *testing.T) {
+	t.Parallel()
+
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter).Run(t, func(t *testing.T, ctx context.Context) {
+		if featureflag.UseResizableSemaphoreInConcurrencyLimiter.IsEnabled(ctx) {
+			testLimiterDynamic(t, ctx)
+		} else {
+			t.Skip("limiter.staticSemaphore does not support dynamic limiting")
+		}
+	})
+}
+
+func testLimiterDynamic(t *testing.T, ctx context.Context) {
+	t.Run("increase dynamic limit when there is no queuing request", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+		limiter := NewConcurrencyLimiter(limit, 10, nil, gauge)
+
+		// 5 requests acquired the tokens, the limiter is full now
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+
+		// Update the limit to 7
+		limit.Update(7)
+
+		// 2 more requests acquired the token. This proves the limit is expanded
+		release2, waitAfterRelease2 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 2)
+		require.Equal(t, 7, gauge.enter)
+
+		close(release1)
+		close(release2)
+		waitAfterRelease1()
+		waitAfterRelease2()
+		require.Equal(t, 7, gauge.exit)
+	})
+
+	t.Run("decrease dynamic limit when there is no queuing request", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+		limiter := NewConcurrencyLimiter(limit, 10, nil, gauge)
+
+		// 3 requests acquired the tokens, 2 slots left
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 3)
+		require.Equal(t, 3, gauge.enter)
+		require.Equal(t, 3, gauge.queued)
+
+		// Update the limit to 3
+		limit.Update(3)
+
+		// 2 requests are put in queue, meaning the limit shrinks down
+		waitAcquired2, release2, waitAfterRelease2 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 2)
+		require.Equal(t, 3, gauge.enter)
+		require.Equal(t, 5, gauge.queued)
+
+		// Release first 3 requests
+		close(release1)
+		waitAfterRelease1()
+
+		// Now the last 2 requests can acquire token
+		waitAcquired2()
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 5, gauge.queued)
+		require.Equal(t, 3, gauge.exit)
+
+		// Release the last patch
+		close(release2)
+		waitAfterRelease2()
+		require.Equal(t, 5, gauge.exit)
+	})
+
+	t.Run("increase dynamic limit more than the number of queuing requests", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+		limiter := NewConcurrencyLimiter(limit, 10, nil, gauge)
+
+		// 5 requests acquired the tokens, the limiter is full now
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+
+		// 2 requests waiting in the queue
+		waitAcquired2, release2, waitAfterRelease2 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 2)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 7, gauge.queued)
+
+		// Update the limit to 7
+		limit.Update(7)
+
+		// Wait for the other 2 requests acquired the token. This proves the limiter is expanded
+		waitAcquired2()
+		require.Equal(t, 7, gauge.enter)
+
+		close(release1)
+		close(release2)
+		waitAfterRelease1()
+		waitAfterRelease2()
+		require.Equal(t, 7, gauge.exit)
+	})
+
+	t.Run("increase dynamic limit less than the number of queuing requests", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+		limiter := NewConcurrencyLimiter(limit, 10, nil, gauge)
+
+		// 5 requests acquired the tokens, the limiter is full now
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+
+		// 2 requests waiting in the queue
+		waitAcquired2, release2, waitAfterRelease2 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 2)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 7, gauge.queued)
+
+		// 5 more requests waiting in the queue
+		waitAcquired3, release3, waitAfterRelease3 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 12, gauge.queued)
+
+		// Update the limit to 7.
+		limit.Update(7)
+
+		//  Release first 5 requests, all requests should fit in the queue now.
+		close(release1)
+		waitAfterRelease1()
+		require.Equal(t, 5, gauge.exit)
+
+		waitAcquired2()
+		waitAcquired3()
+		require.Equal(t, 12, gauge.enter)
+
+		// Now release all requests
+		close(release2)
+		close(release3)
+		waitAfterRelease2()
+		waitAfterRelease3()
+		require.Equal(t, 12, gauge.exit)
+	})
+
+	t.Run("decrease dynamic limit less than the number of concurrent requests", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+		limiter := NewConcurrencyLimiter(limit, 10, nil, gauge)
+
+		// 5 requests acquired the tokens, the limiter is full now
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+
+		// Update the limit to 3
+		limit.Update(3)
+
+		// 3 requests are put in queue
+		waitAcquired2, release2, waitAfterRelease2 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 3)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 8, gauge.queued)
+
+		// Release the first 5 requests
+		close(release1)
+		waitAfterRelease1()
+		require.Equal(t, 5, gauge.exit)
+
+		// Now the last 3 requests acquire the tokens
+		waitAcquired2()
+		require.Equal(t, 8, gauge.enter)
+
+		// 1 more request is put in queue, meaning the limit shrinks down to 3.
+		waitAcquired3, release3, waitAfterRelease3 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 1)
+		require.Equal(t, 8, gauge.enter)
+		require.Equal(t, 9, gauge.queued)
+
+		// Release the second 3 requests
+		close(release2)
+		waitAfterRelease2()
+		require.Equal(t, 8, gauge.exit)
+
+		// The last request acquires the token
+		waitAcquired3()
+		require.Equal(t, 9, gauge.enter)
+
+		// Release the last request
+		close(release3)
+		waitAfterRelease3()
+		require.Equal(t, 9, gauge.exit)
+	})
+
+	t.Run("increase and decrease dynamic limit multiple times", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+		limiter := NewConcurrencyLimiter(limit, 10, nil, gauge)
+
+		// Update the limit to 7
+		limit.Update(7)
+
+		// 5 requests acquired the tokens
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+
+		// Update the limit to 3
+		limit.Update(3)
+
+		// 3 requests are put in queue
+		waitAcquired2, release2, waitAfterRelease2 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 3)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 8, gauge.queued)
+
+		// Update the limit to 10
+		limit.Update(10)
+
+		// All existing requests acquire the tokens
+		waitAcquired2()
+		require.Equal(t, 8, gauge.enter)
+
+		// 2 more requests
+		release3, waitAfterRelease3 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 2)
+		require.Equal(t, 10, gauge.enter)
+
+		// Update the limit to 1
+		limit.Update(1)
+
+		// Now release all of them
+		close(release1)
+		waitAfterRelease1()
+		require.Equal(t, 5, gauge.exit)
+
+		close(release2)
+		waitAfterRelease2()
+		require.Equal(t, 8, gauge.exit)
+
+		close(release3)
+		waitAfterRelease3()
+		require.Equal(t, 10, gauge.exit)
+	})
+
+	t.Run("increase the limit when the queue is full", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 1, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+		// Mind the queue length here
+		limiter := NewConcurrencyLimiter(limit, 5, nil, gauge)
+
+		// 1 requests acquired the tokens, the limiter is full now
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 1)
+		require.Equal(t, 1, gauge.enter)
+		require.Equal(t, 1, gauge.queued)
+
+		// 5 requests queuing for the tokens, the queue is full now
+		waitAcquired2, release2, waitAfterRelease2 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 1, gauge.enter)
+		require.Equal(t, 6, gauge.queued)
+
+		// Limiter rejects new request
+		maximumQueueSizeReached(t, ctx, "1", limiter)
+
+		// Update the limit
+		limit.Update(6)
+		waitAcquired2()
+		require.Equal(t, 6, gauge.enter)
+
+		// 5 requests queuing for the tokens, the queue is full now
+		waitAcquired3, release3, waitAfterRelease3 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 6, gauge.enter)
+		require.Equal(t, 11, gauge.queued)
+
+		// Limiter rejects new request
+		maximumQueueSizeReached(t, ctx, "1", limiter)
+
+		// Clean up
+		close(release1)
+		close(release2)
+		waitAfterRelease1()
+		waitAfterRelease2()
+		require.Equal(t, 6, gauge.exit)
+
+		waitAcquired3()
+		require.Equal(t, 11, gauge.enter)
+		close(release3)
+		waitAfterRelease3()
+	})
+
+	t.Run("decrease the limit when the queue is full", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+		// Mind the queue length here
+		limiter := NewConcurrencyLimiter(limit, 3, nil, gauge)
+
+		// 5 requests acquired the tokens, the limiter is full now
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 5, gauge.queued)
+
+		// 5 requests queuing for the tokens, the queue is full now
+		waitAcquired2, release2, waitAfterRelease2 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 3)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 8, gauge.queued)
+
+		// Limiter rejects new request
+		maximumQueueSizeReached(t, ctx, "1", limiter)
+
+		// Update the limit.
+		limit.Update(3)
+
+		// The queue is still full
+		maximumQueueSizeReached(t, ctx, "1", limiter)
+
+		// Release first 5 requests and let the last 3 requests in
+		close(release1)
+		waitAfterRelease1()
+		require.Equal(t, 5, gauge.exit)
+		waitAcquired2()
+		require.Equal(t, 8, gauge.enter)
+
+		// Another 5 requests in queue. The queue is still full, meaning the concurrency is 3 and the queue is still 5.
+		waitAcquired3, release3, waitAfterRelease3 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 3)
+		require.Equal(t, 8, gauge.enter)
+		require.Equal(t, 11, gauge.queued)
+		maximumQueueSizeReached(t, ctx, "1", limiter)
+
+		// Clean up
+		close(release2)
+		waitAfterRelease2()
+		require.Equal(t, 8, gauge.exit)
+		waitAcquired3()
+		require.Equal(t, 11, gauge.enter)
+		close(release3)
+		waitAfterRelease3()
+		require.Equal(t, 11, gauge.exit)
+	})
+
+	t.Run("dynamic limit works without queuing", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+		// No queue, it means the limiter accepts unlimited requests
+		limiter := NewConcurrencyLimiter(limit, 0, nil, gauge)
+
+		// 5 requests acquired the tokens, the limiter is full now
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 5, gauge.queued)
+
+		// 5 more requests
+		waitAcquired2, release2, waitAfterRelease2 := spawnAndWaitQueued(t, ctx, "1", limiter, gauge, 5)
+
+		// Update the limit.
+		limit.Update(10)
+
+		// All of them acquired the tokens
+		waitAcquired2()
+		require.Equal(t, 10, gauge.enter)
+
+		// Clean up
+		close(release1)
+		close(release2)
+		waitAfterRelease1()
+		waitAfterRelease2()
+		require.Equal(t, 10, gauge.exit)
+	})
+
+	t.Run("dynamic limit works with queue timer", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+
+		ticker := helper.NewManualTicker()
+		limiter := NewConcurrencyLimiter(limit, 0, func() helper.Ticker { return ticker }, gauge)
+
+		// 5 requests acquired the tokens, the limiter is full now
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 5, gauge.queued)
+
+		errors := make(chan error, 10)
+		// 5 requests in queue
+		spawnQueuedAndCollectErrors(ctx, "1", limiter, gauge, 5, errors)
+
+		// Decrease the limit
+		limit.Update(3)
+
+		// 5 more requests in queue
+		spawnQueuedAndCollectErrors(ctx, "1", limiter, gauge, 5, errors)
+
+		// Trigger timeout event
+		for i := 0; i < 10; i++ {
+			ticker.Tick()
+			require.EqualError(t, <-errors, "maximum time in concurrency queue reached")
+		}
+
+		// Other goroutines exit as normal
+		close(release1)
+		waitAfterRelease1()
+		require.Equal(t, 5, gauge.exit)
+	})
+
+	t.Run("dynamic limit works with context cancellation", func(t *testing.T) {
+		ctx2, cancel := context.WithCancel(ctx)
+
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+
+		limiter := NewConcurrencyLimiter(limit, 0, nil, gauge)
+
+		// 5 requests acquired the tokens, the limiter is full now
+		release1, waitAfterRelease1 := spawnAndWaitAcquired(t, ctx, "1", limiter, gauge, 5)
+		require.Equal(t, 5, gauge.enter)
+		require.Equal(t, 5, gauge.queued)
+
+		errors := make(chan error, 10)
+		// 5 requests in queue
+		spawnQueuedAndCollectErrors(ctx2, "1", limiter, gauge, 5, errors)
+
+		// Decrease the limit
+		limit.Update(3)
+
+		// 5 more requests in queue
+		spawnQueuedAndCollectErrors(ctx2, "1", limiter, gauge, 5, errors)
+
+		// Trigger context cancellation
+		cancel()
+		for i := 0; i < 10; i++ {
+			require.EqualError(t, <-errors, "unexpected error when dequeueing request: context canceled")
+		}
+
+		// Other goroutines exit as normal
+		close(release1)
+		waitAfterRelease1()
+		require.Equal(t, 5, gauge.exit)
+	})
+
+	t.Run("dynamic limit works with multiple buckets", func(t *testing.T) {
+		limit := NewAdaptiveLimit("dynamicLimit", AdaptiveSetting{Initial: 5, Max: 10, Min: 1})
+		gauge := &blockingQueueCounter{queuedCh: make(chan struct{})}
+
+		limiter := NewConcurrencyLimiter(limit, 5, nil, gauge)
+
+		var releaseChans []chan struct{}
+		var waitAcquireFuncs, waitReleaseFuncs []func()
+
+		// 5 * 5 requests acquired tokens
+		for i := 1; i <= 5; i++ {
+			release, waitAfterRelease := spawnAndWaitAcquired(t, ctx, fmt.Sprintf("%d", i), limiter, gauge, 5)
+			releaseChans = append(releaseChans, release)
+			waitReleaseFuncs = append(waitReleaseFuncs, waitAfterRelease)
+		}
+		require.Equal(t, 25, gauge.enter)
+
+		// 1 + 2 + 3 + 4 + 5 requests are in queue
+		for i := 1; i <= 5; i++ {
+			waitAcquired, release, waitAfterRelease := spawnAndWaitQueued(t, ctx, fmt.Sprintf("%d", i), limiter, gauge, i)
+			waitAcquireFuncs = append(waitAcquireFuncs, waitAcquired)
+			releaseChans = append(releaseChans, release)
+			waitReleaseFuncs = append(waitReleaseFuncs, waitAfterRelease)
+		}
+		require.Equal(t, 25, gauge.enter)
+		require.Equal(t, 40, gauge.queued)
+
+		// Update limit, enough for all requests
+		limit.Update(10)
+
+		// All requests acquired tokens now
+		for _, wait := range waitAcquireFuncs {
+			wait()
+		}
+		require.Equal(t, 40, gauge.enter)
+
+		// Release all
+		for _, release := range releaseChans {
+			close(release)
+		}
+		for _, wait := range waitReleaseFuncs {
+			wait()
+		}
+		require.Equal(t, 40, gauge.exit)
+	})
+}
+
+// spawnAndWaitAcquired spawns N goroutines that wait for the limiter. They wait until all of them acquire the limiter
+// token before exiting. This function returns a channel to control token release and a function to wait until all
+// goroutines finish.
+func spawnAndWaitAcquired(t *testing.T, ctx context.Context, bucket string, limiter *ConcurrencyLimiter, gauge *blockingQueueCounter, n int) (chan struct{}, func()) {
+	var acquireWg, releaseWg sync.WaitGroup
+	release := make(chan struct{})
+
+	for i := 0; i < n; i++ {
+		acquireWg.Add(1)
+		releaseWg.Add(1)
+		go func() {
+			defer releaseWg.Done()
+			_, err := limiter.Limit(ctx, bucket, func() (resp interface{}, err error) {
+				acquireWg.Done()
+				<-release
+				return nil, nil
+			})
+			require.NoError(t, err)
+		}()
+	}
+	for i := 0; i < n; i++ {
+		<-gauge.queuedCh
+		gauge.queued++
+	}
+	acquireWg.Wait()
+
+	return release, releaseWg.Wait
+}
+
+// spawnAndWaitQueued spawns N goroutines that wait for the limiter. They wait until all of them are queued. This
+// function returns a function to wait for channel to acquired the token, a channel to control token release, and a
+// function to wait until all goroutines finish.
+func spawnAndWaitQueued(t *testing.T, ctx context.Context, bucket string, limiter *ConcurrencyLimiter, gauge *blockingQueueCounter, n int) (func(), chan struct{}, func()) {
+	var acquireWg, releaseWg sync.WaitGroup
+	release := make(chan struct{})
+
+	for i := 0; i < n; i++ {
+		acquireWg.Add(1)
+		releaseWg.Add(1)
+		go func() {
+			defer releaseWg.Done()
+			_, err := limiter.Limit(ctx, bucket, func() (resp interface{}, err error) {
+				acquireWg.Done()
+				<-release
+				return nil, nil
+			})
+			require.NoError(t, err)
+		}()
+	}
+	for i := 0; i < n; i++ {
+		<-gauge.queuedCh
+		gauge.queued++
+	}
+
+	return acquireWg.Wait, release, releaseWg.Wait
+}
+
+func spawnQueuedAndCollectErrors(ctx context.Context, bucket string, limiter *ConcurrencyLimiter, gauge *blockingQueueCounter, n int, errors chan error) {
+	for i := 0; i < n; i++ {
+		go func() {
+			_, err := limiter.Limit(ctx, bucket, func() (interface{}, error) {
+				return nil, fmt.Errorf("should not call")
+			})
+			errors <- err
+		}()
+	}
+	for i := 0; i < n; i++ {
+		<-gauge.queuedCh
+		gauge.queued++
+	}
+}
+
+func maximumQueueSizeReached(t *testing.T, ctx context.Context, bucket string, limiter *ConcurrencyLimiter) {
+	_, err := limiter.Limit(ctx, bucket, func() (interface{}, error) {
+		return nil, fmt.Errorf("should not call")
+	})
+	require.EqualError(t, err, "maximum queue size reached")
+}
+
 type blockingQueueCounter struct {
 	counter
 
@@ -248,7 +805,7 @@ func TestConcurrencyLimiter_queueLimit(t *testing.T) {
 	monitorCh := make(chan struct{})
 	monitor := &blockingQueueCounter{queuedCh: monitorCh}
 	ch := make(chan struct{})
-	limiter := NewConcurrencyLimiter(1, queueLimit, nil, monitor)
+	limiter := NewConcurrencyLimiter(NewAdaptiveLimit("staticLimit", AdaptiveSetting{Initial: 1}), queueLimit, nil, monitor)
 
 	// occupied with one live request that takes a long time to complete
 	go func() {
@@ -333,7 +890,7 @@ func TestLimitConcurrency_queueWaitTime(t *testing.T) {
 	monitor := &blockingDequeueCounter{dequeuedCh: dequeuedCh}
 
 	limiter := NewConcurrencyLimiter(
-		1,
+		NewAdaptiveLimit("staticLimit", AdaptiveSetting{Initial: 1}),
 		0,
 		func() helper.Ticker {
 			return ticker

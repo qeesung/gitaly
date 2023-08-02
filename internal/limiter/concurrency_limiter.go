@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
@@ -169,9 +170,9 @@ func (sem *keyedConcurrencyLimiter) inProgress() int {
 
 // ConcurrencyLimiter contains rate limiter state.
 type ConcurrencyLimiter struct {
-	// maxConcurrencyLimit is the maximum number of concurrent calls to the limited function.
-	// This limit is per key.
-	maxConcurrencyLimit int64
+	// limit is the adaptive maximum number of concurrent calls to the limited function. This limit is
+	// calculated adaptively from an outside calculator.
+	limit *AdaptiveLimit
 	// maxQueueLength is the maximum number of operations allowed to wait in a queued state.
 	// This limit is global and applies before the concurrency limit. Subsequent incoming
 	// operations will be rejected with an error immediately.
@@ -192,18 +193,34 @@ type ConcurrencyLimiter struct {
 }
 
 // NewConcurrencyLimiter creates a new concurrency rate limiter.
-func NewConcurrencyLimiter(maxConcurrencyLimit, maxQueueLength int, maxQueuedTickerCreator QueueTickerCreator, monitor ConcurrencyMonitor) *ConcurrencyLimiter {
+func NewConcurrencyLimiter(limit *AdaptiveLimit, maxQueueLength int, maxQueuedTickerCreator QueueTickerCreator, monitor ConcurrencyMonitor) *ConcurrencyLimiter {
 	if monitor == nil {
 		monitor = NewNoopConcurrencyMonitor()
 	}
 
-	return &ConcurrencyLimiter{
-		maxConcurrencyLimit:    int64(maxConcurrencyLimit),
+	limiter := &ConcurrencyLimiter{
+		limit:                  limit,
 		maxQueueLength:         int64(maxQueueLength),
 		maxQueuedTickerCreator: maxQueuedTickerCreator,
 		monitor:                monitor,
 		limitsByKey:            make(map[string]*keyedConcurrencyLimiter),
 	}
+
+	// When the capacity of the limiter is updated we also need to update the size of both the queuing tokens as
+	// well as the concurrency tokens to match the new size.
+	limit.AfterUpdate(func(val int) {
+		for _, keyedLimiter := range limiter.limitsByKey {
+			if keyedLimiter.queueTokens != nil {
+				if semaphore, ok := keyedLimiter.queueTokens.(*resizableSemaphore); ok {
+					semaphore.Resize(int64(val) + limiter.maxQueueLength)
+				}
+			}
+			if semaphore, ok := keyedLimiter.concurrencyTokens.(*resizableSemaphore); ok {
+				semaphore.Resize(int64(val))
+			}
+		}
+	})
+	return limiter
 }
 
 // Limit will limit the concurrency of the limited function f. There are two distinct mechanisms
@@ -223,11 +240,11 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, limitingKey string, f Li
 	)
 	defer span.Finish()
 
-	if c.maxConcurrencyLimit <= 0 {
+	if c.currentLimit() <= 0 {
 		return f()
 	}
 
-	sem := c.getConcurrencyLimit(limitingKey)
+	sem := c.getConcurrencyLimit(ctx, limitingKey)
 	defer c.putConcurrencyLimit(limitingKey)
 
 	start := time.Now()
@@ -261,7 +278,7 @@ func (c *ConcurrencyLimiter) Limit(ctx context.Context, limitingKey string, f Li
 
 // getConcurrencyLimit retrieves the concurrency limit for the given key. If no such limiter exists
 // it will be lazily constructed.
-func (c *ConcurrencyLimiter) getConcurrencyLimit(limitingKey string) *keyedConcurrencyLimiter {
+func (c *ConcurrencyLimiter) getConcurrencyLimit(ctx context.Context, limitingKey string) *keyedConcurrencyLimiter {
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -271,13 +288,13 @@ func (c *ConcurrencyLimiter) getConcurrencyLimit(limitingKey string) *keyedConcu
 		// function we add the concurrency tokens to the number of available token.
 		var queueTokens semaphorer
 		if c.maxQueueLength > 0 {
-			queueTokens = &staticSemaphore{queue: make(chan struct{}, c.maxConcurrencyLimit+c.maxQueueLength)}
+			queueTokens = c.createSemaphore(ctx, c.currentLimit()+c.maxQueueLength)
 		}
 
 		c.limitsByKey[limitingKey] = &keyedConcurrencyLimiter{
 			monitor:                c.monitor,
 			maxQueuedTickerCreator: c.maxQueuedTickerCreator,
-			concurrencyTokens:      &staticSemaphore{queue: make(chan struct{}, c.maxConcurrencyLimit)},
+			concurrencyTokens:      c.createSemaphore(ctx, c.currentLimit()),
 			queueTokens:            queueTokens,
 		}
 	}
@@ -314,4 +331,15 @@ func (c *ConcurrencyLimiter) countSemaphores() int {
 	defer c.m.RUnlock()
 
 	return len(c.limitsByKey)
+}
+
+func (c *ConcurrencyLimiter) currentLimit() int64 {
+	return int64(c.limit.Current())
+}
+
+func (c *ConcurrencyLimiter) createSemaphore(ctx context.Context, size int64) semaphorer {
+	if featureflag.UseResizableSemaphoreInConcurrencyLimiter.IsEnabled(ctx) {
+		return NewResizableSemaphore(size)
+	}
+	return &staticSemaphore{queue: make(chan struct{}, size)}
 }
