@@ -659,6 +659,8 @@ func (l *testLimit) Update(val int) {
 	l.currents = append(l.currents, val)
 }
 
+func (*testLimit) AfterUpdate(_ AfterUpdateHook) {}
+
 func (l *testLimit) Setting() AdaptiveSetting {
 	return AdaptiveSetting{
 		Initial:       l.initial,
