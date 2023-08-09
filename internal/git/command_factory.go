@@ -523,14 +523,14 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, sc Command, cc cm
 		return nil, fmt.Errorf("invalid sub command name %q: %w", sc.Name, ErrInvalidArg)
 	}
 
-	globalConfig, err := GlobalConfiguration(ctx)
+	globalOptions, err := GlobalOptions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting global Git configuration: %w", err)
 	}
 
-	combinedGlobals := make([]GlobalOption, 0, len(globalConfig)+len(commandDescription.opts)+len(cc.globals)+len(cf.cfg.Git.Config))
-	for _, configPair := range globalConfig {
-		combinedGlobals = append(combinedGlobals, configPair)
+	combinedGlobals := make([]GlobalOption, 0, len(globalOptions)+len(commandDescription.opts)+len(cc.globals)+len(cf.cfg.Git.Config))
+	for _, option := range globalOptions {
+		combinedGlobals = append(combinedGlobals, option)
 	}
 	combinedGlobals = append(combinedGlobals, commandDescription.opts...)
 	combinedGlobals = append(combinedGlobals, cc.globals...)
