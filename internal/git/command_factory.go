@@ -558,7 +558,7 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, sc Command, cc cm
 
 // GlobalConfiguration returns the global Git configuration that should be applied to every Git
 // command.
-func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]ConfigPair, error) {
+func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]GlobalOption, error) {
 	// As global options may cancel out each other, we have a clearly defined order in which
 	// globals get applied. The order is similar to how git handles configuration options from
 	// most general to most specific. This allows callsites to override options which would
@@ -571,29 +571,29 @@ func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]Config
 	// 3. Globals passed via command options, e.g. as set up by
 	//    `WithReftxHook()`.
 	// 4. Configuration as provided by the admin in Gitaly's config.toml.
-	config := []ConfigPair{
+	options := []GlobalOption{
 		// Disable automatic garbage collection as we handle scheduling
 		// of it ourselves.
-		{Key: "gc.auto", Value: "0"},
+		ConfigPair{Key: "gc.auto", Value: "0"},
 
 		// CRLF line endings will get replaced with LF line endings
 		// when writing blobs to the object database. No conversion is
 		// done when reading blobs from the object database. This is
 		// required for the web editor.
-		{Key: "core.autocrlf", Value: "input"},
+		ConfigPair{Key: "core.autocrlf", Value: "input"},
 
 		// Git allows the use of replace refs, where a given object ID can be replaced with a
 		// different one. The result is that Git commands would use the new object instead of the
 		// old one in almost all contexts. This is a security threat: an adversary may use this
 		// mechanism to replace malicious commits with seemingly benign ones. We thus globally
 		// disable this mechanism.
-		{Key: "core.useReplaceRefs", Value: "false"},
+		ConfigPair{Key: "core.useReplaceRefs", Value: "false"},
 
 		// We configure for what data should be fsynced and how that should happen.
 		// Synchronize object files, packed-refs and loose refs to disk to lessen the
 		// likelihood of repository corruption in case the server crashes.
-		{Key: "core.fsync", Value: "objects,derived-metadata,reference"},
-		{Key: "core.fsyncMethod", Value: "fsync"},
+		ConfigPair{Key: "core.fsync", Value: "objects,derived-metadata,reference"},
+		ConfigPair{Key: "core.fsyncMethod", Value: "fsync"},
 
 		// When deleting references, Git needs to rewrite the `packed-refs` file to evict
 		// the reference from it. In order to not race with concurrent writers it thus needs
@@ -608,15 +608,15 @@ func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]Config
 		// erroring out very frequently. We thus increase the timeout to 10 seconds. While
 		// comparatively high, context cancellation would still cause us to exit early in
 		// case the caller doesn't want to wait this long.
-		{Key: "core.packedRefsTimeout", Value: "10000"},
+		ConfigPair{Key: "core.packedRefsTimeout", Value: "10000"},
 		// Similarly, for loose references we bump the limit from 100 milliseconds to 1 second. We aim for a
 		// lower limit here as the locking for loose references is typically a lot more fine-grained. We have
 		// still observed lock contention around them though, but mostly in cases where the host system was
 		// heavily loaded by a storm of incoming RPCs.
-		{Key: "core.filesRefLockTimeout", Value: "1000"},
+		ConfigPair{Key: "core.filesRefLockTimeout", Value: "1000"},
 	}
 
-	return config, nil
+	return options, nil
 }
 
 func (cf *ExecCommandFactory) trace2Finalizer(manager *trace2.Manager) func(context.Context, *command.Command) {
