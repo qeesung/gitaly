@@ -1,4 +1,4 @@
-package logsanitizer
+package log
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +20,7 @@ func TestUrlSanitizerHook(t *testing.T) {
 		"FetchRemote",
 	)
 
-	logger := log.New()
+	logger := logrus.New()
 	logger.Out = outBuf
 	logger.Hooks.Add(urlSanitizer)
 
@@ -32,7 +32,7 @@ func TestUrlSanitizerHook(t *testing.T) {
 		{
 			desc: "with args",
 			logFunc: func() {
-				logger.WithFields(log.Fields{
+				logger.WithFields(logrus.Fields{
 					"grpc.method": "CreateRepositoryFromURL",
 					"args":        []string{"/usr/bin/git", "clone", "--bare", "--", "https://foo_the_user:hUntEr1@gitlab.com/foo/bar", "/home/git/repositories/foo/bar"},
 				}).Info("spawn")
@@ -42,7 +42,7 @@ func TestUrlSanitizerHook(t *testing.T) {
 		{
 			desc: "with error",
 			logFunc: func() {
-				logger.WithFields(log.Fields{
+				logger.WithFields(logrus.Fields{
 					"grpc.method": "UpdateRemoteMirror",
 					"error":       fmt.Errorf("rpc error: code = Unknown desc = remote: Invalid username or password. fatal: Authentication failed for 'https://foo_the_user:hUntEr1@gitlab.com/foo/bar'"),
 				}).Error("ERROR")
@@ -52,7 +52,7 @@ func TestUrlSanitizerHook(t *testing.T) {
 		{
 			desc: "with message",
 			logFunc: func() {
-				logger.WithFields(log.Fields{
+				logger.WithFields(logrus.Fields{
 					"grpc.method": "CreateRepositoryFromURL",
 				}).Info("asked for: https://foo_the_user:hUntEr1@gitlab.com/foo/bar")
 			},
@@ -61,7 +61,7 @@ func TestUrlSanitizerHook(t *testing.T) {
 		{
 			desc: "with URL without scheme output",
 			logFunc: func() {
-				logger.WithFields(log.Fields{
+				logger.WithFields(logrus.Fields{
 					"grpc.method": "FetchRemote",
 				}).Info("fatal: unable to look up foo:bar@non-existent.org (port 9418) (nodename nor servname provided, or not known")
 			},
@@ -70,16 +70,16 @@ func TestUrlSanitizerHook(t *testing.T) {
 		{
 			desc: "with gRPC method not added to the list",
 			logFunc: func() {
-				logger.WithFields(log.Fields{
+				logger.WithFields(logrus.Fields{
 					"grpc.method": "UserDeleteTag",
 				}).Error("fatal: 'https://foo_the_user:hUntEr1@gitlab.com/foo/bar' is not a valid tag name.")
 			},
 			expectedString: "fatal: 'https://foo_the_user:hUntEr1@gitlab.com/foo/bar' is not a valid tag name.",
 		},
 		{
-			desc: "log with URL that does not require sanitization",
+			desc: "logrus with URL that does not require sanitization",
 			logFunc: func() {
-				logger.WithFields(log.Fields{
+				logger.WithFields(logrus.Fields{
 					"grpc.method": "CreateRepositoryFromURL",
 				}).Info("asked for: https://gitlab.com/gitlab-org/gitaly/v15")
 			},
@@ -100,7 +100,7 @@ func TestUrlSanitizerHook(t *testing.T) {
 func BenchmarkUrlSanitizerWithoutSanitization(b *testing.B) {
 	urlSanitizer := NewURLSanitizerHook()
 
-	logger := log.New()
+	logger := logrus.New()
 	logger.Out = io.Discard
 	logger.Hooks.Add(urlSanitizer)
 
@@ -114,24 +114,24 @@ func BenchmarkUrlSanitizerWithSanitization(b *testing.B) {
 		"CreateRepositoryFromURL",
 	)
 
-	logger := log.New()
+	logger := logrus.New()
 	logger.Out = io.Discard
 	logger.Hooks.Add(urlSanitizer)
 
 	benchmarkLogging(b, logger)
 }
 
-func benchmarkLogging(b *testing.B, logger *log.Logger) {
+func benchmarkLogging(b *testing.B, logger *logrus.Logger) {
 	for n := 0; n < b.N; n++ {
-		logger.WithFields(log.Fields{
+		logger.WithFields(logrus.Fields{
 			"grpc.method": "CreateRepositoryFromURL",
 			"args":        []string{"/usr/bin/git", "clone", "--bare", "--", "https://foo_the_user:hUntEr1@gitlab.com/foo/bar", "/home/git/repositories/foo/bar"},
 		}).Info("spawn")
-		logger.WithFields(log.Fields{
+		logger.WithFields(logrus.Fields{
 			"grpc.method": "UpdateRemoteMirror",
 			"error":       fmt.Errorf("rpc error: code = Unknown desc = remote: Invalid username or password. fatal: Authentication failed for 'https://foo_the_user:hUntEr1@gitlab.com/foo/bar'"),
 		}).Error("ERROR")
-		logger.WithFields(log.Fields{
+		logger.WithFields(logrus.Fields{
 			"grpc.method": "CreateRepositoryFromURL",
 		}).Info("asked for: https://foo_the_user:hUntEr1@gitlab.com/foo/bar")
 	}

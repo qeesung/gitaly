@@ -23,7 +23,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/fieldextractors"
 	gitalylog "gitlab.com/gitlab-org/gitaly/v16/internal/log"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/logsanitizer"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	grpccorrelation "gitlab.com/gitlab-org/labkit/correlation/grpc"
 	grpctracing "gitlab.com/gitlab-org/labkit/tracing/grpc"
@@ -32,21 +31,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 )
-
-func init() {
-	for _, l := range gitalylog.Loggers {
-		urlSanitizer := logsanitizer.NewURLSanitizerHook()
-		urlSanitizer.AddPossibleGrpcMethod(
-			"CreateRepositoryFromURL",
-			"FetchRemote",
-			"UpdateRemoteMirror",
-		)
-		l.Hooks.Add(urlSanitizer)
-	}
-
-	// grpc-go gets a custom logger; it is too chatty
-	grpcmwlogrus.ReplaceGrpcLogger(gitalylog.GrpcGo())
-}
 
 type serverConfig struct {
 	unaryInterceptors  []grpc.UnaryServerInterceptor

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v16/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/client"
@@ -68,14 +68,12 @@ To remove custom Git hooks for a specified repository, run the set subcommand wi
 }
 
 func setHooksAction(ctx *cli.Context) error {
-	// Since the custom logger set for gRPC is very chatty by default, its
-	// logging level is set to "error" to suppress noise.
-	gitalylog.GrpcGo().Logger.SetLevel(logrus.ErrorLevel)
-
 	cfg, err := loadConfig(ctx.String(flagConfig))
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
+
+	gitalylog.Configure(os.Stdout, cfg.Logging.Format, cfg.Logging.Level)
 
 	storage := ctx.String(flagStorage)
 	if storage == "" {

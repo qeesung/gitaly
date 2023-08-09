@@ -20,7 +20,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/auth"
-	internallog "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/hook"
@@ -608,7 +607,7 @@ func TestGitalyHooksPackObjects(t *testing.T) {
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{
 		Auth:    auth.Config{Token: "abc123"},
-		Logging: config.Logging{Config: internallog.Config{Dir: logDir}},
+		Logging: config.Logging{Config: gitalylog.Config{Dir: logDir}},
 	}))
 
 	repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{

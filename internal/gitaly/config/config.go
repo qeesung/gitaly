@@ -22,11 +22,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/errors/cfgerror"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/cgroups"
-	internallog "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/sentry"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/duration"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
+	internallog "gitlab.com/gitlab-org/gitaly/v16/internal/log"
 )
 
 const (

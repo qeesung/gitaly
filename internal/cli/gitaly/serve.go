@@ -114,7 +114,14 @@ func configure(configPath string) (config.Cfg, error) {
 		return config.Cfg{}, fmt.Errorf("load config: config_path %q: %w", configPath, err)
 	}
 
-	glog.Configure(glog.Loggers, cfg.Logging.Format, cfg.Logging.Level)
+	urlSanitizer := glog.NewURLSanitizerHook()
+	urlSanitizer.AddPossibleGrpcMethod(
+		"CreateRepositoryFromURL",
+		"FetchRemote",
+		"UpdateRemoteMirror",
+	)
+
+	glog.Configure(os.Stdout, cfg.Logging.Format, cfg.Logging.Level, urlSanitizer)
 
 	sentry.ConfigureSentry(version.GetVersion(), sentry.Config(cfg.Logging.Sentry))
 	cfg.Prometheus.Configure()

@@ -54,7 +54,7 @@ func run(configPath string) error {
 	bb := blackbox.New(config)
 	prometheus.MustRegister(bb)
 
-	log.Configure(log.Loggers, config.Logging.Format, config.Logging.Level)
+	log.Configure(os.Stdout, config.Logging.Format, config.Logging.Level)
 
 	return bb.Run()
 }

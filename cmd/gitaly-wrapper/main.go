@@ -29,7 +29,7 @@ func main() {
 		logFormat = "json"
 	}
 
-	log.Configure(log.Loggers, logFormat, "")
+	log.Configure(os.Stdout, logFormat, "")
 
 	if len(os.Args) < 2 {
 		logrus.Fatalf("usage: %s forking_binary [args]", os.Args[0])

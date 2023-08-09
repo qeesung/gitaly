@@ -41,15 +41,6 @@ func fatalf(logger logrus.FieldLogger, encoder *gob.Encoder, format string, args
 	os.Exit(0)
 }
 
-func configureLogging(format, level string) {
-	// Gitaly logging by default goes to stdout, which would interfere with gob
-	// encoding.
-	for _, l := range glog.Loggers {
-		l.Out = os.Stderr
-	}
-	glog.Configure(glog.Loggers, format, level)
-}
-
 func main() {
 	decoder := gob.NewDecoder(os.Stdin)
 	encoder := gob.NewEncoder(os.Stdout)
@@ -77,7 +68,7 @@ func main() {
 		correlationID = correlation.SafeRandomID()
 	}
 
-	configureLogging(logFormat, logLevel)
+	glog.Configure(os.Stderr, logFormat, logLevel)
 
 	ctx := correlation.ContextWithCorrelation(context.Background(), correlationID)
 	logger := glog.Default().WithFields(logrus.Fields{

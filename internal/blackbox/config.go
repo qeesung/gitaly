@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
-	logconfig "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/duration"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 )
 
 // Config is the configuration for gitaly-blackbox.
@@ -20,7 +20,7 @@ type Config struct {
 	// sleepDuration is the same as Sleep but converted to a proper duration.
 	sleepDuration duration.Duration
 	// Logging configures logging.
-	Logging logconfig.Config `toml:"logging"`
+	Logging log.Config `toml:"logging"`
 	// Probes defines endpoints to probe. At least one probe must be defined.
 	Probes []Probe `toml:"probe"`
 }

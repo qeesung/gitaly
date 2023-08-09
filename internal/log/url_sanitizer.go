@@ -1,4 +1,4 @@
-package logsanitizer
+package log
 
 import (
 	"regexp"
