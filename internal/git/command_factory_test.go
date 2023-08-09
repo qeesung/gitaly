@@ -118,7 +118,7 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		defer cleanup()
 
-		globalConfig, err := commandFactory.GlobalConfiguration(ctx)
+		globalConfig, err := GlobalConfiguration(ctx)
 		require.NoError(t, err)
 
 		var configEntries []string
