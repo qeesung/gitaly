@@ -556,6 +556,23 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, sc Command, cc cm
 	return append(args, scArgs...), nil
 }
 
+func GlobalOptions(ctx context.Context) ([]GlobalOption, error) {
+	configs, err := GlobalConfiguration(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var options []GlobalOption
+
+	for _, config := range configs {
+		options = append(options, config)
+	}
+
+	options = append(options, Flag{Name: "--attr-source=HEAD"})
+
+	return options, nil
+}
+
 // GlobalConfiguration returns the global Git configuration that should be applied to every Git
 // command.
 func GlobalConfiguration(ctx context.Context) ([]ConfigPair, error) {
