@@ -209,6 +209,9 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// Randomly enable mailmap
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.MailmapOptions, rand.Int()%2 == 0)
 
+	// Randomly enable attr source
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.AttrSource, rand.Int()%2 == 0)
+
 	for _, opt := range opts {
 		ctx = opt(ctx)
 	}

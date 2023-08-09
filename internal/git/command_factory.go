@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/alternates"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2hooks"
@@ -568,7 +569,9 @@ func GlobalOptions(ctx context.Context) ([]GlobalOption, error) {
 		options = append(options, config)
 	}
 
-	options = append(options, Flag{Name: "--attr-source=HEAD"})
+	if featureflag.AttrSource.IsEnabled(ctx) {
+		options = append(options, Flag{Name: "--attr-source=HEAD"})
+	}
 
 	return options, nil
 }
