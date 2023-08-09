@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/alternates"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2hooks"
@@ -522,14 +523,14 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, sc Command, cc cm
 		return nil, fmt.Errorf("invalid sub command name %q: %w", sc.Name, ErrInvalidArg)
 	}
 
-	globalConfig, err := cf.GlobalConfiguration(ctx)
+	globalOptions, err := GlobalOptions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting global Git configuration: %w", err)
 	}
 
-	combinedGlobals := make([]GlobalOption, 0, len(globalConfig)+len(commandDescription.opts)+len(cc.globals)+len(cf.cfg.Git.Config))
-	for _, configPair := range globalConfig {
-		combinedGlobals = append(combinedGlobals, configPair)
+	combinedGlobals := make([]GlobalOption, 0, len(globalOptions)+len(commandDescription.opts)+len(cc.globals)+len(cf.cfg.Git.Config))
+	for _, option := range globalOptions {
+		combinedGlobals = append(combinedGlobals, option)
 	}
 	combinedGlobals = append(combinedGlobals, commandDescription.opts...)
 	combinedGlobals = append(combinedGlobals, cc.globals...)
@@ -556,9 +557,28 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, sc Command, cc cm
 	return append(args, scArgs...), nil
 }
 
+func GlobalOptions(ctx context.Context) ([]GlobalOption, error) {
+	configs, err := GlobalConfiguration(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var options []GlobalOption
+
+	for _, config := range configs {
+		options = append(options, config)
+	}
+
+	if featureflag.AttrSource.IsEnabled(ctx) {
+		options = append(options, Flag{Name: "--attr-source=HEAD"})
+	}
+
+	return options, nil
+}
+
 // GlobalConfiguration returns the global Git configuration that should be applied to every Git
 // command.
-func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]ConfigPair, error) {
+func GlobalConfiguration(ctx context.Context) ([]ConfigPair, error) {
 	// As global options may cancel out each other, we have a clearly defined order in which
 	// globals get applied. The order is similar to how git handles configuration options from
 	// most general to most specific. This allows callsites to override options which would

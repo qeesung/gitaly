@@ -82,7 +82,7 @@ func createCommand(tb testing.TB, cfg config.Cfg, execCfg ExecConfig, args ...st
 	factory := NewCommandFactory(tb, cfg)
 	execEnv := factory.GetExecutionEnvironment(ctx)
 
-	gitConfig, err := factory.GlobalConfiguration(ctx)
+	gitConfig, err := git.GlobalConfiguration(ctx)
 	require.NoError(tb, err)
 	gitConfig = append(gitConfig,
 		git.ConfigPair{Key: "init.defaultBranch", Value: git.DefaultBranch},

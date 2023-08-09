@@ -18,6 +18,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2"
@@ -114,11 +115,7 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 	require.NoError(t, os.Remove(filepath.Join(repoPath, "config")))
 
 	defaultConfig := func() []string {
-		commandFactory, cleanup, err := git.NewExecCommandFactory(cfg)
-		require.NoError(t, err)
-		defer cleanup()
-
-		globalConfig, err := commandFactory.GlobalConfiguration(ctx)
+		globalConfig, err := git.GlobalConfiguration(ctx)
 		require.NoError(t, err)
 
 		var configEntries []string
@@ -1072,6 +1069,56 @@ func TestDefaultTrace2HooksFor(t *testing.T) {
 
 			require.Equal(t, hookNames(expectedHooks), hookNames(hooks))
 		})
+	}
+}
+
+func TestExecCommandFactory_globalOptions(t *testing.T) {
+	t.Parallel()
+
+	testhelper.NewFeatureSets(
+		featureflag.AttrSource,
+	).Run(t, testExecCommandFactoryGlobalOptions)
+
+}
+func testExecCommandFactoryGlobalOptions(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+
+	repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
+
+	gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{
+				Mode:    "100644",
+				Path:    ".gitattributes",
+				Content: "pattern1 attr1=value1\n",
+			},
+		), gittest.WithBranch("HEAD"))
+
+	fmt.Println(repoPath)
+
+	commandFactory, cleanup, err := git.NewExecCommandFactory(cfg)
+	require.NoError(t, err)
+	defer cleanup()
+
+	var stdout, stderr bytes.Buffer
+	cmd, err := commandFactory.New(ctx, repo, git.Command{
+		Name: "check-attr",
+		Flags: []git.Option{
+			git.Flag{Name: "-a"},
+		},
+		Args: []string{"pattern1"},
+	}, git.WithStdout(&stdout), git.WithStderr(&stderr))
+	require.NoError(t, err)
+	require.NoError(t, cmd.Wait())
+
+	if featureflag.AttrSource.IsEnabled(ctx) {
+		require.Equal(t, "pattern1: attr1: value1", text.ChompBytes(stdout.Bytes()))
+	} else {
+		require.Equal(t, "", text.ChompBytes(stdout.Bytes()))
 	}
 }
 
