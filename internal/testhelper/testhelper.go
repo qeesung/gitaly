@@ -207,6 +207,7 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// LowerBigFileThreshold is checked on every spawn of Git commands and is thus infeasible to be checked for
 	// explicitly in every single test.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.LowerBigFileThreshold, rand.Int()%2 == 0)
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.AutocrlfConfig, true)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)
