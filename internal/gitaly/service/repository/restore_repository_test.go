@@ -138,7 +138,7 @@ func TestRestoreRepository(t *testing.T) {
 					backupID: "",
 				}
 			},
-			expectedErr: structerr.NewFailedPrecondition("restore repository: manager: repository skipped: restore bundle: \"@test/restore/latest/missing.bundle\": doesn't exist").WithDetail(
+			expectedErr: structerr.NewFailedPrecondition("restore repository: manager: repository skipped: read refs: doesn't exist").WithDetail(
 				&gitalypb.RestoreRepositoryResponse_SkippedError{},
 			),
 		},

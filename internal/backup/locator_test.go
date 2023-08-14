@@ -35,10 +35,9 @@ func TestLegacyLocator(t *testing.T) {
 		t.Parallel()
 
 		expected := &Step{
-			SkippableOnNotFound: true,
-			BundlePath:          repo.RelativePath + ".bundle",
-			RefPath:             repo.RelativePath + ".refs",
-			CustomHooksPath:     filepath.Join(repo.RelativePath, "custom_hooks.tar"),
+			BundlePath:      repo.RelativePath + ".bundle",
+			RefPath:         repo.RelativePath + ".refs",
+			CustomHooksPath: filepath.Join(repo.RelativePath, "custom_hooks.tar"),
 		}
 
 		full := l.BeginFull(ctx, repo, "abc123")
@@ -54,10 +53,9 @@ func TestLegacyLocator(t *testing.T) {
 			ObjectFormat: git.ObjectHashSHA1.Format,
 			Steps: []Step{
 				{
-					SkippableOnNotFound: true,
-					BundlePath:          repo.RelativePath + ".bundle",
-					RefPath:             repo.RelativePath + ".refs",
-					CustomHooksPath:     filepath.Join(repo.RelativePath, "custom_hooks.tar"),
+					BundlePath:      repo.RelativePath + ".bundle",
+					RefPath:         repo.RelativePath + ".refs",
+					CustomHooksPath: filepath.Join(repo.RelativePath, "custom_hooks.tar"),
 				},
 			},
 		}
@@ -238,10 +236,9 @@ func TestPointerLocator(t *testing.T) {
 				ObjectFormat: git.ObjectHashSHA1.Format,
 				Steps: []Step{
 					{
-						SkippableOnNotFound: true,
-						BundlePath:          repo.RelativePath + ".bundle",
-						RefPath:             repo.RelativePath + ".refs",
-						CustomHooksPath:     filepath.Join(repo.RelativePath, "custom_hooks.tar"),
+						BundlePath:      repo.RelativePath + ".bundle",
+						RefPath:         repo.RelativePath + ".refs",
+						CustomHooksPath: filepath.Join(repo.RelativePath, "custom_hooks.tar"),
 					},
 				},
 			}

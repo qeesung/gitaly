@@ -1,3 +1,5 @@
+//go:build !gitaly_test_sha256
+
 package backup_test
 
 import (
@@ -192,7 +194,7 @@ func TestServerSideAdapter_Restore(t *testing.T) {
 					backupID: "",
 				}
 			},
-			expectedErr: fmt.Errorf("server-side restore: %w: rpc error: code = FailedPrecondition desc = restore repository: manager: repository skipped: restore bundle: \"@test/restore/latest/missing.bundle\": doesn't exist", backup.ErrSkipped),
+			expectedErr: fmt.Errorf("server-side restore: %w: rpc error: code = FailedPrecondition desc = restore repository: manager: repository skipped: read refs: doesn't exist", backup.ErrSkipped),
 		},
 	} {
 		tc := tc

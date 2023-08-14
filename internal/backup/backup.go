@@ -49,10 +49,6 @@ type Backup struct {
 type Step struct {
 	// BundlePath is the path of the bundle
 	BundlePath string
-	// SkippableOnNotFound defines if the bundle can be skipped when it does
-	// not exist. This allows us to maintain legacy behaviour where we always
-	// check a specific location for a bundle without knowing if it exists.
-	SkippableOnNotFound bool
 	// RefPath is the path of the ref file
 	RefPath string
 	// PreviousRefPath is the path of the previous ref file
@@ -274,23 +270,33 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 	}
 
 	for _, step := range backup.Steps {
-		if err := mgr.restoreBundle(ctx, repo, step.BundlePath); err != nil {
-			if step.SkippableOnNotFound && errors.Is(err, ErrDoesntExist) {
-				// For compatibility with existing backups we need to make sure the
-				// repository exists even if there's no bundle for project
-				// repositories (not wiki or snippet repositories).  Gitaly does
-				// not know which repository is which type so here we accept a
-				// parameter to tell us to employ this behaviour. Since the
-				// repository has already been created, we simply skip cleaning up.
-				if req.AlwaysCreate {
-					return nil
-				}
+		refs, err := mgr.readRefs(ctx, step.RefPath)
+		switch {
+		case errors.Is(err, ErrDoesntExist):
+			// For compatibility with existing backups we need to make sure the
+			// repository exists even if there's no bundle for project
+			// repositories (not wiki or snippet repositories).  Gitaly does
+			// not know which repository is which type so here we accept a
+			// parameter to tell us to employ this behaviour. Since the
+			// repository has already been created, we simply skip cleaning up.
+			if req.AlwaysCreate {
+				return nil
+			}
 
-				if err := repo.Remove(ctx); err != nil {
-					return fmt.Errorf("manager: remove on skipped: %w", err)
-				}
+			if err := repo.Remove(ctx); err != nil {
+				return fmt.Errorf("manager: remove on skipped: %w", err)
+			}
 
-				return fmt.Errorf("manager: %w: %s", ErrSkipped, err.Error())
+			return fmt.Errorf("manager: %w: %s", ErrSkipped, err.Error())
+		case err != nil:
+			return fmt.Errorf("manager: %w", err)
+		}
+
+		// Git bundles can not be created for empty repositories. Since empty
+		// repository backups do not contain a bundle, skip bundle restoration.
+		if len(refs) > 0 {
+			if err := mgr.restoreBundle(ctx, repo, step.BundlePath); err != nil {
+				return fmt.Errorf("manager: %w", err)
 			}
 		}
 		if err := mgr.restoreCustomHooks(ctx, repo, step.CustomHooksPath); err != nil {
@@ -403,6 +409,31 @@ func (mgr *Manager) negatedKnownRefs(ctx context.Context, step *Step) (io.ReadCl
 	}()
 
 	return r, nil
+}
+
+func (mgr *Manager) readRefs(ctx context.Context, path string) ([]git.Reference, error) {
+	reader, err := mgr.sink.GetReader(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("read refs: %w", err)
+	}
+	defer reader.Close()
+
+	var refs []git.Reference
+
+	d := git.NewShowRefDecoder(reader)
+	for {
+		var ref git.Reference
+
+		if err := d.Decode(&ref); err == io.EOF {
+			break
+		} else if err != nil {
+			return refs, fmt.Errorf("read refs: %w", err)
+		}
+
+		refs = append(refs, ref)
+	}
+
+	return refs, nil
 }
 
 func (mgr *Manager) restoreBundle(ctx context.Context, repo Repository, path string) error {

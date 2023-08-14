@@ -76,6 +76,39 @@ func MustReadFile(tb testing.TB, filename string) []byte {
 	return content
 }
 
+// WriteFiles writes a map of files to the filesystem where the map key is the
+// filename relative to root and the value is one of string, []byte or
+// io.Reader.
+func WriteFiles(tb testing.TB, root string, files map[string]any) {
+	tb.Helper()
+
+	require.DirExists(tb, root)
+
+	for name, value := range files {
+		path := filepath.Join(root, name)
+
+		require.NoError(tb, os.MkdirAll(filepath.Dir(path), perm.SharedDir))
+
+		switch content := value.(type) {
+		case string:
+			require.NoError(tb, os.WriteFile(path, []byte(content), perm.PublicFile))
+		case []byte:
+			require.NoError(tb, os.WriteFile(path, content, perm.PublicFile))
+		case io.Reader:
+			func() {
+				f, err := os.Create(path)
+				require.NoError(tb, err)
+				defer MustClose(tb, f)
+
+				_, err = io.Copy(f, content)
+				require.NoError(tb, err)
+			}()
+		default:
+			tb.Fatalf("WriteFiles: %q: unsupported file content type %T", path, value)
+		}
+	}
+}
+
 // GitlabTestStoragePath returns the storage path to the gitlab-test repo.
 func GitlabTestStoragePath() string {
 	if testDirectory == "" {
