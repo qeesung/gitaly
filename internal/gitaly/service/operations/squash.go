@@ -142,7 +142,7 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		startCommit.String(),
 		endCommit.String(),
 		true,
-		false,
+		true,
 	)
 	if err != nil {
 		var conflictErr git2go.ConflictingFilesError

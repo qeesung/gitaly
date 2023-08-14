@@ -19,8 +19,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/metadata"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/signature"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/voting"
@@ -52,6 +54,11 @@ func TestUserSquash_successful(t *testing.T) {
 func testUserSquashSuccessful(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
+	var opts []testserver.GitalyServerOpt
+	if featureflag.GPGSigning.IsEnabled(ctx) {
+		opts = append(opts, testserver.WithSigningKey("testdata/signing_ssh_key_ed25519"))
+	}
+
 	for _, tc := range []struct {
 		desc             string
 		startOID, endOID string
@@ -68,7 +75,11 @@ func testUserSquashSuccessful(t *testing.T, ctx context.Context) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx)
+			ctx, cfg, repoProto, repoPath, client := setupOperationsService(t, ctx, opts...)
+
+			if featureflag.GPGSigning.IsEnabled(ctx) {
+				testcfg.BuildGitalyGPG(t, cfg)
+			}
 
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -98,6 +109,18 @@ func testUserSquashSuccessful(t *testing.T, ctx context.Context) {
 			treeData := gittest.Exec(t, cfg, "-C", repoPath, "ls-tree", "--name-only", response.SquashSha)
 			files := strings.Fields(text.ChompBytes(treeData))
 			require.Subset(t, files, []string{"VERSION", "README", "files", ".gitattributes"}, "ensure the files remain on their places")
+
+			if featureflag.GPGSigning.IsEnabled(ctx) {
+				data, err := repo.ReadObject(ctx, git.ObjectID(response.SquashSha))
+				require.NoError(t, err)
+
+				gpgsig, dataWithoutGpgSig := signature.ExtractSignature(t, ctx, data)
+
+				signingKey, err := signature.ParseSigningKey("testdata/signing_ssh_key_ed25519")
+				require.NoError(t, err)
+
+				require.NoError(t, signingKey.Verify([]byte(gpgsig), []byte(dataWithoutGpgSig)))
+			}
 		})
 	}
 }

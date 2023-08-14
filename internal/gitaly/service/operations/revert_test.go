@@ -13,8 +13,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/text"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/signature"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -491,7 +494,17 @@ func TestServer_UserRevert_mergeCommit(t *testing.T) {
 func testServerUserRevertMergeCommit(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
-	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, ctx)
+	var opts []testserver.GitalyServerOpt
+	if featureflag.GPGSigning.IsEnabled(ctx) {
+		opts = append(opts, testserver.WithSigningKey("testdata/signing_ssh_key_rsa"))
+	}
+
+	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, ctx, opts...)
+
+	if featureflag.GPGSigning.IsEnabled(ctx) {
+		testcfg.BuildGitalyGPG(t, cfg)
+	}
+
 	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -567,6 +580,18 @@ func testServerUserRevertMergeCommit(t *testing.T, ctx context.Context) {
 			{Mode: "100644", Path: "b", Content: "banana"},
 			{Mode: "100644", Path: "z", Content: "zucchini"},
 		})
+
+	if featureflag.GPGSigning.IsEnabled(ctx) {
+		data, err := repo.ReadObject(ctx, git.ObjectID(response.BranchUpdate.CommitId))
+		require.NoError(t, err)
+
+		gpgsig, dataWithoutGpgSig := signature.ExtractSignature(t, ctx, data)
+
+		signingKey, err := signature.ParseSigningKey("testdata/signing_ssh_key_rsa")
+		require.NoError(t, err)
+
+		require.NoError(t, signingKey.Verify([]byte(gpgsig), []byte(dataWithoutGpgSig)))
+	}
 }
 
 func TestServer_UserRevert_stableID(t *testing.T) {
