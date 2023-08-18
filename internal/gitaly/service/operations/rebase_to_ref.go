@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -84,21 +86,40 @@ func (s *Server) UserRebaseToRef(ctx context.Context, request *gitalypb.UserReba
 		committer.When = request.Timestamp.AsTime()
 	}
 
-	rebasedOID, err := s.git2goExecutor.Rebase(ctx, quarantineRepo, git2go.RebaseCommand{
-		Repository:       repoPath,
-		Committer:        committer,
-		CommitID:         sourceOID,
-		UpstreamCommitID: oid,
-		SkipEmptyCommits: true,
-	})
-	if err != nil {
-		var conflictErr git2go.ConflictingFilesError
-		if errors.As(err, &conflictErr) {
-			return nil, structerr.NewFailedPrecondition("failed to rebase %s on %s while preparing %s due to conflict",
-				sourceOID, oid, string(request.TargetRef))
-		}
+	var rebasedOID git.ObjectID
+	if featureflag.UserRebaseToRefPureGit.IsEnabled(ctx) {
+		rebasedOID, err = quarantineRepo.Rebase(
+			ctx,
+			oid.String(),
+			sourceOID.String(),
+			localrepo.RebaseWithCommitter(committer),
+		)
+		if err != nil {
+			var conflictErr *localrepo.RebaseConflictError
+			if errors.As(err, &conflictErr) {
+				return nil, structerr.NewFailedPrecondition("failed to rebase %s on %s while preparing %s due to conflict",
+					sourceOID, oid, string(request.TargetRef))
+			}
 
-		return nil, structerr.NewInternal("rebasing commits: %w", err)
+			return nil, structerr.NewInternal("rebasing commits: %w", err)
+		}
+	} else {
+		rebasedOID, err = s.git2goExecutor.Rebase(ctx, quarantineRepo, git2go.RebaseCommand{
+			Repository:       repoPath,
+			Committer:        committer,
+			CommitID:         sourceOID,
+			UpstreamCommitID: oid,
+			SkipEmptyCommits: true,
+		})
+		if err != nil {
+			var conflictErr git2go.ConflictingFilesError
+			if errors.As(err, &conflictErr) {
+				return nil, structerr.NewFailedPrecondition("failed to rebase %s on %s while preparing %s due to conflict",
+					sourceOID, oid, string(request.TargetRef))
+			}
+
+			return nil, structerr.NewInternal("rebasing commits: %w", err)
+		}
 	}
 
 	if err := quarantineDir.Migrate(); err != nil {

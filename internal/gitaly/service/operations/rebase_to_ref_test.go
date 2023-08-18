@@ -3,11 +3,13 @@
 package operations
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -20,8 +22,16 @@ import (
 
 func TestUserRebaseToRef_successful(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(
+		featureflag.GPGSigning,
+		featureflag.UserRebaseToRefPureGit,
+	).Run(t, testUserRebaseToRefSuccessful)
+}
 
-	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, testhelper.Context(t))
+func testUserRebaseToRefSuccessful(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, ctx)
 	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -76,8 +86,16 @@ func TestUserRebaseToRef_successful(t *testing.T) {
 
 func TestUserRebaseToRef_failure(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(
+		featureflag.GPGSigning,
+		featureflag.UserRebaseToRefPureGit,
+	).Run(t, testUserRebaseToRefFailure)
+}
 
-	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, testhelper.Context(t))
+func testUserRebaseToRefFailure(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, ctx)
 	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 	mergeBaseOID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("first commit"))
@@ -194,8 +212,16 @@ func TestUserRebaseToRef_failure(t *testing.T) {
 
 func TestUserRebaseToRef_conflict(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(
+		featureflag.GPGSigning,
+		featureflag.UserRebaseToRefPureGit,
+	).Run(t, testUserRebaseToRefConflict)
+}
 
-	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, testhelper.Context(t))
+func testUserRebaseToRefConflict(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	ctx, cfg, client := setupOperationsServiceWithoutRepo(t, ctx)
 	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 	mergeBaseOID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("first commit"))
