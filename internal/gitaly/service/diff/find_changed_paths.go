@@ -4,13 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -262,27 +260,15 @@ func resolveObjectWithType(
 		return "", structerr.NewInvalidArgument("revision cannot be empty")
 	}
 
-	if featureflag.FindChangedPathsBatchedValidation.IsEnabled(ctx) {
-		info, err := objectInfoReader.Info(ctx, git.Revision(fmt.Sprintf("%s^{%s}", revision, expectedType)))
-		if err != nil {
-			if catfile.IsNotFound(err) {
-				return "", structerr.NewNotFound("revision can not be found: %q", revision)
-			}
-			return "", err
-		}
-
-		return info.Oid, nil
-	}
-
-	oid, err := repo.ResolveRevision(ctx, git.Revision(fmt.Sprintf("%s^{%s}", revision, expectedType)))
+	info, err := objectInfoReader.Info(ctx, git.Revision(fmt.Sprintf("%s^{%s}", revision, expectedType)))
 	if err != nil {
-		if errors.Is(err, git.ErrReferenceNotFound) {
+		if catfile.IsNotFound(err) {
 			return "", structerr.NewNotFound("revision can not be found: %q", revision)
 		}
 		return "", err
 	}
 
-	return oid, nil
+	return info.Oid, nil
 }
 
 func (s *server) validateFindChangedPathsRequestParams(ctx context.Context, in *gitalypb.FindChangedPathsRequest) error {
