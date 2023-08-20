@@ -934,7 +934,38 @@ func (cfg *Cfg) configurePackObjectsCache() error {
 		return errPackObjectsCacheRelativePath
 	}
 
+	realPath, err := evalSymlink(poc.Dir)
+	if err != nil {
+		return fmt.Errorf("pack_objects_cache.dir symlink cannot be resolved: %w", err)
+	}
+	poc.Dir = realPath
+
 	return nil
+}
+
+func evalSymlink(path string) (string, error) {
+	// check if path is a symlink
+	fileInfo, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+
+	if fileInfo.Mode()&os.ModeSymlink == 0 {
+		// path is not a symlink
+		return path, nil
+	}
+
+	realPath, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", err
+	}
+
+	// the evaluated path can be relative
+	if !filepath.IsAbs(realPath) {
+		return filepath.Abs(realPath)
+	}
+
+	return realPath, nil
 }
 
 // SetupRuntimeDirectory creates a new runtime directory. Runtime directory contains internal
