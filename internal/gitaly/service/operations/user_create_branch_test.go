@@ -398,9 +398,8 @@ func TestUserCreateBranch_failure(t *testing.T) {
 			startPoint: "master",
 			user:       gittest.TestUser,
 			err: testhelper.WithInterceptedMetadata(
-				structerr.NewFailedPrecondition("reference update: exit status 128"),
-				"stderr",
-				"fatal: prepare: cannot lock ref 'refs/heads/master': reference already exists\n",
+				structerr.NewFailedPrecondition("reference update: reference already exists"),
+				"reference", "refs/heads/master",
 			),
 		},
 		{

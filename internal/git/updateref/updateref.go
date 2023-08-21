@@ -35,6 +35,25 @@ func (e AlreadyLockedError) ErrorMetadata() []structerr.MetadataItem {
 	}
 }
 
+// ReferenceAlreadyExistsError is returned when attempting to create a reference
+// that already exists.
+type ReferenceAlreadyExistsError struct {
+	// ReferenceName is the name of the reference that already exists.
+	ReferenceName string
+}
+
+func (e ReferenceAlreadyExistsError) Error() string {
+	return "reference already exists"
+}
+
+// ErrorMetadata implements the `structerr.ErrorMetadater` interface and provides the name of the
+// reference that already existed.
+func (e ReferenceAlreadyExistsError) ErrorMetadata() []structerr.MetadataItem {
+	return []structerr.MetadataItem{
+		{Key: "reference", Value: e.ReferenceName},
+	}
+}
+
 // InvalidReferenceFormatError indicates a reference name was invalid.
 type InvalidReferenceFormatError struct {
 	// ReferenceName is the invalid reference name.
@@ -438,6 +457,7 @@ func (u *Updater) write(format string, args ...interface{}) error {
 var (
 	refLockedRegex               = regexp.MustCompile(`^fatal: (prepare|commit): cannot lock ref '(.+?)': Unable to create '.*': File exists.`)
 	refInvalidFormatRegex        = regexp.MustCompile(`^fatal: invalid ref format: (.*)\n$`)
+	referenceAlreadyExistsRegex  = regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': reference already exists\n$`)
 	referenceExistsConflictRegex = regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': '(.*)' exists; cannot create '.*'\n$`)
 	inTransactionConflictRegex   = regexp.MustCompile(`^fatal: .*: cannot lock ref '.*': cannot process '(.*)' and '(.*)' at the same time\n$`)
 	nonExistentObjectRegex       = regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write ref '(.*)' with nonexistent object (.*)\n$`)
@@ -518,6 +538,13 @@ func (u *Updater) parseStderr() error {
 			ReferenceName:    string(matches[1]),
 			ExpectedObjectID: string(matches[3]),
 			ActualObjectID:   string(matches[2]),
+		}
+	}
+
+	matches = referenceAlreadyExistsRegex.FindSubmatch(stderr)
+	if len(matches) > 1 {
+		return ReferenceAlreadyExistsError{
+			ReferenceName: string(matches[1]),
 		}
 	}
 

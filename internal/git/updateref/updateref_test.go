@@ -66,6 +66,28 @@ func TestUpdater_create(t *testing.T) {
 	require.Equal(t, gittest.ResolveRevision(t, cfg, repoPath, "refs/heads/_create"), commitID)
 }
 
+func TestUpdater_referenceAlreadyExists(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg, _, repoPath, updater := setupUpdater(t, ctx)
+	expectedErr := ReferenceAlreadyExistsError{ReferenceName: "refs/heads/main"}
+	defer func() { require.Equal(t, expectedErr, updater.Close()) }()
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath)
+
+	// Create the first branch.
+	require.NoError(t, updater.Start())
+	require.NoError(t, updater.Create("refs/heads/main", commitID))
+	require.NoError(t, updater.Commit())
+
+	// Attempt to create the same branch.
+	require.NoError(t, updater.Start())
+	require.NoError(t, updater.Create("refs/heads/main", commitID))
+	require.Equal(t, expectedErr, updater.Commit())
+}
+
 func TestUpdater_nonCommitObject(t *testing.T) {
 	t.Parallel()
 
