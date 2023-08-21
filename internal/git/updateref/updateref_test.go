@@ -3,8 +3,9 @@ package updateref
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -143,7 +144,9 @@ func TestUpdater_properErrorOnWriteFailure(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			cfg, _, repoPath, updater := setupUpdater(t, ctx)
-			defer func() { require.ErrorContains(t, updater.Close(), "closing updater: exit status 128") }()
+
+			expectedErr := InvalidReferenceFormatError{ReferenceName: referenceName}
+			defer func() { require.Equal(t, expectedErr, updater.Close()) }()
 
 			commitID := gittest.WriteCommit(t, cfg, repoPath)
 
@@ -158,7 +161,7 @@ func TestUpdater_properErrorOnWriteFailure(t *testing.T) {
 					continue
 				}
 
-				require.Equal(t, InvalidReferenceFormatError{ReferenceName: referenceName}, err)
+				require.Equal(t, expectedErr, err)
 				break
 			}
 		})
@@ -234,7 +237,13 @@ func TestUpdater_fileDirectoryConflict(t *testing.T) {
 				t.Run(method.desc, func(t *testing.T) {
 					t.Run("different transaction", func(t *testing.T) {
 						cfg, _, repoPath, updater := setupUpdater(t, ctx)
-						defer func() { require.ErrorContains(t, updater.Close(), "closing updater: exit status 128") }()
+
+						expectedErr := FileDirectoryConflictError{
+							ExistingReferenceName:    tc.firstReference.String(),
+							ConflictingReferenceName: tc.secondReference.String(),
+						}
+
+						defer func() { require.Equal(t, expectedErr, updater.Close()) }()
 
 						commitID := gittest.WriteCommit(t, cfg, repoPath)
 
@@ -245,15 +254,17 @@ func TestUpdater_fileDirectoryConflict(t *testing.T) {
 						require.NoError(t, updater.Start())
 						require.NoError(t, updater.Create(tc.secondReference, commitID))
 
-						require.Equal(t, FileDirectoryConflictError{
-							ExistingReferenceName:    tc.firstReference.String(),
-							ConflictingReferenceName: tc.secondReference.String(),
-						}, method.finish(updater))
+						require.Equal(t, expectedErr, method.finish(updater))
 					})
 
 					t.Run("same transaction", func(t *testing.T) {
 						cfg, _, repoPath, updater := setupUpdater(t, ctx)
-						defer func() { require.ErrorContains(t, updater.Close(), "closing updater: exit status 128") }()
+
+						expectedErr := InTransactionConflictError{
+							FirstReferenceName:  tc.firstReference.String(),
+							SecondReferenceName: tc.secondReference.String(),
+						}
+						defer func() { require.Equal(t, expectedErr, updater.Close()) }()
 
 						commitID := gittest.WriteCommit(t, cfg, repoPath)
 
@@ -261,10 +272,7 @@ func TestUpdater_fileDirectoryConflict(t *testing.T) {
 						require.NoError(t, updater.Create(tc.firstReference, commitID))
 						require.NoError(t, updater.Create(tc.secondReference, commitID))
 
-						require.Equal(t, InTransactionConflictError{
-							FirstReferenceName:  tc.firstReference.String(),
-							SecondReferenceName: tc.secondReference.String(),
-						}, method.finish(updater))
+						require.Equal(t, expectedErr, method.finish(updater))
 					})
 				})
 			}
@@ -277,23 +285,104 @@ func TestUpdater_invalidStateTransitions(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 
-	cfg, repo, repoPath, updater := setupUpdater(t, ctx)
-	defer testhelper.MustClose(t, updater)
+	for _, tc := range []struct {
+		desc        string
+		expectedErr error
+		perform     func(*testing.T, *Updater) error
+	}{
+		{
+			desc: "update before starting",
+			perform: func(t *testing.T, u *Updater) error {
+				return u.Update("", "", "")
+			},
+			expectedErr: invalidStateTransitionError{expected: stateStarted, actual: stateIdle},
+		},
+		{
+			desc: "create before starting",
+			perform: func(t *testing.T, u *Updater) error {
+				return u.Create("", "")
+			},
+			expectedErr: invalidStateTransitionError{expected: stateStarted, actual: stateIdle},
+		},
+		{
+			desc: "delete before starting",
+			perform: func(t *testing.T, u *Updater) error {
+				return u.Delete("")
+			},
+			expectedErr: invalidStateTransitionError{expected: stateStarted, actual: stateIdle},
+		},
+		{
+			desc: "prepare before starting",
+			perform: func(t *testing.T, u *Updater) error {
+				return u.Prepare()
+			},
+			expectedErr: invalidStateTransitionError{expected: stateStarted, actual: stateIdle},
+		},
+		{
+			desc: "preparing before starting",
+			perform: func(t *testing.T, u *Updater) error {
+				return u.Prepare()
+			},
+			expectedErr: invalidStateTransitionError{expected: stateStarted, actual: stateIdle},
+		},
+		{
+			desc: "preparing when prepared",
+			perform: func(t *testing.T, u *Updater) error {
+				require.NoError(t, u.Start())
+				require.NoError(t, u.Prepare())
+				return u.Prepare()
+			},
+			expectedErr: invalidStateTransitionError{expected: stateStarted, actual: statePrepared},
+		},
+		{
+			desc: "starting when started",
+			perform: func(t *testing.T, u *Updater) error {
+				require.NoError(t, u.Start())
+				return u.Start()
+			},
+			expectedErr: invalidStateTransitionError{expected: stateIdle, actual: stateStarted},
+		},
+		{
+			desc: "starting when prepared",
+			perform: func(t *testing.T, u *Updater) error {
+				require.NoError(t, u.Start())
+				require.NoError(t, u.Prepare())
+				return u.Start()
+			},
+			expectedErr: invalidStateTransitionError{expected: stateIdle, actual: statePrepared},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, repo, _, updater := setupUpdater(t, ctx)
+			defer func() { require.Equal(t, tc.expectedErr, updater.Close()) }()
 
-	commitID := gittest.WriteCommit(t, cfg, repoPath)
+			require.Equal(t, tc.expectedErr, tc.perform(t, updater))
 
-	require.Equal(t, invalidStateTransitionError{expected: stateStarted, actual: stateIdle}, updater.Update("refs/heads/main", commitID, ""))
-	require.Equal(t, invalidStateTransitionError{expected: stateStarted, actual: stateClosed}, updater.Create("refs/heads/main", commitID))
-	require.Equal(t, invalidStateTransitionError{expected: stateStarted, actual: stateClosed}, updater.Delete("refs/heads/main"))
-	require.Equal(t, invalidStateTransitionError{expected: stateStarted, actual: stateClosed}, updater.Prepare())
-	require.Equal(t, invalidStateTransitionError{expected: stateStarted, actual: stateClosed}, updater.Commit())
-	require.Equal(t, invalidStateTransitionError{expected: stateIdle, actual: stateClosed}, updater.Start())
-	require.NoError(t, updater.Close())
+			// Verify no references were created.
+			refs, err := repo.GetReferences(ctx)
+			require.NoError(t, err)
+			require.Empty(t, refs)
+		})
+	}
+}
 
-	// Verify no references were created.
-	refs, err := repo.GetReferences(ctx)
-	require.NoError(t, err)
-	require.Empty(t, refs)
+func TestUpdater_allMethodsReturnSameError(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	_, _, _, updater := setupUpdater(t, ctx)
+
+	expectedErr := invalidStateTransitionError{expected: stateStarted, actual: stateIdle}
+	defer func() { require.Equal(t, expectedErr, updater.Close()) }()
+
+	require.Equal(t, expectedErr, updater.Update("", "", ""))
+	require.Equal(t, expectedErr, updater.Create("", ""))
+	require.Equal(t, expectedErr, updater.Delete(""))
+	require.Equal(t, expectedErr, updater.Prepare())
+	require.Equal(t, expectedErr, updater.Commit())
+	require.Equal(t, expectedErr, updater.Start())
+	require.Equal(t, expectedErr, updater.Close())
 }
 
 func TestUpdater_update(t *testing.T) {
@@ -305,7 +394,9 @@ func TestUpdater_update(t *testing.T) {
 
 	// The updater cancel should fail at the end of the test as the final operation is an error,
 	// which results in closing the updater.
-	defer func() { require.ErrorContains(t, updater.Close(), "closing updater: exit status 128") }()
+
+	var expectedErr error
+	defer func() { require.Equal(t, expectedErr, updater.Close()) }()
 
 	oldCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 	newCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(oldCommitID))
@@ -328,12 +419,13 @@ func TestUpdater_update(t *testing.T) {
 	require.NoError(t, updater.Start())
 	require.NoError(t, updater.Update("refs/heads/main", newCommitID, otherCommitID))
 
-	require.Equal(t, MismatchingStateError{
+	expectedErr = MismatchingStateError{
 		ReferenceName:    "refs/heads/main",
 		ExpectedObjectID: otherCommitID.String(),
 		ActualObjectID:   oldCommitID.String(),
-	}, updater.Commit())
-	require.Equal(t, invalidStateTransitionError{expected: stateIdle, actual: stateClosed}, updater.Start())
+	}
+	require.Equal(t, expectedErr, updater.Commit())
+	require.Equal(t, expectedErr, updater.Start())
 
 	require.Equal(t, gittest.ResolveRevision(t, cfg, repoPath, "refs/heads/main"), oldCommitID)
 }
@@ -363,7 +455,9 @@ func TestUpdater_prepareLocksTransaction(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	cfg, _, repoPath, updater := setupUpdater(t, ctx)
-	defer testhelper.MustClose(t, updater)
+
+	expectedErr := invalidStateTransitionError{expected: stateStarted, actual: statePrepared}
+	defer func() { require.Equal(t, expectedErr, updater.Close()) }()
 
 	commitID := gittest.WriteCommit(t, cfg, repoPath)
 
@@ -372,7 +466,7 @@ func TestUpdater_prepareLocksTransaction(t *testing.T) {
 	require.NoError(t, updater.Prepare())
 
 	require.Equal(t, invalidStateTransitionError{expected: stateStarted, actual: statePrepared}, updater.Update("refs/heads/feature", commitID, ""))
-	require.Equal(t, invalidStateTransitionError{expected: stateStarted, actual: stateClosed}, updater.Commit())
+	require.Equal(t, invalidStateTransitionError{expected: stateStarted, actual: statePrepared}, updater.Commit())
 }
 
 func TestUpdater_invalidReferenceName(t *testing.T) {
@@ -388,11 +482,11 @@ func TestUpdater_invalidReferenceName(t *testing.T) {
 	repo := localrepo.NewTestRepo(t, cfg, repoProto, git.WithSkipHooks())
 	commitID := gittest.WriteCommit(t, cfg, repoPath)
 
+	const referenceName = `refs/heads\master`
 	updater, err := New(ctx, repo)
 	require.NoError(t, err)
-	defer func() { require.ErrorContains(t, updater.Close(), "closing updater: exit status 128") }()
+	defer func() { require.Equal(t, InvalidReferenceFormatError{ReferenceName: referenceName}, updater.Close()) }()
 
-	const referenceName = `refs/heads\master`
 	require.NoError(t, updater.Start())
 	require.NoError(t, updater.Update(referenceName, commitID, ""))
 	require.Equal(t, InvalidReferenceFormatError{ReferenceName: referenceName}, updater.Prepare())
@@ -523,7 +617,7 @@ func TestUpdater_cancel(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	cfg, repo, repoPath, firstUpdater := setupUpdater(t, ctx)
-	defer testhelper.MustClose(t, firstUpdater)
+	defer func() { require.Equal(t, errClosed, firstUpdater.Close()) }()
 
 	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 
@@ -536,13 +630,15 @@ func TestUpdater_cancel(t *testing.T) {
 	// because the reference is locked already.
 	failingUpdater, err := New(ctx, repo)
 	require.NoError(t, err)
-	defer func() { require.ErrorContains(t, failingUpdater.Close(), "closing updater: exit status 128") }()
+
+	expectedErr := AlreadyLockedError{
+		ReferenceName: "refs/heads/main",
+	}
+	defer func() { require.Equal(t, expectedErr, failingUpdater.Close()) }()
 
 	require.NoError(t, failingUpdater.Start())
 	require.NoError(t, failingUpdater.Delete(git.ReferenceName("refs/heads/main")))
-	require.Equal(t, AlreadyLockedError{
-		ReferenceName: "refs/heads/main",
-	}, failingUpdater.Commit())
+	require.Equal(t, expectedErr, failingUpdater.Commit())
 
 	// We now cancel the initial updater. Afterwards, it should be possible again to update the
 	// ref because locks should have been released.
@@ -589,16 +685,23 @@ func TestUpdater_capturesStderr(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	_, _, _, updater := setupUpdater(t, ctx)
-	defer func() { require.ErrorContains(t, updater.Close(), "closing updater: exit status 128") }()
+	var expectedErr error
+	defer func() { require.Equal(t, expectedErr, updater.Close()) }()
 
 	require.NoError(t, updater.Start())
 	// fail the process by writing bad input
 	_, err := updater.cmd.Write([]byte("garbage input"))
 	require.NoError(t, err)
 
-	require.Equal(t, structerr.New("%w", fmt.Errorf("state update to %q failed: %w", "commit", io.EOF)).WithMetadata(
-		"stderr", "fatal: unknown command: garbage inputcommit\n",
-	), updater.Commit())
+	expectedErr = structerr.New("%w", updater.cmd.Wait()).WithMetadataItems(
+		structerr.MetadataItem{Key: "stderr", Value: "fatal: unknown command: garbage input\n"},
+		structerr.MetadataItem{Key: "close_error", Value: &fs.PathError{
+			Op:   "write",
+			Path: "|1",
+			Err:  errors.New("file already closed"),
+		}},
+	)
+	require.Equal(t, expectedErr, updater.Commit())
 }
 
 func BenchmarkUpdater(b *testing.B) {
