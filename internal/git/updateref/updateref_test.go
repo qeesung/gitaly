@@ -598,17 +598,19 @@ func TestUpdater_contextCancellation(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, updater.Start())
-	require.NoError(t, updater.Create("refs/heads/main", commitID))
 
 	// Force the update-ref process to terminate early by cancelling the context.
 	childCancel()
 
-	// We should see that committing the update fails now.
-	require.Error(t, updater.Commit())
-
-	// And the reference should not have been created.
-	_, err = repo.ReadCommit(ctx, "refs/heads/main")
-	require.Equal(t, localrepo.ErrObjectNotFound, err)
+	for i := 0; true; i++ {
+		// Context cancellation happens asynchronously. Keep running commands until
+		// the context cancellation error is returned.
+		err := updater.Create(git.ReferenceName(fmt.Sprintf("refs/heads/ref-%d", i)), commitID)
+		if err != nil {
+			require.ErrorIs(t, err, context.Canceled)
+			return
+		}
+	}
 }
 
 func TestUpdater_cancel(t *testing.T) {
