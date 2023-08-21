@@ -13,6 +13,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 )
 
+// errClosed is returned when accessing an updater that has already been closed.
+var errClosed = errors.New("closed")
+
 // AlreadyLockedError indicates a reference cannot be locked because another
 // process has already locked it.
 type AlreadyLockedError struct {
@@ -27,6 +30,25 @@ func (e AlreadyLockedError) Error() string {
 // ErrorMetadata implements the `structerr.ErrorMetadater` interface and provides the name of the reference that was
 // locked already.
 func (e AlreadyLockedError) ErrorMetadata() []structerr.MetadataItem {
+	return []structerr.MetadataItem{
+		{Key: "reference", Value: e.ReferenceName},
+	}
+}
+
+// ReferenceAlreadyExistsError is returned when attempting to create a reference
+// that already exists.
+type ReferenceAlreadyExistsError struct {
+	// ReferenceName is the name of the reference that already exists.
+	ReferenceName string
+}
+
+func (e ReferenceAlreadyExistsError) Error() string {
+	return "reference already exists"
+}
+
+// ErrorMetadata implements the `structerr.ErrorMetadater` interface and provides the name of the
+// reference that already existed.
+func (e ReferenceAlreadyExistsError) ErrorMetadata() []structerr.MetadataItem {
 	return []structerr.MetadataItem{
 		{Key: "reference", Value: e.ReferenceName},
 	}
@@ -176,8 +198,6 @@ const (
 	// accepts reference changes until the current transaction is committed and
 	// a new one started.
 	statePrepared state = "prepared"
-	// stateClosed means the updater has been closed and is no longer usable.
-	stateClosed state = "closed"
 )
 
 // invalidStateTransitionError is returned when the updater is used incorrectly.
@@ -209,6 +229,7 @@ func (err invalidStateTransitionError) Error() string {
 type Updater struct {
 	repo       git.RepositoryExecutor
 	cmd        *command.Command
+	closeErr   error
 	stdout     *bufio.Reader
 	stderr     *bytes.Buffer
 	objectHash git.ObjectHash
@@ -294,9 +315,12 @@ func New(ctx context.Context, repo git.RepositoryExecutor, opts ...UpdaterOpt) (
 
 // expectState returns an error and closes the updater if it is not in the expected state.
 func (u *Updater) expectState(expected state) error {
+	if u.closeErr != nil {
+		return u.closeErr
+	}
+
 	if err := u.checkState(expected); err != nil {
-		_ = u.Close()
-		return err
+		return u.closeWithError(err)
 	}
 
 	return nil
@@ -387,17 +411,44 @@ func (u *Updater) Commit() error {
 // Close closes the updater and aborts a possible open transaction. No changes will be written
 // to disk, all lockfiles will be cleaned up and the process will exit.
 func (u *Updater) Close() error {
-	u.state = stateClosed
+	return u.closeWithError(nil)
+}
+
+// closeWithError closes the updater with the given error. The passed in error is only used
+// if the updater closes successfully. This is used to close the Updater with errors raised
+// by our logic when the command itself hasn't errored. All subsequent method calls return
+// the error returned from first closeWithError call.
+func (u *Updater) closeWithError(closeErr error) error {
+	if u.closeErr != nil {
+		return u.closeErr
+	}
 
 	if err := u.cmd.Wait(); err != nil {
-		return fmt.Errorf("closing updater: %w", err)
+		err = structerr.New("%w", err).WithMetadataItems(
+			structerr.MetadataItem{Key: "stderr", Value: u.stderr.String()},
+			structerr.MetadataItem{Key: "close_error", Value: closeErr},
+		)
+		if parsedErr := u.parseStderr(); parsedErr != nil {
+			// If stderr contained a specific error, return it instead.
+			err = parsedErr
+		}
+
+		u.closeErr = err
+		return err
 	}
+
+	if closeErr != nil {
+		u.closeErr = closeErr
+		return closeErr
+	}
+
+	u.closeErr = errClosed
 	return nil
 }
 
 func (u *Updater) write(format string, args ...interface{}) error {
 	if _, err := fmt.Fprintf(u.cmd, format, args...); err != nil {
-		return u.handleIOError(err)
+		return u.closeWithError(err)
 	}
 
 	return nil
@@ -406,6 +457,7 @@ func (u *Updater) write(format string, args ...interface{}) error {
 var (
 	refLockedRegex               = regexp.MustCompile(`^fatal: (prepare|commit): cannot lock ref '(.+?)': Unable to create '.*': File exists.`)
 	refInvalidFormatRegex        = regexp.MustCompile(`^fatal: invalid ref format: (.*)\n$`)
+	referenceAlreadyExistsRegex  = regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': reference already exists\n$`)
 	referenceExistsConflictRegex = regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': '(.*)' exists; cannot create '.*'\n$`)
 	inTransactionConflictRegex   = regexp.MustCompile(`^fatal: .*: cannot lock ref '.*': cannot process '(.*)' and '(.*)' at the same time\n$`)
 	nonExistentObjectRegex       = regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write ref '(.*)' with nonexistent object (.*)\n$`)
@@ -425,37 +477,17 @@ func (u *Updater) setState(state string) error {
 	// raised.
 	line, err := u.stdout.ReadString('\n')
 	if err != nil {
-		return u.handleIOError(fmt.Errorf("state update to %q failed: %w", state, err))
+		return u.closeWithError(fmt.Errorf("state update to %q failed: %w", state, err))
 	}
 
 	if line != fmt.Sprintf("%s: ok\n", state) {
-		_ = u.Close()
-		return fmt.Errorf("state update to %q not successful: expected ok, got %q", state, line)
+		return u.closeWithError(fmt.Errorf("state update to %q not successful: expected ok, got %q", state, line))
 	}
 
 	return nil
 }
 
-// handleIOError handles errors after reading from or writing to git-update-ref(1) has failed.
-// It makes sure to properly tear down the process so that the stderr gets synchronized and handles
-// well-known errors. If the error message is not a well-known error then this function returns the
-// fallback error provided by the caller.
-func (u *Updater) handleIOError(fallbackErr error) error {
-	// We need to explicitly cancel the command here and wait for it to terminate such that we
-	// can retrieve the command's stderr in a race-free manner.
-	//
-	// Furthermore, if I/O has failed because we cancelled the process then we don't want to
-	// return a converted error, but instead want to return the actual context cancellation
-	// error.
-	if err := u.Close(); err != nil {
-		switch {
-		case errors.Is(err, context.Canceled):
-			return err
-		case errors.Is(err, context.DeadlineExceeded):
-			return err
-		}
-	}
-
+func (u *Updater) parseStderr() error {
 	stderr := u.stderr.Bytes()
 
 	matches := refLockedRegex.FindSubmatch(stderr)
@@ -509,5 +541,12 @@ func (u *Updater) handleIOError(fallbackErr error) error {
 		}
 	}
 
-	return structerr.New("%w", fallbackErr).WithMetadata("stderr", string(stderr))
+	matches = referenceAlreadyExistsRegex.FindSubmatch(stderr)
+	if len(matches) > 1 {
+		return ReferenceAlreadyExistsError{
+			ReferenceName: string(matches[1]),
+		}
+	}
+
+	return nil
 }

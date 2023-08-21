@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -399,9 +398,8 @@ func TestUserCreateBranch_failure(t *testing.T) {
 			startPoint: "master",
 			user:       gittest.TestUser,
 			err: testhelper.WithInterceptedMetadata(
-				structerr.NewFailedPrecondition("reference update: state update to %q failed: %w", "prepare", io.EOF),
-				"stderr",
-				"fatal: prepare: cannot lock ref 'refs/heads/master': reference already exists\n",
+				structerr.NewFailedPrecondition("reference update: reference already exists"),
+				"reference", "refs/heads/master",
 			),
 		},
 		{
