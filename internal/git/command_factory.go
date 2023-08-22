@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/alternates"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2hooks"
@@ -569,6 +570,12 @@ func (cf *ExecCommandFactory) combineArgs(ctx context.Context, sc Command, cc cm
 // GlobalConfiguration returns the global Git configuration that should be applied to every Git
 // command.
 func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]ConfigPair, error) {
+	// Feature flag to change the default global configuration of autocrlf.
+	autocrlf := "input"
+	if featureflag.AutocrlfConfig.IsEnabled(ctx) {
+		autocrlf = "false"
+	}
+
 	// As global options may cancel out each other, we have a clearly defined order in which
 	// globals get applied. The order is similar to how git handles configuration options from
 	// most general to most specific. This allows callsites to override options which would
@@ -586,11 +593,11 @@ func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]Config
 		// of it ourselves.
 		{Key: "gc.auto", Value: "0"},
 
-		// CRLF line endings will get replaced with LF line endings
-		// when writing blobs to the object database. No conversion is
-		// done when reading blobs from the object database. This is
-		// required for the web editor.
-		{Key: "core.autocrlf", Value: "input"},
+		// CRLF line endings will get replaced with LF line endings when writing blobs to the
+		// object database. No conversion is done when reading blobs from the object database.
+		// This is required for the web editor. With feature flag "autocrlf_false" enabled
+		// CRLF line endings will not get replaced and be left alone.
+		{Key: "core.autocrlf", Value: autocrlf},
 
 		// Git allows the use of replace refs, where a given object ID can be replaced with a
 		// different one. The result is that Git commands would use the new object instead of the
