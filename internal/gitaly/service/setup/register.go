@@ -12,7 +12,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/diff"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/internalgitaly"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/namespace"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/objectpool"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/operations"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/ref"
@@ -73,7 +72,6 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 		deps.GetGitCmdFactory(),
 		deps.GetCatfileCache(),
 	))
-	gitalypb.RegisterNamespaceServiceServer(srv, namespace.NewServer(deps.GetLocator()))
 	gitalypb.RegisterOperationServiceServer(srv, operations.NewServer(
 		deps.GetHookManager(),
 		deps.GetTxManager(),
