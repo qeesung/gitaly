@@ -425,6 +425,10 @@ test-with-praefect-wal: test-with-praefect
 race-go: override TEST_OPTIONS := ${TEST_OPTIONS} -race
 race-go: test-go
 
+## Running the verify steps in parallel make it difficult to read the output
+## when there are failures.
+.NOTPARALLEL: verify
+
 .PHONY: verify
 ## Verify that various files conform to our expectations.
 verify: check-mod-tidy notice-up-to-date check-proto lint
