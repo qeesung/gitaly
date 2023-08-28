@@ -49,12 +49,6 @@ func TestNewProtoRegistry(t *testing.T) {
 			"RawDiff":     OpAccessor,
 			"RawPatch":    OpAccessor,
 		},
-		"NamespaceService": {
-			"AddNamespace":    OpMutator,
-			"NamespaceExists": OpAccessor,
-			"RemoveNamespace": OpMutator,
-			"RenameNamespace": OpMutator,
-		},
 		"ObjectPoolService": {
 			"CreateObjectPool":           OpMutator,
 			"DeleteObjectPool":           OpMutator,

@@ -10,11 +10,6 @@ type repositoryBasedRequest interface {
 	GetRepository() *gitalypb.Repository
 }
 
-type namespaceBasedRequest interface {
-	storageBasedRequest
-	GetName() string
-}
-
 type storageBasedRequest interface {
 	GetStorageName() string
 }
@@ -42,21 +37,6 @@ func formatStorageRequest(storageReq storageBasedRequest) map[string]interface{}
 	}
 }
 
-func formatNamespaceRequest(namespaceReq namespaceBasedRequest) map[string]interface{} {
-	return map[string]interface{}{
-		"StorageName": namespaceReq.GetStorageName(),
-		"Name":        namespaceReq.GetName(),
-	}
-}
-
-func formatRenameNamespaceRequest(renameReq *gitalypb.RenameNamespaceRequest) map[string]interface{} {
-	return map[string]interface{}{
-		"StorageName": renameReq.GetStorageName(),
-		"From":        renameReq.GetFrom(),
-		"To":          renameReq.GetTo(),
-	}
-}
-
 // FieldExtractor will extract the relevant fields from an incoming grpc request
 func FieldExtractor(fullMethod string, req interface{}) map[string]interface{} {
 	if req == nil {
@@ -66,12 +46,8 @@ func FieldExtractor(fullMethod string, req interface{}) map[string]interface{} {
 	var result map[string]interface{}
 
 	switch req := req.(type) {
-	case *gitalypb.RenameNamespaceRequest:
-		result = formatRenameNamespaceRequest(req)
 	case repositoryBasedRequest:
 		result = formatRepoRequest(req.GetRepository())
-	case namespaceBasedRequest:
-		result = formatNamespaceRequest(req)
 	case storageBasedRequest:
 		result = formatStorageRequest(req)
 	}

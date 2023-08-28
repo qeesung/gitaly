@@ -177,9 +177,9 @@ func TestMethodInfo_Storage(t *testing.T) {
 	}{
 		{
 			desc:   "valid request type single depth",
-			svc:    "NamespaceService",
-			method: "AddNamespace",
-			pbMsg: &gitalypb.AddNamespaceRequest{
+			svc:    "InternalGitaly",
+			method: "WalkRepos",
+			pbMsg: &gitalypb.WalkReposRequest{
 				StorageName: "some_storage",
 			},
 			expectStorage: "some_storage",
@@ -224,9 +224,9 @@ func TestMethodInfo_SetStorage(t *testing.T) {
 	}{
 		{
 			desc:    "valid request type",
-			service: "NamespaceService",
-			method:  "AddNamespace",
-			pbMsg: &gitalypb.AddNamespaceRequest{
+			service: "InternalGitaly",
+			method:  "WalkRepos",
+			pbMsg: &gitalypb.WalkReposRequest{
 				StorageName: "old_storage",
 			},
 			storage: "new_storage",
