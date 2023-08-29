@@ -522,9 +522,9 @@ rails-specs:
     FORCE_GITLAB_CI: "true"
   rules:
     - if: '"$CI_MERGE_REQUEST_IID" != ""'
-      when: manual
       allow_failure: true
     - if: '"$CI_MERGE_REQUEST_IID" == ""'
+      when: manual
       allow_failure: true
 
 rails-specs-cleanup:
