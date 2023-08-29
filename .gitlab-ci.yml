@@ -521,7 +521,10 @@ rails-specs:
     GITALY_TEST: "true"
     FORCE_GITLAB_CI: "true"
   rules:
-    - when: manual
+    - if: '"$CI_MERGE_REQUEST_IID" != ""'
+      when: manual
+      allow_failure: true
+    - if: '"$CI_MERGE_REQUEST_IID" == ""'
       allow_failure: true
 
 rails-specs-cleanup:
@@ -534,9 +537,6 @@ rails-specs-cleanup:
   environment:
     name: merge-requests/$RAILS_BRANCH_FOR_JOB
     action: stop
-  rules:
-    - when: manual
-      allow_failure: true
 
 cleanup-rails-spec-test-env:
   needs: ["rails-specs-cleanup"]
