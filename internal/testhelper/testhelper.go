@@ -237,6 +237,8 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 
 	// Randomly enable mailmap
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.MailmapOptions, rand.Int()%2 == 0)
+	// Randomly enable either Git v2.41 or 2.42.
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV242, rand.Int()%2 == 0)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)
