@@ -15,12 +15,105 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/remoterepo"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
+
+// unknownIndexError is an unspecified error that was produced by performing an invalid operation on the index.
+type unknownIndexError string
+
+// Error returns the error message of the unknown index error.
+func (err unknownIndexError) Error() string { return string(err) }
+
+// indexErrorType specifies which of the known index error types has occurred.
+type indexErrorType uint
+
+const (
+	// ErrDirectoryExists represent a directory exists error.
+	errDirectoryExists indexErrorType = iota
+	// ErrDirectoryTraversal represent a directory traversal error.
+	errDirectoryTraversal
+	// ErrEmptyPath represent an empty path error.
+	errEmptyPath
+	// ErrFileExists represent a file exists error.
+	errFileExists
+	// ErrFileNotFound represent a file not found error.
+	errFileNotFound
+	// ErrInvalidPath represent an invalid path error.
+	errInvalidPath
+)
+
+// IndexError is a well-defined error that was produced by performing an invalid operation on the index.
+type indexError struct {
+	path      string
+	errorType indexErrorType
+}
+
+// Error returns the error message associated with the error type.
+func (err indexError) Error() string {
+	switch err.errorType {
+	case errDirectoryExists:
+		return "A directory with this name already exists"
+	case errDirectoryTraversal:
+		return "Path cannot include directory traversal"
+	case errEmptyPath:
+		return "You must provide a file path"
+	case errFileExists:
+		return "A file with this name already exists"
+	case errFileNotFound:
+		return "A file with this name doesn't exist"
+	case errInvalidPath:
+		return fmt.Sprintf("invalid path: %q", err.path)
+	default:
+		panic(fmt.Sprintf("unhandled IndexErrorType: %v", err.errorType))
+	}
+}
+
+// Proto returns the Protobuf representation of this error.
+func (err indexError) Proto() *gitalypb.IndexError {
+	errType := gitalypb.IndexError_ERROR_TYPE_UNSPECIFIED
+	switch err.errorType {
+	case errDirectoryExists:
+		errType = gitalypb.IndexError_ERROR_TYPE_DIRECTORY_EXISTS
+	case errDirectoryTraversal:
+		errType = gitalypb.IndexError_ERROR_TYPE_DIRECTORY_TRAVERSAL
+	case errEmptyPath:
+		errType = gitalypb.IndexError_ERROR_TYPE_EMPTY_PATH
+	case errFileExists:
+		errType = gitalypb.IndexError_ERROR_TYPE_FILE_EXISTS
+	case errFileNotFound:
+		errType = gitalypb.IndexError_ERROR_TYPE_FILE_NOT_FOUND
+	case errInvalidPath:
+		errType = gitalypb.IndexError_ERROR_TYPE_INVALID_PATH
+	}
+
+	return &gitalypb.IndexError{
+		Path:      []byte(err.path),
+		ErrorType: errType,
+	}
+}
+
+// StructuredError returns the structured error.
+func (err indexError) StructuredError() structerr.Error {
+	e := errors.New(err.Error())
+	switch err.errorType {
+	case errDirectoryExists, errFileExists:
+		return structerr.NewAlreadyExists("%w", e)
+	case errDirectoryTraversal, errEmptyPath, errInvalidPath:
+		return structerr.NewInvalidArgument("%w", e)
+	case errFileNotFound:
+		return structerr.NewNotFound("%w", e)
+	default:
+		return structerr.NewInternal("%w", e)
+	}
+}
+
+// invalidArgumentError is returned when an invalid argument is provided.
+type invalidArgumentError string
+
+func (err invalidArgumentError) Error() string { return string(err) }
 
 // UserCommitFiles allows for committing from a set of actions. See the protobuf documentation
 // for details.
@@ -68,8 +161,8 @@ func (s *Server) UserCommitFiles(stream gitalypb.OperationService_UserCommitFile
 		}
 
 		var (
-			unknownErr    git2go.UnknownIndexError
-			indexErr      git2go.IndexError
+			unknownErr    unknownIndexError
+			indexErr      indexError
 			customHookErr updateref.CustomHookError
 		)
 
@@ -96,7 +189,7 @@ func (s *Server) UserCommitFiles(stream gitalypb.OperationService_UserCommitFile
 					},
 				},
 			)
-		case errors.As(err, new(git2go.InvalidArgumentError)):
+		case errors.As(err, new(invalidArgumentError)):
 			return structerr.NewInvalidArgument("%w", err)
 		default:
 			return err
@@ -108,7 +201,7 @@ func (s *Server) UserCommitFiles(stream gitalypb.OperationService_UserCommitFile
 
 func validatePath(rootPath, relPath string) (string, error) {
 	if relPath == "" {
-		return "", git2go.IndexError{Type: git2go.ErrEmptyPath}
+		return "", indexError{errorType: errEmptyPath}
 	} else if strings.Contains(relPath, "//") {
 		// This is a workaround to address a quirk in porting the RPC from Ruby to Go.
 		// GitLab's QA pipeline runs tests with filepath 'invalid://file/name/here'.
@@ -119,13 +212,13 @@ func validatePath(rootPath, relPath string) (string, error) {
 		//
 		// The Rails code expects to receive an error prefixed with 'invalid path', which is done
 		// here to retain compatibility.
-		return "", git2go.IndexError{Type: git2go.ErrInvalidPath, Path: relPath}
+		return "", indexError{errorType: errInvalidPath, path: relPath}
 	}
 
 	path, err := storage.ValidateRelativePath(rootPath, relPath)
 	if err != nil {
 		if errors.Is(err, storage.ErrRelativePathEscapesRoot) {
-			return "", git2go.IndexError{Type: git2go.ErrDirectoryTraversal, Path: relPath}
+			return "", indexError{errorType: errDirectoryTraversal, path: relPath}
 		}
 
 		return "", err
@@ -158,7 +251,7 @@ func applyAction(
 
 				return nil
 			}); err != nil {
-			return translateToGit2GoError(err, action.Path)
+			return translateError(err, action.Path)
 		}
 	case updateFile:
 		if err := root.Modify(
@@ -167,18 +260,18 @@ func applyAction(
 				entry.OID = git.ObjectID(action.OID)
 				return nil
 			}); err != nil {
-			return translateToGit2GoError(err, action.Path)
+			return translateError(err, action.Path)
 		}
 	case moveFile:
 		entry, err := root.Get(action.Path)
 		if err != nil {
-			return translateToGit2GoError(err, action.Path)
+			return translateError(err, action.Path)
 		}
 
 		if entry.Type != localrepo.Blob {
-			return git2go.IndexError{
-				Path: action.Path,
-				Type: git2go.ErrFileNotFound,
+			return indexError{
+				path:      action.Path,
+				errorType: errFileNotFound,
 			}
 		}
 
@@ -189,7 +282,7 @@ func applyAction(
 		}
 
 		if err := root.Delete(action.Path); err != nil {
-			return translateToGit2GoError(err, action.Path)
+			return translateError(err, action.Path)
 		}
 
 		if err := root.Add(
@@ -201,22 +294,22 @@ func applyAction(
 			},
 			localrepo.WithOverwriteDirectory(),
 		); err != nil {
-			return translateToGit2GoError(err, action.NewPath)
+			return translateError(err, action.NewPath)
 		}
 	case createDirectory:
 		if entry, err := root.Get(action.Path); err != nil && !errors.Is(err, localrepo.ErrEntryNotFound) {
-			return translateToGit2GoError(err, action.Path)
+			return translateError(err, action.Path)
 		} else if entry != nil {
 			switch entry.Type {
 			case localrepo.Tree, localrepo.Submodule:
-				return git2go.IndexError{
-					Path: action.Path,
-					Type: git2go.ErrDirectoryExists,
+				return indexError{
+					path:      action.Path,
+					errorType: errDirectoryExists,
 				}
 			default:
-				return git2go.IndexError{
-					Path: action.Path,
-					Type: git2go.ErrFileExists,
+				return indexError{
+					path:      action.Path,
+					errorType: errFileExists,
 				}
 			}
 		}
@@ -236,13 +329,13 @@ func applyAction(
 			},
 		); err != nil {
 			if errors.Is(err, localrepo.ErrEntryExists) {
-				return git2go.IndexError{
-					Path: action.Path,
-					Type: git2go.ErrDirectoryExists,
+				return indexError{
+					path:      action.Path,
+					errorType: errDirectoryExists,
 				}
 			}
 
-			return translateToGit2GoError(err, action.Path)
+			return translateError(err, action.Path)
 		}
 	case createFile:
 		mode := "100644"
@@ -260,13 +353,13 @@ func applyAction(
 			},
 			localrepo.WithOverwriteDirectory(),
 		); err != nil {
-			return translateToGit2GoError(err, action.Path)
+			return translateError(err, action.Path)
 		}
 	case deleteFile:
 		if err := root.Delete(
 			action.Path,
 		); err != nil {
-			return translateToGit2GoError(err, action.Path)
+			return translateError(err, action.Path)
 		}
 	default:
 		return errors.New("unsupported action")
@@ -275,16 +368,14 @@ func applyAction(
 	return nil
 }
 
-// translateToGit2GoError maintains backwards compatibility with existing git2go
-// errors.
-// TODO: rename this function once we move errors out of internal/git2go
-// https://gitlab.com/gitlab-org/gitaly/-/issues/5362
-func translateToGit2GoError(err error, path string) error {
+// translateLocalrepoError converts errors returned by the `localrepo` package into nice errors that we can return to the caller.
+// Most importantly, these errors will carry metadata that helps to figure out what exactly has gone wrong.
+func translateError(err error, path string) error {
 	switch err {
 	case localrepo.ErrEntryNotFound, localrepo.ErrObjectNotFound:
-		return git2go.IndexError{
-			Path: path,
-			Type: git2go.ErrFileNotFound,
+		return indexError{
+			path:      path,
+			errorType: errFileNotFound,
 		}
 	case localrepo.ErrEmptyPath,
 		localrepo.ErrPathTraversal,
@@ -293,25 +384,24 @@ func translateToGit2GoError(err error, path string) error {
 		//The error coming back from git2go has the path in single
 		//quotes. This is to match the git2go error for now.
 		//nolint:gitaly-linters
-		return git2go.UnknownIndexError(
+		return unknownIndexError(
 			fmt.Sprintf("invalid path: '%s'", path),
 		)
 	case localrepo.ErrPathTraversal:
-		return git2go.IndexError{
-			Path: path,
-			Type: git2go.ErrDirectoryTraversal,
+		return indexError{
+			path:      path,
+			errorType: errDirectoryTraversal,
 		}
 	case localrepo.ErrEntryExists:
-		return git2go.IndexError{
-			Path: path,
-			Type: git2go.ErrFileExists,
+		return indexError{
+			path:      path,
+			errorType: errFileExists,
 		}
 	}
 	return err
 }
 
-// ErrSignatureMissingNameOrEmail matches the git2go error
-var ErrSignatureMissingNameOrEmail = errors.New(
+var errSignatureMissingNameOrEmail = errors.New(
 	"commit: failed to parse signature - Signature cannot have an empty name or email",
 )
 
@@ -406,7 +496,7 @@ func (s *Server) userCommitFilesGit(
 	}
 
 	if cfg.AuthorName == "" || cfg.AuthorEmail == "" {
-		return "", structerr.NewInvalidArgument("%w", ErrSignatureMissingNameOrEmail)
+		return "", structerr.NewInvalidArgument("%w", errSignatureMissingNameOrEmail)
 	}
 
 	if parentCommitOID != "" {
@@ -596,7 +686,7 @@ func (s *Server) userCommitFiles(
 	)
 	if err != nil {
 		if errors.Is(err, localrepo.ErrDisallowedCharacters) {
-			return structerr.NewInvalidArgument("%w", ErrSignatureMissingNameOrEmail)
+			return structerr.NewInvalidArgument("%w", errSignatureMissingNameOrEmail)
 		}
 
 		return err

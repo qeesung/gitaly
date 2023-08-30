@@ -14,15 +14,11 @@ func init() {
 }
 
 var registeredTypes = map[reflect.Type]struct{}{
-	reflect.TypeOf(wrapError{}):              {},
-	reflect.TypeOf(IndexError{}):             {},
-	reflect.TypeOf(UnknownIndexError("")):    {},
-	reflect.TypeOf(InvalidArgumentError("")): {},
-	reflect.TypeOf(HasConflictsError{}):      {},
-	reflect.TypeOf(ConflictingFilesError{}):  {},
-	reflect.TypeOf(EmptyError{}):             {},
-	reflect.TypeOf(UnknownIndexError("")):    {},
-	reflect.TypeOf(CommitNotFoundError{}):    {},
+	reflect.TypeOf(wrapError{}):             {},
+	reflect.TypeOf(HasConflictsError{}):     {},
+	reflect.TypeOf(ConflictingFilesError{}): {},
+	reflect.TypeOf(EmptyError{}):            {},
+	reflect.TypeOf(CommitNotFoundError{}):   {},
 }
 
 // Result is the serialized result.

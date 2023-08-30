@@ -9,11 +9,15 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
+)
+
+// Error strings present in the legacy Ruby implementation.
+const (
+	legacyErrPrefixInvalidSubmodulePath = "Invalid submodule path"
 )
 
 //nolint:revive // This is unintentionally missing documentation.
@@ -80,21 +84,14 @@ func (s *Server) UserUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 		errStr := strings.TrimSpace(err.Error())
 
 		var resp *gitalypb.UserUpdateSubmoduleResponse
-		for _, legacyErr := range []string{
-			git2go.LegacyErrPrefixInvalidBranch,
-			git2go.LegacyErrPrefixInvalidSubmodulePath,
-			git2go.LegacyErrPrefixFailedCommit,
-		} {
-			if strings.Contains(errStr, legacyErr) {
-				resp = &gitalypb.UserUpdateSubmoduleResponse{
-					CommitError: legacyErr,
-				}
-				ctxlogrus.
-					Extract(ctx).
-					WithError(err).
-					Error("UserUpdateSubmodule: git2go subcommand failure")
-				break
+		if strings.Contains(errStr, legacyErrPrefixInvalidSubmodulePath) {
+			resp = &gitalypb.UserUpdateSubmoduleResponse{
+				CommitError: legacyErrPrefixInvalidSubmodulePath,
 			}
+			ctxlogrus.
+				Extract(ctx).
+				WithError(err).
+				Error("UserUpdateSubmodule: git2go subcommand failure")
 		}
 		if strings.Contains(errStr, "is already at") {
 			resp = &gitalypb.UserUpdateSubmoduleResponse{
@@ -200,7 +197,7 @@ func (s *Server) updateSubmodule(ctx context.Context, quarantineRepo *localrepo.
 	)
 	if err != nil {
 		if errors.Is(err, git.ErrReferenceNotFound) {
-			return "", fmt.Errorf("submodule: %s", git2go.LegacyErrPrefixInvalidSubmodulePath)
+			return "", fmt.Errorf("submodule: %s", legacyErrPrefixInvalidSubmodulePath)
 		}
 
 		return "", fmt.Errorf("error reading tree: %w", err)
@@ -212,7 +209,7 @@ func (s *Server) updateSubmodule(ctx context.Context, quarantineRepo *localrepo.
 			replaceWith := git.ObjectID(req.GetCommitSha())
 
 			if t.Type != localrepo.Submodule {
-				return fmt.Errorf("submodule: %s", git2go.LegacyErrPrefixInvalidSubmodulePath)
+				return fmt.Errorf("submodule: %s", legacyErrPrefixInvalidSubmodulePath)
 			}
 
 			if replaceWith == t.OID {
@@ -228,7 +225,7 @@ func (s *Server) updateSubmodule(ctx context.Context, quarantineRepo *localrepo.
 		},
 	); err != nil {
 		if err == localrepo.ErrEntryNotFound {
-			return "", fmt.Errorf("submodule: %s", git2go.LegacyErrPrefixInvalidSubmodulePath)
+			return "", fmt.Errorf("submodule: %s", legacyErrPrefixInvalidSubmodulePath)
 		}
 
 		var git2GoErr *legacyGit2GoSubmoduleAlreadyAtShaError

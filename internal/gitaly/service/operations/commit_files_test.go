@@ -17,7 +17,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/text"
@@ -135,7 +134,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 						createDirHeaderRequest("directory-1"),
 						createDirHeaderRequest("directory-1"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "directory-1", Type: git2go.ErrDirectoryExists}),
+					expectedErr: structuredIndexError(t, &indexError{path: "directory-1", errorType: errDirectoryExists}),
 				},
 			},
 		},
@@ -146,7 +145,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						createDirHeaderRequest("../directory-1"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "../directory-1", Type: git2go.ErrDirectoryTraversal}),
+					expectedErr: structuredIndexError(t, &indexError{path: "../directory-1", errorType: errDirectoryTraversal}),
 				},
 			},
 		},
@@ -167,7 +166,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						createDirHeaderRequest("directory-1"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "directory-1", Type: git2go.ErrDirectoryExists}),
+					expectedErr: structuredIndexError(t, &indexError{path: "directory-1", errorType: errDirectoryExists}),
 				},
 			},
 		},
@@ -189,7 +188,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						createDirHeaderRequest("file-1"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "file-1", Type: git2go.ErrFileExists}),
+					expectedErr: structuredIndexError(t, &indexError{path: "file-1", errorType: errFileExists}),
 				},
 			},
 		},
@@ -201,7 +200,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 						createFileHeaderRequest("../file-1"),
 						actionContentRequest("content-1"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "../file-1", Type: git2go.ErrDirectoryTraversal}),
+					expectedErr: structuredIndexError(t, &indexError{path: "../file-1", errorType: errDirectoryTraversal}),
 				},
 			},
 		},
@@ -213,7 +212,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 						createFileHeaderRequest("invalid://file/name/here"),
 						actionContentRequest("content-1"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "invalid://file/name/here", Type: git2go.ErrInvalidPath}),
+					expectedErr: structuredIndexError(t, &indexError{path: "invalid://file/name/here", errorType: errInvalidPath}),
 				},
 			},
 		},
@@ -308,7 +307,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 						actionContentRequest("content-1"),
 						createFileHeaderRequest("file-1"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "file-1", Type: git2go.ErrFileExists}),
+					expectedErr: structuredIndexError(t, &indexError{path: "file-1", errorType: errFileExists}),
 				},
 			},
 		},
@@ -442,7 +441,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 						updateFileHeaderRequest("non-existing"),
 						actionContentRequest("content"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "non-existing", Type: git2go.ErrFileNotFound}),
+					expectedErr: structuredIndexError(t, &indexError{path: "non-existing", errorType: errFileNotFound}),
 				},
 			},
 		},
@@ -453,7 +452,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						moveFileHeaderRequest("../original-file", "moved-file", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "../original-file", Type: git2go.ErrDirectoryTraversal}),
+					expectedErr: structuredIndexError(t, &indexError{path: "../original-file", errorType: errDirectoryTraversal}),
 				},
 			},
 		},
@@ -464,7 +463,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						moveFileHeaderRequest("original-file", "../moved-file", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "../moved-file", Type: git2go.ErrDirectoryTraversal}),
+					expectedErr: structuredIndexError(t, &indexError{path: "../moved-file", errorType: errDirectoryTraversal}),
 				},
 			},
 		},
@@ -520,7 +519,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 						createDirHeaderRequest("directory"),
 						moveFileHeaderRequest("directory", "moved-directory", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "directory", Type: git2go.ErrFileNotFound}),
+					expectedErr: structuredIndexError(t, &indexError{path: "directory", errorType: errFileNotFound}),
 				},
 			},
 		},
@@ -556,7 +555,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						moveFileHeaderRequest("non-existing", "destination-file", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "non-existing", Type: git2go.ErrFileNotFound}),
+					expectedErr: structuredIndexError(t, &indexError{path: "non-existing", errorType: errFileNotFound}),
 				},
 			},
 		},
@@ -569,7 +568,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 						createFileHeaderRequest("already-existing"),
 						moveFileHeaderRequest("source-file", "already-existing", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "already-existing", Type: git2go.ErrFileExists}),
+					expectedErr: structuredIndexError(t, &indexError{path: "already-existing", errorType: errFileExists}),
 				},
 			},
 		},
@@ -650,7 +649,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						chmodFileHeaderRequest("file-1", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "file-1", Type: git2go.ErrFileNotFound}),
+					expectedErr: structuredIndexError(t, &indexError{path: "file-1", errorType: errFileNotFound}),
 				},
 			},
 		},
@@ -685,7 +684,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						chmodFileHeaderRequest("../file-1", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "../file-1", Type: git2go.ErrDirectoryTraversal}),
+					expectedErr: structuredIndexError(t, &indexError{path: "../file-1", errorType: errDirectoryTraversal}),
 				},
 			},
 		},
@@ -737,7 +736,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						moveFileHeaderRequest("non-existing", "should-not-be-created", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "non-existing", Type: git2go.ErrFileNotFound}),
+					expectedErr: structuredIndexError(t, &indexError{path: "non-existing", errorType: errFileNotFound}),
 				},
 			},
 		},
@@ -752,7 +751,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 						actionContentRequest("content-2"),
 						moveFileHeaderRequest("file-1", "file-2", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "file-2", Type: git2go.ErrFileExists}),
+					expectedErr: structuredIndexError(t, &indexError{path: "file-2", errorType: errFileExists}),
 				},
 			},
 		},
@@ -763,7 +762,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						deleteFileHeaderRequest("non-existing"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "non-existing", Type: git2go.ErrFileNotFound}),
+					expectedErr: structuredIndexError(t, &indexError{path: "non-existing", errorType: errFileNotFound}),
 				},
 			},
 		},
@@ -774,7 +773,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					actions: []*gitalypb.UserCommitFilesRequest{
 						deleteFileHeaderRequest("../file-1"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "../file-1", Type: git2go.ErrDirectoryTraversal}),
+					expectedErr: structuredIndexError(t, &indexError{path: "../file-1", errorType: errDirectoryTraversal}),
 				},
 			},
 		},
@@ -1729,7 +1728,7 @@ func testFailedUserCommitFilesRequestDueToIndexError(t *testing.T, ctx context.C
 						createFileHeaderRequest("preexisting"),
 						actionContentRequest("This file already exists"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "preexisting", Type: git2go.ErrFileExists}),
+					expectedErr: structuredIndexError(t, &indexError{path: "preexisting", errorType: errFileExists}),
 				}
 			},
 		},
@@ -1744,7 +1743,7 @@ func testFailedUserCommitFilesRequestDueToIndexError(t *testing.T, ctx context.C
 						headerRequest(repo, gittest.TestUser, "feature", commitFilesMessage, "", ""),
 						chmodFileHeaderRequest("nonexistent", true),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "nonexistent", Type: git2go.ErrFileNotFound}),
+					expectedErr: structuredIndexError(t, &indexError{path: "nonexistent", errorType: errFileNotFound}),
 				}
 			},
 		},
@@ -1771,7 +1770,7 @@ func testFailedUserCommitFilesRequestDueToIndexError(t *testing.T, ctx context.C
 						}),
 						actionContentRequest("This file already exists, as a directory"),
 					},
-					expectedErr: structuredIndexError(t, &git2go.IndexError{Path: "dir", Type: git2go.ErrDirectoryExists}),
+					expectedErr: structuredIndexError(t, &indexError{path: "dir", errorType: errDirectoryExists}),
 				}
 			},
 		},
@@ -2076,7 +2075,7 @@ func actionRequest(action *gitalypb.UserCommitFilesAction) *gitalypb.UserCommitF
 	}
 }
 
-func structuredIndexError(tb testing.TB, indexErr *git2go.IndexError) error {
+func structuredIndexError(tb testing.TB, indexErr *indexError) error {
 	return errWithDetails(tb,
 		indexErr.StructuredError(),
 		&gitalypb.UserCommitFilesError{

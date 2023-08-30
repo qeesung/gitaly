@@ -9,7 +9,6 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git2go"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -114,9 +113,6 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 			},
 		).Error("unable to create merge commit")
 
-		if errors.Is(err, git2go.ErrInvalidArgument) {
-			return nil, structerr.NewInvalidArgument("%w", err)
-		}
 		return nil, structerr.NewFailedPrecondition("Failed to create merge commit for source_sha %s and target_sha %s at %s",
 			sourceOID, oid, string(request.TargetRef))
 	}
