@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -137,7 +139,7 @@ const (
 // terminated and reaped automatically when the context.Context that
 // created it is canceled.
 type Command struct {
-	reader       io.Reader
+	reader       atomic.Pointer[io.ReadCloser]
 	writer       io.WriteCloser
 	stderrBuffer *stderrBuffer
 	cmd          *exec.Cmd
@@ -279,7 +281,7 @@ func New(ctx context.Context, nameAndArgs []string, opts ...Option) (*Command, e
 			return nil, fmt.Errorf("creating stdout pipe: %w", err)
 		}
 
-		command.reader = pipe
+		command.reader.Store(&pipe)
 	}
 
 	if cfg.stderr != nil {
@@ -343,13 +345,16 @@ func New(ctx context.Context, nameAndArgs []string, opts ...Option) (*Command, e
 	return command, nil
 }
 
-// Read calls Read() on the stdout pipe of the command.
+// Read calls Read() on the stdout pipe of the command or temporary buffer
+// that contains max 1024 bytes of the output in case the command execution
+// context is cancelled.
 func (c *Command) Read(p []byte) (int, error) {
-	if c.reader == nil {
+	readerPtr := c.reader.Load()
+	if readerPtr == nil || *readerPtr == nil {
 		panic("command has no reader")
 	}
 
-	return c.reader.Read(p)
+	return (*readerPtr).Read(p)
 }
 
 // Write calls Write() on the stdin pipe of the command.
@@ -383,16 +388,30 @@ func (c *Command) wait() {
 		c.writer.Close()
 	}
 
-	if c.reader != nil {
+	contextIsDone := c.context.Err() != nil
+
+	if readerPtr := c.reader.Load(); readerPtr != nil && *readerPtr != nil {
+		if contextIsDone {
+			// When context is done it is not yet mean the running command should fail.
+			// If the termination error is not yet processed by the command it may produce
+			// useful output that can be processed by the caller. That is why we consume
+			// max up to 1024 bytes from it and discard all the other info because of
+			// safety reasons. The consumed data can be read from the buffer by another
+			// goroutine. All remaining output of the command will be discarded.
+			buffer := &bytes.Buffer{}
+			_, _ = io.Copy(buffer, io.LimitReader(*readerPtr, 1024))
+			tmpBuffer := io.NopCloser(buffer)
+			c.reader.Store(&tmpBuffer)
+		}
 		// Prevent the command from blocking on writing to its stdout.
-		_, _ = io.Copy(io.Discard, c.reader)
+		_, _ = io.Copy(io.Discard, *readerPtr)
 	}
 
 	c.waitError = c.cmd.Wait()
 
 	// If the context is done, the process was likely terminated due to it. If so,
 	// we return the context error to correctly report the reason.
-	if c.context.Err() != nil {
+	if contextIsDone {
 		// The standard library sets exit status -1 if the process was terminated by a signal,
 		// such as the SIGTERM sent when context is done.
 		if exitCode, ok := ExitStatus(c.waitError); ok && exitCode == -1 {
