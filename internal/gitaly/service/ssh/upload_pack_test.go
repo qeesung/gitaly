@@ -198,6 +198,7 @@ func TestUploadPackWithSidechannel_client(t *testing.T) {
 				return nil
 			},
 			expectedResponse: &gitalypb.SSHUploadPackWithSidechannelResponse{
+				Bytes: int64(554),
 				PackfileNegotiationStatistics: &gitalypb.PackfileNegotiationStatistics{
 					Packets: 2,
 					Caps:    []string{"multi_ack"},
@@ -225,6 +226,7 @@ func TestUploadPackWithSidechannel_client(t *testing.T) {
 				return nil
 			},
 			expectedResponse: &gitalypb.SSHUploadPackWithSidechannelResponse{
+				Bytes: int64(536),
 				PackfileNegotiationStatistics: &gitalypb.PackfileNegotiationStatistics{
 					Packets: 5,
 					Wants:   1,
@@ -323,6 +325,7 @@ func TestUploadPackWithSidechannel_client(t *testing.T) {
 				return nil
 			},
 			expectedResponse: &gitalypb.SSHUploadPackWithSidechannelResponse{
+				Bytes:                         int64(154),
 				PackfileNegotiationStatistics: &gitalypb.PackfileNegotiationStatistics{},
 			},
 		},

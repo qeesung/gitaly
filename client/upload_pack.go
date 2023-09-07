@@ -44,6 +44,7 @@ func UploadPack(ctx context.Context, conn *grpc.ClientConn, stdin io.Reader, std
 // UploadPackResult wraps ExitCode and PackfileNegotiationStatistics.
 type UploadPackResult struct {
 	ExitCode                      int32
+	ResponseBytes                 int64
 	PackfileNegotiationStatistics *gitalypb.PackfileNegotiationStatistics
 }
 
@@ -75,6 +76,7 @@ func UploadPackWithSidechannelWithResult(
 		return result, err
 	}
 	result.ExitCode = 0
+	result.ResponseBytes = resp.GetBytes()
 	result.PackfileNegotiationStatistics = resp.PackfileNegotiationStatistics
 
 	if err := wt.Close(); err != nil {
