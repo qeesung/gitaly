@@ -239,6 +239,8 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.MailmapOptions, rand.Int()%2 == 0)
 	// Randomly enable either Git v2.41 or 2.42.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV242, rand.Int()%2 == 0)
+	// Randomly enable limiter.resizableSemaphore
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseResizableSemaphoreInConcurrencyLimiter, rand.Int()%2 == 0)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)
