@@ -199,3 +199,9 @@ message PathError {
   // ErrorType is the type of path error that occurred.
   ErrorType error_type = 2;
 }
+
+// PathNotFoundError is an error returned when a given path cannot be found.
+message PathNotFoundError {
+  // Path is the path that could not be found.
+  bytes path = 1;
+}

@@ -1100,6 +1100,55 @@ func (x *PathError) GetErrorType() PathError_ErrorType {
 	return PathError_ERROR_TYPE_UNSPECIFIED
 }
 
+// PathNotFoundError is an error returned when a given path cannot be found.
+type PathNotFoundError struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Path is the path that could not be found.
+	Path []byte `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+}
+
+func (x *PathNotFoundError) Reset() {
+	*x = PathNotFoundError{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_errors_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PathNotFoundError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PathNotFoundError) ProtoMessage() {}
+
+func (x *PathNotFoundError) ProtoReflect() protoreflect.Message {
+	mi := &file_errors_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PathNotFoundError.ProtoReflect.Descriptor instead.
+func (*PathNotFoundError) Descriptor() ([]byte, []int) {
+	return file_errors_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PathNotFoundError) GetPath() []byte {
+	if x != nil {
+		return x.Path
+	}
+	return nil
+}
+
 var File_errors_proto protoreflect.FileDescriptor
 
 var file_errors_proto_rawDesc = []byte{
@@ -1224,11 +1273,14 @@ var file_errors_proto_rawDesc = []byte{
 	0x52, 0x59, 0x10, 0x02, 0x12, 0x1c, 0x0a, 0x18, 0x45, 0x52, 0x52, 0x4f, 0x52, 0x5f, 0x54, 0x59,
 	0x50, 0x45, 0x5f, 0x41, 0x42, 0x53, 0x4f, 0x4c, 0x55, 0x54, 0x45, 0x5f, 0x50, 0x41, 0x54, 0x48,
 	0x10, 0x03, 0x12, 0x18, 0x0a, 0x14, 0x45, 0x52, 0x52, 0x4f, 0x52, 0x5f, 0x54, 0x59, 0x50, 0x45,
-	0x5f, 0x4c, 0x4f, 0x4e, 0x47, 0x5f, 0x50, 0x41, 0x54, 0x48, 0x10, 0x04, 0x42, 0x34, 0x5a, 0x32,
-	0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61,
-	0x62, 0x2d, 0x6f, 0x72, 0x67, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x36,
-	0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79,
-	0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x5f, 0x4c, 0x4f, 0x4e, 0x47, 0x5f, 0x50, 0x41, 0x54, 0x48, 0x10, 0x04, 0x22, 0x27, 0x0a, 0x11,
+	0x50, 0x61, 0x74, 0x68, 0x4e, 0x6f, 0x74, 0x46, 0x6f, 0x75, 0x6e, 0x64, 0x45, 0x72, 0x72, 0x6f,
+	0x72, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52,
+	0x04, 0x70, 0x61, 0x74, 0x68, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2e,
+	0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2d, 0x6f, 0x72, 0x67, 0x2f, 0x67,
+	0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x36, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f,
+	0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1244,7 +1296,7 @@ func file_errors_proto_rawDescGZIP() []byte {
 }
 
 var file_errors_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_errors_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_errors_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_errors_proto_goTypes = []interface{}{
 	(IndexError_ErrorType)(0),           // 0: gitaly.IndexError.ErrorType
 	(CustomHookError_HookType)(0),       // 1: gitaly.CustomHookError.HookType
@@ -1264,11 +1316,12 @@ var file_errors_proto_goTypes = []interface{}{
 	(*LimitError)(nil),                  // 15: gitaly.LimitError
 	(*CustomHookError)(nil),             // 16: gitaly.CustomHookError
 	(*PathError)(nil),                   // 17: gitaly.PathError
-	(*durationpb.Duration)(nil),         // 18: google.protobuf.Duration
+	(*PathNotFoundError)(nil),           // 18: gitaly.PathNotFoundError
+	(*durationpb.Duration)(nil),         // 19: google.protobuf.Duration
 }
 var file_errors_proto_depIdxs = []int32{
 	0,  // 0: gitaly.IndexError.error_type:type_name -> gitaly.IndexError.ErrorType
-	18, // 1: gitaly.LimitError.retry_after:type_name -> google.protobuf.Duration
+	19, // 1: gitaly.LimitError.retry_after:type_name -> google.protobuf.Duration
 	1,  // 2: gitaly.CustomHookError.hook_type:type_name -> gitaly.CustomHookError.HookType
 	2,  // 3: gitaly.PathError.error_type:type_name -> gitaly.PathError.ErrorType
 	4,  // [4:4] is the sub-list for method output_type
@@ -1464,6 +1517,18 @@ func file_errors_proto_init() {
 				return nil
 			}
 		}
+		file_errors_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PathNotFoundError); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1471,7 +1536,7 @@ func file_errors_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_errors_proto_rawDesc,
 			NumEnums:      3,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

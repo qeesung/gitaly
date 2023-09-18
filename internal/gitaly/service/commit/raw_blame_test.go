@@ -12,6 +12,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v16/streamio"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestRawBlame(t *testing.T) {
@@ -109,6 +111,90 @@ func TestRawBlame(t *testing.T) {
 						Range:      []byte("foo"),
 					},
 					expectedErr: structerr.NewInvalidArgument("invalid Range"),
+				}
+			},
+		},
+		{
+			desc: "out-of-range",
+			setup: func(t *testing.T) setupData {
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				// We write a file with three lines, only, but the request asks us to blame line 10.
+				commit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
+					gittest.TreeEntry{Path: "path", Mode: "100644", Content: "a\nb\nc\n"},
+				))
+
+				return setupData{
+					request: &gitalypb.RawBlameRequest{
+						Repository: repo,
+						Revision:   []byte(commit),
+						Path:       []byte("path"),
+						Range:      []byte("10,10"),
+					},
+					expectedErr: testhelper.ToInterceptedMetadata(
+						structerr.NewInvalidArgument("range is outside of the file length").
+							WithMetadata("revision", commit.String()).
+							WithMetadata("path", "path").
+							WithMetadata("lines", 3).
+							WithDetail(&gitalypb.RawBlameError{
+								Error: &gitalypb.RawBlameError_OutOfRange{
+									OutOfRange: &gitalypb.RawBlameError_OutOfRangeError{
+										ActualLines: 3,
+									},
+								},
+							}),
+					),
+				}
+			},
+		},
+		{
+			desc: "missing path",
+			setup: func(t *testing.T) setupData {
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				commit := gittest.WriteCommit(t, cfg, repoPath)
+
+				return setupData{
+					request: &gitalypb.RawBlameRequest{
+						Repository: repo,
+						Revision:   []byte(commit),
+						Path:       []byte("does-not-exist"),
+						Range:      []byte("1,1"),
+					},
+					expectedErr: testhelper.ToInterceptedMetadata(
+						structerr.NewNotFound("path not found in revision").
+							WithMetadata("revision", commit.String()).
+							WithMetadata("path", "does-not-exist").
+							WithDetail(&gitalypb.RawBlameError{
+								Error: &gitalypb.RawBlameError_PathNotFound{
+									PathNotFound: &gitalypb.PathNotFoundError{
+										Path: []byte("does-not-exist"),
+									},
+								},
+							}),
+					),
+				}
+			},
+		},
+		{
+			desc: "path escapes repository root",
+			setup: func(t *testing.T) setupData {
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				commit := gittest.WriteCommit(t, cfg, repoPath)
+				escapingPath := "im/gonna/../../../escape"
+
+				return setupData{
+					request: &gitalypb.RawBlameRequest{
+						Repository: repo,
+						Revision:   []byte(commit),
+						Path:       []byte(escapingPath),
+						Range:      []byte("1,1"),
+					},
+					expectedErr: testhelper.ToInterceptedMetadata(
+						structerr.NewInvalidArgument("path escapes repository root").
+							WithMetadata("path", escapingPath),
+					),
 				}
 			},
 		},
@@ -271,7 +357,7 @@ filename path
 			})
 
 			data, err := io.ReadAll(reader)
-			testhelper.RequireGrpcError(t, setup.expectedErr, err)
+			testhelper.RequireGrpcError(t, setup.expectedErr, err, protocmp.SortRepeatedFields(&spb.Status{}, "details"))
 			require.Equal(t, setup.expectedData, string(data))
 		})
 	}

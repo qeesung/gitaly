@@ -52,7 +52,8 @@ type CommitServiceClient interface {
 	// CommitLanguages detects the source code languages of the whole tree for a
 	// given commit. Returns an error in case no languages could be detected.
 	CommitLanguages(ctx context.Context, in *CommitLanguagesRequest, opts ...grpc.CallOption) (*CommitLanguagesResponse, error)
-	// This comment is left unintentionally blank.
+	// RawBlame blames lines in a blob to when they have last been changed. Returns the raw output of the git-blame(1)
+	// command.
 	RawBlame(ctx context.Context, in *RawBlameRequest, opts ...grpc.CallOption) (CommitService_RawBlameClient, error)
 	// LastCommitForPath returns the last commit that has changed a given path.
 	//
@@ -697,7 +698,8 @@ type CommitServiceServer interface {
 	// CommitLanguages detects the source code languages of the whole tree for a
 	// given commit. Returns an error in case no languages could be detected.
 	CommitLanguages(context.Context, *CommitLanguagesRequest) (*CommitLanguagesResponse, error)
-	// This comment is left unintentionally blank.
+	// RawBlame blames lines in a blob to when they have last been changed. Returns the raw output of the git-blame(1)
+	// command.
 	RawBlame(*RawBlameRequest, CommitService_RawBlameServer) error
 	// LastCommitForPath returns the last commit that has changed a given path.
 	//
