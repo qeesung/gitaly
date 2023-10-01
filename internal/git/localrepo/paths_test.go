@@ -73,7 +73,7 @@ func TestRepo_ObjectDirectoryPath(t *testing.T) {
 	})
 	locator := config.NewLocator(cfg)
 
-	quarantine, err := quarantine.New(ctx, repoProto, testhelper.NewLogger(t), locator)
+	quarantine, _, err := quarantine.New(ctx, repoProto, testhelper.NewLogger(t), locator)
 	require.NoError(t, err)
 	quarantinedRepo := quarantine.QuarantinedRepo()
 

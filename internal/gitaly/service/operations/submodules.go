@@ -25,10 +25,11 @@ func (s *Server) UserUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpda
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
-	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, req.GetRepository())
+	quarantineDir, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, req.GetRepository())
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
 
 	objectHash, err := quarantineRepo.ObjectHash(ctx)
 	if err != nil {

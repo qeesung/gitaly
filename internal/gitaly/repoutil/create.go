@@ -85,16 +85,11 @@ func Create(
 		return structerr.NewAlreadyExists("repository exists already")
 	}
 
-	newRepo, newRepoDir, err := tempdir.NewRepository(ctx, repository.GetStorageName(), logger, locator)
+	newRepo, newRepoDir, cleanup, err := tempdir.NewRepository(ctx, repository.GetStorageName(), logger, locator)
 	if err != nil {
 		return fmt.Errorf("creating temporary repository: %w", err)
 	}
-	defer func() {
-		// We don't really care about whether this succeeds or not. It will either get
-		// cleaned up after the context is done, or eventually by the tempdir walker when
-		// it's old enough.
-		_ = os.RemoveAll(newRepoDir.Path())
-	}()
+	defer cleanup()
 
 	// Note that we do not create the repository directly in its target location, but
 	// instead create it in a temporary directory, first. This is done such that we can

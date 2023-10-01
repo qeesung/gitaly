@@ -219,7 +219,7 @@ func TestPrereceive_quarantine(t *testing.T) {
 		SkipCreationViaService: true,
 	})
 
-	quarantine, err := quarantine.New(ctx, repoProto, testhelper.SharedLogger(t), config.NewLocator(cfg))
+	quarantine, _, err := quarantine.New(ctx, repoProto, testhelper.SharedLogger(t), config.NewLocator(cfg))
 	require.NoError(t, err)
 
 	quarantinedRepo := localrepo.NewTestRepo(t, cfg, quarantine.QuarantinedRepo())

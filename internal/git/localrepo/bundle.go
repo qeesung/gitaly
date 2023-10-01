@@ -76,7 +76,7 @@ func (repo *Repo) CreateBundle(ctx context.Context, out io.Writer, opts *CreateB
 func (repo *Repo) CloneBundle(ctx context.Context, reader io.Reader) error {
 	// When cloning from a file, `git-clone(1)` requires the path to the file. Create a temporary
 	// file with the Git bundle contents that is used for cloning.
-	bundlePath, err := repo.createTempBundle(ctx, reader)
+	bundlePath, _, err := repo.createTempBundle(ctx, reader)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (repo *Repo) FetchBundle(ctx context.Context, txManager transaction.Manager
 		opts = &FetchBundleOpts{}
 	}
 
-	bundlePath, err := repo.createTempBundle(ctx, reader)
+	bundlePath, _, err := repo.createTempBundle(ctx, reader)
 	if err != nil {
 		return fmt.Errorf("fetch bundle: %w", err)
 	}
@@ -170,17 +170,17 @@ func (repo *Repo) FetchBundle(ctx context.Context, txManager transaction.Manager
 
 // createTempBundle copies reader onto the filesystem so that a path can be
 // passed to git. git-fetch does not support streaming a bundle over a pipe.
-func (repo *Repo) createTempBundle(ctx context.Context, reader io.Reader) (bundlPath string, returnErr error) {
-	tmpDir, err := tempdir.New(ctx, repo.GetStorageName(), repo.logger, repo.locator)
+func (repo *Repo) createTempBundle(ctx context.Context, reader io.Reader) (bundlPath string, cleanup func() error, returnErr error) {
+	tmpDir, cleanup, err := tempdir.New(ctx, repo.GetStorageName(), repo.logger, repo.locator)
 	if err != nil {
-		return "", fmt.Errorf("create temp bundle: %w", err)
+		return "", nil, fmt.Errorf("create temp bundle: %w", err)
 	}
 
 	bundlePath := filepath.Join(tmpDir.Path(), "repo.bundle")
 
 	file, err := os.Create(bundlePath)
 	if err != nil {
-		return "", fmt.Errorf("create temp bundle: %w", err)
+		return "", nil, fmt.Errorf("create temp bundle: %w", err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil && returnErr == nil {
@@ -189,10 +189,10 @@ func (repo *Repo) createTempBundle(ctx context.Context, reader io.Reader) (bundl
 	}()
 
 	if _, err = io.Copy(file, reader); err != nil {
-		return "", fmt.Errorf("create temp bundle: %w", err)
+		return "", nil, fmt.Errorf("create temp bundle: %w", err)
 	}
 
-	return bundlePath, nil
+	return bundlePath, cleanup, nil
 }
 
 // updateHeadFromBundle updates HEAD from a bundle file

@@ -21,10 +21,11 @@ func (s *Server) UserCherryPick(ctx context.Context, req *gitalypb.UserCherryPic
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
-	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, req.GetRepository())
+	quarantineDir, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, req.GetRepository())
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
 
 	startRevision, err := s.fetchStartRevision(ctx, quarantineRepo, req)
 	if err != nil {

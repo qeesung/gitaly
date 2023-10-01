@@ -143,10 +143,11 @@ func (s *server) resolveConflicts(header *gitalypb.ResolveConflictsRequestHeader
 		return err
 	}
 
-	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, header.GetRepository())
+	quarantineDir, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, header.GetRepository())
 	if err != nil {
 		return err
 	}
+	defer cleanup()
 
 	if err := s.repoWithBranchCommit(ctx,
 		quarantineRepo,

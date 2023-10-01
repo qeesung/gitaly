@@ -23,10 +23,11 @@ func (s *server) ListConflictFiles(request *gitalypb.ListConflictFilesRequest, s
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
-	_, quarantineRepo, err := s.quarantinedRepo(ctx, request.GetRepository())
+	_, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, request.GetRepository())
 	if err != nil {
 		return err
 	}
+	defer cleanup()
 
 	ours, err := quarantineRepo.ResolveRevision(ctx, git.Revision(request.OurCommitOid+"^{commit}"))
 	if err != nil {

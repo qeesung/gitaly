@@ -19,10 +19,11 @@ func (s *Server) UserRebaseToRef(ctx context.Context, request *gitalypb.UserReba
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
-	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, request.Repository)
+	quarantineDir, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, request.Repository)
 	if err != nil {
 		return nil, structerr.NewInternal("creating repo quarantine: %w", err)
 	}
+	defer cleanup()
 
 	oid, err := quarantineRepo.ResolveRevision(ctx, git.Revision(request.FirstParentRef))
 	if err != nil {

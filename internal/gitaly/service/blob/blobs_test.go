@@ -311,7 +311,7 @@ func TestListAllBlobs(t *testing.T) {
 
 	repo, _, _ := setupRepoWithLFS(t, ctx, cfg)
 
-	quarantine, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo), testhelper.NewLogger(t), config.NewLocator(cfg))
+	quarantine, _, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo), testhelper.NewLogger(t), config.NewLocator(cfg))
 	require.NoError(t, err)
 
 	// quarantine.New in Gitaly would receive an already rewritten repository. Gitaly would then calculate
