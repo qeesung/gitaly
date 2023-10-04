@@ -273,6 +273,12 @@ func getLogCommandSubCmd(req *gitalypb.FindCommitsRequest) git.Command {
 	if req.GetAll() {
 		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--all"}, git.Flag{Name: "--reverse"})
 	}
+	if req.GetBranches() {
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--branches"}, git.Flag{Name: "--reverse"})
+	}
+	if req.GetTags() {
+		subCmd.Flags = append(subCmd.Flags, git.Flag{Name: "--tags"}, git.Flag{Name: "--reverse"})
+	}
 	if req.GetRevision() != nil {
 		subCmd.Args = []string{string(req.GetRevision())}
 	}

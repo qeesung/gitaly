@@ -645,6 +645,10 @@ message FindCommitsRequest {
   // respectively with `refs/heads`. By sending both, the response will include all
   // references that match either pattern.
   repeated bytes include_referenced_by = 18; // protolint:disable:this REPEATED_FIELD_NAMES_PLURALIZED
+  // Return commits from branches (refs/heads/*) can be combined with `tags`
+  bool branches = 19;
+  // Return commits from tags (refs/tags/*) can be combined with `branches`
+  bool tags = 20;
 }
 
 // A single 'page' of the result set
