@@ -45,12 +45,18 @@ func (repo *Repo) Rebase(ctx context.Context, upstream, branch string, options .
 
 	upstreamOID, err := repo.ResolveRevision(ctx, git.Revision(upstream+"^{commit}"))
 	if err != nil {
-		return "", structerr.NewInvalidArgument("resolving upstream commit: %w", err).WithMetadata("revision", upstream)
+		if errors.Is(err, git.ErrReferenceNotFound) {
+			return "", structerr.NewInvalidArgument("resolving upstream commit: %w", err).WithMetadata("revision", upstream)
+		}
+		return "", fmt.Errorf("resolving upstream commit: %w", err).WithMetadata("revision", upstream)
 	}
 
 	branchOID, err := repo.ResolveRevision(ctx, git.Revision(branch+"^{commit}"))
 	if err != nil {
-		return "", structerr.NewInvalidArgument("resolving branch commit: %w", err).WithMetadata("revision", branch)
+		if errors.Is(err,git.ErrReferenceNotFound) {
+			return "", structerr.NewInvalidArgument("resolving branch commit: %w", err).WithMetadata("revision", branch)
+		}
+		return "", fmt.Errorf("resolving branch commit: %w", err).WithMetadata("revision", branch)
 	}
 
 	var stdout bytes.Buffer
