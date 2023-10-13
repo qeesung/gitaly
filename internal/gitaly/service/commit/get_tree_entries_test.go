@@ -857,7 +857,7 @@ func TestGetTreeEntries(t *testing.T) {
 						Recursive:  true,
 					},
 					expectedErr: testhelper.WithInterceptedMetadataItems(
-						structerr.NewInvalidArgument("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
+						structerr.NewNotFound("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
 							Error: &gitalypb.GetTreeEntriesError_ResolveTree{
 								ResolveTree: &gitalypb.ResolveRevisionError{
 									Revision: []byte(commitID),
@@ -928,7 +928,7 @@ func TestGetTreeEntries(t *testing.T) {
 						Recursive:  true,
 					},
 					expectedErr: testhelper.WithInterceptedMetadataItems(
-						structerr.NewInvalidArgument("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
+						structerr.NewNotFound("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
 							Error: &gitalypb.GetTreeEntriesError_ResolveTree{
 								ResolveTree: &gitalypb.ResolveRevisionError{
 									Revision: []byte("does-not-exist"),
