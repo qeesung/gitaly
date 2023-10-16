@@ -134,7 +134,7 @@ func (s *server) sendTreeEntries(
 			if errors.Is(err, git.ErrReferenceNotFound) {
 				// Since we rely on repo.ResolveRevision, it could either be an invalid revision
 				// or an invalid path.
-				return structerr.NewInvalidArgument("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
+				return structerr.NewNotFound("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
 					Error: &gitalypb.GetTreeEntriesError_ResolveTree{
 						ResolveTree: &gitalypb.ResolveRevisionError{
 							Revision: []byte(revision),
