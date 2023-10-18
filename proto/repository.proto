@@ -305,13 +305,6 @@ service RepositoryService {
     };
   }
 
-  // RenameRepository ...
-  rpc RenameRepository(RenameRepositoryRequest) returns (RenameRepositoryResponse) {
-    option (op_type) = {
-      op: MUTATOR
-    };
-  }
-
   // ReplicateRepository replicates data from a source repository to target repository. On the
   // target repository, this operation ensures synchronization of the following components:
   //
@@ -1162,18 +1155,6 @@ message RemoveRepositoryRequest {
 
 // RemoveRepositoryResponse ...
 message RemoveRepositoryResponse {
-}
-
-// RenameRepositoryRequest ...
-message RenameRepositoryRequest {
-  // repository ...
-  Repository repository = 1 [(target_repository)=true];
-  // relative_path ...
-  string relative_path = 2;
-}
-
-// RenameRepositoryResponse ...
-message RenameRepositoryResponse{
 }
 
 // ReplicateRepositoryRequest is a request for the ReplicateRepository RPC.

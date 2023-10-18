@@ -142,8 +142,6 @@ type RepositoryServiceClient interface {
 	// eventually remove it. This ensures that even on networked filesystems the
 	// data is actually removed even if there's someone still handling the data.
 	RemoveRepository(ctx context.Context, in *RemoveRepositoryRequest, opts ...grpc.CallOption) (*RemoveRepositoryResponse, error)
-	// RenameRepository ...
-	RenameRepository(ctx context.Context, in *RenameRepositoryRequest, opts ...grpc.CallOption) (*RenameRepositoryResponse, error)
 	// ReplicateRepository replicates data from a source repository to target repository. On the
 	// target repository, this operation ensures synchronization of the following components:
 	//
@@ -898,15 +896,6 @@ func (c *repositoryServiceClient) RemoveRepository(ctx context.Context, in *Remo
 	return out, nil
 }
 
-func (c *repositoryServiceClient) RenameRepository(ctx context.Context, in *RenameRepositoryRequest, opts ...grpc.CallOption) (*RenameRepositoryResponse, error) {
-	out := new(RenameRepositoryResponse)
-	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/RenameRepository", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *repositoryServiceClient) ReplicateRepository(ctx context.Context, in *ReplicateRepositoryRequest, opts ...grpc.CallOption) (*ReplicateRepositoryResponse, error) {
 	out := new(ReplicateRepositoryResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/ReplicateRepository", in, out, opts...)
@@ -1114,8 +1103,6 @@ type RepositoryServiceServer interface {
 	// eventually remove it. This ensures that even on networked filesystems the
 	// data is actually removed even if there's someone still handling the data.
 	RemoveRepository(context.Context, *RemoveRepositoryRequest) (*RemoveRepositoryResponse, error)
-	// RenameRepository ...
-	RenameRepository(context.Context, *RenameRepositoryRequest) (*RenameRepositoryResponse, error)
 	// ReplicateRepository replicates data from a source repository to target repository. On the
 	// target repository, this operation ensures synchronization of the following components:
 	//
@@ -1277,9 +1264,6 @@ func (UnimplementedRepositoryServiceServer) GetObjectDirectorySize(context.Conte
 }
 func (UnimplementedRepositoryServiceServer) RemoveRepository(context.Context, *RemoveRepositoryRequest) (*RemoveRepositoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveRepository not implemented")
-}
-func (UnimplementedRepositoryServiceServer) RenameRepository(context.Context, *RenameRepositoryRequest) (*RenameRepositoryResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RenameRepository not implemented")
 }
 func (UnimplementedRepositoryServiceServer) ReplicateRepository(context.Context, *ReplicateRepositoryRequest) (*ReplicateRepositoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReplicateRepository not implemented")
@@ -2029,24 +2013,6 @@ func _RepositoryService_RemoveRepository_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RepositoryService_RenameRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RenameRepositoryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepositoryServiceServer).RenameRepository(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gitaly.RepositoryService/RenameRepository",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepositoryServiceServer).RenameRepository(ctx, req.(*RenameRepositoryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _RepositoryService_ReplicateRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReplicateRepositoryRequest)
 	if err := dec(in); err != nil {
@@ -2291,10 +2257,6 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveRepository",
 			Handler:    _RepositoryService_RemoveRepository_Handler,
-		},
-		{
-			MethodName: "RenameRepository",
-			Handler:    _RepositoryService_RenameRepository_Handler,
 		},
 		{
 			MethodName: "ReplicateRepository",
