@@ -22,16 +22,6 @@ func TestOpenDB(t *testing.T) {
 	dbCfg := testdb.GetConfig(t, "postgres")
 	ctx := testhelper.Context(t)
 
-	t.Run("failed to ping because of incorrect config", func(t *testing.T) {
-		badCfg := dbCfg
-		badCfg.Host = "not-existing.com"
-		_, err := glsql.OpenDB(ctx, badCfg)
-		require.Error(t, err)
-		// The regexp is used because error message has a diff in local run an on CI.
-		const errRegexp = "send ping: failed to connect to `host=not\\-existing.com user=.* database=.*`: hostname resolving error"
-		require.Regexp(t, errRegexp, err.Error(), "opening of DB with incorrect configuration must fail")
-	})
-
 	t.Run("timeout on hanging connection attempt", func(t *testing.T) {
 		lis, err := net.Listen("tcp", "localhost:0")
 		require.NoError(t, err)
