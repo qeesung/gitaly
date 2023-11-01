@@ -69,7 +69,8 @@ func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsReque
 	opts := git.ConvertGlobalOptions(req.GetGlobalOptions())
 	repo := s.localrepo(req.GetRepository())
 
-	logCmd, err := repo.Exec(ctx, getLogCommandSubCmd(req), append(opts, git.WithSetupStdout())...)
+	var stderr strings.Builder
+	logCmd, err := repo.Exec(ctx, getLogCommandSubCmd(req), append(opts, git.WithSetupStdout(), git.WithStderr(&stderr))...)
 	if err != nil {
 		return fmt.Errorf("error when creating git log command: %w", err)
 	}
@@ -98,6 +99,11 @@ func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsReque
 	if err := streamCommits(getCommits, stream, req.GetTrailers(), req.GetIncludeShortstat(), len(req.GetIncludeReferencedBy()) > 0); err != nil {
 		return fmt.Errorf("error streaming commits: %w", err)
 	}
+
+	if err := logCmd.Wait(); err != nil {
+		return structerr.NewInternal("git log: %w", err).WithMetadata("stderr", stderr.String())
+	}
+
 	return nil
 }
 
