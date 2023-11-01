@@ -648,6 +648,7 @@ func TestFindCommits_quarantine(t *testing.T) {
 		desc          string
 		altDirs       []string
 		expectedCount int
+		expectedErr   error
 	}{
 		{
 			desc:          "present GIT_ALTERNATE_OBJECT_DIRECTORIES",
@@ -658,6 +659,9 @@ func TestFindCommits_quarantine(t *testing.T) {
 			desc:          "empty GIT_ALTERNATE_OBJECT_DIRECTORIES",
 			altDirs:       []string{},
 			expectedCount: 0,
+			expectedErr: testhelper.ToInterceptedMetadata(
+				structerr.NewInternal("git log: exit status 128").WithMetadata("stderr",
+					fmt.Sprintf("fatal: bad object %s\n", commitID.String()))),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -668,7 +672,7 @@ func TestFindCommits_quarantine(t *testing.T) {
 				Revision:   []byte(commitID.String()),
 				Limit:      1,
 			})
-			require.NoError(t, err)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 			require.Len(t, commits, tc.expectedCount)
 		})
 	}
