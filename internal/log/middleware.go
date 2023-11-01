@@ -6,6 +6,7 @@ import (
 
 	grpcmwlogging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
 	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpcmwloggingv2 "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/env"
 	"google.golang.org/grpc"
@@ -207,4 +208,16 @@ func StreamLogDataCatcherServerInterceptor() grpc.StreamServerInterceptor {
 		}
 		return handler(srv, ss)
 	}
+}
+
+// CovertLoggingFields converts Fields in go-grpc-middleware/v2/interceptors/logging package
+// into a general map[string]interface{}. So that other logging packages (such as Logrus) can use them.
+func CovertLoggingFields(fields grpcmwloggingv2.Fields) map[string]any {
+	fieldsMap := make(map[string]any, len(fields)/2)
+	i := fields.Iterator()
+	for i.Next() {
+		k, v := i.At()
+		fieldsMap[k] = v
+	}
+	return fieldsMap
 }

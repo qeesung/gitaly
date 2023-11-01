@@ -5,6 +5,7 @@ import (
 
 	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
+	grpcmwloggingv2 "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -102,7 +103,8 @@ func (l LogrusLogger) UnaryServerInterceptor(opts ...grpcmwlogrus.Option) grpc.U
 }
 
 func (l LogrusLogger) log(ctx context.Context, level logrus.Level, msg string) {
-	l.entry.WithFields(ctxlogrus.Extract(ctx).Data).Log(level, msg)
+	middlewareFields := CovertLoggingFields(grpcmwloggingv2.ExtractFields(ctx))
+	l.entry.WithFields(ctxlogrus.Extract(ctx).Data).WithFields(middlewareFields).Log(level, msg)
 }
 
 // DebugContext logs a new log message at Debug level. Fields added to the context via AddFields will be appended.
