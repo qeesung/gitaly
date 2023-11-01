@@ -1880,12 +1880,11 @@ func TestStreamDirectorStorageScope(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	t.Run("mutator", func(t *testing.T) {
-		fullMethod := "/gitaly.NamespaceService/RemoveNamespace"
+		fullMethod := "/gitaly.RepositoryService/RemoveAll"
 		requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpMutator)
 
-		frame, err := proto.Marshal(&gitalypb.RemoveNamespaceRequest{
+		frame, err := proto.Marshal(&gitalypb.RemoveAllRequest{
 			StorageName: conf.VirtualStorages[0].Name,
-			Name:        "stub",
 		})
 		require.NoError(t, err)
 
@@ -1894,18 +1893,17 @@ func TestStreamDirectorStorageScope(t *testing.T) {
 
 		require.Equal(t, primaryAddress, streamParams.Primary().Conn.Target(), "stream director didn't redirect to gitaly storage")
 
-		rewritten := gitalypb.RemoveNamespaceRequest{}
+		rewritten := gitalypb.RemoveAllRequest{}
 		require.NoError(t, proto.Unmarshal(streamParams.Primary().Msg, &rewritten))
 		require.Equal(t, primaryGitaly.Storage, rewritten.StorageName, "stream director didn't rewrite storage")
 	})
 
 	t.Run("accessor", func(t *testing.T) {
-		fullMethod := "/gitaly.NamespaceService/NamespaceExists"
+		fullMethod := "/gitaly.InternalGitaly/WalkRepos"
 		requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpAccessor)
 
-		frame, err := proto.Marshal(&gitalypb.NamespaceExistsRequest{
+		frame, err := proto.Marshal(&gitalypb.WalkReposRequest{
 			StorageName: conf.VirtualStorages[0].Name,
-			Name:        "stub",
 		})
 		require.NoError(t, err)
 
@@ -1914,7 +1912,7 @@ func TestStreamDirectorStorageScope(t *testing.T) {
 
 		require.Equal(t, primaryAddress, streamParams.Primary().Conn.Target(), "stream director didn't redirect to gitaly storage")
 
-		rewritten := gitalypb.RemoveNamespaceRequest{}
+		rewritten := gitalypb.WalkReposRequest{}
 		require.NoError(t, proto.Unmarshal(streamParams.Primary().Msg, &rewritten))
 		require.Equal(t, primaryGitaly.Storage, rewritten.StorageName, "stream director didn't rewrite storage")
 	})
@@ -1942,10 +1940,10 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 			protoregistry.GitalyProtoPreregistered,
 		)
 
-		frame, err := proto.Marshal(&gitalypb.RemoveNamespaceRequest{StorageName: "", Name: "stub"})
+		frame, err := proto.Marshal(&gitalypb.WalkReposRequest{StorageName: ""})
 		require.NoError(t, err)
 
-		_, err = coordinator.StreamDirector(ctx, "/gitaly.NamespaceService/RemoveNamespace", &mockPeeker{frame})
+		_, err = coordinator.StreamDirector(ctx, "/gitaly.InternalGitaly/WalkRepos", &mockPeeker{frame})
 		require.Error(t, err)
 		result, ok := status.FromError(err)
 		require.True(t, ok)
@@ -1972,10 +1970,10 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 			protoregistry.GitalyProtoPreregistered,
 		)
 
-		frame, err := proto.Marshal(&gitalypb.RemoveNamespaceRequest{StorageName: "fake", Name: "stub"})
+		frame, err := proto.Marshal(&gitalypb.WalkReposRequest{StorageName: "fake"})
 		require.NoError(t, err)
 
-		_, err = coordinator.StreamDirector(ctx, "/gitaly.NamespaceService/RemoveNamespace", &mockPeeker{frame})
+		_, err = coordinator.StreamDirector(ctx, "/gitaly.InternalGitaly/WalkRepos", &mockPeeker{frame})
 		require.Error(t, err)
 		result, ok := status.FromError(err)
 		require.True(t, ok)
@@ -2003,10 +2001,10 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 				protoregistry.GitalyProtoPreregistered,
 			)
 
-			fullMethod := "/gitaly.NamespaceService/NamespaceExists"
+			fullMethod := "/gitaly.InternalGitaly/WalkRepos"
 			requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpAccessor)
 
-			frame, err := proto.Marshal(&gitalypb.NamespaceExistsRequest{StorageName: "fake", Name: "stub"})
+			frame, err := proto.Marshal(&gitalypb.WalkReposRequest{StorageName: "fake"})
 			require.NoError(t, err)
 
 			_, err = coordinator.StreamDirector(ctx, fullMethod, &mockPeeker{frame})
@@ -2035,10 +2033,10 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 				protoregistry.GitalyProtoPreregistered,
 			)
 
-			fullMethod := "/gitaly.NamespaceService/RemoveNamespace"
+			fullMethod := "/gitaly.RepositoryService/RemoveAll"
 			requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpMutator)
 
-			frame, err := proto.Marshal(&gitalypb.RemoveNamespaceRequest{StorageName: "fake", Name: "stub"})
+			frame, err := proto.Marshal(&gitalypb.RemoveAllRequest{StorageName: "fake"})
 			require.NoError(t, err)
 
 			_, err = coordinator.StreamDirector(ctx, fullMethod, &mockPeeker{frame})
