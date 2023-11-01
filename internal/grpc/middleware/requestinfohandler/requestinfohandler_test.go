@@ -7,8 +7,10 @@ import (
 	"testing"
 	"time"
 
-	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/validator"
 	"github.com/stretchr/testify/require"
+	gitalylog "gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -250,13 +252,11 @@ func TestGRPCTags(t *testing.T) {
 		metadata.Pairs(),
 	)
 
-	interceptor := grpcmwtags.UnaryServerInterceptor()
-
+	interceptor := validator.UnaryServerInterceptor()
 	_, err := interceptor(ctx, nil, nil, func(ctx context.Context, _ interface{}) (interface{}, error) {
 		info := newRequestInfo(ctx, "/gitaly.RepositoryService/OptimizeRepository", "unary")
 
-		tags := grpcmwtags.NewTags()
-		info.injectTags(tags)
+		ctx = info.injectTags(ctx)
 
 		require.Equal(t, &RequestInfo{
 			correlationID:   correlationID,
@@ -270,7 +270,9 @@ func TestGRPCTags(t *testing.T) {
 			methodScope:     "repository",
 		}, info)
 
-		require.Equal(t, map[string]interface{}{
+		fields := logging.ExtractFields(ctx)
+
+		require.Equal(t, map[string]any{
 			"correlation_id":             correlationID,
 			"grpc.meta.client_name":      clientName,
 			"grpc.meta.deadline_type":    "none",
@@ -278,7 +280,7 @@ func TestGRPCTags(t *testing.T) {
 			"grpc.meta.method_operation": "maintenance",
 			"grpc.meta.method_scope":     "repository",
 			"grpc.request.fullMethod":    "/gitaly.RepositoryService/OptimizeRepository",
-		}, tags.Values())
+		}, gitalylog.CovertLoggingFields(fields))
 
 		return nil, nil
 	})
@@ -651,7 +653,7 @@ func TestInterceptors(t *testing.T) {
 			if tc.expectedTags == nil {
 				require.Equal(t, nil, tc.expectedTags)
 			} else {
-				require.Equal(t, tc.expectedTags, server.tags.Values())
+				require.Equal(t, tc.expectedTags, server.tags)
 			}
 		})
 	}
@@ -660,7 +662,7 @@ func TestInterceptors(t *testing.T) {
 type mockServer struct {
 	gitalypb.RepositoryServiceServer
 	gitalypb.ObjectPoolServiceServer
-	tags grpcmwtags.Tags
+	tags map[string]any
 	info *RequestInfo
 }
 
@@ -676,23 +678,26 @@ func setupServer(tb testing.TB, ctx context.Context) (*mockServer, mockClient) {
 
 	server := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			grpcmwtags.UnaryServerInterceptor(),
+			validator.UnaryServerInterceptor(),
 			UnaryInterceptor,
 			// This interceptor and the equivalent interceptor for the streaming gRPC calls is responsible
 			// for recording the tags that the preceding interceptor has injected.
 			func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 				mockServer.info = Extract(ctx)
-				mockServer.tags = grpcmwtags.Extract(ctx)
+				tags := logging.ExtractFields(ctx)
+				mockServer.tags = gitalylog.CovertLoggingFields(tags)
 				return handler(ctx, req)
 			},
 		),
 		grpc.ChainStreamInterceptor(
-			grpcmwtags.StreamServerInterceptor(),
+			validator.StreamServerInterceptor(),
 			StreamInterceptor,
 			func(server any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 				mockServer.info = Extract(stream.Context())
-				mockServer.tags = grpcmwtags.Extract(stream.Context())
-				return handler(server, stream)
+				err := handler(server, stream)
+				tags := logging.ExtractFields(stream.Context())
+				mockServer.tags = gitalylog.CovertLoggingFields(tags)
+				return err
 			},
 		),
 	)

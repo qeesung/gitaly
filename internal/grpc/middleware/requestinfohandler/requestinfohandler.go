@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -195,10 +195,11 @@ func (i *RequestInfo) extractRequestInfo(request any) {
 	}
 }
 
-func (i *RequestInfo) injectTags(tags grpcmwtags.Tags) {
+func (i *RequestInfo) injectTags(ctx context.Context) context.Context {
 	for key, value := range i.Tags() {
-		tags.Set(key, value)
+		ctx = logging.InjectLogField(ctx, key, value)
 	}
+	return ctx
 }
 
 // Tags returns all tags recorded by this request info.
@@ -286,15 +287,12 @@ func (i *RequestInfo) ExtractServiceAndMethodName() (string, string) {
 
 // UnaryInterceptor returns a Unary Interceptor
 func UnaryInterceptor(ctx context.Context, req interface{}, serverInfo *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	tags := grpcmwtags.NewTags()
-	ctx = grpcmwtags.SetInContext(ctx, tags)
-
 	info := newRequestInfo(ctx, serverInfo.FullMethod, "unary")
 	info.extractRequestInfo(req)
 
 	ctx = context.WithValue(ctx, requestInfoKey{}, info)
 
-	info.injectTags(tags)
+	ctx = info.injectTags(ctx)
 	res, err := handler(ctx, req)
 	info.reportPrometheusMetrics(err)
 
@@ -303,21 +301,19 @@ func UnaryInterceptor(ctx context.Context, req interface{}, serverInfo *grpc.Una
 
 // StreamInterceptor returns a Stream Interceptor
 func StreamInterceptor(srv interface{}, stream grpc.ServerStream, serverInfo *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	tags := grpcmwtags.NewTags()
-	ctx := grpcmwtags.SetInContext(stream.Context(), tags)
-
+	ctx := stream.Context()
 	info := newRequestInfo(ctx, serverInfo.FullMethod, streamRPCType(serverInfo))
 
 	ctx = context.WithValue(ctx, requestInfoKey{}, info)
 
 	// Even though we don't yet have all information set up we already inject the tags here. This is done such that
 	// log messages will at least have the metadata set up correctly in case there is no first request.
-	info.injectTags(tags)
+	ctx = info.injectTags(ctx)
 	err := handler(srv, &wrappedServerStream{
 		ServerStream: stream,
 		ctx:          ctx,
 		info:         info,
-		tags:         tags,
+		tags:         logging.ExtractFields(ctx),
 		initial:      true,
 	})
 	info.reportPrometheusMetrics(err)
@@ -339,7 +335,7 @@ func streamRPCType(info *grpc.StreamServerInfo) string {
 type wrappedServerStream struct {
 	grpc.ServerStream
 	ctx     context.Context
-	tags    grpcmwtags.Tags
+	tags    logging.Fields
 	info    *RequestInfo
 	initial bool
 }
@@ -359,7 +355,8 @@ func (w *wrappedServerStream) RecvMsg(req interface{}) error {
 
 		w.info.extractRequestInfo(req)
 		// Re-inject the tags a second time here.
-		w.info.injectTags(w.tags)
+		w.ctx = w.info.injectTags(w.ctx)
+		w.tags = logging.ExtractFields(w.ctx)
 	}
 
 	return err
