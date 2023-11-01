@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/metadata"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
@@ -79,7 +79,7 @@ func TestCheckTokenV2(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := testhelper.Context(t)
 
-			md := metautils.NiceMD{}
+			md := metadata.MD{}
 			md.Set("authorization", "Bearer "+tc.token)
 			result := CheckToken(md.ToIncoming(ctx), string(secret), targetTime)
 
