@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
@@ -111,4 +112,16 @@ func writeCommit(
 	require.NoError(tb, err)
 
 	return commitID, commitProto
+}
+
+func requireErrorMsgWhenGitLogError(tb testing.TB, commitID string, entries ...*logrus.Entry) {
+	tb.Helper()
+
+	for _, entry := range entries {
+		if entry.Level == logrus.ErrorLevel {
+			require.Contains(tb, entry.Data, "stderr",
+				fmt.Sprintf("fatal: bad object %s", commitID))
+			return
+		}
+	}
 }
