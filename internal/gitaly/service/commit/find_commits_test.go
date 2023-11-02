@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"golang.org/x/text/encoding/charmap"
 	"google.golang.org/grpc/codes"
@@ -636,7 +637,9 @@ func TestFindCommits_quarantine(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	cfg, client := setupCommitService(t, ctx)
+	logger := testhelper.NewLogger(t)
+	hook := testhelper.AddLoggerHook(logger)
+	cfg, client := setupCommitService(t, ctx, testserver.WithLogger(logger))
 
 	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 	altObjectsDir := "./alt-objects"
@@ -662,7 +665,6 @@ func TestFindCommits_quarantine(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			repo.GitAlternateObjectDirectories = tc.altDirs
-
 			commits, err := getCommits(t, ctx, client, &gitalypb.FindCommitsRequest{
 				Repository: repo,
 				Revision:   []byte(commitID.String()),
@@ -670,6 +672,7 @@ func TestFindCommits_quarantine(t *testing.T) {
 			})
 			require.NoError(t, err)
 			require.Len(t, commits, tc.expectedCount)
+			requireErrorMsgWhenGitLogError(t, commitID.String(), hook.AllEntries()...)
 		})
 	}
 }
