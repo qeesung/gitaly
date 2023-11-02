@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/sirupsen/logrus"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v16/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
@@ -232,8 +231,8 @@ func dialGitaly(ctx context.Context, payload git.HooksPayload) (*grpc.ClientConn
 		streamInterceptors = append(streamInterceptors, tracing.StreamPassthroughInterceptor(spanContext))
 	}
 
-	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)))
-	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(streamInterceptors...)))
+	dialOpts = append(dialOpts, grpc.WithChainUnaryInterceptor(unaryInterceptors...))
+	dialOpts = append(dialOpts, grpc.WithChainStreamInterceptor(streamInterceptors...))
 	conn, err := client.Dial(ctx, "unix://"+payload.InternalSocket, client.WithGrpcOptions(dialOpts))
 	if err != nil {
 		return nil, fmt.Errorf("error when dialing: %w", err)

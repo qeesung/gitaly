@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	grpcmwauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpcmwauth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v16/auth"

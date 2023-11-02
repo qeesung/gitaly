@@ -1,7 +1,7 @@
 # Gitaly authentication middleware for Go
 
 This package contains code that plugs into
-`github.com/grpc-ecosystem/go-grpc-middleware/auth` to provide client
+`github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth` to provide client
 and server authentication middleware for Gitaly.
 
 Gitaly has two authentication schemes.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
+	grpcmwmetadata "github.com/grpc-ecosystem/go-grpc-middleware/v2/metadata"
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -41,7 +41,7 @@ func StreamPassthroughInterceptor(spanContext opentracing.SpanContext) grpc.Stre
 
 func injectSpanContext(parentCtx context.Context, spanContext opentracing.SpanContext) context.Context {
 	tracer := opentracing.GlobalTracer()
-	md := metautils.ExtractOutgoing(parentCtx).Clone()
+	md := grpcmwmetadata.ExtractOutgoing(parentCtx).Clone()
 	if err := tracer.Inject(spanContext, opentracing.HTTPHeaders, metadataTextMap(md)); err != nil {
 		return parentCtx
 	}
