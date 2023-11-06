@@ -2900,11 +2900,6 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 			errMsg: "increment generation: error",
 		},
 		{
-			desc:   "rename repository receives suppressed cancellation",
-			change: datastore.RenameRepo,
-			errMsg: "rename repository: error",
-		},
-		{
 			desc:         "enqueue receives suppressed cancellation",
 			errMsg:       "enqueue replication event: error",
 			enqueueError: err,
@@ -2926,10 +2921,6 @@ func TestNewRequestFinalizer_contextIsDisjointedFromTheRPC(t *testing.T) {
 					},
 					datastore.MockRepositoryStore{
 						IncrementGenerationFunc: func(ctx context.Context, _ int64, _ string, _ []string) error {
-							requireSuppressedCancellation(t, ctx)
-							return err
-						},
-						RenameRepositoryFunc: func(ctx context.Context, _, _, _, _ string) error {
 							requireSuppressedCancellation(t, ctx)
 							return err
 						},

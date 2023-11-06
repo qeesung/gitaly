@@ -46,14 +46,12 @@ const (
 	DeleteRepo = ChangeType("delete")
 	// DeleteReplica change type indicates that the targeted replica is due for deletion.
 	DeleteReplica = ChangeType("delete_replica")
-	// RenameRepo is when a replication renames repo
-	RenameRepo = ChangeType("rename")
 )
 
 // GetAllChangeTypes is used to define and provide all the various ChangeType
 // constants. This is useful to iterate over and set labels in metrics.
 func GetAllChangeTypes() []ChangeType {
-	return []ChangeType{UpdateRepo, CreateRepo, DeleteRepo, DeleteReplica, RenameRepo}
+	return []ChangeType{UpdateRepo, CreateRepo, DeleteRepo, DeleteReplica}
 }
 
 func (ct ChangeType) String() string {
