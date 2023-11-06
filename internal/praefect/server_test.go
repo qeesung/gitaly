@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"math/rand"
 	"net"
 	"sort"
 	"strings"
@@ -576,118 +575,6 @@ func TestRemoveRepository(t *testing.T) {
 	}))
 
 	verifyReposExistence(t, codes.NotFound)
-}
-
-func TestRenameRepository(t *testing.T) {
-	gitalyStorages := []string{"gitaly-1", "gitaly-2", "gitaly-3"}
-	praefectCfg := config.Config{
-		VirtualStorages: []*config.VirtualStorage{{Name: "praefect"}},
-		Failover:        config.Failover{Enabled: true, ElectionStrategy: config.ElectionStrategyPerRepository},
-	}
-
-	for _, storageName := range gitalyStorages {
-		cfgBuilder := testcfg.NewGitalyCfgBuilder(testcfg.WithStorages(storageName))
-		gitalyCfg := cfgBuilder.Build(t)
-		gitalyAddr := testserver.RunGitalyServer(t, gitalyCfg, setup.RegisterAll, testserver.WithDisablePraefect())
-
-		praefectCfg.VirtualStorages[0].Nodes = append(praefectCfg.VirtualStorages[0].Nodes, &config.Node{
-			Storage: storageName,
-			Address: gitalyAddr,
-			Token:   gitalyCfg.Auth.Token,
-		})
-	}
-
-	evq := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(testdb.New(t)))
-
-	db := testdb.New(t)
-
-	rs := datastore.NewPostgresRepositoryStore(db, nil)
-
-	logger := testhelper.SharedLogger(t)
-	txManager := transactions.NewManager(praefectCfg, logger)
-	clientHandshaker := backchannel.NewClientHandshaker(
-		logger,
-		NewBackchannelServerFactory(
-			logger,
-			transaction.NewServer(txManager),
-			nil,
-		),
-		backchannel.DefaultConfiguration(),
-	)
-
-	ctx := testhelper.Context(t)
-	nodeSet, err := DialNodes(ctx, praefectCfg.VirtualStorages, nil, nil, clientHandshaker, nil, logger)
-	require.NoError(t, err)
-	defer nodeSet.Close()
-
-	cc, _, cleanup := RunPraefectServer(t, ctx, praefectCfg, BuildOptions{
-		WithQueue:     evq,
-		WithRepoStore: rs,
-		WithRouter: NewPerRepositoryRouter(
-			nodeSet.Connections(),
-			nodes.NewPerRepositoryElector(logger, db),
-			StaticHealthChecker(praefectCfg.StorageNames()),
-			NewLockedRandom(rand.New(rand.NewSource(0))),
-			rs,
-			datastore.NewAssignmentStore(db, praefectCfg.StorageNames()),
-			rs,
-			nil,
-		),
-		WithTxMgr: txManager,
-	})
-	t.Cleanup(cleanup)
-
-	virtualRepo1, _ := gittest.CreateRepository(t, ctx, gconfig.Cfg{
-		Storages: []gconfig.Storage{{Name: "praefect"}},
-	}, gittest.CreateRepositoryConfig{ClientConn: cc})
-
-	virtualRepo2, _ := gittest.CreateRepository(t, ctx, gconfig.Cfg{
-		Storages: []gconfig.Storage{{Name: "praefect"}},
-	}, gittest.CreateRepositoryConfig{ClientConn: cc})
-
-	const newRelativePath = "unused-relative-path"
-
-	repoServiceClient := gitalypb.NewRepositoryServiceClient(cc)
-
-	_, err = repoServiceClient.RenameRepository(ctx, &gitalypb.RenameRepositoryRequest{
-		Repository: &gitalypb.Repository{
-			StorageName:  virtualRepo1.StorageName,
-			RelativePath: "not-found",
-		},
-		RelativePath: virtualRepo2.RelativePath,
-	})
-	testhelper.RequireGrpcError(t, testhelper.ToInterceptedMetadata(
-		structerr.NewNotFound("%w", storage.NewRepositoryNotFoundError("praefect", "not-found")),
-	), err)
-
-	_, err = repoServiceClient.RenameRepository(ctx, &gitalypb.RenameRepositoryRequest{
-		Repository:   virtualRepo1,
-		RelativePath: virtualRepo2.RelativePath,
-	})
-
-	expectedErr := structerr.NewAlreadyExists("target repo exists already")
-	testhelper.RequireGrpcError(t, expectedErr, err)
-
-	_, err = repoServiceClient.RenameRepository(ctx, &gitalypb.RenameRepositoryRequest{
-		Repository:   virtualRepo1,
-		RelativePath: newRelativePath,
-	})
-	require.NoError(t, err)
-
-	resp, err := repoServiceClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
-		Repository: virtualRepo1,
-	})
-	require.NoError(t, err)
-	require.False(t, resp.GetExists(), "repo with old name must gone")
-
-	resp, err = repoServiceClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
-		Repository: &gitalypb.Repository{
-			StorageName:  virtualRepo1.StorageName,
-			RelativePath: newRelativePath,
-		},
-	})
-	require.NoError(t, err)
-	require.True(t, resp.GetExists(), "repo with new name must exist")
 }
 
 type mockSmartHTTP struct {

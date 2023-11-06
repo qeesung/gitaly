@@ -292,35 +292,16 @@ func TestRepositoryStore_Postgres(t *testing.T) {
 				},
 			)
 
-			require.NoError(t, rs.RenameRepository(ctx, vs, "original-path", "storage-1", "new-path"))
+			require.NoError(t, rs.SetGeneration(ctx, 1, "storage-2", "original-path", 1))
 			requireState(t, ctx, db,
 				virtualStorageState{
 					"virtual-storage-1": {
-						"new-path": {repositoryID: 1, primary: "storage-1", replicaPath: "new-path"},
+						"original-path": {repositoryID: 1, primary: "storage-1", replicaPath: "replica-path"},
 					},
 				},
 				storageState{
 					"virtual-storage-1": {
 						"original-path": {
-							"storage-2": {repositoryID: 1, generation: 0},
-						},
-						"new-path": {
-							"storage-1": {repositoryID: 1, generation: 0},
-						},
-					},
-				},
-			)
-
-			require.NoError(t, rs.SetGeneration(ctx, 1, "storage-2", "new-path", 1))
-			requireState(t, ctx, db,
-				virtualStorageState{
-					"virtual-storage-1": {
-						"new-path": {repositoryID: 1, primary: "storage-1", replicaPath: "new-path"},
-					},
-				},
-				storageState{
-					"virtual-storage-1": {
-						"new-path": {
 							"storage-1": {repositoryID: 1, generation: 0},
 							"storage-2": {repositoryID: 1, generation: 1},
 						},
@@ -892,113 +873,6 @@ func TestRepositoryStore_Postgres(t *testing.T) {
 		})
 	})
 
-	t.Run("RenameRepositoryInPlace", func(t *testing.T) {
-		t.Run("rename non-existing", func(t *testing.T) {
-			rs := newRepositoryStore(t, nil)
-
-			require.Equal(t,
-				ErrRepositoryNotFound,
-				rs.RenameRepositoryInPlace(ctx, vs, repo, "new-relative-path"),
-			)
-		})
-
-		t.Run("destination exists", func(t *testing.T) {
-			rs := newRepositoryStore(t, nil)
-
-			require.NoError(t, rs.CreateRepository(ctx, 1, vs, "relative-path-1", "replica-path-1", "primary", nil, nil, true, false))
-			require.NoError(t, rs.CreateRepository(ctx, 2, vs, "relative-path-2", "replica-path-2", "primary", nil, nil, true, false))
-
-			require.Equal(t,
-				ErrRepositoryAlreadyExists,
-				rs.RenameRepositoryInPlace(ctx, vs, "relative-path-1", "relative-path-2"),
-			)
-		})
-
-		t.Run("successfully renamed", func(t *testing.T) {
-			rs := newRepositoryStore(t, nil)
-
-			require.NoError(t, rs.CreateRepository(ctx, 1, vs, "original-relative-path", "original-replica-path", "primary", nil, nil, false, false))
-			require.NoError(t, rs.RenameRepositoryInPlace(ctx, vs, "original-relative-path", "renamed-relative-path"))
-			requireState(t, ctx, db,
-				virtualStorageState{
-					vs: {
-						"renamed-relative-path": {repositoryID: 1, replicaPath: "original-replica-path"},
-					},
-				},
-				storageState{
-					vs: {
-						"renamed-relative-path": {
-							"primary": {repositoryID: 1},
-						},
-					},
-				},
-			)
-		})
-	})
-
-	t.Run("RenameRepository", func(t *testing.T) {
-		t.Run("rename non-existing", func(t *testing.T) {
-			rs := newRepositoryStore(t, nil)
-
-			require.Equal(t,
-				ErrRepositoryNotFound,
-				rs.RenameRepository(ctx, vs, repo, stor, "repository-2"),
-			)
-		})
-
-		t.Run("rename existing", func(t *testing.T) {
-			rs := newRepositoryStore(t, nil)
-
-			require.NoError(t, rs.CreateRepository(ctx, 1, vs, "renamed-all", "replica-path-1", "storage-1", nil, nil, false, false))
-			require.NoError(t, rs.CreateRepository(ctx, 2, vs, "renamed-some", "replica-path-2", "storage-1", []string{"storage-2"}, nil, false, false))
-
-			requireState(t, ctx, db,
-				virtualStorageState{
-					"virtual-storage-1": {
-						"renamed-all":  {repositoryID: 1, replicaPath: "replica-path-1"},
-						"renamed-some": {repositoryID: 2, replicaPath: "replica-path-2"},
-					},
-				},
-				storageState{
-					"virtual-storage-1": {
-						"renamed-all": {
-							"storage-1": {repositoryID: 1, generation: 0},
-						},
-						"renamed-some": {
-							"storage-1": {repositoryID: 2, generation: 0},
-							"storage-2": {repositoryID: 2, generation: 0},
-						},
-					},
-				},
-			)
-
-			require.NoError(t, rs.RenameRepository(ctx, vs, "renamed-all", "storage-1", "renamed-all-new"))
-			require.NoError(t, rs.RenameRepository(ctx, vs, "renamed-some", "storage-1", "renamed-some-new"))
-
-			requireState(t, ctx, db,
-				virtualStorageState{
-					"virtual-storage-1": {
-						"renamed-all-new":  {repositoryID: 1, replicaPath: "renamed-all-new"},
-						"renamed-some-new": {repositoryID: 2, replicaPath: "renamed-some-new"},
-					},
-				},
-				storageState{
-					"virtual-storage-1": {
-						"renamed-all-new": {
-							"storage-1": {repositoryID: 1, generation: 0},
-						},
-						"renamed-some-new": {
-							"storage-1": {repositoryID: 2, generation: 0},
-						},
-						"renamed-some": {
-							"storage-2": {repositoryID: 2, generation: 0},
-						},
-					},
-				},
-			)
-		})
-	})
-
 	t.Run("GetConsistentStorages", func(t *testing.T) {
 		rs := newRepositoryStore(t, map[string][]string{
 			vs: {"primary", "consistent-secondary", "inconsistent-secondary", "no-record"},
@@ -1108,40 +982,6 @@ func TestRepositoryStore_Postgres(t *testing.T) {
 			require.Equal(t, ErrRepositoryNotFound, err)
 			require.Empty(t, secondaries)
 			require.Empty(t, replicaPath)
-		})
-
-		t.Run("replicas pending rename are considered outdated", func(t *testing.T) {
-			rs := newRepositoryStore(t, nil)
-
-			require.NoError(t, rs.CreateRepository(ctx, 1, vs, "original-path", "replica-path", "storage-1", []string{"storage-2"}, nil, true, false))
-			replicaPath, storages, err := rs.GetConsistentStorages(ctx, vs, "original-path")
-			require.NoError(t, err)
-			require.Equal(t, "replica-path", replicaPath)
-			require.ElementsMatch(t, []string{"storage-1", "storage-2"}, storages.Values())
-			replicaPath, storages, err = rs.GetConsistentStoragesByRepositoryID(ctx, 1)
-			require.NoError(t, err)
-			require.Equal(t, "replica-path", replicaPath)
-			require.ElementsMatch(t, []string{"storage-1", "storage-2"}, storages.Values())
-
-			require.NoError(t, rs.RenameRepository(ctx, vs, "original-path", "storage-1", "new-path"))
-			replicaPath, storages, err = rs.GetConsistentStorages(ctx, vs, "new-path")
-			require.NoError(t, err)
-			require.Equal(t, "new-path", replicaPath)
-			require.Equal(t, []string{"storage-1"}, storages.Values())
-			replicaPath, storages, err = rs.GetConsistentStoragesByRepositoryID(ctx, 1)
-			require.NoError(t, err)
-			require.Equal(t, "new-path", replicaPath)
-			require.Equal(t, []string{"storage-1"}, storages.Values())
-
-			require.NoError(t, rs.RenameRepository(ctx, vs, "original-path", "storage-2", "new-path"))
-			replicaPath, storages, err = rs.GetConsistentStorages(ctx, vs, "new-path")
-			require.NoError(t, err)
-			require.Equal(t, "new-path", replicaPath)
-			require.ElementsMatch(t, []string{"storage-1", "storage-2"}, storages.Values())
-			replicaPath, storages, err = rs.GetConsistentStoragesByRepositoryID(ctx, 1)
-			require.NoError(t, err)
-			require.Equal(t, "new-path", replicaPath)
-			require.ElementsMatch(t, []string{"storage-1", "storage-2"}, storages.Values())
 		})
 	})
 

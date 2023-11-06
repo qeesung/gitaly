@@ -56,9 +56,6 @@ var nonTransactionalRPCs = map[string]struct{}{
 	// SetFullPath writes the full path into git config and is the last RPC that writes into the
 	// git config. Writing into the config won't be supported.
 	"/gitaly.RepositoryService/SetFullPath": {},
-	// RenameRepository is pending removal as we need stable IDs for repositories. Renaming won't
-	// be supported with WAL.
-	"/gitaly.RepositoryService/RenameRepository": {},
 }
 
 // NewUnaryInterceptor returns an unary interceptor that manages a unary RPC's transaction. It starts a transaction

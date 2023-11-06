@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v16/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	gitalycfg "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
@@ -432,157 +430,6 @@ func testProcessBacklogFailedJobs(t *testing.T, ctx context.Context) {
 		acks[ack.State] = append(acks[ack.State], ack.IDs...)
 	}
 	require.Equal(t, expAcks, acks)
-}
-
-func TestProcessBacklog_Success(t *testing.T) {
-	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.ReplicateRepositoryObjectPool).Run(t, testProcessBacklogSuccess)
-}
-
-func testProcessBacklogSuccess(t *testing.T, ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
-
-	primaryCfg := testcfg.Build(t, testcfg.WithStorages("primary"))
-	primaryCfg.SocketPath = testserver.RunGitalyServer(t, primaryCfg, setup.RegisterAll, testserver.WithDisablePraefect())
-	testcfg.BuildGitalySSH(t, primaryCfg)
-	testcfg.BuildGitalyHooks(t, primaryCfg)
-
-	testRepo, _ := gittest.CreateRepository(t, ctx, primaryCfg, gittest.CreateRepositoryConfig{
-		SkipCreationViaService: true,
-	})
-
-	backupCfg := testcfg.Build(t, testcfg.WithStorages("backup"))
-	backupCfg.SocketPath = testserver.RunGitalyServer(t, backupCfg, setup.RegisterAll, testserver.WithDisablePraefect())
-	backupLocator := gitalycfg.NewLocator(backupCfg)
-	testcfg.BuildGitalySSH(t, backupCfg)
-	testcfg.BuildGitalyHooks(t, backupCfg)
-
-	primary := config.Node{
-		Storage: primaryCfg.Storages[0].Name,
-		Address: primaryCfg.SocketPath,
-	}
-
-	secondary := config.Node{
-		Storage: backupCfg.Storages[0].Name,
-		Address: backupCfg.SocketPath,
-	}
-
-	conf := config.Config{
-		VirtualStorages: []*config.VirtualStorage{
-			{
-				Name: "virtual",
-				Nodes: []*config.Node{
-					&primary,
-					&secondary,
-				},
-			},
-		},
-	}
-
-	queueInterceptor := datastore.NewReplicationEventQueueInterceptor(datastore.NewPostgresReplicationEventQueue(testdb.New(t)))
-	queueInterceptor.OnAcknowledge(func(ctx context.Context, state datastore.JobState, ids []uint64, queue datastore.ReplicationEventQueue) ([]uint64, error) {
-		ackIDs, err := queue.Acknowledge(ctx, state, ids)
-		if len(ids) > 0 {
-			assert.Equal(t, datastore.JobStateCompleted, state, "no fails expected")
-			assert.Equal(t, []uint64{1, 2, 3}, ids, "all jobs must be processed at once")
-		}
-		return ackIDs, err
-	})
-
-	var healthUpdated int32
-	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, trigger <-chan time.Time, events []datastore.ReplicationEvent) error {
-		assert.Len(t, events, 3)
-		atomic.AddInt32(&healthUpdated, 1)
-		return nil
-	})
-
-	// Update replication job
-	eventType1 := datastore.ReplicationEvent{
-		Job: datastore.ReplicationJob{
-			RepositoryID:      1,
-			Change:            datastore.UpdateRepo,
-			RelativePath:      testRepo.GetRelativePath(),
-			TargetNodeStorage: secondary.Storage,
-			SourceNodeStorage: primary.Storage,
-			VirtualStorage:    conf.VirtualStorages[0].Name,
-		},
-	}
-
-	_, err := queueInterceptor.Enqueue(ctx, eventType1)
-	require.NoError(t, err)
-
-	renameTo1 := filepath.Join(testRepo.GetRelativePath(), "..", filepath.Base(testRepo.GetRelativePath())+"-mv1")
-	fullNewPath1 := filepath.Join(backupCfg.Storages[0].Path, renameTo1)
-
-	renameTo2 := filepath.Join(renameTo1, "..", filepath.Base(testRepo.GetRelativePath())+"-mv2")
-
-	// Rename replication job
-	eventType2 := datastore.ReplicationEvent{
-		Job: datastore.ReplicationJob{
-			Change:            datastore.RenameRepo,
-			RelativePath:      testRepo.GetRelativePath(),
-			TargetNodeStorage: secondary.Storage,
-			SourceNodeStorage: primary.Storage,
-			VirtualStorage:    conf.VirtualStorages[0].Name,
-			Params:            datastore.Params{"RelativePath": renameTo1},
-		},
-	}
-
-	_, err = queueInterceptor.Enqueue(ctx, eventType2)
-	require.NoError(t, err)
-
-	// Rename replication job
-	eventType3 := datastore.ReplicationEvent{
-		Job: datastore.ReplicationJob{
-			Change:            datastore.RenameRepo,
-			RelativePath:      renameTo1,
-			TargetNodeStorage: secondary.Storage,
-			SourceNodeStorage: primary.Storage,
-			VirtualStorage:    conf.VirtualStorages[0].Name,
-			Params:            datastore.Params{"RelativePath": renameTo2},
-		},
-	}
-	require.NoError(t, err)
-
-	_, err = queueInterceptor.Enqueue(ctx, eventType3)
-	require.NoError(t, err)
-
-	logEntry := testhelper.SharedLogger(t)
-
-	nodeMgr, err := nodes.NewManager(logEntry, conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
-	require.NoError(t, err)
-	nodeMgr.Start(0, time.Hour)
-	defer nodeMgr.Stop()
-
-	db := testdb.New(t)
-	rs := datastore.NewPostgresRepositoryStore(db, conf.StorageNames())
-	require.NoError(t, rs.CreateRepository(ctx, eventType1.Job.RepositoryID, eventType1.Job.VirtualStorage, eventType1.Job.VirtualStorage, eventType1.Job.RelativePath, eventType1.Job.SourceNodeStorage, nil, nil, true, false))
-
-	replMgr := NewReplMgr(
-		logEntry,
-		conf.StorageNames(),
-		queueInterceptor,
-		rs,
-		nodeMgr,
-		NodeSetFromNodeManager(nodeMgr),
-	)
-	replMgrDone := startProcessBacklog(ctx, replMgr)
-
-	require.NoError(t, queueInterceptor.Wait(time.Minute, func(i *datastore.ReplicationEventQueueInterceptor) bool {
-		var ids []uint64
-		for _, params := range i.GetAcknowledge() {
-			ids = append(ids, params.IDs...)
-		}
-		return len(ids) == 3
-	}))
-	cancel()
-	<-replMgrDone
-
-	require.NoDirExists(t, fullNewPath1, "repository must be moved from %q to the new location", fullNewPath1)
-	require.NoError(t, backupLocator.ValidateRepository(&gitalypb.Repository{
-		StorageName:  backupCfg.Storages[0].Name,
-		RelativePath: renameTo2,
-	}), "repository must exist at new last RenameRepository location")
 }
 
 func TestReplMgrProcessBacklog_OnlyHealthyNodes(t *testing.T) {
