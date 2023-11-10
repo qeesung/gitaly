@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"golang.org/x/text/encoding/charmap"
 	"google.golang.org/grpc/codes"
@@ -636,7 +637,9 @@ func TestFindCommits_quarantine(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	cfg, client := setupCommitService(t, ctx)
+	logger := testhelper.NewLogger(t)
+	// hook := testhelper.AddLoggerHook(logger)
+	cfg, client := setupCommitService(t, ctx, testserver.WithLogger(logger))
 
 	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 	altObjectsDir := "./alt-objects"
@@ -648,27 +651,93 @@ func TestFindCommits_quarantine(t *testing.T) {
 		desc          string
 		altDirs       []string
 		expectedCount int
+		expectedErr   error
+		limit         int32
 	}{
 		{
 			desc:          "present GIT_ALTERNATE_OBJECT_DIRECTORIES",
 			altDirs:       []string{altObjectsDir},
+			limit:         1,
 			expectedCount: 1,
+			expectedErr:   nil,
 		},
 		{
 			desc:          "empty GIT_ALTERNATE_OBJECT_DIRECTORIES",
 			altDirs:       []string{},
+			limit:         1,
 			expectedCount: 0,
+			expectedErr: testhelper.ToInterceptedMetadata(
+				structerr.NewInternal("git log: exit status 128").WithMetadata("stderr",
+					fmt.Sprintf("fatal: bad object %s\n", commitID.String()))),
+		},
+		{
+			desc:          "limit 0 on empty GIT_ALTERNATE_OBJECT_DIRECTORIES ",
+			altDirs:       []string{},
+			limit:         0,
+			expectedCount: 0,
+			expectedErr:   nil,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			repo.GitAlternateObjectDirectories = tc.altDirs
-
 			commits, err := getCommits(t, ctx, client, &gitalypb.FindCommitsRequest{
 				Repository: repo,
 				Revision:   []byte(commitID.String()),
-				Limit:      1,
+				Limit:      tc.limit,
 			})
-			require.NoError(t, err)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
+			require.Len(t, commits, tc.expectedCount)
+		})
+	}
+}
+
+func TestFindCommits_simulateGitLogWaitError(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	logger := testhelper.NewLogger(t)
+	cfg, client := setupCommitService(t, ctx, testserver.WithLogger(logger))
+
+	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+	// altObjectsDir is used to trigger git log wait error
+	// we will set this to empty string to trigger the error
+	altObjectsDir := "./alt-objects"
+	commitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithAlternateObjectDirectory(filepath.Join(repoPath, altObjectsDir)),
+	)
+
+	for _, tc := range []struct {
+		desc          string
+		altDirs       []string
+		expectedCount int
+		expectedErr   error
+		limit         int32
+	}{
+		{
+			desc:          "git log exit with error, with limit 0",
+			altDirs:       []string{},
+			limit:         0,
+			expectedCount: 0,
+			expectedErr:   nil,
+		},
+		{
+			desc:          "limit 1, git log exit with error",
+			altDirs:       []string{},
+			limit:         1,
+			expectedCount: 0,
+			expectedErr: testhelper.ToInterceptedMetadata(
+				structerr.NewInternal("git log: exit status 128").WithMetadata("stderr",
+					fmt.Sprintf("fatal: bad object %s\n", commitID.String()))),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			repo.GitAlternateObjectDirectories = tc.altDirs
+			commits, err := getCommits(t, ctx, client, &gitalypb.FindCommitsRequest{
+				Repository: repo,
+				Revision:   []byte(commitID.String()),
+				Limit:      tc.limit,
+			})
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 			require.Len(t, commits, tc.expectedCount)
 		})
 	}
