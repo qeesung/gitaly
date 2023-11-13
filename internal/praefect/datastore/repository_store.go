@@ -83,13 +83,6 @@ type RepositoryStore interface {
 	DeleteAllRepositories(ctx context.Context, virtualStorage string) error
 	// DeleteReplica deletes a replica of a repository from a storage without affecting other state in the virtual storage.
 	DeleteReplica(ctx context.Context, repositoryID int64, storage string) error
-	// RenameRepository updates a repository's relative path. It renames the virtual storage wide record as well
-	// as the storage's which is calling it. Returns ErrRepositoryNotFound when trying to rename a repository
-	// which has no record in the virtual storage or the storage.
-	RenameRepository(ctx context.Context, virtualStorage, relativePath, storage, newRelativePath string) error
-	// RenameRepositoryInPlace renames the repository in the database without changing the replica path. This will replace
-	// RenameRepository which can be removed in a later release.
-	RenameRepositoryInPlace(ctx context.Context, virtualStorage, relativePath, newRelativePath string) error
 	// GetConsistentStoragesByRepositoryID returns the replica path and the set of up to date storages for the given repository keyed by repository ID.
 	GetConsistentStoragesByRepositoryID(ctx context.Context, repositoryID int64) (string, *datastructure.Set[string], error)
 	ConsistentStoragesGetter
@@ -532,71 +525,6 @@ AND storage = $2
 	}
 
 	return nil
-}
-
-// RenameRepositoryInPlace renames the repository in the database without changing the replica path. This will replace
-// RenameRepository which can be removed in a later release.
-func (rs *PostgresRepositoryStore) RenameRepositoryInPlace(ctx context.Context, virtualStorage, relativePath, newRelativePath string) error {
-	result, err := rs.db.ExecContext(ctx, `
-WITH repository AS (
-	UPDATE repositories
-	SET relative_path = $3
-	WHERE virtual_storage = $1
-	AND   relative_path   = $2
-	RETURNING repository_id
-)
-
-UPDATE storage_repositories
-SET relative_path = $3
-WHERE repository_id = (SELECT repository_id FROM repository)
-	`, virtualStorage, relativePath, newRelativePath)
-	if err != nil {
-		if glsql.IsUniqueViolation(err, "repository_lookup_index") {
-			return ErrRepositoryAlreadyExists
-		}
-
-		return fmt.Errorf("query: %w", err)
-	}
-
-	if rowsAffected, err := result.RowsAffected(); err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	} else if rowsAffected == 0 {
-		return ErrRepositoryNotFound
-	}
-
-	return nil
-}
-
-//nolint:revive // This is unintentionally missing documentation.
-func (rs *PostgresRepositoryStore) RenameRepository(ctx context.Context, virtualStorage, relativePath, storage, newRelativePath string) error {
-	const q = `
-WITH repo AS (
-	UPDATE repositories
-	SET relative_path = $4,
-	    replica_path  = $4
-	WHERE virtual_storage = $1
-	AND relative_path = $2
-)
-
-UPDATE storage_repositories
-SET relative_path = $4
-WHERE virtual_storage = $1
-AND relative_path = $2
-AND storage = $3
-`
-
-	result, err := rs.db.ExecContext(ctx, q, virtualStorage, relativePath, storage, newRelativePath)
-	if err != nil {
-		return err
-	}
-
-	if n, err := result.RowsAffected(); err != nil {
-		return err
-	} else if n == 0 {
-		return ErrRepositoryNotFound
-	}
-
-	return err
 }
 
 // GetConsistentStoragesByRepositoryID returns the replica path and the set of up to date storages for the given repository keyed by repository ID.

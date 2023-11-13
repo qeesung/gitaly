@@ -18,8 +18,6 @@ type MockRepositoryStore struct {
 	SetAuthoritativeReplicaFunc             func(ctx context.Context, virtualStorage, relativePath, storage string) error
 	DeleteRepositoryFunc                    func(ctx context.Context, virtualStorage, relativePath string) (string, []string, error)
 	DeleteReplicaFunc                       func(ctx context.Context, repositoryID int64, storage string) error
-	RenameRepositoryInPlaceFunc             func(ctx context.Context, virtualStorage, relativePath, newRelativePath string) error
-	RenameRepositoryFunc                    func(ctx context.Context, virtualStorage, relativePath, storage, newRelativePath string) error
 	GetConsistentStoragesByRepositoryIDFunc func(ctx context.Context, repositoryID int64) (string, *datastructure.Set[string], error)
 	GetConsistentStoragesFunc               func(ctx context.Context, virtualStorage, relativePath string) (string, *datastructure.Set[string], error)
 	GetPartiallyAvailableRepositoriesFunc   func(ctx context.Context, virtualStorage string) ([]RepositoryMetadata, error)
@@ -102,20 +100,6 @@ func (m MockRepositoryStore) DeleteReplica(ctx context.Context, repositoryID int
 	}
 
 	return m.DeleteReplicaFunc(ctx, repositoryID, storage)
-}
-
-// RenameRepositoryInPlace runs the mock's RenameRepositoryInPlaceFunc.
-func (m MockRepositoryStore) RenameRepositoryInPlace(ctx context.Context, virtualStorage, relativePath, newRelativePath string) error {
-	return m.RenameRepositoryInPlaceFunc(ctx, virtualStorage, relativePath, newRelativePath)
-}
-
-//nolint:revive // This is unintentionally missing documentation.
-func (m MockRepositoryStore) RenameRepository(ctx context.Context, virtualStorage, relativePath, storage, newRelativePath string) error {
-	if m.RenameRepositoryFunc == nil {
-		return nil
-	}
-
-	return m.RenameRepositoryFunc(ctx, virtualStorage, relativePath, storage, newRelativePath)
 }
 
 // GetConsistentStoragesByRepositoryID returns result of execution of the GetConsistentStoragesByRepositoryIDFunc field if it is set or an empty map.

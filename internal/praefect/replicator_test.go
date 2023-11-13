@@ -659,14 +659,14 @@ func testProcessBacklogSuccess(t *testing.T, ctx context.Context) {
 		ackIDs, err := queue.Acknowledge(ctx, state, ids)
 		if len(ids) > 0 {
 			assert.Equal(t, datastore.JobStateCompleted, state, "no fails expected")
-			assert.Equal(t, []uint64{1, 2, 3}, ids, "all jobs must be processed at once")
+			assert.Equal(t, []uint64{1}, ids, "all jobs must be processed at once")
 		}
 		return ackIDs, err
 	})
 
 	var healthUpdated int32
 	queueInterceptor.OnStartHealthUpdate(func(ctx context.Context, trigger <-chan time.Time, events []datastore.ReplicationEvent) error {
-		assert.Len(t, events, 3)
+		assert.Len(t, events, 1)
 		atomic.AddInt32(&healthUpdated, 1)
 		return nil
 	})
@@ -684,42 +684,6 @@ func testProcessBacklogSuccess(t *testing.T, ctx context.Context) {
 	}
 
 	_, err := queueInterceptor.Enqueue(ctx, eventType1)
-	require.NoError(t, err)
-
-	renameTo1 := filepath.Join(testRepo.GetRelativePath(), "..", filepath.Base(testRepo.GetRelativePath())+"-mv1")
-	fullNewPath1 := filepath.Join(backupCfg.Storages[0].Path, renameTo1)
-
-	renameTo2 := filepath.Join(renameTo1, "..", filepath.Base(testRepo.GetRelativePath())+"-mv2")
-
-	// Rename replication job
-	eventType2 := datastore.ReplicationEvent{
-		Job: datastore.ReplicationJob{
-			Change:            datastore.RenameRepo,
-			RelativePath:      testRepo.GetRelativePath(),
-			TargetNodeStorage: secondary.Storage,
-			SourceNodeStorage: primary.Storage,
-			VirtualStorage:    conf.VirtualStorages[0].Name,
-			Params:            datastore.Params{"RelativePath": renameTo1},
-		},
-	}
-
-	_, err = queueInterceptor.Enqueue(ctx, eventType2)
-	require.NoError(t, err)
-
-	// Rename replication job
-	eventType3 := datastore.ReplicationEvent{
-		Job: datastore.ReplicationJob{
-			Change:            datastore.RenameRepo,
-			RelativePath:      renameTo1,
-			TargetNodeStorage: secondary.Storage,
-			SourceNodeStorage: primary.Storage,
-			VirtualStorage:    conf.VirtualStorages[0].Name,
-			Params:            datastore.Params{"RelativePath": renameTo2},
-		},
-	}
-	require.NoError(t, err)
-
-	_, err = queueInterceptor.Enqueue(ctx, eventType3)
 	require.NoError(t, err)
 
 	logEntry := testhelper.SharedLogger(t)
@@ -748,16 +712,15 @@ func testProcessBacklogSuccess(t *testing.T, ctx context.Context) {
 		for _, params := range i.GetAcknowledge() {
 			ids = append(ids, params.IDs...)
 		}
-		return len(ids) == 3
+		return len(ids) == 1
 	}))
 	cancel()
 	<-replMgrDone
 
-	require.NoDirExists(t, fullNewPath1, "repository must be moved from %q to the new location", fullNewPath1)
 	require.NoError(t, backupLocator.ValidateRepository(&gitalypb.Repository{
 		StorageName:  backupCfg.Storages[0].Name,
-		RelativePath: renameTo2,
-	}), "repository must exist at new last RenameRepository location")
+		RelativePath: testRepo.GetRelativePath(),
+	}), "repository must exist at the relative path")
 }
 
 func TestReplMgrProcessBacklog_OnlyHealthyNodes(t *testing.T) {

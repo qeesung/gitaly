@@ -95,7 +95,6 @@ var transactionRPCs = map[string]transactionsCondition{
 	// transactional in the future if the need arises.
 	"/gitaly.ObjectPoolService/CreateObjectPool": transactionsDisabled,
 	"/gitaly.ObjectPoolService/DeleteObjectPool": transactionsDisabled,
-	"/gitaly.RepositoryService/RenameRepository": transactionsDisabled,
 }
 
 // forcePrimaryRoutingRPCs tracks RPCs which need to always get routed to the primary. This should
@@ -162,12 +161,6 @@ func getReplicationDetails(methodName string, m proto.Message) (datastore.Change
 		"/gitaly.RepositoryService/ReplicateRepository",
 		"/gitaly.RepositoryService/RestoreRepository":
 		return datastore.CreateRepo, nil, nil
-	case "/gitaly.RepositoryService/RenameRepository":
-		req, ok := m.(*gitalypb.RenameRepositoryRequest)
-		if !ok {
-			return "", nil, fmt.Errorf("protocol changed: for method %q expected message type '%T', got '%T'", methodName, req, m)
-		}
-		return datastore.RenameRepo, datastore.Params{"RelativePath": req.RelativePath}, nil
 	default:
 		return datastore.UpdateRepo, nil, nil
 	}
@@ -1092,17 +1085,6 @@ func (c *Coordinator) newRequestFinalizer(
 			// the primary will be a later generation in the mean while.
 			if err := c.rs.IncrementGeneration(ctx, repositoryID, primary, updatedSecondaries); err != nil {
 				return fmt.Errorf("increment generation: %w", err)
-			}
-		case datastore.RenameRepo:
-			// Renaming a repository is not idempotent on Gitaly's side. This combined with a failure here results in a problematic state,
-			// where the client receives an error but can't retry the call as the repository has already been moved on the primary.
-			// Ideally the rename RPC should copy the repository instead of moving so the client can retry if this failed.
-			if err := c.rs.RenameRepository(ctx, virtualStorage, targetRepo.GetRelativePath(), primary, params["RelativePath"].(string)); err != nil {
-				if !errors.Is(err, datastore.ErrRepositoryNotFound) {
-					return fmt.Errorf("rename repository: %w", err)
-				}
-
-				c.logger.WithError(err).InfoContext(ctx, "renamed repository does not have a store entry")
 			}
 		case datastore.CreateRepo:
 			repositorySpecificPrimariesEnabled := c.conf.Failover.ElectionStrategy == config.ElectionStrategyPerRepository

@@ -252,12 +252,12 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 
 	eventType2 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            RenameRepo,
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-2",
 			SourceNodeStorage: "",
 			VirtualStorage:    "praefect-0",
-			Params:            Params{"RelativePath": "/project/path-1-renamed"},
+			Params:            nil,
 		},
 	}
 
@@ -315,12 +315,12 @@ func TestPostgresReplicationEventQueue_EnqueueMultiple(t *testing.T) {
 		Attempt: 3,
 		LockID:  "praefect-0|gitaly-2|/project/path-1",
 		Job: ReplicationJob{
-			Change:            RenameRepo,
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-1",
 			TargetNodeStorage: "gitaly-2",
 			SourceNodeStorage: "",
 			VirtualStorage:    "praefect-0",
-			Params:            Params{"RelativePath": "/project/path-1-renamed"},
+			Params:            nil,
 		},
 	}
 
@@ -429,12 +429,12 @@ func TestPostgresReplicationEventQueue_DequeueMultiple(t *testing.T) {
 
 	eventType3 := ReplicationEvent{
 		Job: ReplicationJob{
-			Change:            RenameRepo,
+			Change:            UpdateRepo,
 			RelativePath:      "/project/path-2",
 			TargetNodeStorage: "gitaly-1",
 			SourceNodeStorage: "gitaly-0",
 			VirtualStorage:    "praefect",
-			Params:            Params{"RelativePath": "/project/path-2-renamed"},
+			Params:            nil,
 		},
 	}
 
