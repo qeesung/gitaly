@@ -84,7 +84,7 @@ type Commit struct {
 	SignatureData SignatureData
 }
 
-// parseCommit implements a state machine to parse the various sections
+// ParseCommit implements a state machine to parse the various sections
 // of a commit. To understand the state machine, see the definition
 // for parseState above.
 //
@@ -93,7 +93,7 @@ type Commit struct {
 // that we throw errors only wherever git does.
 //
 // [1]: https://gitlab.com/gitlab-org/git/-/blob/master/commit.c
-func (p *parser) parseCommit(object git.Object) (*Commit, error) {
+func (p *parser) ParseCommit(object git.Object) (*Commit, error) {
 	commit := &gitalypb.GitCommit{Id: object.ObjectID().String()}
 	var payload []byte
 	currentSignatureIndex := 0

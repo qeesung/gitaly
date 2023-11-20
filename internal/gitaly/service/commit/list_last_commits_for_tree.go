@@ -74,7 +74,7 @@ func (s *server) listLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeReque
 
 		commitForTree := &gitalypb.ListLastCommitsForTreeResponse_CommitForTree{
 			PathBytes: []byte(entry.Path),
-			Commit:    commit,
+			Commit:    commit.GitCommit,
 		}
 
 		batch = append(batch, commitForTree)

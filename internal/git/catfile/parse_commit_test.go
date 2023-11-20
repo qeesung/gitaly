@@ -501,7 +501,7 @@ func TestParseCommits(t *testing.T) {
 
 			setup := tc.setup(t)
 
-			commit, err := newParser().parseCommit(newStaticObject(setup.content, "commit", setup.oid))
+			commit, err := NewParser().ParseCommit(newStaticObject(setup.content, "commit", setup.oid))
 			require.Equal(t, setup.expectedErr, err)
 			testhelper.ProtoEqual(t, setup.expectedCommit.GitCommit, commit.GitCommit)
 			require.Equal(t, setup.expectedCommit.SignatureData.Payload, commit.SignatureData.Payload)

@@ -35,7 +35,7 @@ func buildAllBranchesBranch(ctx context.Context, objectReader catfile.ObjectCont
 
 	return &gitalypb.FindAllBranchesResponse_Branch{
 		Name:   elements[0],
-		Target: target,
+		Target: target.GitCommit,
 	}, nil
 }
 
@@ -47,7 +47,7 @@ func buildBranch(ctx context.Context, objectReader catfile.ObjectContentReader, 
 
 	return &gitalypb.Branch{
 		Name:         elements[0],
-		TargetCommit: target,
+		TargetCommit: target.GitCommit,
 	}, nil
 }
 
