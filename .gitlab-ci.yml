@@ -511,7 +511,7 @@ rails-specs:
   needs: ["start-rails-specs"]
   stage: qa
   trigger:
-    project: gitlab-org/gitlab
+    project: ${TARGET_GITLAB_ORG_GITLAB_REPO:-gitlab-org/gitlab}
     branch: "gitaly-ci-jobs-$CI_PIPELINE_IID" # Using $RAILS_BRANCH_FOR_JOB directly fails
     strategy: depend
   variables:
