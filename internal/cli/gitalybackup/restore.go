@@ -157,6 +157,7 @@ func (cmd *restoreSubcommand) run(ctx context.Context, logger log.Logger, stdin 
 
 	decoder := json.NewDecoder(stdin)
 	for {
+
 		var req restoreRequest
 		if err := decoder.Decode(&req); errors.Is(err, io.EOF) {
 			break
@@ -178,7 +179,7 @@ func (cmd *restoreSubcommand) run(ctx context.Context, logger log.Logger, stdin 
 		}))
 	}
 
-	if err := pipeline.Done(); err != nil {
+	if _, err := pipeline.Done(); err != nil {
 		return fmt.Errorf("restore: %w", err)
 	}
 	return nil

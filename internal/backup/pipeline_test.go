@@ -98,7 +98,8 @@ func TestPipeline(t *testing.T) {
 					p.Handle(ctx, NewCreateCommand(strategy, CreateRequest{Repository: &gitalypb.Repository{StorageName: "storage1"}}))
 					p.Handle(ctx, NewCreateCommand(strategy, CreateRequest{Repository: &gitalypb.Repository{StorageName: "storage2"}}))
 				}
-				require.NoError(t, p.Done())
+				_, err = p.Done()
+				require.NoError(t, err)
 			})
 		}
 	})
@@ -115,7 +116,8 @@ func TestPipeline(t *testing.T) {
 
 		p.Handle(ctx, NewCreateCommand(strategy, CreateRequest{Repository: &gitalypb.Repository{StorageName: "default"}}))
 
-		require.EqualError(t, p.Done(), "pipeline: context canceled")
+		_, err = p.Done()
+		require.EqualError(t, err, "pipeline: context canceled")
 	})
 }
 
@@ -222,7 +224,7 @@ func testPipeline(t *testing.T, init func() *Pipeline) {
 				require.Equal(t, tc.level, logEntry.Level)
 			}
 
-			err := p.Done()
+			_, err := p.Done()
 
 			if tc.level == logrus.ErrorLevel {
 				require.EqualError(t, err, "pipeline: 1 failures encountered:\n - c.git: assert.AnError general error for testing\n")
@@ -258,7 +260,7 @@ func testPipeline(t *testing.T, init func() *Pipeline) {
 		for _, cmd := range commands {
 			p.Handle(ctx, cmd)
 		}
-		err := p.Done()
+		_, err := p.Done()
 		require.EqualError(t, err, "pipeline: 1 failures encountered:\n - c.git: assert.AnError general error for testing\n")
 	})
 }
@@ -308,4 +310,31 @@ func TestPipelineError(t *testing.T) {
 			require.EqualError(t, err, tc.expectedError)
 		})
 	}
+}
+
+func TestPipelineProcessedRepos(t *testing.T) {
+	strategy := MockStrategy{}
+
+	repos := map[string][]*gitalypb.Repository{
+		"storage1": {
+			{RelativePath: "a.git", StorageName: "storage1"},
+			{RelativePath: "b.git", StorageName: "storage1"},
+		},
+		"storage2": {{RelativePath: "c.git", StorageName: "storage2"}},
+		"storage3": {{RelativePath: "d.git", StorageName: "storage3"}},
+	}
+
+	p, err := NewPipeline(testhelper.SharedLogger(t))
+	require.NoError(t, err)
+
+	ctx := testhelper.Context(t)
+	for _, v := range repos {
+		for _, repo := range v {
+			p.Handle(ctx, NewRestoreCommand(strategy, RestoreRequest{Repository: repo}))
+		}
+	}
+
+	processedRepos, err := p.Done()
+	require.NoError(t, err)
+	require.EqualValues(t, repos, processedRepos)
 }
