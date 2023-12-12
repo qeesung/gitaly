@@ -65,14 +65,39 @@ func (s *server) FindCommits(req *gitalypb.FindCommitsRequest, stream gitalypb.C
 	return nil
 }
 
-func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsRequest, stream gitalypb.CommitService_FindCommitsServer) error {
+func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsRequest, stream gitalypb.CommitService_FindCommitsServer) (returnedErr error) {
+	commitCounter := int32(0)
 	opts := git.ConvertGlobalOptions(req.GetGlobalOptions())
 	repo := s.localrepo(req.GetRepository())
 
-	logCmd, err := repo.Exec(ctx, getLogCommandSubCmd(req), append(opts, git.WithSetupStdout())...)
+	var stderr strings.Builder
+	gitLogCmd, limit := getLogCommandSubCmd(req)
+	logCmd, err := repo.Exec(ctx, gitLogCmd, append(opts, git.WithSetupStdout(), git.WithStderr(&stderr))...)
 	if err != nil {
 		return fmt.Errorf("error when creating git log command: %w", err)
 	}
+	defer func() {
+		if err := logCmd.Wait(); err != nil {
+			// We differentiate benign errors from real errors in this deferred function.
+			// Benign errors are the errors that are not harmful to the system, see the cases below.
+			if limit >= 0 && commitCounter == limit {
+				// Benign error caused by terminating the stream since response limit is reached;
+				// We already send the maximum number of commits, so git log command is terminated.
+				s.logger.Debug("git log command terminated because maximum number of commits is reached")
+				return
+			}
+
+			// Real errors are caused by git log command failures such as timeout or OOM kill.
+			if returnedErr == nil {
+				// When returnedErr is nil, it means that we haven't encountered any errors in the findCommits function.
+				// But git log command still failed, so we put the git log command error in returnedErr
+				// and avoid overriding the real error.
+				returnedErr = wrapGitLogCmdError(commitCounter, err, stderr.String())
+			} else {
+				s.logger.WithError(err).WithField("stderr", stderr.String()).Error("listing commits failed")
+			}
+		}
+	}()
 
 	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
@@ -95,9 +120,11 @@ func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsReque
 		}
 	}
 
-	if err := streamCommits(getCommits, stream, req.GetTrailers(), req.GetIncludeShortstat(), len(req.GetIncludeReferencedBy()) > 0); err != nil {
+	commitCounter, err = streamCommits(getCommits, stream, req.GetTrailers(), req.GetIncludeShortstat(), len(req.GetIncludeReferencedBy()) > 0)
+	if err != nil {
 		return fmt.Errorf("error streaming commits: %w", err)
 	}
+
 	return nil
 }
 
@@ -198,8 +225,9 @@ func (g *GetCommits) Commit(ctx context.Context, trailers, shortStat, refs bool)
 	return commit, nil
 }
 
-func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCommitsServer, trailers, shortStat bool, refs bool) error {
+func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCommitsServer, trailers, shortStat bool, refs bool) (int32, error) {
 	ctx := stream.Context()
+	commitCounter := int32(0)
 
 	chunker := chunk.New(&commitsSender{
 		send: func(commits []*gitalypb.GitCommit) error {
@@ -212,22 +240,23 @@ func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCom
 	for getCommits.Scan() {
 		commit, err := getCommits.Commit(ctx, trailers, shortStat, refs)
 		if err != nil {
-			return err
+			return commitCounter, err
 		}
 
 		if err := chunker.Send(commit); err != nil {
-			return err
+			return commitCounter, err
 		}
+		commitCounter++
 	}
 
 	if getCommits.Err() != nil {
-		return fmt.Errorf("get commits: %w", getCommits.Err())
+		return commitCounter, fmt.Errorf("get commits: %w", getCommits.Err())
 	}
 
-	return chunker.Flush()
+	return commitCounter, chunker.Flush()
 }
 
-func getLogCommandSubCmd(req *gitalypb.FindCommitsRequest) git.Command {
+func getLogCommandSubCmd(req *gitalypb.FindCommitsRequest) (git.Command, int32) {
 	logFormatOption := "--format=%H"
 	// To split the commits by '\x01' instead of '\n'
 	if req.GetIncludeShortstat() {
@@ -298,7 +327,7 @@ func getLogCommandSubCmd(req *gitalypb.FindCommitsRequest) git.Command {
 		}
 	}
 
-	return subCmd
+	return subCmd, limit
 }
 
 func parseRefs(refsLine string) [][]byte {
@@ -390,4 +419,17 @@ func splitStat(data []byte, atEOF bool) (int, []byte, error) {
 	}
 
 	return index + 1, data[:index], nil
+}
+
+// wrapGitError wraps git log error with a structError
+func wrapGitLogCmdError(commitCounter int32, err error, stderr string) (structError structerr.Error) {
+	if commitCounter == 0 {
+		// This is the case when `git log` returns empty and also exit with an error code.
+		// Some examples:
+		// * `git log HEAD` on an empty repo, git exits with unknown revision or path not in the working tree
+		// * `git log` on an empty repo, git exits your current branch does not have any commits yet
+		// * `git log` a commit that doesn't exist in this repo, git exits with bad object
+		return structerr.NewNotFound("commits not found").WithMetadata("error", err).WithMetadata("stderr", stderr)
+	}
+	return structerr.NewInternal("listing commits failed").WithMetadata("error", err).WithMetadata("stderr", stderr)
 }
