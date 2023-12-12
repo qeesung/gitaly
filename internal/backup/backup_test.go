@@ -65,6 +65,49 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 	require.NoError(t, err)
 }
 
+func TestManager_RemoveRepository(t *testing.T) {
+	if testhelper.IsPraefectEnabled() {
+		t.Skip("local backup manager expects to operate on the local filesystem so cannot operate through praefect")
+	}
+
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+	cfg.SocketPath = testserver.RunGitalyServer(t, cfg, setup.RegisterAll)
+
+	ctx := testhelper.Context(t)
+
+	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
+	gittest.WriteTag(t, cfg, repoPath, "v1.0.0", commitID.Revision())
+
+	pool := client.NewPool()
+	defer testhelper.MustClose(t, pool)
+
+	backupRoot := testhelper.TempDir(t)
+	sink := backup.NewFilesystemSink(backupRoot)
+	defer testhelper.MustClose(t, sink)
+
+	locator, err := backup.ResolveLocator("pointer", sink)
+	require.NoError(t, err)
+
+	fsBackup := backup.NewManager(sink, locator, pool)
+	err = fsBackup.RemoveRepository(ctx, &backup.RemoveRepositoryRequest{
+		Server: storage.ServerInfo{Address: cfg.SocketPath, Token: cfg.Auth.Token},
+		Repo:   repo,
+	})
+	require.NoError(t, err)
+	require.NoDirExists(t, repoPath)
+
+	// With an invalid repository
+	err = fsBackup.RemoveRepository(ctx, &backup.RemoveRepositoryRequest{
+		Server: storage.ServerInfo{Address: cfg.SocketPath, Token: cfg.Auth.Token},
+		Repo:   &gitalypb.Repository{StorageName: "nonexistent", RelativePath: "nonexistent"},
+	})
+
+	require.EqualError(t, err, "remove repo: remove: rpc error: code = InvalidArgument desc = storage name not found")
+}
+
 func TestManager_Create(t *testing.T) {
 	t.Parallel()
 

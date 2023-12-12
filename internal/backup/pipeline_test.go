@@ -125,6 +125,7 @@ type MockStrategy struct {
 	CreateFunc                func(context.Context, *CreateRequest) error
 	RestoreFunc               func(context.Context, *RestoreRequest) error
 	RemoveAllRepositoriesFunc func(context.Context, *RemoveAllRepositoriesRequest) error
+	RemoveRepositoryFunc      func(context.Context, *RemoveRepositoryRequest) error
 }
 
 func (s MockStrategy) Create(ctx context.Context, req *CreateRequest) error {
@@ -144,6 +145,13 @@ func (s MockStrategy) Restore(ctx context.Context, req *RestoreRequest) error {
 func (s MockStrategy) RemoveAllRepositories(ctx context.Context, req *RemoveAllRepositoriesRequest) error {
 	if s.RemoveAllRepositoriesFunc != nil {
 		return s.RemoveAllRepositoriesFunc(ctx, req)
+	}
+	return nil
+}
+
+func (s MockStrategy) RemoveRepository(ctx context.Context, req *RemoveRepositoryRequest) error {
+	if s.RemoveRepositoryFunc != nil {
+		return s.RemoveRepositoryFunc(ctx, req)
 	}
 	return nil
 }

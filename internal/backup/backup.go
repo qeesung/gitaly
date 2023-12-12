@@ -230,6 +230,25 @@ func (mgr *Manager) RemoveAllRepositories(ctx context.Context, req *RemoveAllRep
 	return nil
 }
 
+// RemoveRepository removes the specified repository from its storage.
+func (mgr *Manager) RemoveRepository(ctx context.Context, req *RemoveRepositoryRequest) error {
+	if err := setContextServerInfo(ctx, &req.Server, req.Repo.StorageName); err != nil {
+		return fmt.Errorf("remove repo: set context: %w", err)
+	}
+
+	repoClient, err := mgr.newRepoClient(ctx, req.Server)
+	if err != nil {
+		return fmt.Errorf("remove repo: create client: %w", err)
+	}
+
+	_, err = repoClient.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{Repository: req.Repo})
+	if err != nil {
+		return fmt.Errorf("remove repo: remove: %w", err)
+	}
+
+	return nil
+}
+
 // Create creates a repository backup.
 func (mgr *Manager) Create(ctx context.Context, req *CreateRequest) error {
 	if req.VanityRepository == nil {

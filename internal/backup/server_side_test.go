@@ -295,3 +295,38 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 	})
 	require.NoError(t, err)
 }
+
+func TestServerSideAdapter_RemoveRepository(t *testing.T) {
+	t.Parallel()
+
+	db := testdb.New(t)
+	db.TruncateAll(t)
+	datastore.NewPostgresRepositoryStore(db, map[string][]string{"virtual-storage": {"default"}})
+
+	cfg := testcfg.Build(t)
+	cfg.SocketPath = testserver.RunGitalyServer(t, cfg, setup.RegisterAll)
+
+	ctx := testhelper.Context(t)
+
+	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
+
+	pool := client.NewPool()
+	defer testhelper.MustClose(t, pool)
+
+	adapter := backup.NewServerSideAdapter(pool)
+	err := adapter.RemoveRepository(ctx, &backup.RemoveRepositoryRequest{
+		Server: storage.ServerInfo{Address: cfg.SocketPath, Token: cfg.Auth.Token},
+		Repo:   repo,
+	})
+	require.NoError(t, err)
+	require.NoDirExists(t, repoPath)
+
+	// With an invalid repository
+	err = adapter.RemoveRepository(ctx, &backup.RemoveRepositoryRequest{
+		Server: storage.ServerInfo{Address: cfg.SocketPath, Token: cfg.Auth.Token},
+		Repo:   &gitalypb.Repository{StorageName: "default", RelativePath: "nonexistent"},
+	})
+
+	require.EqualError(t, err, "server-side remove repo: remove: rpc error: code = NotFound desc = repository does not exist")
+}

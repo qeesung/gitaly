@@ -16,6 +16,7 @@ import (
 type Strategy interface {
 	Create(context.Context, *CreateRequest) error
 	Restore(context.Context, *RestoreRequest) error
+	RemoveRepository(context.Context, *RemoveRepositoryRequest) error
 	RemoveAllRepositories(context.Context, *RemoveAllRepositoriesRequest) error
 }
 
@@ -50,6 +51,12 @@ type RestoreRequest struct {
 	// BackupID is the ID of the full backup to restore. If not specified, the
 	// latest backup is restored..
 	BackupID string
+}
+
+// RemoveRepositoryRequest is a request to remove an individual repository from its storage.
+type RemoveRepositoryRequest struct {
+	Server storage.ServerInfo
+	Repo   *gitalypb.Repository
 }
 
 // RemoveAllRepositoriesRequest is the request to remove all repositories in the specified

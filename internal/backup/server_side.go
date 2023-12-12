@@ -112,6 +112,25 @@ func (ss ServerSideAdapter) RemoveAllRepositories(ctx context.Context, req *Remo
 	return nil
 }
 
+// RemoveRepository removes the specified repository from its storage.
+func (ss ServerSideAdapter) RemoveRepository(ctx context.Context, req *RemoveRepositoryRequest) error {
+	if err := setContextServerInfo(ctx, &req.Server, req.Repo.StorageName); err != nil {
+		return fmt.Errorf("server-side remove repo: set context: %w", err)
+	}
+
+	repoClient, err := ss.newRepoClient(ctx, req.Server)
+	if err != nil {
+		return fmt.Errorf("server-side remove repo: create client: %w", err)
+	}
+
+	_, err = repoClient.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{Repository: req.Repo})
+	if err != nil {
+		return fmt.Errorf("server-side remove repo: remove: %w", err)
+	}
+
+	return nil
+}
+
 func (ss ServerSideAdapter) newRepoClient(ctx context.Context, server storage.ServerInfo) (gitalypb.RepositoryServiceClient, error) {
 	conn, err := ss.pool.Dial(ctx, server.Address, server.Token)
 	if err != nil {
