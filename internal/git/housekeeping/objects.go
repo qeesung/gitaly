@@ -66,6 +66,37 @@ type RepackObjectsConfig struct {
 	CruftExpireBefore time.Time
 }
 
+// ValidateRepacking validates the input repacking config. This function any validating error and if the configuration
+// is for full repack.
+func ValidateRepacking(cfg RepackObjectsConfig) (bool, error) {
+	var isFullRepack bool
+	switch cfg.Strategy {
+	case RepackObjectsStrategyIncrementalWithUnreachable:
+		isFullRepack = false
+		if cfg.WriteBitmap {
+			return false, structerr.NewInvalidArgument("cannot write packfile bitmap for an incremental repack")
+		}
+		if cfg.WriteMultiPackIndex {
+			return false, structerr.NewInvalidArgument("cannot write multi-pack index for an incremental repack")
+		}
+	case RepackObjectsStrategyGeometric:
+		isFullRepack = false
+	case RepackObjectsStrategyFullWithCruft, RepackObjectsStrategyFullWithUnreachable:
+		isFullRepack = true
+	default:
+		return false, structerr.NewInvalidArgument("invalid strategy: %q", cfg.Strategy)
+	}
+
+	if !isFullRepack && !cfg.WriteMultiPackIndex && cfg.WriteBitmap {
+		return false, structerr.NewInvalidArgument("cannot write packfile bitmap for an incremental repack")
+	}
+	if cfg.Strategy != RepackObjectsStrategyFullWithCruft && !cfg.CruftExpireBefore.IsZero() {
+		return isFullRepack, structerr.NewInvalidArgument("cannot expire cruft objects when not writing cruft packs")
+	}
+
+	return isFullRepack, nil
+}
+
 // RepackObjects repacks objects in the given repository and updates the commit-graph. The way
 // objects are repacked is determined via the RepackObjectsConfig.
 func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig) error {
@@ -73,22 +104,9 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 	if err != nil {
 		return err
 	}
-
-	var isFullRepack bool
-	switch cfg.Strategy {
-	case RepackObjectsStrategyIncrementalWithUnreachable, RepackObjectsStrategyGeometric:
-		isFullRepack = false
-	case RepackObjectsStrategyFullWithCruft, RepackObjectsStrategyFullWithUnreachable:
-		isFullRepack = true
-	default:
-		return structerr.NewInvalidArgument("invalid strategy: %q", cfg.Strategy)
-	}
-
-	if !isFullRepack && !cfg.WriteMultiPackIndex && cfg.WriteBitmap {
-		return structerr.NewInvalidArgument("cannot write packfile bitmap for an incremental repack")
-	}
-	if cfg.Strategy != RepackObjectsStrategyFullWithCruft && !cfg.CruftExpireBefore.IsZero() {
-		return structerr.NewInvalidArgument("cannot expire cruft objects when not writing cruft packs")
+	isFullRepack, err := ValidateRepacking(cfg)
+	if err != nil {
+		return err
 	}
 
 	if isFullRepack {
@@ -109,13 +127,6 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 
 	switch cfg.Strategy {
 	case RepackObjectsStrategyIncrementalWithUnreachable:
-		if cfg.WriteBitmap {
-			return structerr.NewInvalidArgument("cannot write packfile bitmap for an incremental repack")
-		}
-		if cfg.WriteMultiPackIndex {
-			return structerr.NewInvalidArgument("cannot write multi-pack index for an incremental repack")
-		}
-
 		var stderr strings.Builder
 
 		// Pack all loose objects into a new packfile, regardless of their reachability.
@@ -204,58 +215,75 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 			})
 		}
 
-		return performRepack(ctx, repo, cfg, options...)
+		return PerformRepack(ctx, repo, cfg, options...)
 	case RepackObjectsStrategyFullWithUnreachable:
-		return performRepack(ctx, repo, cfg,
-			// Do a full repack.
-			git.Flag{Name: "-a"},
-			// Don't include objects part of alternate.
-			git.Flag{Name: "-l"},
-			// Delete loose objects made redundant by this repack.
-			git.Flag{Name: "-d"},
-			// Keep unreachable objects part of the old packs in the new pack.
-			git.Flag{Name: "--keep-unreachable"},
-		)
+		return PerformFullRepackingWithUnreachable(ctx, repo, cfg)
 	case RepackObjectsStrategyGeometric:
-		return performRepack(ctx, repo, cfg,
-			// We use a geometric factor `r`, which means that every successively larger
-			// packfile must have at least `r` times the number of objects.
-			//
-			// This factor ultimately determines how many packfiles there can be at a
-			// maximum in a repository for a given number of objects. The maximum number
-			// of objects with `n` packfiles and a factor `r` is `(1 - r^n) / (1 - r)`.
-			// E.g. with a factor of 4 and 10 packfiles, we can have at most 349,525
-			// objects, with 16 packfiles we can have 1,431,655,765 objects. Contrary to
-			// that, having a factor of 2 will translate to 1023 objects at 10 packfiles
-			// and 65535 objects at 16 packfiles at a maximum.
-			//
-			// So what we're effectively choosing here is how often we need to repack
-			// larger parts of the repository. The higher the factor the more we'll have
-			// to repack as the packfiles will be larger. On the other hand, having a
-			// smaller factor means we'll have to repack less objects as the slices we
-			// need to repack will have less objects.
-			//
-			// The end result is a hybrid approach between incremental repacks and full
-			// repacks: we won't typically repack the full repository, but only a subset
-			// of packfiles.
-			//
-			// For now, we choose a geometric factor of two. Large repositories nowadays
-			// typically have a few million objects, which would boil down to having at
-			// most 32 packfiles in the repository. This number is not scientifically
-			// chosen though any may be changed at a later point in time.
-			git.ValueFlag{Name: "--geometric", Value: "2"},
-			// Make sure to delete loose objects and packfiles that are made obsolete
-			// by the new packfile.
-			git.Flag{Name: "-d"},
-			// Don't include objects part of an alternate.
-			git.Flag{Name: "-l"},
-		)
-	default:
-		return structerr.NewInvalidArgument("invalid strategy: %q", cfg.Strategy)
+		return PerformGeometricRepacking(ctx, repo, cfg)
 	}
+	return nil
 }
 
-func performRepack(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig, opts ...git.Option) error {
+// PerformFullRepackingWithUnreachable performs a full repacking task using git-repack(1) command. This will omit packing objects part of alternates.
+func PerformFullRepackingWithUnreachable(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig) error {
+	return PerformRepack(ctx, repo, cfg,
+		// Do a full repack.
+		git.Flag{Name: "-a"},
+		// Don't include objects part of alternate.
+		git.Flag{Name: "-l"},
+		// Delete loose objects made redundant by this repack.
+		git.Flag{Name: "-d"},
+		// Keep unreachable objects part of the old packs in the new pack.
+		git.Flag{Name: "--keep-unreachable"},
+	)
+}
+
+// PerformGeometricRepacking performs geometric repacking task using git-repack(1) command. It allows us to merge
+// multiple packfiles without having to rewrite all packfiles into one. This new "geometric" strategy tries to ensure
+// that existing packfiles in the repository form a geometric sequence where each successive packfile contains at least
+// n times as many objects as the preceding packfile. If the sequence isn't maintained, Git will determine a slice of
+// packfiles that it must repack to maintain the sequence again. With this process, we can limit the number of packfiles
+// that exist in the repository without having to repack all objects into a single packfile regularly.
+// This repacking does not take reachability into account.
+// For more information, https://about.gitlab.com/blog/2023/11/02/rearchitecting-git-object-database-mainentance-for-scale/#geometric-repacking
+func PerformGeometricRepacking(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig) error {
+	return PerformRepack(ctx, repo, cfg,
+		// We use a geometric factor `r`, which means that every successively larger
+		// packfile must have at least `r` times the number of objects.
+		//
+		// This factor ultimately determines how many packfiles there can be at a
+		// maximum in a repository for a given number of objects. The maximum number
+		// of objects with `n` packfiles and a factor `r` is `(1 - r^n) / (1 - r)`.
+		// E.g. with a factor of 4 and 10 packfiles, we can have at most 349,525
+		// objects, with 16 packfiles we can have 1,431,655,765 objects. Contrary to
+		// that, having a factor of 2 will translate to 1023 objects at 10 packfiles
+		// and 65535 objects at 16 packfiles at a maximum.
+		//
+		// So what we're effectively choosing here is how often we need to repack
+		// larger parts of the repository. The higher the factor the more we'll have
+		// to repack as the packfiles will be larger. On the other hand, having a
+		// smaller factor means we'll have to repack less objects as the slices we
+		// need to repack will have less objects.
+		//
+		// The end result is a hybrid approach between incremental repacks and full
+		// repacks: we won't typically repack the full repository, but only a subset
+		// of packfiles.
+		//
+		// For now, we choose a geometric factor of two. Large repositories nowadays
+		// typically have a few million objects, which would boil down to having at
+		// most 32 packfiles in the repository. This number is not scientifically
+		// chosen though any may be changed at a later point in time.
+		git.ValueFlag{Name: "--geometric", Value: "2"},
+		// Make sure to delete loose objects and packfiles that are made obsolete
+		// by the new packfile.
+		git.Flag{Name: "-d"},
+		// Don't include objects part of an alternate.
+		git.Flag{Name: "-l"},
+	)
+}
+
+// PerformRepack performs `git-repack(1)` command on a repository with some pre-built configs.
+func PerformRepack(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig, opts ...git.Option) error {
 	if cfg.WriteMultiPackIndex {
 		opts = append(opts, git.Flag{Name: "--write-midx"})
 	}
