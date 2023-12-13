@@ -16,6 +16,7 @@ import (
 type Strategy interface {
 	Create(context.Context, *CreateRequest) error
 	Restore(context.Context, *RestoreRequest) error
+	ListRepositories(context.Context, *ListRepositoriesRequest) ([]*gitalypb.Repository, error)
 	RemoveRepository(context.Context, *RemoveRepositoryRequest) error
 	RemoveAllRepositories(context.Context, *RemoveAllRepositoriesRequest) error
 }
@@ -62,6 +63,12 @@ type RemoveRepositoryRequest struct {
 // RemoveAllRepositoriesRequest is the request to remove all repositories in the specified
 // storage name.
 type RemoveAllRepositoriesRequest struct {
+	Server      storage.ServerInfo
+	StorageName string
+}
+
+// ListRepositoriesRequest is the request to list repositories in a given storage.
+type ListRepositoriesRequest struct {
 	Server      storage.ServerInfo
 	StorageName string
 }

@@ -13,9 +13,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/client"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/praefect/datastore"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testdb"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
@@ -329,4 +331,89 @@ func TestServerSideAdapter_RemoveRepository(t *testing.T) {
 	})
 
 	require.EqualError(t, err, "server-side remove repo: remove: rpc error: code = NotFound desc = repository does not exist")
+}
+
+func TestServerSideAdapter_ListRepositories(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		desc  string
+		repos map[string][]*gitalypb.Repository
+	}{
+		{
+			desc:  "no repos",
+			repos: make(map[string][]*gitalypb.Repository),
+		},
+		{
+			desc: "repos in a single storage",
+			repos: map[string][]*gitalypb.Repository{
+				"storage-1": {
+					{RelativePath: "a", StorageName: "storage-1"},
+					{RelativePath: "b", StorageName: "storage-1"},
+				},
+			},
+		},
+		{
+			desc: "repos in multiple storages",
+			repos: map[string][]*gitalypb.Repository{
+				"storage-1": {
+					{RelativePath: "a", StorageName: "storage-1"},
+					{RelativePath: "b", StorageName: "storage-1"},
+				},
+				"storage-2": {
+					{RelativePath: "c", StorageName: "storage-2"},
+					{RelativePath: "d", StorageName: "storage-2"},
+				},
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			var storages []string
+			for storageName := range tc.repos {
+				storages = append(storages, storageName)
+			}
+
+			db := testdb.New(t)
+			db.TruncateAll(t)
+			rs := datastore.NewPostgresRepositoryStore(db, map[string][]string{"virtual-storage": storages})
+
+			// We don't really need a "default" storage, but this makes initialisation cleaner since
+			// WithStorages() takes at least one argument.
+			cfg := testcfg.Build(t, testcfg.WithStorages("default", storages...))
+			cfg.SocketPath = testserver.RunGitalyServer(t, cfg, setup.RegisterAll)
+
+			ctx := testhelper.Context(t)
+
+			repoID := 1
+			for storageName, repos := range tc.repos {
+				for _, repo := range repos {
+					storagePath, ok := cfg.StoragePath(storageName)
+					require.True(t, ok)
+
+					_, _ = gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+						RelativePath: repo.RelativePath,
+						Storage:      config.Storage{Name: storageName, Path: storagePath},
+					})
+
+					require.NoError(t, rs.CreateRepository(ctx, int64(repoID), "virtual-storage", repo.RelativePath, repo.RelativePath, storageName, nil, nil, false, false))
+
+					repoID++
+				}
+			}
+
+			pool := client.NewPool()
+			defer testhelper.MustClose(t, pool)
+
+			adapter := backup.NewServerSideAdapter(pool)
+
+			for storageName, repos := range tc.repos {
+				actualRepos, err := adapter.ListRepositories(ctx, &backup.ListRepositoriesRequest{
+					Server:      storage.ServerInfo{Address: cfg.SocketPath, Token: cfg.Auth.Token},
+					StorageName: storageName,
+				})
+				require.NoError(t, err)
+				require.EqualValues(t, repos, actualRepos)
+			}
+		})
+	}
 }
