@@ -95,25 +95,6 @@ func (ss ServerSideAdapter) Restore(ctx context.Context, req *RestoreRequest) er
 	return nil
 }
 
-// RemoveAllRepositories removes all repositories in the specified storage name.
-func (ss ServerSideAdapter) RemoveAllRepositories(ctx context.Context, req *RemoveAllRepositoriesRequest) error {
-	if err := setContextServerInfo(ctx, &req.Server, req.StorageName); err != nil {
-		return fmt.Errorf("server-side remove all: %w", err)
-	}
-
-	repoClient, err := ss.newRepoClient(ctx, req.Server)
-	if err != nil {
-		return fmt.Errorf("server-side remove all: %w", err)
-	}
-
-	_, err = repoClient.RemoveAll(ctx, &gitalypb.RemoveAllRequest{StorageName: req.StorageName})
-	if err != nil {
-		return fmt.Errorf("server-side remove all: %w", err)
-	}
-
-	return nil
-}
-
 // RemoveRepository removes the specified repository from its storage.
 func (ss ServerSideAdapter) RemoveRepository(ctx context.Context, req *RemoveRepositoryRequest) error {
 	if err := setContextServerInfo(ctx, &req.Server, req.Repo.StorageName); err != nil {
