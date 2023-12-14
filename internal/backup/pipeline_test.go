@@ -122,11 +122,10 @@ func TestPipeline(t *testing.T) {
 }
 
 type MockStrategy struct {
-	CreateFunc                func(context.Context, *CreateRequest) error
-	RestoreFunc               func(context.Context, *RestoreRequest) error
-	RemoveAllRepositoriesFunc func(context.Context, *RemoveAllRepositoriesRequest) error
-	RemoveRepositoryFunc      func(context.Context, *RemoveRepositoryRequest) error
-	ListRepositoriesFunc      func(context.Context, *ListRepositoriesRequest) ([]*gitalypb.Repository, error)
+	CreateFunc           func(context.Context, *CreateRequest) error
+	RestoreFunc          func(context.Context, *RestoreRequest) error
+	RemoveRepositoryFunc func(context.Context, *RemoveRepositoryRequest) error
+	ListRepositoriesFunc func(context.Context, *ListRepositoriesRequest) ([]*gitalypb.Repository, error)
 }
 
 func (s MockStrategy) Create(ctx context.Context, req *CreateRequest) error {
@@ -139,13 +138,6 @@ func (s MockStrategy) Create(ctx context.Context, req *CreateRequest) error {
 func (s MockStrategy) Restore(ctx context.Context, req *RestoreRequest) error {
 	if s.RestoreFunc != nil {
 		return s.RestoreFunc(ctx, req)
-	}
-	return nil
-}
-
-func (s MockStrategy) RemoveAllRepositories(ctx context.Context, req *RemoveAllRepositoriesRequest) error {
-	if s.RemoveAllRepositoriesFunc != nil {
-		return s.RemoveAllRepositoriesFunc(ctx, req)
 	}
 	return nil
 }

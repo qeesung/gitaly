@@ -18,7 +18,6 @@ type Strategy interface {
 	Restore(context.Context, *RestoreRequest) error
 	ListRepositories(context.Context, *ListRepositoriesRequest) ([]*gitalypb.Repository, error)
 	RemoveRepository(context.Context, *RemoveRepositoryRequest) error
-	RemoveAllRepositories(context.Context, *RemoveAllRepositoriesRequest) error
 }
 
 // CreateRequest is the request to create a backup
@@ -58,13 +57,6 @@ type RestoreRequest struct {
 type RemoveRepositoryRequest struct {
 	Server storage.ServerInfo
 	Repo   *gitalypb.Repository
-}
-
-// RemoveAllRepositoriesRequest is the request to remove all repositories in the specified
-// storage name.
-type RemoveAllRepositoriesRequest struct {
-	Server      storage.ServerInfo
-	StorageName string
 }
 
 // ListRepositoriesRequest is the request to list repositories in a given storage.
