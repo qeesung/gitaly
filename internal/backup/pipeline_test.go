@@ -331,26 +331,35 @@ func TestPipelineError(t *testing.T) {
 func TestPipelineProcessedRepos(t *testing.T) {
 	strategy := MockStrategy{}
 
-	repos := map[string][]*gitalypb.Repository{
+	repos := []*gitalypb.Repository{
+		{RelativePath: "a.git", StorageName: "storage1"},
+		{RelativePath: "b.git", StorageName: "storage1"},
+		{RelativePath: "c.git", StorageName: "storage2"},
+		{RelativePath: "d.git", StorageName: "storage3"},
+	}
+
+	expectedProcessedRepos := map[string]map[repositoryKey]struct{}{
 		"storage1": {
-			{RelativePath: "a.git", StorageName: "storage1"},
-			{RelativePath: "b.git", StorageName: "storage1"},
+			"storage1-a.git": {},
+			"storage1-b.git": {},
 		},
-		"storage2": {{RelativePath: "c.git", StorageName: "storage2"}},
-		"storage3": {{RelativePath: "d.git", StorageName: "storage3"}},
+		"storage2": {
+			"storage2-c.git": {},
+		},
+		"storage3": {
+			"storage3-d.git": {},
+		},
 	}
 
 	p, err := NewPipeline(testhelper.SharedLogger(t))
 	require.NoError(t, err)
 
 	ctx := testhelper.Context(t)
-	for _, v := range repos {
-		for _, repo := range v {
-			p.Handle(ctx, NewRestoreCommand(strategy, RestoreRequest{Repository: repo}))
-		}
+	for _, repo := range repos {
+		p.Handle(ctx, NewRestoreCommand(strategy, RestoreRequest{Repository: repo}))
 	}
 
 	processedRepos, err := p.Done()
 	require.NoError(t, err)
-	require.EqualValues(t, repos, processedRepos)
+	require.EqualValues(t, expectedProcessedRepos, processedRepos)
 }

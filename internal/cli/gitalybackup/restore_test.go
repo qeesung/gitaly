@@ -40,24 +40,32 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 
 	cfg.SocketPath = testserver.RunGitalyServer(t, cfg, setup.RegisterAll)
 
+	// This is an example of a "dangling" repository (one that was created after a backup was taken) that should be
+	// removed after the backup is restored.
 	existingRepo, existRepoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 		RelativePath: "existing_repo",
 	})
 	gittest.WriteCommit(t, cfg, existRepoPath, gittest.WithBranch(git.DefaultBranch))
 
-	path := testhelper.TempDir(t)
-	existingRepoBundlePath := filepath.Join(path, existingRepo.RelativePath+".bundle")
-	existingRepoRefPath := filepath.Join(path, existingRepo.RelativePath+".refs")
+	// The backupDir contains the artifacts that would've been created as part of a backup.
+	backupDir := testhelper.TempDir(t)
+	existingRepoBundlePath := filepath.Join(backupDir, existingRepo.RelativePath+".bundle")
+	existingRepoRefPath := filepath.Join(backupDir, existingRepo.RelativePath+".refs")
 
 	gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", existingRepoBundlePath, "--all")
 	require.NoError(t, os.WriteFile(existingRepoRefPath, gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref"), perm.SharedFile))
 
+	// These repos are the ones being restored, and should exist after the restore.
 	var repos []*gitalypb.Repository
 	for i := 0; i < 2; i++ {
-		repo := gittest.InitRepoDir(t, cfg.Storages[0].Path, fmt.Sprintf("repo-%d", i))
-		repoBundlePath := filepath.Join(path, repo.RelativePath+".bundle")
-		repoRefPath := filepath.Join(path, repo.RelativePath+".refs")
+		repo, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+			RelativePath: fmt.Sprintf("repo-%d", i),
+			Storage:      cfg.Storages[0],
+		})
+
+		repoBundlePath := filepath.Join(backupDir, repo.RelativePath+".bundle")
 		testhelper.CopyFile(t, existingRepoBundlePath, repoBundlePath)
+		repoRefPath := filepath.Join(backupDir, repo.RelativePath+".refs")
 		testhelper.CopyFile(t, existingRepoRefPath, repoRefPath)
 		repos = append(repos, repo)
 	}
@@ -81,7 +89,7 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 		progname,
 		"restore",
 		"--path",
-		path,
+		backupDir,
 		"--parallel",
 		strconv.Itoa(runtime.NumCPU()),
 		"--parallel-storage",
@@ -101,9 +109,10 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 
 	require.NoDirExists(t, existRepoPath)
 
+	// Ensure the repos were restored correctly.
 	for _, repo := range repos {
 		repoPath := filepath.Join(cfg.Storages[0].Path, gittest.GetReplicaPath(t, ctx, cfg, repo))
-		bundlePath := filepath.Join(path, repo.RelativePath+".bundle")
+		bundlePath := filepath.Join(backupDir, repo.RelativePath+".bundle")
 
 		output := gittest.Exec(t, cfg, "-C", repoPath, "bundle", "verify", bundlePath)
 		require.Contains(t, string(output), "The bundle records a complete history")
@@ -122,8 +131,8 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 
 	ctx := testhelper.Context(t)
 
-	path := testhelper.TempDir(t)
-	backupSink, err := backup.ResolveSink(ctx, path)
+	backupDir := testhelper.TempDir(t)
+	backupSink, err := backup.ResolveSink(ctx, backupDir)
 	require.NoError(t, err)
 
 	backupLocator, err := backup.ResolveLocator("pointer", backupSink)
@@ -142,18 +151,22 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 	})
 	gittest.WriteCommit(t, cfg, existRepoPath, gittest.WithBranch(git.DefaultBranch))
 
-	existingRepoBundlePath := filepath.Join(path, existingRepo.RelativePath+".bundle")
-	existingRepoRefPath := filepath.Join(path, existingRepo.RelativePath+".refs")
+	existingRepoBundlePath := filepath.Join(backupDir, existingRepo.RelativePath+".bundle")
+	existingRepoRefPath := filepath.Join(backupDir, existingRepo.RelativePath+".refs")
 
 	gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", existingRepoBundlePath, "--all")
 	require.NoError(t, os.WriteFile(existingRepoRefPath, gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref"), perm.SharedFile))
 
 	var repos []*gitalypb.Repository
 	for i := 0; i < 2; i++ {
-		repo := gittest.InitRepoDir(t, cfg.Storages[0].Path, fmt.Sprintf("repo-%d", i))
-		repoBundlePath := filepath.Join(path, repo.RelativePath+".bundle")
-		repoRefPath := filepath.Join(path, repo.RelativePath+".refs")
+		repo, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+			RelativePath: fmt.Sprintf("repo-%d", i),
+			Storage:      cfg.Storages[0],
+		})
+
+		repoBundlePath := filepath.Join(backupDir, repo.RelativePath+".bundle")
 		testhelper.CopyFile(t, existingRepoBundlePath, repoBundlePath)
+		repoRefPath := filepath.Join(backupDir, repo.RelativePath+".refs")
 		testhelper.CopyFile(t, existingRepoRefPath, repoRefPath)
 		repos = append(repos, repo)
 	}
@@ -199,7 +212,7 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 
 	for _, repo := range repos {
 		repoPath := filepath.Join(cfg.Storages[0].Path, gittest.GetReplicaPath(t, ctx, cfg, repo))
-		bundlePath := filepath.Join(path, repo.RelativePath+".bundle")
+		bundlePath := filepath.Join(backupDir, repo.RelativePath+".bundle")
 
 		output := gittest.Exec(t, cfg, "-C", repoPath, "bundle", "verify", bundlePath)
 		require.Contains(t, string(output), "The bundle records a complete history")

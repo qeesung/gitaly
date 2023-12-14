@@ -196,7 +196,7 @@ type Pipeline struct {
 	pipelineError error
 	cmdErrors     *commandErrors
 
-	processedRepos   map[string][]*gitalypb.Repository
+	processedRepos   map[string]map[repositoryKey]struct{}
 	processedReposMu sync.Mutex
 }
 
@@ -212,7 +212,7 @@ func NewPipeline(log log.Logger, opts ...PipelineOption) (*Pipeline, error) {
 		done:             make(chan struct{}),
 		workersByStorage: make(map[string]chan *contextCommand),
 		cmdErrors:        &commandErrors{},
-		processedRepos:   make(map[string][]*gitalypb.Repository),
+		processedRepos:   make(map[string]map[repositoryKey]struct{}),
 	}
 
 	for _, opt := range opts {
@@ -270,7 +270,7 @@ func (p *Pipeline) Handle(ctx context.Context, cmd Command) {
 }
 
 // Done waits for any in progress jobs to complete then reports any accumulated errors
-func (p *Pipeline) Done() (processedRepos map[string][]*gitalypb.Repository, err error) {
+func (p *Pipeline) Done() (processedRepos map[string]map[repositoryKey]struct{}, err error) {
 	close(p.done)
 	p.workerWg.Wait()
 
@@ -345,7 +345,10 @@ func (p *Pipeline) processCommand(ctx context.Context, cmd Command) {
 
 	storageName := cmd.Repository().StorageName
 	p.processedReposMu.Lock()
-	p.processedRepos[storageName] = append(p.processedRepos[storageName], cmd.Repository())
+	if _, ok := p.processedRepos[storageName]; !ok {
+		p.processedRepos[storageName] = make(map[repositoryKey]struct{})
+	}
+	p.processedRepos[storageName][NewRepositoryKey(cmd.Repository())] = struct{}{}
 	p.processedReposMu.Unlock()
 
 	log.Info(fmt.Sprintf("completed %s", cmd.Name()))
@@ -385,4 +388,11 @@ func (p *Pipeline) releaseWorkerSlot() {
 		return
 	}
 	<-p.totalWorkers
+}
+
+type repositoryKey string
+
+// NewRepositoryKey returns a unique identifier for the provided repo.
+func NewRepositoryKey(repo *gitalypb.Repository) repositoryKey {
+	return repositoryKey(repo.StorageName + "-" + repo.RelativePath)
 }
