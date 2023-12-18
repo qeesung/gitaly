@@ -832,6 +832,8 @@ func (x *UserDeleteTagResponse) GetPreReceiveError() string {
 	return ""
 }
 
+// UserDeleteTagError includes error descriptions which may be set as error details in case
+// UserDeleteTag fails.
 type UserDeleteTagError struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

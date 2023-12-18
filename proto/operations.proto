@@ -333,8 +333,8 @@ message UserDeleteTagResponse {
   string pre_receive_error = 1;
 }
 
-// UserDeleteTagErr includes error descriptions which may be set as error details in case
-// UserDeleteTag fails
+// UserDeleteTagError includes error descriptions which may be set as error details in case
+// UserDeleteTag fails.
 message UserDeleteTagError {
   oneof error {
     // access_check is set if the RPC failed due to an external access check
