@@ -72,7 +72,11 @@ func generateInvalidReferencesTests(t *testing.T, setup testTransactionSetup) []
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: commit.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": commit.OID,
+							},
+						},
 					},
 				},
 			},
@@ -178,7 +182,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -208,7 +216,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -345,7 +357,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/heads/parent", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/parent": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -426,7 +442,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/heads/parent/child", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/parent/child": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -488,7 +508,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/heads/parent/child", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/parent/child": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -533,7 +557,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/tags/v1.0.0", Target: setup.ObjectHash.EmptyTreeOID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/tags/v1.0.0": setup.ObjectHash.EmptyTreeOID,
+							},
+						},
 					},
 				},
 			},
@@ -591,9 +619,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
-							{Name: "refs/heads/non-conflicting", Target: setup.Commits.Second.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":            setup.Commits.First.OID,
+								"refs/heads/non-conflicting": setup.Commits.Second.OID,
+							},
 						},
 					},
 				},
@@ -638,7 +668,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -681,7 +715,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -719,7 +757,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
 					},
 				},
 			},
@@ -760,9 +802,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
-							{Name: "refs/heads/non-conflicting", Target: setup.Commits.Third.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":            setup.Commits.First.OID,
+								"refs/heads/non-conflicting": setup.Commits.Third.OID,
+							},
 						},
 					},
 				},
@@ -808,9 +852,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
-							{Name: "refs/heads/non-conflicting", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":            setup.Commits.First.OID,
+								"refs/heads/non-conflicting": setup.Commits.First.OID,
+							},
 						},
 					},
 				},
@@ -868,7 +914,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -970,8 +1020,10 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 					},
 				},
@@ -1016,11 +1068,13 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
-							// The symbolic reference should be converted to a normal reference if it is
-							// updated.
-							{Name: "refs/heads/symbolic", Target: setup.Commits.Second.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+								// The symbolic reference should be converted to a normal reference if it is
+								// updated.
+								"refs/heads/symbolic": setup.Commits.Second.OID,
+							},
 						},
 					},
 				},
@@ -1062,7 +1116,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -1107,9 +1165,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
-							{Name: "refs/heads/non-conflicting", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":            setup.Commits.First.OID,
+								"refs/heads/non-conflicting": setup.Commits.First.OID,
+							},
 						},
 					},
 				},
@@ -1178,7 +1238,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
 					},
 				},
 			},
@@ -1257,7 +1321,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -1304,7 +1372,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
 					},
 				},
 			},
@@ -1351,7 +1423,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
 					},
 				},
 			},
@@ -1403,7 +1479,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -1433,7 +1513,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
-						References: []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},

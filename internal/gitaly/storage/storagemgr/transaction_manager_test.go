@@ -358,7 +358,11 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 					Repositories: RepositoryStates{
 						setup.RelativePath: {
 							DefaultBranch: "refs/heads/main",
-							References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/main": setup.Commits.First.OID,
+								},
+							},
 						},
 					},
 				},
@@ -502,8 +506,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 					Repositories: RepositoryStates{
 						setup.RelativePath: {
 							DefaultBranch: "refs/heads/main",
-							References: []git.Reference{
-								{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/main": setup.Commits.First.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -573,8 +579,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.Third.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Third.OID,
+							},
 						},
 						CustomHooks: testhelper.DirectoryState{
 							"/": {Mode: fs.ModeDir | perm.PrivateDir},
@@ -635,8 +643,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -747,8 +757,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.Third.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Third.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -810,8 +822,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -899,8 +913,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -1444,8 +1460,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 					Repositories: RepositoryStates{
 						setup.RelativePath: {
 							DefaultBranch: "refs/heads/new-head",
-							References: []git.Reference{
-								{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/main": setup.Commits.First.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -1491,7 +1509,11 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/new-head",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
 							setup.Commits.First.OID,
@@ -1616,9 +1638,11 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/branch-1", Target: string(setup.Commits.First.OID)},
-							{Name: "refs/heads/main", Target: string(setup.Commits.First.OID)},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":     setup.Commits.First.OID,
+								"refs/heads/branch-1": setup.Commits.First.OID,
+							},
 						},
 					},
 				},
@@ -1725,10 +1749,12 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: []git.Reference{
-							{Name: "refs/heads/branch-1", Target: string(setup.Commits.First.OID)},
-							{Name: "refs/heads/branch-2", Target: string(setup.Commits.First.OID)},
-							{Name: "refs/heads/main", Target: string(setup.Commits.First.OID)},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":     setup.Commits.First.OID,
+								"refs/heads/branch-1": setup.Commits.First.OID,
+								"refs/heads/branch-2": setup.Commits.First.OID,
+							},
 						},
 					},
 				},

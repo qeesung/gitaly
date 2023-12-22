@@ -56,8 +56,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Repositories: RepositoryStates{
 					"pool": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -134,8 +136,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Repositories: RepositoryStates{
 					"pool": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -225,8 +229,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Repositories: RepositoryStates{
 					"pool": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -779,8 +785,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Repositories: RepositoryStates{
 					"pool": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -788,8 +796,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						},
 					},
 					"member": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -864,8 +874,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Repositories: RepositoryStates{
 					"pool": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -873,8 +885,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						},
 					},
 					"member": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -956,8 +970,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					Repositories: RepositoryStates{
 						"pool": {
 							DefaultBranch: "refs/heads/main",
-							References: []git.Reference{
-								{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/main": setup.Commits.First.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -984,8 +1000,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Repositories: RepositoryStates{
 					"pool": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -1094,8 +1112,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					Repositories: RepositoryStates{
 						"repository-1": {
 							DefaultBranch: "refs/heads/main",
-							References: []git.Reference{
-								{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/main": setup.Commits.First.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -1113,8 +1133,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						},
 						"repository-2": {
 							DefaultBranch: "refs/heads/branch",
-							References: []git.Reference{
-								{Name: "refs/heads/branch", Target: setup.Commits.Third.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/branch": setup.Commits.Third.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -1145,8 +1167,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Repositories: RepositoryStates{
 					"repository-1": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -1164,8 +1188,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					},
 					"repository-2": {
 						DefaultBranch: "refs/heads/branch",
-						References: []git.Reference{
-							{Name: "refs/heads/branch", Target: setup.Commits.Third.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/branch": setup.Commits.Third.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -1267,8 +1293,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					Repositories: RepositoryStates{
 						"pool": {
 							DefaultBranch: "refs/heads/main",
-							References: []git.Reference{
-								{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/main": setup.Commits.First.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -1277,8 +1305,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						},
 						"member": {
 							DefaultBranch: "refs/heads/branch",
-							References: []git.Reference{
-								{Name: "refs/heads/branch", Target: setup.Commits.Second.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/branch": setup.Commits.Second.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -1299,8 +1329,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Repositories: RepositoryStates{
 					"pool": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -1309,8 +1341,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					},
 					"member": {
 						DefaultBranch: "refs/heads/branch",
-						References: []git.Reference{
-							{Name: "refs/heads/branch", Target: setup.Commits.Second.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/branch": setup.Commits.Second.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -1399,8 +1433,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					Repositories: RepositoryStates{
 						"pool": {
 							DefaultBranch: "refs/heads/main",
-							References: []git.Reference{
-								{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/main": setup.Commits.First.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -1409,8 +1445,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						},
 						"member": {
 							DefaultBranch: "refs/heads/branch",
-							References: []git.Reference{
-								{Name: "refs/heads/branch", Target: setup.Commits.Second.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/branch": setup.Commits.Second.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -1431,8 +1469,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Repositories: RepositoryStates{
 					"pool": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -1441,8 +1481,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					},
 					"member": {
 						DefaultBranch: "refs/heads/branch",
-						References: []git.Reference{
-							{Name: "refs/heads/branch", Target: setup.Commits.Second.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/branch": setup.Commits.Second.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
