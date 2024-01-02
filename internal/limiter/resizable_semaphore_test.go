@@ -107,7 +107,7 @@ func testResizableSemaphoreCanceledWhenNotFull(t *testing.T, ctx context.Context
 func testResizableSemaphoreCanceledWhenFull(t *testing.T, ctx context.Context, stopContext context.CancelFunc, expectedErr error) {
 	semaphore := NewResizableSemaphore(5)
 
-	// Try to acquire a token of the empty sempahore
+	// Try to acquire a token of the empty semaphore
 	require.Nil(t, semaphore.TryAcquire())
 	semaphore.Release()
 
@@ -129,7 +129,7 @@ func testResizableSemaphoreCanceledWhenFull(t *testing.T, ctx context.Context, s
 	}
 	acquireWg1.Wait()
 
-	//  Another 5 waits for sempahore
+	//  Another 5 waits for semaphore
 	var acquireWg2 sync.WaitGroup
 	for i := 0; i < 5; i++ {
 		acquireWg2.Add(1)

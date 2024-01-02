@@ -178,7 +178,7 @@ func (sm *storageManager) newFinalizableTransaction(ptn *partition, tx *Transact
 type partition struct {
 	// closing is closed when the partition has no longer any active transactions.
 	closing chan struct{}
-	// transactionManagerClosed is closed to signal when the partition's TranscationManager.Run has returned.
+	// transactionManagerClosed is closed to signal when the partition's TransactionManager.Run has returned.
 	// Clients stumbling on the partition when it is closing wait on this channel to know when the previous
 	// TransactionManager has closed and it is safe to start another one.
 	transactionManagerClosed chan struct{}

@@ -32,7 +32,7 @@ func newPeeker(stream grpc.ServerStream) *peeker {
 }
 
 // ErrInvalidPeekCount indicates the director function requested an invalid
-// peek quanity
+// peek quantity
 var ErrInvalidPeekCount = errors.New("peek count must be greater than zero")
 
 func (p peeker) Peek() ([]byte, error) {

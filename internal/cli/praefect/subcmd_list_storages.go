@@ -18,7 +18,7 @@ Returns a table with the following columns:
 
 - VIRTUAL_STORAGE: Name of the virtual storage Praefect provides to clients.
 - NODE: Name the physical storage connected to the virtual storage.
-- ADDRESS: Address of the Gitaly node that manages the physial storage for the virtual storage.
+- ADDRESS: Address of the Gitaly node that manages the physical storage for the virtual storage.
 
 If the virtual-storage flag:
 

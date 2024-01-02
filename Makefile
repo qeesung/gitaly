@@ -465,7 +465,7 @@ lint-proto: ${PROTOC} ${PROTOLINT} ${PROTOC_GEN_GITALY_LINT}
 	${Q}${PROTOLINT} lint -config_dir_path=${SOURCE_DIR}/proto ${SOURCE_DIR}/proto/*.proto
 
 .PHONY: build-proto-gem
-## Build the Ruby Gem that contains Gitaly's Protobuf definitons.
+## Build the Ruby Gem that contains Gitaly's Protobuf definitions.
 build-proto-gem:
 	${Q}rm -rf "${BUILD_DIR}/${BUILD_GEM_NAME}.gem" && mkdir -p ${BUILD_DIR}
 	${Q}rm -rf "${BUILD_DIR}/${BUILD_GEM_NAME}-gem" && mkdir -p ${BUILD_DIR}/${BUILD_GEM_NAME}-gem
@@ -473,7 +473,7 @@ build-proto-gem:
 	${Q}"${SOURCE_DIR}"/tools/protogem/build-proto-gem -o "${BUILD_DIR}/${BUILD_GEM_NAME}.gem" --name ${BUILD_GEM_NAME} --working-dir ${BUILD_DIR}/${BUILD_GEM_NAME}-gem ${BUILD_GEM_OPTIONS}
 
 .PHONY: publish-proto-gem
-## Build and publish the Ruby Gem that contains Gitaly's Protobuf definitons.
+## Build and publish the Ruby Gem that contains Gitaly's Protobuf definitions.
 publish-proto-gem: build-proto-gem
 	${Q}gem push "${BUILD_DIR}/gitaly.gem"
 

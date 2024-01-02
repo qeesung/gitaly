@@ -153,7 +153,7 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 				},
 			},
 			// Note: we explicitly do not pass `GetRepackGitConfig()` here as none of
-			// its opitons apply to this kind of repack: we have no delta islands given
+			// its options apply to this kind of repack: we have no delta islands given
 			// that we do not walk the revision graph, and we won't ever write bitmaps.
 			git.WithStderr(&stderr),
 		); err != nil {

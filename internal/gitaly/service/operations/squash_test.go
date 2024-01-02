@@ -260,7 +260,7 @@ func testUserSquashStableID(t *testing.T, ctx context.Context) {
 	startCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(baseCommitID))
 	midCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(startCommitID))
 	endTreeID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
-		{Path: "path", Mode: "100644", Content: "contnet"},
+		{Path: "path", Mode: "100644", Content: "content"},
 	})
 	endCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(midCommitID), gittest.WithTree(endTreeID))
 
@@ -281,8 +281,8 @@ func testUserSquashStableID(t *testing.T, ctx context.Context) {
 	require.NoError(t, err)
 	require.Equal(t, &gitalypb.GitCommit{
 		Id: gittest.ObjectHashDependent(t, map[string]string{
-			"sha1":   "9b09504be226a140ca5335bfbfd70bea049233c6",
-			"sha256": "879204016902e3773af456d01465da8749adb17bdc3a974d5500231b80d497fa",
+			"sha1":   "81a602b7dbbc79e6aae871477d62902c61373741",
+			"sha256": "fe8de63f9481d39a3db08ebf1ce692844eb35fef6d5baf9ccc748f97d079ff54",
 		}),
 		TreeId: endTreeID.String(),
 		ParentIds: []string{

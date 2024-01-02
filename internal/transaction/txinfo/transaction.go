@@ -60,9 +60,9 @@ func transactionFromSerialized(serialized string) (Transaction, error) {
 }
 
 // InjectTransaction injects reference transaction metadata into an incoming context
-func InjectTransaction(ctx context.Context, tranasctionID uint64, node string, primary bool) (context.Context, error) {
+func InjectTransaction(ctx context.Context, transactionID uint64, node string, primary bool) (context.Context, error) {
 	transaction := Transaction{
-		ID:      tranasctionID,
+		ID:      transactionID,
 		Node:    node,
 		Primary: primary,
 	}

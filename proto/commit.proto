@@ -197,7 +197,7 @@ service CommitService {
 
 // ListCommitsRequest is a request for the ListCommits RPC.
 message ListCommitsRequest {
-  // Order is the order in which commits shoud be traversed.
+  // Order is the order in which commits should be traversed.
   enum Order {
     // NONE defaults to reverse chronological order.
     NONE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
@@ -308,7 +308,7 @@ message CommitStatsResponse {
 
 // CommitIsAncestorRequest is the request for the CommitIsAncestor RPC.
 message CommitIsAncestorRequest {
-  // repository is the repository for which we need to check the ancestory.
+  // repository is the repository for which we need to check the ancestry.
   Repository repository = 1 [(target_repository)=true];
   // ancestor_id is the object ID of the commit which needs to be checked as ancestor.
   string ancestor_id = 2;
@@ -577,7 +577,7 @@ message ListCommitsByRefNameResponse {
 
 // FindAllCommitsRequest is the request for the FindAllCommits RPC.
 message FindAllCommitsRequest {
-  // Order is the order in which commits shoud be traversed.
+  // Order is the order in which commits should be traversed.
   enum Order {
     // NONE denotes the default ordering where the commits are shown in
     // reverse chronological order.
@@ -616,7 +616,7 @@ message FindAllCommitsResponse {
 
 // FindCommitsRequest is the request for the FindCommits RPC.
 message FindCommitsRequest {
-  // Order is the order in which commits shoud be traversed.
+  // Order is the order in which commits should be traversed.
   enum Order {
     // NONE defaults to reverse chronological order.
     NONE = 0; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
@@ -878,7 +878,7 @@ message GetCommitSignaturesRequest {
   Repository repository = 1 [(target_repository)=true];
   // commit_ids is the list of commitish object IDs for whom we want to retrieve
   // signature information. If a commit doesn't have associated signature information
-  // it will be ommitted from the results.
+  // it will be omitted from the results.
   repeated string commit_ids = 2;
 }
 

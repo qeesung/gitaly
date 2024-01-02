@@ -1055,16 +1055,16 @@ func TestReconciler(t *testing.T) {
 				t.Helper()
 
 				runCtx, cancelRun := context.WithCancel(ctx)
-				var stopped, resetted bool
+				var stopped, reset bool
 				ticker := helper.NewManualTicker()
 				ticker.StopFunc = func() { stopped = true }
 				ticker.ResetFunc = func() {
-					if resetted {
+					if reset {
 						cancelRun()
 						return
 					}
 
-					resetted = true
+					reset = true
 					ticker.Tick()
 				}
 
@@ -1079,7 +1079,7 @@ func TestReconciler(t *testing.T) {
 
 				require.Equal(t, context.Canceled, reconciler.Run(runCtx, ticker))
 				require.True(t, stopped)
-				require.True(t, resetted)
+				require.True(t, reset)
 			}
 
 			for vs, repos := range tc.deletedRepositories {

@@ -20,7 +20,7 @@ service DiffService {
   }
 
   // CommitDelta returns the deltas between two different commits. A delta
-  // includes everthing that changed about a set of paths except for the actual
+  // includes everything that changed about a set of paths except for the actual
   // diff.
   rpc CommitDelta(CommitDeltaRequest) returns (stream CommitDeltaResponse) {
     option (op_type) = {
@@ -252,7 +252,7 @@ message RawPatchRequest {
   string right_commit_id = 3;
 }
 
-// RawPatchResponse is a reponse for the RawPatch RPC.
+// RawPatchResponse is a response for the RawPatch RPC.
 message RawPatchResponse {
   // data is a sequence of bytes representing the unmodified diff patch data
   // returned from git-format-patch(1).

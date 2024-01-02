@@ -35,7 +35,7 @@ type LimiterMiddleware struct {
 }
 
 // New creates a new middleware that limits requests. SetupFunc sets up the
-// middlware with a specific kind of limiter.
+// middleware with a specific kind of limiter.
 func New(cfg config.Cfg, getLockKey GetLockKey, setupMiddleware SetupFunc) *LimiterMiddleware {
 	middleware := &LimiterMiddleware{
 		getLockKey: getLockKey,

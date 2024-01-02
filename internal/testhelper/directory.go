@@ -49,7 +49,7 @@ func RequireDirectoryState(tb testing.TB, rootDirectory, relativeDirectory strin
 		trimmedPath := strings.TrimPrefix(path, rootDirectory)
 		if trimmedPath == "" {
 			// Store the walked directory itself as "/". Less confusing than having it be
-			// an emptry string.
+			// an empty string.
 			trimmedPath = string(os.PathSeparator)
 		}
 

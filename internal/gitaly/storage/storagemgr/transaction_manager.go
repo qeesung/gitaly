@@ -200,7 +200,7 @@ type Transaction struct {
 	// Transaction queues in admissionQueue to be committed, and is considered admitted once it has
 	// been dequeued by TransactionManager.Run(). Once the transaction is admitted, its ownership moves
 	// from the client goroutine to the TransactionManager.Run() goroutine, and the client goroutine must
-	// not do any modifications to the state of the transcation anymore to avoid races.
+	// not do any modifications to the state of the transaction anymore to avoid races.
 	admitted bool
 	// finish cleans up the transaction releasing the resources associated with it. It must be called
 	// once the transaction is done with.
@@ -1417,7 +1417,7 @@ func (mgr *TransactionManager) isClosing() bool {
 	}
 }
 
-// initialize initializes the TransactionManager's state from the database. It loads the appendend and the applied
+// initialize initializes the TransactionManager's state from the database. It loads the appended and the applied
 // LSNs and initializes the notification channels that synchronize transaction beginning with log entry applying.
 func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	defer close(mgr.initialized)
@@ -1444,7 +1444,7 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 
 		mgr.appendedLSN = mgr.appliedLSN
 
-		// The iterator seeks to a key that is greater than or equal than seeked key. Since we are doing a reverse
+		// The iterator seeks to a key that is greater than or equal than sought key. Since we are doing a reverse
 		// seek, we need to add 0xff to the prefix so the first iterated key is the latest log entry.
 		if iterator.Seek(append(logPrefix, 0xff)); iterator.Valid() {
 			mgr.appendedLSN = LSN(binary.BigEndian.Uint64(bytes.TrimPrefix(iterator.Item().Key(), logPrefix)))
@@ -1785,7 +1785,7 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 	return nil
 }
 
-// verifyDefaultBranchUpdate verifies the default branch referance update. This is done by first checking if it is one of
+// verifyDefaultBranchUpdate verifies the default branch reference update. This is done by first checking if it is one of
 // the references in the current transaction which is not scheduled to be deleted. If not, we check if its a valid reference
 // name in the repository. We don't do reference name validation because any reference going through the transaction manager
 // has name validation and we can rely on that.

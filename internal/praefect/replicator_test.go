@@ -847,7 +847,7 @@ func TestProcessBacklog_ReplicatesToReadOnlyPrimary(t *testing.T) {
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 	defer cancel()
 
-	const virtualStorage = "virtal-storage"
+	const virtualStorage = "virtual-storage"
 	const primaryStorage = "storage-1"
 	const secondaryStorage = "storage-2"
 	const repositoryID = 1

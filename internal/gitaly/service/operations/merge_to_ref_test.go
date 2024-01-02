@@ -218,7 +218,7 @@ func testUserMergeToRefConflicts(t *testing.T, ctx context.Context) {
 		require.False(t, hasRevision, "branch should not have been created")
 	})
 
-	t.Run("target reference is ambigous", func(t *testing.T) {
+	t.Run("target reference is ambiguous", func(t *testing.T) {
 		gittest.WriteRef(t, cfg, repoPath, "refs/merge-requests/x/written-before", right)
 
 		request := &gitalypb.UserMergeToRefRequest{

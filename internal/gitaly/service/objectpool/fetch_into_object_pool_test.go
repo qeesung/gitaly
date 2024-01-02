@@ -125,7 +125,7 @@ func TestFetchIntoObjectPool_transactional(t *testing.T) {
 
 	poolProto, pool, poolPath := createObjectPool(t, ctx, cfg, repo)
 
-	// Inject transaction information so that FetchInotObjectPool knows to perform
+	// Inject transaction information so that FetchIntoObjectPool knows to perform
 	// transactional voting.
 	ctx, err = txinfo.InjectTransaction(peer.NewContext(ctx, &peer.Peer{}), 1, "node", true)
 	require.NoError(t, err)

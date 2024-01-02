@@ -429,7 +429,7 @@ func packObjectsHook(ctx context.Context, payload git.HooksPayload, hookClient g
 		return hookError{returnCode: 1, err: fmt.Errorf("RPC failed: SetupSidechannel: %w", err)}
 	}
 	defer func() {
-		// We aleady check the error further down.
+		// We already check the error further down.
 		_ = wt.Close()
 	}()
 

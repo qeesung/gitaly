@@ -18,7 +18,7 @@ var (
 
 // Command represent a Git command.
 type Command struct {
-	// Name is the name of the Git command to run, e.g. "log", "cat-flie" or "worktree".
+	// Name is the name of the Git command to run, e.g. "log", "cat-file" or "worktree".
 	Name string
 	// Action is the action of the Git command, e.g. "set-url" in `git remote set-url`
 	Action string
