@@ -918,3 +918,15 @@ func listenGitalySSHCalls(t *testing.T, conf config.Cfg) func() gitalySSHParams 
 		}
 	}
 }
+
+type testTransactionServer struct {
+	gitalypb.UnimplementedRefTransactionServer
+	vote func(*gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error)
+}
+
+func (s *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
+	if s.vote != nil {
+		return s.vote(in)
+	}
+	return nil, nil
+}

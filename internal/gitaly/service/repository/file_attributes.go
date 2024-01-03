@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gitattributes"
@@ -58,5 +60,16 @@ func validateGetFileAttributesRequest(locator storage.Locator, in *gitalypb.GetF
 		return errors.New("attributes are required")
 	}
 
+	return nil
+}
+
+// deleteInfoAttributesFile delete the info/attributes files in the repoPath
+func deleteInfoAttributesFile(repoPath string) error {
+	attrFile := filepath.Join(repoPath, "info", "attributes")
+	err := os.Remove(attrFile)
+
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	return nil
 }
