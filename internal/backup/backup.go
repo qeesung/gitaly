@@ -161,6 +161,7 @@ type Manager struct {
 	sink    Sink
 	conns   *client.Pool
 	locator Locator
+	logger  log.Logger
 
 	// repositoryFactory returns an abstraction over git repositories in order
 	// to create and restore backups.
@@ -168,7 +169,7 @@ type Manager struct {
 }
 
 // NewManager creates and returns initialized *Manager instance.
-func NewManager(sink Sink, locator Locator, pool *client.Pool) *Manager {
+func NewManager(sink Sink, logger log.Logger, locator Locator, pool *client.Pool) *Manager {
 	return &Manager{
 		sink:    sink,
 		conns:   pool,
@@ -185,6 +186,7 @@ func NewManager(sink Sink, locator Locator, pool *client.Pool) *Manager {
 
 			return newRemoteRepository(repo, conn), nil
 		},
+		logger: logger,
 	}
 }
 
@@ -208,6 +210,7 @@ func NewManagerLocal(
 
 			return newLocalRepository(logger, storageLocator, gitCmdFactory, txManager, repoCounter, localRepo), nil
 		},
+		logger: logger,
 	}
 }
 

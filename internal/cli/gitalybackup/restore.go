@@ -132,7 +132,7 @@ func (cmd *restoreSubcommand) run(ctx context.Context, logger log.Logger, stdin 
 		if err != nil {
 			return fmt.Errorf("restore: resolve locator: %w", err)
 		}
-		manager = backup.NewManager(sink, locator, pool)
+		manager = backup.NewManager(sink, logger, locator, pool)
 	}
 
 	// Get the set of existing repositories keyed by storage. We'll later use this to determine any
