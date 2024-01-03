@@ -9,6 +9,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
+	"os"
+	"path/filepath"
 )
 
 func (s *server) GetFileAttributes(ctx context.Context, in *gitalypb.GetFileAttributesRequest) (*gitalypb.GetFileAttributesResponse, error) {
@@ -58,5 +60,16 @@ func validateGetFileAttributesRequest(locator storage.Locator, in *gitalypb.GetF
 		return errors.New("attributes are required")
 	}
 
+	return nil
+}
+
+// deleteInfoAttributesFile delete the info/attributes files in the repoPath
+func deleteInfoAttributesFile(repoPath string) error {
+	attrFile := filepath.Join(repoPath, "info", "attributes")
+	err := os.Remove(attrFile)
+
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	return nil
 }
