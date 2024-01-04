@@ -351,29 +351,33 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 		return fmt.Errorf("manager: %w", err)
 	}
 
+	if len(backup.Steps) == 0 {
+		return fmt.Errorf("manager: no backup steps")
+	}
+
+	// If we can't reset the refs, perform a full restore by recreating the repo and cloning from the bundle.
+	if err := mgr.restoreFromBundle(ctx, repo, backup, req.AlwaysCreate); err != nil {
+		return fmt.Errorf("manager: restore from bundle: %w", err)
+	}
+
+	// Restore custom hooks. The path is the same regardless of increment.
+	latestStep := backup.Steps[len(backup.Steps)-1]
+	return mgr.restoreCustomHooks(ctx, repo, latestStep.CustomHooksPath)
+}
+
+func (mgr *Manager) restoreFromBundle(ctx context.Context, repo Repository, backup *Backup, alwaysCreate bool) error {
 	hash, err := git.ObjectHashByFormat(backup.ObjectFormat)
 	if err != nil {
-		return fmt.Errorf("manager: %w", err)
+		return err
 	}
 
 	defaultBranch, defaultBranchKnown := git.ReferenceName(backup.HeadReference).Branch()
 
 	if err := repo.Remove(ctx); err != nil {
-		return fmt.Errorf("manager: %w", err)
+		return err
 	}
-
 	if err := repo.Create(ctx, hash, defaultBranch); err != nil {
-		return fmt.Errorf("manager: %w", err)
-	}
-
-	if len(backup.Steps) == 0 {
-		return fmt.Errorf("manager: no backup steps")
-	}
-
-	// Restore custom hooks. The path is the same regardless of increment.
-	latestStep := backup.Steps[len(backup.Steps)-1]
-	if err := mgr.restoreCustomHooks(ctx, repo, latestStep.CustomHooksPath); err != nil {
-		return fmt.Errorf("manager: %w", err)
+		return err
 	}
 
 	for _, step := range backup.Steps {
@@ -386,27 +390,28 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 			// not know which repository is which type so here we accept a
 			// parameter to tell us to employ this behaviour. Since the
 			// repository has already been created, we simply skip cleaning up.
-			if req.AlwaysCreate {
+			if alwaysCreate {
 				return nil
 			}
 
 			if err := repo.Remove(ctx); err != nil {
-				return fmt.Errorf("manager: remove on skipped: %w", err)
+				return fmt.Errorf("remove on skipped: %w", err)
 			}
 
-			return fmt.Errorf("manager: %w: %s", ErrSkipped, err.Error())
+			return fmt.Errorf("%w: %s", ErrSkipped, err.Error())
 		case err != nil:
-			return fmt.Errorf("manager: %w", err)
+			return fmt.Errorf("read refs: %w", err)
 		}
 
 		// Git bundles can not be created for empty repositories. Since empty
 		// repository backups do not contain a bundle, skip bundle restoration.
 		if len(refs) > 0 {
 			if err := mgr.restoreBundle(ctx, repo, step.BundlePath, !defaultBranchKnown); err != nil {
-				return fmt.Errorf("manager: %w", err)
+				return fmt.Errorf("restore bundle: %w", err)
 			}
 		}
 	}
+
 	return nil
 }
 
