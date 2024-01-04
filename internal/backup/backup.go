@@ -366,6 +366,16 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 		return fmt.Errorf("manager: %w", err)
 	}
 
+	if len(backup.Steps) == 0 {
+		return fmt.Errorf("manager: no backup steps")
+	}
+
+	// Restore custom hooks. The path is the same regardless of increment.
+	latestStep := backup.Steps[len(backup.Steps)-1]
+	if err := mgr.restoreCustomHooks(ctx, repo, latestStep.CustomHooksPath); err != nil {
+		return fmt.Errorf("manager: %w", err)
+	}
+
 	for _, step := range backup.Steps {
 		refs, err := mgr.readRefs(ctx, step.RefPath)
 		switch {
@@ -395,9 +405,6 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 			if err := mgr.restoreBundle(ctx, repo, step.BundlePath, !defaultBranchKnown); err != nil {
 				return fmt.Errorf("manager: %w", err)
 			}
-		}
-		if err := mgr.restoreCustomHooks(ctx, repo, step.CustomHooksPath); err != nil {
-			return fmt.Errorf("manager: %w", err)
 		}
 	}
 	return nil
