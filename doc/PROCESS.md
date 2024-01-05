@@ -667,6 +667,51 @@ If the changes needed are not yet released, [create a release candidate](#creati
 - Run `make publish-proto-gem`, which automatically builds any publishes the
   Protobuf Gem.
 
+## Using an unpublished Gem in GitLab Rails
+
+Sometimes, we need to work on both Gitaly and GitLab Rails implementations in parallel. Ideally, we can define and
+publish all Protobuf changes beforehand. In practice, a complicated change might require modifying the Protobuf multiple
+times until reaching a stable state. It's more convenient to let GitLab Rails point the gem to the the developing branch
+in Gitaly.
+
+In the local environment, we can point it to the developing gem using following steps:
+
+- In Gitaly directory, run `BUILD_GEM_OPTIONS="--skip-verify-tag" make build-proto-gem`. This command
+  builds gem at `_built/gitaly.gem` and the gem contents to the `_build/gitaly-gem` directory.
+- Modify GitLab Rails' Gemfile:
+
+  ```ruby
+  gem 'gitaly', path: '/path/to/gitaly/_build/gitaly-gem'
+  ```
+
+- Re-run bundler to update the gem.
+
+Unfortunately, the Gitaly repository does not include the gemspec or any auto-generated Ruby code. All of it is
+generated on the fly while running `make build-proto-gem`. Thus, we cannot point the `Gemfile` to the developing branch
+directly on CI environment.
+
+As a workaround, we can build and publish the gem under a different name for development purpose only. Here's [an
+example](https://rubygems.org/gems/gitaly-qmnguyen).
+
+- Run `BUILD_GEM_OPTIONS="--skip-verify-tag" BUILD_GEM_NAME="gitaly-yourname" make build-proto-gem`. This command
+  builds the gem under a different name. The resulting gem is located at `_build/gitaly-yourname.gem`.
+- Run `gem push _build/gitaly-yourname.gem` to publish that custom gem to rubygems.org or similar package registry.
+- Modify `gitaly` gem in GitLab Rails' `Gemfile`:
+
+  ```ruby
+  gem 'gitaly-yourname'
+  ```
+
+  Or, we can specify a particular version.
+
+  ```ruby
+  gem 'gitaly-yourname', '~> 16.7.0.pre.0f0db5710'
+  ```
+
+After the development phase, please remember to remove this workaround and restore the `Gemfile` to the official Gitaly gem release.
+
+Note: Instead of setting `BUILD_GEM_OPTIONS` and `BUILD_GEM_NAME` in every command, we can also set them in `config.mak`.
+
 ## Publishing the go module
 
 If an [updated version](https://golang.org/doc/modules/release-workflow) of the go module is needed, it can be [published](https://golang.org/doc/modules/publishing)

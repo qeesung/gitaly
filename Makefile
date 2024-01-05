@@ -195,6 +195,8 @@ TEST_REPO_DIR     := ${BUILD_DIR}/testrepos
 BENCHMARK_REPO    := ${TEST_REPO_DIR}/benchmark.git
 ## Options to pass to the script which builds the Gitaly gem
 BUILD_GEM_OPTIONS ?=
+## Options to override the name of Gitaly gem
+BUILD_GEM_NAME ?= gitaly
 
 # All executables provided by Gitaly.
 GITALY_EXECUTABLES           = $(addprefix ${BUILD_DIR}/bin/,$(notdir $(shell find ${SOURCE_DIR}/cmd -mindepth 1 -maxdepth 1 -type d -print)))
@@ -465,9 +467,10 @@ lint-proto: ${PROTOC} ${PROTOLINT} ${PROTOC_GEN_GITALY_LINT}
 .PHONY: build-proto-gem
 ## Build the Ruby Gem that contains Gitaly's Protobuf definitons.
 build-proto-gem:
-	${Q}rm -rf "${BUILD_DIR}/gitaly.gem" && mkdir -p ${BUILD_DIR}
+	${Q}rm -rf "${BUILD_DIR}/${BUILD_GEM_NAME}.gem" && mkdir -p ${BUILD_DIR}
+	${Q}rm -rf "${BUILD_DIR}/${BUILD_GEM_NAME}-gem" && mkdir -p ${BUILD_DIR}/${BUILD_GEM_NAME}-gem
 	${Q}cd "${SOURCE_DIR}"/tools/protogem && bundle install
-	${Q}"${SOURCE_DIR}"/tools/protogem/build-proto-gem -o "${BUILD_DIR}/gitaly.gem" ${BUILD_GEM_OPTIONS}
+	${Q}"${SOURCE_DIR}"/tools/protogem/build-proto-gem -o "${BUILD_DIR}/${BUILD_GEM_NAME}.gem" --name ${BUILD_GEM_NAME} --working-dir ${BUILD_DIR}/${BUILD_GEM_NAME}-gem ${BUILD_GEM_OPTIONS}
 
 .PHONY: publish-proto-gem
 ## Build and publish the Ruby Gem that contains Gitaly's Protobuf definitons.

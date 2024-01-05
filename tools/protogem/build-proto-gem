@@ -16,8 +16,16 @@ def parse_options
   option_parser = OptionParser.new do |opts|
     opts.banner = "Usage: build-proto-gem [options]"
 
+    opts.on("-n", "--name NAME", "Name of the gem. By default, the name is hard-coded to `gitaly`") do |name|
+      options[:gem_name] = name
+    end
+
     opts.on_tail("--skip-verify-tag", "Skip verification that this is run for a tagged Gitaly commit") do
       options[:skip_verify_tag] = true
+    end
+
+    opts.on("-w", "--working-dir DIR", "Working dir of the gem. If not specified, a temporary dir is used") do |path|
+      options[:working_dir] = path
     end
 
     opts.on("-o", "--output PATH", "output path for the gem") do |path|
@@ -41,7 +49,15 @@ def main(options)
     abort "Version string #{version.inspect} does not look like a Gitaly Release tag (e.g. \"v1.0.2\"). Aborting."
   end
 
-  if !options[:skip_verify_tag]
+  if options[:skip_verify_tag]
+    matches = /^(\d+\.\d+\.\d+).*/.match(version)
+    if matches.nil?
+      abort "Invalid version number #{version}"
+    end
+
+    ref = capture!(%w[git rev-parse --short HEAD]).chomp
+    version = "#{matches[1]}-#{ref}"
+  else
     ref = capture!(%w[git describe --tag]).chomp
     if ref != "v#{version}"
       abort "Checkout tag v#{version} to publish.\n\t git checkout v#{version}"
@@ -54,9 +70,15 @@ def main(options)
   puts 'Testing for staged changes'
   run!(%w[git diff --quiet --cached --exit-code])
 
-  Dir.mktmpdir do |output_dir|
+  if options[:working_dir]
+    output_dir = File.absolute_path(options[:working_dir])
     generate_sources(output_dir, version)
-    build_gem(output_dir, options[:output_path])
+    build_gem(options, output_dir, options[:output_path])
+  else
+    Dir.mktmpdir do |output_dir|
+      generate_sources(output_dir, version)
+      build_gem(options, output_dir, options[:output_path])
+    end
   end
 end
 
@@ -77,7 +99,7 @@ def generate_sources(output_dir, version)
   write_ruby_requires(output_dir)
 end
 
-def build_gem(output_dir, output_path)
+def build_gem(options, output_dir, output_path)
   gemspec = <<~EOT
     # coding: utf-8
     prefix = 'ruby/proto'
@@ -85,7 +107,7 @@ def build_gem(output_dir, output_path)
     require 'gitaly/version'
 
     Gem::Specification.new do |spec|
-      spec.name          = "gitaly"
+      spec.name          = "#{options[:gem_name] || 'gitaly'}"
       spec.version       = Gitaly::VERSION
       spec.authors       = ["GitLab Engineering"]
       spec.email         = ["engineering@gitlab.com"]
@@ -108,7 +130,7 @@ def build_gem(output_dir, output_path)
     end
   EOT
 
-  gemspec_path = File.join(output_dir, 'gitaly.gemspec')
+  gemspec_path = File.absolute_path(File.join(output_dir, 'gitaly.gemspec'))
   open(gemspec_path, 'w') { |f| f.write(gemspec) }
 
   run!(['gem', 'build', gemspec_path, '--output', output_path], output_dir)
