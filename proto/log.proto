@@ -60,6 +60,22 @@ message LogEntry {
     string path = 1;
   }
 
+  // Housekeeping models a housekeeping run. It is supposed to handle housekeeping tasks for repositories such as the
+  // cleanup of unneeded files and optimizations for the repository's data structures. It is a collection of smaller
+  // tasks.
+  message Housekeeping {
+    // PackRefs models a pack-refs housekeeping task. This task is to pack loose references into a singular packed-refs
+    // file to optimize ref accessing time. In other words, it's a wrapper for git-pack-refs command.
+    message PackRefs {
+      // pruned_refs is the list of fully qualified references to be pruned. Gitaly removes the loose reference files on
+      // the disk. They still stay intact in the packed-refs.
+      repeated bytes pruned_refs = 1;
+    }
+
+    // pack_refs signifies if the housekeeping run includes a pack-refs task.
+    PackRefs pack_refs = 1;
+  }
+
   // relative_path is the relative path of the repository the changes in the
   // log entry are targeting.
   string relative_path = 1;
@@ -82,6 +98,8 @@ message LogEntry {
   RepositoryCreation repository_creation = 7;
   // alternate_update records a change to the repository's 'objects/info/alternates' file.
   AlternateUpdate alternate_update = 8;
+  // housekeeping, when set, indicates this log entry contains a housekeeping task.
+  Housekeeping housekeeping = 9;
 }
 
 // LSN serializes a log sequence number. It's used for storing a partition's
