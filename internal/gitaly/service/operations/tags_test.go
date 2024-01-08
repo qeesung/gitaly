@@ -1182,10 +1182,10 @@ func TestUserCreateTag_gitHooks(t *testing.T) {
 
 func TestUserDeleteTag_hookFailure(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.ReturnStructuredErrorsInUserDeleteTag).Run(t, testUserDeleteTag_hookFailure)
+	testhelper.NewFeatureSets(featureflag.ReturnStructuredErrorsInUserDeleteTag).Run(t, testUserDeleteTaghookFailure)
 }
 
-func testUserDeleteTag_hookFailure(t *testing.T, ctx context.Context) {
+func testUserDeleteTaghookFailure(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
 	// ctx := testhelper.Context(t)
