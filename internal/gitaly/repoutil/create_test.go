@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -54,6 +56,14 @@ func TestCreate(t *testing.T) {
 		}
 	}
 
+	type requireErrorFunc func(*testing.T, config.Cfg, string, error)
+
+	equalError := func(expected error) requireErrorFunc {
+		return func(t *testing.T, _ config.Cfg, _ string, actual error) {
+			require.Equal(t, actual, expected)
+		}
+	}
+
 	for _, tc := range []struct {
 		desc   string
 		opts   []CreateOption
@@ -67,7 +77,7 @@ func TestCreate(t *testing.T) {
 			realRepoPath string,
 		)
 		transactional bool
-		expectedErr   error
+		requireError  requireErrorFunc
 	}{
 		{
 			desc: "no seeding",
@@ -111,7 +121,7 @@ func TestCreate(t *testing.T) {
 				require.NoDirExists(t, realRepoPath)
 				require.NoDirExists(t, tempRepoPath)
 			},
-			expectedErr: errors.New("some error"),
+			requireError: equalError(errors.New("some error")),
 		},
 		{
 			desc: "preexisting directory",
@@ -128,7 +138,38 @@ func TestCreate(t *testing.T) {
 
 				requireFullRepackTimestampExists(t, realRepoPath, false)
 			},
-			expectedErr: structerr.NewAlreadyExists("repository exists already"),
+			requireError: equalError(structerr.NewAlreadyExists("repository exists already")),
+		},
+		{
+			desc: "pre-lock stat fails",
+			setup: func(t *testing.T, repo *gitalypb.Repository, repoPath string) {
+				require.NoError(t, os.MkdirAll(repoPath, perm.PublicDir))
+				parentDir := filepath.Dir(repoPath)
+				// Drop permissions to trigger a stat failure.
+				require.NoError(t, os.Chmod(parentDir, 0))
+				// Restore the permissions so the directory can be cleaned up.
+				t.Cleanup(func() { require.NoError(t, os.Chmod(parentDir, perm.PublicDir)) })
+			},
+			verify: func(t *testing.T, tempRepo *gitalypb.Repository, tempRepoPath string, realRepo *gitalypb.Repository, realRepoPath string) {
+				// Restore the permissions so the below checks work.
+				require.NoError(t, os.Chmod(filepath.Dir(realRepoPath), perm.PublicDir))
+
+				require.NoDirExists(t, tempRepoPath)
+
+				require.DirExists(t, realRepoPath)
+				dirEntries, err := os.ReadDir(realRepoPath)
+				require.NoError(t, err)
+				require.Empty(t, dirEntries, "directory should not have been modified")
+
+				requireFullRepackTimestampExists(t, realRepoPath, false)
+			},
+			requireError: func(t *testing.T, cfg config.Cfg, relativePath string, actual error) {
+				require.Equal(t, fmt.Errorf("pre-lock stat: %w", &fs.PathError{
+					Op:   "stat",
+					Path: filepath.Join(cfg.Storages[0].Path, relativePath),
+					Err:  syscall.EACCES,
+				}), actual)
+			},
 		},
 		{
 			desc: "locked",
@@ -147,7 +188,7 @@ func TestCreate(t *testing.T) {
 
 				requireFullRepackTimestampExists(t, realRepoPath, false)
 			},
-			expectedErr: fmt.Errorf("locking repository: %w", safe.ErrFileAlreadyLocked),
+			requireError: equalError(fmt.Errorf("locking repository: %w", safe.ErrFileAlreadyLocked)),
 		},
 		{
 			desc:          "successful transaction",
@@ -180,7 +221,7 @@ func TestCreate(t *testing.T) {
 				require.NoDirExists(t, tempRepoPath)
 				require.NoDirExists(t, realRepoPath)
 			},
-			expectedErr: structerr.NewFailedPrecondition("preparatory vote: %w", errors.New("vote failed")),
+			requireError: equalError(structerr.NewFailedPrecondition("preparatory vote: %w", errors.New("vote failed"))),
 		},
 		{
 			desc:          "failing post-commit vote",
@@ -203,7 +244,7 @@ func TestCreate(t *testing.T) {
 
 				requireFullRepackTimestampExists(t, realRepoPath, true)
 			},
-			expectedErr: structerr.NewFailedPrecondition("committing vote: %w", errors.New("vote failed")),
+			requireError: equalError(structerr.NewFailedPrecondition("committing vote: %w", errors.New("vote failed"))),
 		},
 		{
 			desc:          "voting happens after lock",
@@ -227,7 +268,7 @@ func TestCreate(t *testing.T) {
 				require.NoDirExists(t, tempRepoPath)
 				require.NoDirExists(t, realRepoPath)
 			},
-			expectedErr: fmt.Errorf("locking repository: %w", errors.New("file already locked")),
+			requireError: equalError(fmt.Errorf("locking repository: %w", errors.New("file already locked"))),
 		},
 		{
 			desc:          "vote is deterministic",
@@ -345,7 +386,8 @@ func TestCreate(t *testing.T) {
 			}
 
 			var tempRepo *gitalypb.Repository
-			require.Equal(t, tc.expectedErr, Create(ctx, logger, locator, gitCmdFactory, txManager, repoCounter, repo, func(tr *gitalypb.Repository) error {
+
+			err = Create(ctx, logger, locator, gitCmdFactory, txManager, repoCounter, repo, func(tr *gitalypb.Repository) error {
 				tempRepo = tr
 
 				// The temporary repository must have been created in Gitaly's
@@ -365,7 +407,13 @@ func TestCreate(t *testing.T) {
 				require.Equal(t, "true", text.ChompBytes(isBareRepo))
 
 				return nil
-			}, tc.opts...))
+			}, tc.opts...)
+
+			if tc.requireError != nil {
+				tc.requireError(t, cfg, repo.RelativePath, err)
+			} else {
+				require.NoError(t, err)
+			}
 
 			var tempRepoPath string
 			if tempRepo != nil {

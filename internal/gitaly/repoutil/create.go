@@ -3,6 +3,7 @@ package repoutil
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -81,8 +82,12 @@ func Create(
 
 	// The repository must not exist on disk already, or otherwise we won't be able to
 	// create it with atomic semantics.
-	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
-		return structerr.NewAlreadyExists("repository exists already")
+	if _, err := os.Stat(targetPath); !errors.Is(err, fs.ErrNotExist) {
+		if err == nil {
+			return structerr.NewAlreadyExists("repository exists already")
+		}
+
+		return fmt.Errorf("pre-lock stat: %w", err)
 	}
 
 	newRepo, newRepoDir, err := tempdir.NewRepository(ctx, repository.GetStorageName(), logger, locator)
@@ -216,8 +221,12 @@ func Create(
 	// and seeded our temporary repository. While we would notice this at the point of moving
 	// the repository into place, we want to be as sure as possible that the action will succeed
 	// previous to the first transactional vote.
-	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
-		return structerr.NewAlreadyExists("repository exists already")
+	if _, err := os.Stat(targetPath); !errors.Is(err, fs.ErrNotExist) {
+		if err == nil {
+			return structerr.NewAlreadyExists("repository exists already")
+		}
+
+		return fmt.Errorf("post-lock stat: %w", err)
 	}
 
 	if err := transaction.VoteOnContext(ctx, txManager, vote, voting.Prepared); err != nil {
