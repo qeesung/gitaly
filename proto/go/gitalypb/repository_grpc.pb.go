@@ -192,7 +192,9 @@ type RepositoryServiceClient interface {
 	// FullPath reads the "gitlab.fullpath" configuration from the repository's
 	// gitconfig. Returns an error in case the full path has not been configured.
 	FullPath(ctx context.Context, in *FullPathRequest, opts ...grpc.CallOption) (*FullPathResponse, error)
+	// Deprecated: Do not use.
 	// RemoveAll deletes all repositories on a specified storage.
+	// Deprecated in favour of individually removing repositories with RemoveRepository.
 	RemoveAll(ctx context.Context, in *RemoveAllRequest, opts ...grpc.CallOption) (*RemoveAllResponse, error)
 	// BackupRepository creates a full or incremental backup streamed directly to
 	// object-storage. The backup is created synchronously. The destination must
@@ -957,6 +959,7 @@ func (c *repositoryServiceClient) FullPath(ctx context.Context, in *FullPathRequ
 	return out, nil
 }
 
+// Deprecated: Do not use.
 func (c *repositoryServiceClient) RemoveAll(ctx context.Context, in *RemoveAllRequest, opts ...grpc.CallOption) (*RemoveAllResponse, error) {
 	out := new(RemoveAllResponse)
 	err := c.cc.Invoke(ctx, "/gitaly.RepositoryService/RemoveAll", in, out, opts...)
@@ -1167,7 +1170,9 @@ type RepositoryServiceServer interface {
 	// FullPath reads the "gitlab.fullpath" configuration from the repository's
 	// gitconfig. Returns an error in case the full path has not been configured.
 	FullPath(context.Context, *FullPathRequest) (*FullPathResponse, error)
+	// Deprecated: Do not use.
 	// RemoveAll deletes all repositories on a specified storage.
+	// Deprecated in favour of individually removing repositories with RemoveRepository.
 	RemoveAll(context.Context, *RemoveAllRequest) (*RemoveAllResponse, error)
 	// BackupRepository creates a full or incremental backup streamed directly to
 	// object-storage. The backup is created synchronously. The destination must
