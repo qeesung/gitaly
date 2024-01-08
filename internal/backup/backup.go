@@ -131,6 +131,11 @@ type Repository interface {
 	ObjectHash(ctx context.Context) (git.ObjectHash, error)
 	// HeadReference fetches the reference pointed to by HEAD.
 	HeadReference(ctx context.Context) (git.ReferenceName, error)
+	// ResetRefs attempts to reset the list of refs in the repository to match the
+	// specified refs slice. This can fail if objects pointed to by a ref no longer
+	// exists in the repository. The list of refs should not include the symbolic
+	// HEAD reference.
+	ResetRefs(ctx context.Context, refs []git.Reference) error
 }
 
 // ResolveLocator returns a locator implementation based on a locator identifier.
@@ -184,7 +189,7 @@ func NewManager(sink Sink, logger log.Logger, locator Locator, pool *client.Pool
 				return nil, err
 			}
 
-			return newRemoteRepository(repo, conn), nil
+			return NewRemoteRepository(repo, conn), nil
 		},
 		logger: logger,
 	}
@@ -208,7 +213,7 @@ func NewManagerLocal(
 		repositoryFactory: func(ctx context.Context, repo *gitalypb.Repository, server storage.ServerInfo) (Repository, error) {
 			localRepo := localrepo.New(logger, storageLocator, gitCmdFactory, catfileCache, repo)
 
-			return newLocalRepository(logger, storageLocator, gitCmdFactory, txManager, repoCounter, localRepo), nil
+			return NewLocalRepository(logger, storageLocator, gitCmdFactory, txManager, repoCounter, localRepo), nil
 		},
 		logger: logger,
 	}
@@ -525,6 +530,11 @@ func (mgr *Manager) readRefs(ctx context.Context, path string) ([]git.Reference,
 			break
 		} else if err != nil {
 			return refs, fmt.Errorf("read refs: %w", err)
+		}
+
+		// HEAD is tracked as a symbolic reference in the backup manifest and will be restored separately.
+		if ref.Name == "HEAD" {
+			continue
 		}
 
 		refs = append(refs, ref)
