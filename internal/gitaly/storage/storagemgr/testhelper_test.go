@@ -3,12 +3,14 @@ package storagemgr
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 
@@ -48,6 +50,17 @@ type RepositoryState struct {
 	Objects []git.ObjectID
 	// Alternate is the content of 'objects/info/alternates'.
 	Alternate string
+	// PackedRefs is the expected state of the packed-refs and loose references.
+	PackedRefs *PackedRefsState
+}
+
+// PackedRefsState describes the asserted state of packed-refs and loose references. It's mostly used for verifying
+// pack-refs housekeeping task.
+type PackedRefsState struct {
+	// PackedRefsContent is the content of pack-refs file, line by line
+	PackedRefsContent []string
+	// LooseReferences is the exact list of loose references outside packed-refs.
+	LooseReferences map[git.ReferenceName]git.ObjectID
 }
 
 // RequireRepositoryState asserts the given repository matches the expected state.
@@ -62,6 +75,27 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 
 	actualReferences, err := repo.GetReferences(ctx)
 	require.NoError(tb, err)
+
+	actualPackedRefsState, err := collectPackedRefsState(tb, expected, repoPath)
+	require.NoError(tb, err)
+
+	// Assert if there is any empty directory in the refs hierarchy excepts for heads and tags
+	rootRefsDir := filepath.Join(repoPath, "refs")
+	ignoredDirs := map[string]struct{}{
+		rootRefsDir:                         {},
+		filepath.Join(rootRefsDir, "heads"): {},
+		filepath.Join(rootRefsDir, "tags"):  {},
+	}
+	require.NoError(tb, filepath.WalkDir(rootRefsDir, func(path string, entry fs.DirEntry, err error) error {
+		if entry.IsDir() {
+			if _, exist := ignoredDirs[path]; !exist {
+				isEmpty, err := isDirEmpty(path)
+				require.NoError(tb, err)
+				require.Falsef(tb, isEmpty, "there shouldn't be any empty directory in the refs hierarchy %s", path)
+			}
+		}
+		return nil
+	}))
 
 	expectedObjects := []git.ObjectID{}
 	if expected.Objects != nil {
@@ -90,15 +124,55 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 			References:    expected.References,
 			Objects:       expectedObjects,
 			Alternate:     expected.Alternate,
+			PackedRefs:    expected.PackedRefs,
 		},
 		RepositoryState{
 			DefaultBranch: headReference,
 			References:    actualReferences,
 			Objects:       actualObjects,
 			Alternate:     string(alternate),
+			PackedRefs:    actualPackedRefsState,
 		},
 	)
 	testhelper.RequireDirectoryState(tb, filepath.Join(repoPath, repoutil.CustomHooksDir), "", expected.CustomHooks)
+}
+
+func collectPackedRefsState(tb testing.TB, expected RepositoryState, repoPath string) (*PackedRefsState, error) {
+	if expected.PackedRefs == nil {
+		return nil, nil
+	}
+
+	packRefsFile, err := os.ReadFile(filepath.Join(repoPath, "packed-refs"))
+	if errors.Is(err, os.ErrNotExist) {
+		// Treat missing packed-refs file as empty.
+		packRefsFile = nil
+	} else {
+		require.NoError(tb, err)
+	}
+	// Walk and collect loose refs.
+	looseReferences := map[git.ReferenceName]git.ObjectID{}
+	refsPath := filepath.Join(repoPath, "refs")
+	require.NoError(tb, filepath.WalkDir(refsPath, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			ref, err := filepath.Rel(repoPath, path)
+			if err != nil {
+				return fmt.Errorf("extracting ref name: %w", err)
+			}
+			oid, err := os.ReadFile(path)
+			require.NoError(tb, err)
+
+			looseReferences[git.ReferenceName(ref)] = git.ObjectID(strings.TrimSpace(string(oid)))
+		}
+		return nil
+	}))
+
+	return &PackedRefsState{
+		PackedRefsContent: strings.Split(strings.TrimSpace(string(packRefsFile)), "\n"),
+		LooseReferences:   looseReferences,
+	}, nil
 }
 
 type repositoryBuilder func(relativePath string) *localrepo.Repo
@@ -210,6 +284,11 @@ type testTransactionCommit struct {
 	Pack []byte
 }
 
+type testTransactionTag struct {
+	Name string
+	OID  git.ObjectID
+}
+
 type testTransactionCommits struct {
 	First     testTransactionCommit
 	Second    testTransactionCommit
@@ -228,6 +307,7 @@ type testTransactionSetup struct {
 	ObjectHash        git.ObjectHash
 	NonExistentOID    git.ObjectID
 	Commits           testTransactionCommits
+	AnnotatedTags     []testTransactionTag
 }
 
 type testTransactionHooks struct {
@@ -305,6 +385,12 @@ type CreateRepository struct {
 	CustomHooks []byte
 	// Alternate links the given relative path as the repository's alternate.
 	Alternate string
+}
+
+// RunPackRefs calls pack-refs housekeeping task on a transaction.
+type RunPackRefs struct {
+	// TransactionID is the transaction for which the pack-refs task runs.
+	TransactionID int
 }
 
 // Commit calls Commit on a transaction.
@@ -392,6 +478,9 @@ type StateAssertion struct {
 	Repositories RepositoryStates
 }
 
+// AdhocAssertion allows a test to add some custom assertions apart from the built-in assertions above.
+type AdhocAssertion func(*testing.T, context.Context, *TransactionManager)
+
 // steps defines execution steps in a test. Each test case can define multiple steps to exercise
 // more complex behavior.
 type steps []any
@@ -399,6 +488,7 @@ type steps []any
 type transactionTestCase struct {
 	desc          string
 	steps         steps
+	customSetup   func(*testing.T, context.Context, partitionID, string) testTransactionSetup
 	expectedState StateAssertion
 }
 
@@ -677,6 +767,11 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 				},
 				repoutil.WithObjectHash(setup.ObjectHash),
 			))
+		case RunPackRefs:
+			require.Contains(t, openTransactions, step.TransactionID, "test error: pack-refs housekeeping task aborted on committed before beginning it")
+
+			transaction := openTransactions[step.TransactionID]
+			transaction.PackRefs()
 		case RepositoryAssertion:
 			require.Contains(t, openTransactions, step.TransactionID, "test error: transaction's snapshot asserted before beginning it")
 			transaction := openTransactions[step.TransactionID]
@@ -693,6 +788,8 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 						}),
 					)
 				}, step.Repositories)
+		case AdhocAssertion:
+			step(t, ctx, transactionManager)
 		default:
 			t.Fatalf("unhandled step type: %T", step)
 		}
@@ -720,6 +817,9 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 				setup.Commits.Second.OID,
 				setup.Commits.Third.OID,
 				setup.Commits.Diverging.OID,
+			}
+			for _, tag := range setup.AnnotatedTags {
+				state.Objects = append(state.Objects, tag.OID)
 			}
 		}
 

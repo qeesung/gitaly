@@ -2,6 +2,7 @@ package storagemgr
 
 import (
 	"bytes"
+	"container/list"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -56,6 +57,25 @@ var (
 	// errAlternateAlreadyLinked is returned when attempting to set an alternate on a repository that
 	// already has one.
 	errAlternateAlreadyLinked = errors.New("repository already has an alternate")
+	// errConflictRepositoryDeletion is returned when an operation conflicts with repository deletion in another
+	// transaction.
+	errConflictRepositoryDeletion = errors.New("detected an update conflicting with repository deletion")
+	// errPackRefsConflictRefDeletion is returned when there is a committed ref deletion before pack-refs
+	// task is committed. The transaction should be aborted.
+	errPackRefsConflictRefDeletion = errors.New("detected a conflict with reference deletion when committing packed-refs")
+	// errHousekeepingConflictOtherUpdates is returned when the transaction includes housekeeping alongside
+	// with other updates.
+	errHousekeepingConflictOtherUpdates = errors.New("housekeeping in the same transaction with other updates")
+	// errHousekeepingConflictConcurrent is returned when there are another concurrent housekeeping task.
+	errHousekeepingConflictConcurrent = errors.New("conflict with another concurrent housekeeping task")
+
+	// Below errors are used to error out in cases when updates have been staged in a read-only transaction.
+	errReadOnlyReferenceUpdates    = errors.New("reference updates staged in a read-only transaction")
+	errReadOnlyDefaultBranchUpdate = errors.New("default branch update staged in a read-only transaction")
+	errReadOnlyCustomHooksUpdate   = errors.New("custom hooks update staged in a read-only transaction")
+	errReadOnlyRepositoryDeletion  = errors.New("repository deletion staged in a read-only transaction")
+	errReadOnlyObjectsIncluded     = errors.New("objects staged in a read-only transaction")
+	errReadOnlyHousekeeping        = errors.New("housekeeping in a read-only transaction")
 )
 
 // InvalidReferenceFormatError is returned when a reference name was invalid.
@@ -124,6 +144,19 @@ type CustomHooksUpdate struct {
 type repositoryCreation struct {
 	// objectHash defines the object format the repository is created with.
 	objectHash git.ObjectHash
+}
+
+// runHousekeeping models housekeeping tasks. It is supposed to handle housekeeping tasks for repositories
+// such as the cleanup of unneeded files and optimizations for the repository's data structures.
+type runHousekeeping struct {
+	packRefs *runPackRefs
+}
+
+// runPackRefs models refs packing housekeeping task. It packs heads and tags for efficient repository access.
+type runPackRefs struct {
+	// PrunedRefs contain a list of references pruned by the `git-pack-refs` command. They are used
+	// for comparing to the ref list of the destination repository
+	PrunedRefs map[git.ReferenceName]struct{}
 }
 
 // ReferenceUpdates contains references to update. Reference name is used as the key and the value
@@ -213,6 +246,7 @@ type Transaction struct {
 	deleteRepository         bool
 	includedObjects          map[git.ObjectID]struct{}
 	alternateUpdate          *alternateUpdate
+	runHousekeeping          *runHousekeeping
 }
 
 // Begin opens a new transaction. The caller must call either Commit or Rollback to release
@@ -259,6 +293,16 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 	mgr.snapshotLocks[txn.snapshotLSN].activeSnapshotters.Add(1)
 	defer mgr.snapshotLocks[txn.snapshotLSN].activeSnapshotters.Done()
 	readReady := mgr.snapshotLocks[txn.snapshotLSN].applied
+
+	var entry *committedEntry
+	if !txn.readOnly {
+		var err error
+		entry, err = mgr.updateCommittedEntry(txn.snapshotLSN)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	mgr.mutex.Unlock()
 
 	txn.finish = func() error {
@@ -268,6 +312,12 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 			if err := os.RemoveAll(txn.stagingDirectory); err != nil {
 				return fmt.Errorf("remove staging directory: %w", err)
 			}
+		}
+
+		if !txn.readOnly {
+			mgr.mutex.Lock()
+			defer mgr.mutex.Unlock()
+			mgr.cleanCommittedEntry(entry)
 		}
 
 		return nil
@@ -364,15 +414,6 @@ func (txn *Transaction) updateState(newState transactionState) error {
 	}
 }
 
-// Below errors are used to error out in cases when updates have been staged in a read-only transaction.
-var (
-	errReadOnlyReferenceUpdates    = errors.New("reference updates staged in a read-only transaction")
-	errReadOnlyDefaultBranchUpdate = errors.New("default branch update staged in a read-only transaction")
-	errReadOnlyCustomHooksUpdate   = errors.New("custom hooks update staged in a read-only transaction")
-	errReadOnlyRepositoryDeletion  = errors.New("repository deletion staged in a read-only transaction")
-	errReadOnlyObjectsIncluded     = errors.New("objects staged in a read-only transaction")
-)
-
 // Commit performs the changes. If no error is returned, the transaction was successful and the changes
 // have been performed. If an error was returned, the transaction may or may not be persisted.
 func (txn *Transaction) Commit(ctx context.Context) (returnedErr error) {
@@ -401,9 +442,19 @@ func (txn *Transaction) Commit(ctx context.Context) (returnedErr error) {
 			return errReadOnlyRepositoryDeletion
 		case txn.includedObjects != nil:
 			return errReadOnlyObjectsIncluded
+		case txn.runHousekeeping != nil:
+			return errReadOnlyHousekeeping
 		default:
 			return nil
 		}
+	}
+
+	if txn.runHousekeeping != nil && (txn.referenceUpdates != nil ||
+		txn.defaultBranchUpdate != nil ||
+		txn.customHooksUpdate != nil ||
+		txn.deleteRepository ||
+		txn.includedObjects != nil) {
+		return errHousekeepingConflictOtherUpdates
 	}
 
 	return txn.commit(ctx, txn)
@@ -562,6 +613,17 @@ func (txn *Transaction) SetCustomHooks(customHooksTAR []byte) {
 	txn.customHooksUpdate = &CustomHooksUpdate{CustomHooksTAR: customHooksTAR}
 }
 
+// PackRefs sets pack-refs housekeeping task as a part of the transaction. The transaction can only runs other
+// housekeeping tasks in the same transaction. No other updates are allowed.
+func (txn *Transaction) PackRefs() {
+	if txn.runHousekeeping == nil {
+		txn.runHousekeeping = &runHousekeeping{}
+	}
+	txn.runHousekeeping.packRefs = &runPackRefs{
+		PrunedRefs: map[git.ReferenceName]struct{}{},
+	}
+}
+
 // IncludeObject includes the given object and its dependencies in the transaction's logged pack file even
 // if the object is unreachable from the references.
 func (txn *Transaction) IncludeObject(oid git.ObjectID) {
@@ -597,6 +659,17 @@ type snapshotLock struct {
 	// log entry to be applied. Log application waits for active snapshotters to finish before applying
 	// the next entry.
 	activeSnapshotters sync.WaitGroup
+}
+
+// committedEntry is a wrapper for a log entry. It is used to keep track of entries in which their snapshots are still
+// accessed by other transactions.
+type committedEntry struct {
+	// lsn is the associated LSN of the entry
+	lsn LSN
+	// entry is the pointer to the corresponding log entry.
+	entry *gitalypb.LogEntry
+	// snapshotReaders accounts for the number of transaction readers of the snapshot.
+	snapshotReaders int
 }
 
 // TransactionManager is responsible for transaction management of a single repository. Each repository has
@@ -683,7 +756,8 @@ type TransactionManager struct {
 	// Run and Begin which are ran in different goroutines.
 	mutex sync.Mutex
 
-	// snapshotLocks contains state used for synchronizing snapshotters with the log application.
+	// snapshotLocks contains state used for synchronizing snapshotters with the log application. The
+	// lock is released after the corresponding log entry is applied.
 	snapshotLocks map[LSN]*snapshotLock
 
 	// appendedLSN holds the LSN of the last log entry appended to the partition's write-ahead log.
@@ -697,6 +771,12 @@ type TransactionManager struct {
 	// the partition. It's keyed by the LSN the transaction is waiting to be applied and the
 	// value is the resultChannel that is waiting the result.
 	awaitingTransactions map[LSN]resultChannel
+	// committedEntries keeps some latest appended log entries around. Some types of transactions, such as
+	// housekeeping, operate on snapshot repository. There is a gap between transaction doing its work and the time
+	// when it is committed. They need to verify if concurrent operations can cause conflict. These log entries are
+	// still kept around even after they are applied. They are removed when there are no active readers accessing
+	// the corresponding snapshots.
+	committedEntries *list.List
 }
 
 // NewTransactionManager returns a new TransactionManager for the given repository.
@@ -730,6 +810,7 @@ func NewTransactionManager(
 		stagingDirectory:     stagingDir,
 		housekeepingManager:  housekeepingManager,
 		awaitingTransactions: make(map[LSN]resultChannel),
+		committedEntries:     list.New(),
 	}
 }
 
@@ -754,6 +835,11 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 		}
 	}
 
+	// Create a directory to store all staging files.
+	if err := os.Mkdir(transaction.walFilesPath(), perm.PrivateDir); err != nil {
+		return fmt.Errorf("create wal files directory: %w", err)
+	}
+
 	if err := mgr.setupStagingRepository(ctx, transaction); err != nil {
 		return fmt.Errorf("setup staging repository: %w", err)
 	}
@@ -764,6 +850,10 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 
 	if err := mgr.packObjects(ctx, transaction); err != nil {
 		return fmt.Errorf("pack objects: %w", err)
+	}
+
+	if err := mgr.prepareHousekeeping(ctx, transaction); err != nil {
+		return fmt.Errorf("preparing housekeeping: %w", err)
 	}
 
 	select {
@@ -1017,10 +1107,6 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 	group.Go(func() (returnedErr error) {
 		defer packReader.CloseWithError(returnedErr)
 
-		if err := os.Mkdir(transaction.walFilesPath(), perm.PrivateDir); err != nil {
-			return fmt.Errorf("create wal files directory: %w", err)
-		}
-
 		// index-pack places the pack, index, and reverse index into the repository's object directory.
 		// The staging repository is configured with a quarantine so we execute it there.
 		var stdout, stderr bytes.Buffer
@@ -1050,6 +1136,92 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 	})
 
 	return group.Wait()
+}
+
+// prepareHousekeeping composes and prepares necessary steps on the staging repository before the changes are staged and
+// applied. All commands run in the scope of the staging repository. Thus, we can avoid any impact on other concurrent
+// transactions.
+func (mgr *TransactionManager) prepareHousekeeping(ctx context.Context, transaction *Transaction) error {
+	if transaction.runHousekeeping == nil {
+		return nil
+	}
+	if err := mgr.preparePackRefs(ctx, transaction); err != nil {
+		return err
+	}
+	return nil
+}
+
+// preparePackRefs runs git-pack-refs command against the snapshot repository. It collects the resulting packed-refs
+// file and the list of pruned references. Unfortunately, git-pack-refs doesn't output which refs are pruned. So, we
+// performed two ref walkings before and after running the command. The difference between the two walks is the list of
+// pruned refs. This workaround works but is not performant on large repositories with huge amount of loose references.
+// Smaller repositories or ones that run housekeeping frequent won't have this issue.
+// The work of adding pruned refs dump to `git-pack-refs` is tracked here:
+// https://gitlab.com/gitlab-org/git/-/issues/222
+func (mgr *TransactionManager) preparePackRefs(ctx context.Context, transaction *Transaction) error {
+	if transaction.runHousekeeping.packRefs == nil {
+		return nil
+	}
+
+	runPackRefs := transaction.runHousekeeping.packRefs
+	repoPath := mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())
+
+	if err := mgr.removePackedRefsLocks(mgr.ctx, repoPath); err != nil {
+		return fmt.Errorf("remove stale packed-refs locks: %w", err)
+	}
+	// First walk to collect the list of loose refs.
+	looseReferences := make(map[git.ReferenceName]struct{})
+	if err := filepath.WalkDir(filepath.Join(repoPath, "refs"), func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			// Get fully qualified refs.
+			ref, err := filepath.Rel(repoPath, path)
+			if err != nil {
+				return fmt.Errorf("extracting ref name: %w", err)
+			}
+			looseReferences[git.ReferenceName(ref)] = struct{}{}
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("initial walking refs directory: %w", err)
+	}
+
+	// Execute git-pack-refs command. The command runs in the scope of the snapshot repository. Thus, we can
+	// let it prune the ref references without causing any impact to other concurrent transactions.
+	var stderr bytes.Buffer
+	if err := transaction.snapshotRepository.ExecAndWait(ctx, git.Command{
+		Name:  "pack-refs",
+		Flags: []git.Option{git.Flag{Name: "--all"}},
+	}, git.WithStderr(&stderr)); err != nil {
+		return structerr.New("exec pack-refs: %w", err).WithMetadata("stderr", stderr.String())
+	}
+
+	// Copy the resulting packed-refs file to the WAL directory.
+	if err := os.Link(
+		filepath.Join(filepath.Join(repoPath, "packed-refs")),
+		filepath.Join(transaction.walFilesPath(), "packed-refs"),
+	); err != nil {
+		return fmt.Errorf("copying packed-refs file to WAL directory: %w", err)
+	}
+	if err := safe.NewSyncer().Sync(transaction.walFilesPath()); err != nil {
+		return fmt.Errorf("sync: %w", err)
+	}
+
+	// Second walk and compare with the initial list of loose references. Any disappeared refs are pruned.
+	for ref := range looseReferences {
+		_, err := os.Stat(filepath.Join(repoPath, ref.String()))
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				runPackRefs.PrunedRefs[ref] = struct{}{}
+			} else {
+				return fmt.Errorf("second walk refs directory: %w", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // unwrapExpectedError unwraps expected errors that may occur and returns them directly to the caller.
@@ -1181,9 +1353,27 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 		}
 
 		nextLSN := mgr.appendedLSN + 1
-		if transaction.packPrefix != "" {
-			logEntry.PackPrefix = transaction.packPrefix
+		var shouldStoreWALFiles bool
 
+		if transaction.packPrefix != "" {
+			shouldStoreWALFiles = true
+			logEntry.PackPrefix = transaction.packPrefix
+		}
+
+		if transaction.deleteRepository {
+			logEntry.RepositoryDeletion = &gitalypb.LogEntry_RepositoryDeletion{}
+		}
+
+		if transaction.runHousekeeping != nil {
+			shouldStoreWALFiles = true
+			housekeepingEntry, err := mgr.verifyHousekeeping(mgr.ctx, transaction)
+			if err != nil {
+				return fmt.Errorf("verifying pack refs: %w", err)
+			}
+			logEntry.Housekeeping = housekeepingEntry
+		}
+
+		if shouldStoreWALFiles {
 			removeFiles, err := mgr.storeWALFiles(mgr.ctx, nextLSN, transaction)
 			cleanUps = append(cleanUps, func() error {
 				// The transaction's files might have been moved successfully in to the log.
@@ -1201,10 +1391,6 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			if err != nil {
 				return fmt.Errorf("store wal files: %w", err)
 			}
-		}
-
-		if transaction.deleteRepository {
-			logEntry.RepositoryDeletion = &gitalypb.LogEntry_RepositoryDeletion{}
 		}
 
 		return mgr.appendLogEntry(nextLSN, logEntry)
@@ -1403,7 +1589,7 @@ func (mgr *TransactionManager) storeWALFiles(ctx context.Context, lsn LSN, trans
 	}
 
 	removeFiles = func() error {
-		if err := os.Remove(destinationPath); err != nil {
+		if err := os.RemoveAll(destinationPath); err != nil {
 			return fmt.Errorf("remove wal files: %w", err)
 		}
 
@@ -1613,6 +1799,95 @@ func (mgr *TransactionManager) verifyDefaultBranchUpdate(ctx context.Context, tr
 	return nil
 }
 
+// verifyHousekeeping verifies if all included housekeeping tasks can be performed. Although it's feasible for multiple
+// housekeeping tasks running at the same time, it's not guaranteed they are conflict-free. So, we need to ensure there
+// is no other concurrent housekeeping task. Each sub-task also needs specific verification.
+func (mgr *TransactionManager) verifyHousekeeping(ctx context.Context, transaction *Transaction) (*gitalypb.LogEntry_Housekeeping, error) {
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+
+	// Check for any concurrent housekeeping between this transaction's snapshot LSN and the latest appended LSN.
+	elm := mgr.committedEntries.Front()
+	for elm != nil {
+		entry := elm.Value.(*committedEntry)
+		if entry.lsn > transaction.snapshotLSN && entry.entry.RelativePath == transaction.relativePath {
+			if entry.entry.GetHousekeeping() != nil {
+				return nil, errHousekeepingConflictConcurrent
+			}
+			if entry.entry.GetRepositoryDeletion() != nil {
+				return nil, errConflictRepositoryDeletion
+			}
+		}
+		elm = elm.Next()
+	}
+
+	packRefsEntry, err := mgr.verifyPackRefs(mgr.ctx, transaction)
+	if err != nil {
+		return nil, fmt.Errorf("verifying pack refs: %w", err)
+	}
+
+	return &gitalypb.LogEntry_Housekeeping{
+		PackRefs: packRefsEntry,
+	}, nil
+}
+
+// verifyPackRefs verifies if the pack-refs housekeeping task can be logged. Ideally, we can just apply the packed-refs
+// file and prune the loose references. Unfortunately, there could be a ref modification between the time the pack-refs
+// command runs and the time this transaction is logged. Thus, we need to verify if the transaction conflicts with the
+// current state of the repository.
+//
+// There are three cases when a reference is modified:
+// - Reference creation: this is the easiest case. The new reference exists as a loose reference on disk and shadows the
+// one in the packed-ref.
+// - Reference update: similarly, the loose reference shadows the one in packed-refs with the new OID. However, we need
+// to remove it from the list of pruned references. Otherwise, the repository continues to use the old OID.
+// - Reference deletion. When a reference is deleted, both loose reference and the entry in the packed-refs file are
+// removed. The reflogs are also removed. In addition, we don't use reflogs in Gitaly as core.logAllRefUpdates defaults
+// to false in bare repositories. It could of course be that an admin manually enabled it by modifying the config
+// on-disk directly. There is no way to extract reference deletion between two states.
+//
+// In theory, if there is any reference deletion, it can be removed from the packed-refs file. However, it requires
+// parsing and regenerating the packed-refs file. So, let's settle down with a conflict error at this point.
+func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *Transaction) (*gitalypb.LogEntry_Housekeeping_PackRefs, error) {
+	if transaction.runHousekeeping.packRefs == nil {
+		return nil, nil
+	}
+
+	objectHash, err := transaction.stagingRepository.ObjectHash(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("object hash: %w", err)
+	}
+	packRefs := transaction.runHousekeeping.packRefs
+
+	// Check for any concurrent ref deletion between this transaction's snapshot LSN to the end.
+	elm := mgr.committedEntries.Front()
+	for elm != nil {
+		entry := elm.Value.(*committedEntry)
+		if entry.lsn > transaction.snapshotLSN && entry.entry.RelativePath == transaction.relativePath {
+			for _, refTransaction := range entry.entry.ReferenceTransactions {
+				for _, change := range refTransaction.Changes {
+					if objectHash.IsZeroOID(git.ObjectID(change.GetNewOid())) {
+						// Oops, there is a reference deletion. Bail out.
+						return nil, errPackRefsConflictRefDeletion
+					}
+					// Ref update. Remove the updated ref from the list of pruned refs so that the
+					// new OID in loose reference shadows the outdated OID in packed-refs.
+					delete(packRefs.PrunedRefs, git.ReferenceName(change.GetReferenceName()))
+				}
+			}
+		}
+		elm = elm.Next()
+	}
+
+	var prunedRefs [][]byte
+	for ref := range packRefs.PrunedRefs {
+		prunedRefs = append(prunedRefs, []byte(ref))
+	}
+	return &gitalypb.LogEntry_Housekeeping_PackRefs{
+		PrunedRefs: prunedRefs,
+	}, nil
+}
+
 // applyDefaultBranchUpdate applies the default branch update to the repository from the log entry.
 func (mgr *TransactionManager) applyDefaultBranchUpdate(ctx context.Context, logEntry *gitalypb.LogEntry) error {
 	if logEntry.DefaultBranchUpdate == nil {
@@ -1713,6 +1988,10 @@ func (mgr *TransactionManager) appendLogEntry(nextLSN LSN, logEntry *gitalypb.Lo
 	mgr.mutex.Lock()
 	mgr.appendedLSN = nextLSN
 	mgr.snapshotLocks[nextLSN] = &snapshotLock{applied: make(chan struct{})}
+	mgr.committedEntries.PushBack(&committedEntry{
+		lsn:   nextLSN,
+		entry: logEntry,
+	})
 	mgr.mutex.Unlock()
 
 	return nil
@@ -1766,6 +2045,10 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 
 		if err := mgr.applyCustomHooks(ctx, logEntry); err != nil {
 			return fmt.Errorf("apply custom hooks: %w", err)
+		}
+
+		if err := mgr.applyHousekeeping(ctx, lsn, logEntry); err != nil {
+			return fmt.Errorf("apply housekeeping: %w", err)
 		}
 	}
 
@@ -2086,6 +2369,104 @@ func (mgr *TransactionManager) applyCustomHooks(ctx context.Context, logEntry *g
 	return nil
 }
 
+// applyHousekeeping applies housekeeping results to the target repository.
+func (mgr *TransactionManager) applyHousekeeping(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
+	if logEntry.Housekeeping == nil {
+		return nil
+	}
+	repositoryPath := mgr.getAbsolutePath(logEntry.RelativePath)
+	if logEntry.Housekeeping.PackRefs != nil {
+		// Remove packed-refs lock. While we shouldn't be producing any new stale locks, it makes sense to have
+		// this for historic state until we're certain none of the repositories contain stale locks anymore.
+		// This clean up is not needed afterward.
+		if err := mgr.removePackedRefsLocks(ctx, repositoryPath); err != nil {
+			return fmt.Errorf("applying pack-refs: %w", err)
+		}
+
+		packedRefsPath := filepath.Join(repositoryPath, "packed-refs")
+		// Replace the packed-refs file.
+		if err := os.Remove(packedRefsPath); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("removing existing pack-refs: %w", err)
+			}
+		}
+		if err := os.Link(
+			filepath.Join(walFilesPathForLSN(mgr.stateDirectory, lsn), "packed-refs"),
+			packedRefsPath,
+		); err != nil {
+			return fmt.Errorf("linking new packed-refs: %w", err)
+		}
+
+		modifiedDirs := map[string]struct{}{}
+		// Prune loose references. The log entry carries the list of fully qualified references to prune.
+		for _, ref := range logEntry.Housekeeping.PackRefs.PrunedRefs {
+			path := filepath.Join(repositoryPath, string(ref))
+			if err := os.Remove(path); err != nil {
+				if !errors.Is(err, os.ErrNotExist) {
+					return structerr.New("pruning loose reference: %w", err).WithMetadata("ref", path)
+				}
+			}
+			modifiedDirs[filepath.Dir(path)] = struct{}{}
+		}
+
+		syncer := safe.NewSyncer()
+		// Traverse all modified dirs back to the root "refs" dir of the repository. Remove any empty directory
+		// along the way. It prevents leaving empty dirs around after a loose ref is pruned. `git-pack-refs`
+		// command does dir removal for us, but in staginge repository during preparation stage. In the actual
+		// repository,  we need to do it ourselves.
+		rootRefDir := filepath.Join(repositoryPath, "refs")
+		for dir := range modifiedDirs {
+			for dir != rootRefDir {
+				if isEmpty, err := isDirEmpty(dir); err != nil {
+					// If a dir does not exist, it properly means a directory may already be deleted by a
+					// previous interrupted attempt on applying the log entry. We simply ignore the error
+					// and move up the directory hierarchy.
+					if errors.Is(err, fs.ErrNotExist) {
+						dir = filepath.Dir(dir)
+						continue
+					} else {
+						return fmt.Errorf("checking empty ref dir: %w", err)
+					}
+				} else if !isEmpty {
+					break
+				}
+
+				if err := os.Remove(dir); err != nil {
+					return fmt.Errorf("removing empty ref dir: %w", err)
+				}
+				dir = filepath.Dir(dir)
+			}
+			// If there is any empty dir along the way, it's removed and dir pointer moves up until the dir
+			// is not empty or reaching the root dir. That one should be fsynced to flush the dir removal.
+			// If there is no empty dir, it stays at the dir of pruned refs, which also needs a flush.
+			if err := syncer.Sync(dir); err != nil {
+				return fmt.Errorf("sync dir: %w", err)
+			}
+		}
+
+		// Sync the root of the repository to flush packed-refs replacement.
+		if err := syncer.SyncParent(packedRefsPath); err != nil {
+			return fmt.Errorf("sync parent: %w", err)
+		}
+	}
+	return nil
+}
+
+// isDirEmpty checks if a directory is empty.
+func isDirEmpty(dir string) (bool, error) {
+	f, err := os.Open(dir)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	// Read at most one entry from the directory. If we get EOF, the directory is empty
+	if _, err = f.Readdirnames(1); errors.Is(err, io.EOF) {
+		return true, nil
+	}
+	return false, err
+}
+
 // deleteLogEntry deletes the log entry at the given LSN from the log.
 func (mgr *TransactionManager) deleteLogEntry(lsn LSN) error {
 	return mgr.deleteKey(keyLogEntry(mgr.partitionID, lsn))
@@ -2152,6 +2533,51 @@ func (mgr *TransactionManager) deleteKey(key []byte) error {
 
 		return nil
 	})
+}
+
+// updateCommittedEntry updates the reader counter of the committed entry of the snapshot that this transaction depends on.
+func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) (*committedEntry, error) {
+	// Since the goroutine doing this is holding the lock, the snapshotLSN shouldn't change and no new transactions
+	// can be committed or added. That should guarantee .Back() is always the latest transaction and the one we're
+	// using to base our snapshot on.
+	if elm := mgr.committedEntries.Back(); elm != nil {
+		entry := elm.Value.(*committedEntry)
+		entry.snapshotReaders++
+		return entry, nil
+	}
+
+	entry := &committedEntry{
+		lsn:             snapshotLSN,
+		snapshotReaders: 1,
+		// The log entry is left nil. This doesn't matter as the conflict checking only
+		// needs it when checking for conflicts with transactions committed after we took
+		// our snapshot.
+		//
+		// This `committedEntry` only exists to record the `snapshotReaders` at this LSN.
+	}
+
+	mgr.committedEntries.PushBack(entry)
+
+	return entry, nil
+}
+
+// cleanCommittedEntry reduces the snapshot readers counter of the committed entry. It also removes entries with no more
+// readers at the head of the list.
+func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) {
+	entry.snapshotReaders--
+
+	elm := mgr.committedEntries.Front()
+	for elm != nil {
+		front := elm.Value.(*committedEntry)
+		if front.snapshotReaders > 0 {
+			// If the first entry had still some snapshot readers, that means
+			// our transaction was not the oldest reader. We can't remove any entries
+			// as they'll still be needed for conlict checking the older transactions.
+			return
+		}
+		mgr.committedEntries.Remove(elm)
+		elm = mgr.committedEntries.Front()
+	}
 }
 
 // keyAppliedLSN returns the database key storing a partition's last applied log entry's LSN.
