@@ -55,8 +55,11 @@ func TestGetCommit(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			commit, err := GetCommit(ctx, objectReader, git.Revision(tc.revision))
-			require.Equal(t, tc.expectedErr, err)
-			testhelper.ProtoEqual(t, tc.expectedCommit, commit)
+			if tc.expectedErr != nil || err != nil {
+				require.Equal(t, tc.expectedErr, err)
+			} else {
+				testhelper.ProtoEqual(t, tc.expectedCommit, commit.GitCommit)
+			}
 		})
 	}
 }
