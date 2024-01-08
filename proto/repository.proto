@@ -381,11 +381,13 @@ service RepositoryService {
   }
 
   // RemoveAll deletes all repositories on a specified storage.
+  // Deprecated in favour of individually removing repositories with RemoveRepository.
   rpc RemoveAll(RemoveAllRequest) returns (RemoveAllResponse) {
     option (op_type) = {
       op: MUTATOR
       scope_level: STORAGE
     };
+    option deprecated = true;
   }
 
   // BackupRepository creates a full or incremental backup streamed directly to
