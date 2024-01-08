@@ -96,6 +96,7 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 	_, err = client.RepositorySize(ctx, &gitalypb.RepositorySizeRequest{Repository: &gitalypb.Repository{}})
 	testhelper.RequireGrpcError(t, errServedByGitaly, err)
 
+	//nolint:staticcheck
 	resp, err := client.RemoveAll(ctx, &gitalypb.RemoveAllRequest{StorageName: virtualStorage})
 	require.NoError(t, err)
 

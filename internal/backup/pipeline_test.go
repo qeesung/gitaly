@@ -98,7 +98,8 @@ func TestPipeline(t *testing.T) {
 					p.Handle(ctx, NewCreateCommand(strategy, CreateRequest{Repository: &gitalypb.Repository{StorageName: "storage1"}}))
 					p.Handle(ctx, NewCreateCommand(strategy, CreateRequest{Repository: &gitalypb.Repository{StorageName: "storage2"}}))
 				}
-				require.NoError(t, p.Done())
+				_, err = p.Done()
+				require.NoError(t, err)
 			})
 		}
 	})
@@ -115,14 +116,16 @@ func TestPipeline(t *testing.T) {
 
 		p.Handle(ctx, NewCreateCommand(strategy, CreateRequest{Repository: &gitalypb.Repository{StorageName: "default"}}))
 
-		require.EqualError(t, p.Done(), "pipeline: context canceled")
+		_, err = p.Done()
+		require.EqualError(t, err, "pipeline: context canceled")
 	})
 }
 
 type MockStrategy struct {
-	CreateFunc                func(context.Context, *CreateRequest) error
-	RestoreFunc               func(context.Context, *RestoreRequest) error
-	RemoveAllRepositoriesFunc func(context.Context, *RemoveAllRepositoriesRequest) error
+	CreateFunc           func(context.Context, *CreateRequest) error
+	RestoreFunc          func(context.Context, *RestoreRequest) error
+	RemoveRepositoryFunc func(context.Context, *RemoveRepositoryRequest) error
+	ListRepositoriesFunc func(context.Context, *ListRepositoriesRequest) ([]*gitalypb.Repository, error)
 }
 
 func (s MockStrategy) Create(ctx context.Context, req *CreateRequest) error {
@@ -139,11 +142,18 @@ func (s MockStrategy) Restore(ctx context.Context, req *RestoreRequest) error {
 	return nil
 }
 
-func (s MockStrategy) RemoveAllRepositories(ctx context.Context, req *RemoveAllRepositoriesRequest) error {
-	if s.RemoveAllRepositoriesFunc != nil {
-		return s.RemoveAllRepositoriesFunc(ctx, req)
+func (s MockStrategy) RemoveRepository(ctx context.Context, req *RemoveRepositoryRequest) error {
+	if s.RemoveRepositoryFunc != nil {
+		return s.RemoveRepositoryFunc(ctx, req)
 	}
 	return nil
+}
+
+func (s MockStrategy) ListRepositories(ctx context.Context, req *ListRepositoriesRequest) ([]*gitalypb.Repository, error) {
+	if s.ListRepositoriesFunc != nil {
+		return s.ListRepositoriesFunc(ctx, req)
+	}
+	return nil, nil
 }
 
 func testPipeline(t *testing.T, init func() *Pipeline) {
@@ -222,7 +232,7 @@ func testPipeline(t *testing.T, init func() *Pipeline) {
 				require.Equal(t, tc.level, logEntry.Level)
 			}
 
-			err := p.Done()
+			_, err := p.Done()
 
 			if tc.level == logrus.ErrorLevel {
 				require.EqualError(t, err, "pipeline: 1 failures encountered:\n - c.git: assert.AnError general error for testing\n")
@@ -258,7 +268,7 @@ func testPipeline(t *testing.T, init func() *Pipeline) {
 		for _, cmd := range commands {
 			p.Handle(ctx, cmd)
 		}
-		err := p.Done()
+		_, err := p.Done()
 		require.EqualError(t, err, "pipeline: 1 failures encountered:\n - c.git: assert.AnError general error for testing\n")
 	})
 }
@@ -308,4 +318,35 @@ func TestPipelineError(t *testing.T) {
 			require.EqualError(t, err, tc.expectedError)
 		})
 	}
+}
+
+func TestPipelineProcessedRepos(t *testing.T) {
+	strategy := MockStrategy{}
+
+	repos := map[string]map[*gitalypb.Repository]struct{}{
+		"storage1": {
+			&gitalypb.Repository{RelativePath: "a.git", StorageName: "storage1"}: struct{}{},
+			&gitalypb.Repository{RelativePath: "b.git", StorageName: "storage1"}: struct{}{},
+		},
+		"storage2": {
+			&gitalypb.Repository{RelativePath: "c.git", StorageName: "storage2"}: struct{}{},
+		},
+		"storage3": {
+			&gitalypb.Repository{RelativePath: "d.git", StorageName: "storage3"}: struct{}{},
+		},
+	}
+
+	p, err := NewPipeline(testhelper.SharedLogger(t))
+	require.NoError(t, err)
+
+	ctx := testhelper.Context(t)
+	for _, v := range repos {
+		for repo := range v {
+			p.Handle(ctx, NewRestoreCommand(strategy, RestoreRequest{Repository: repo}))
+		}
+	}
+
+	processedRepos, err := p.Done()
+	require.NoError(t, err)
+	require.EqualValues(t, repos, processedRepos)
 }

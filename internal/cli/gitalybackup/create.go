@@ -174,7 +174,7 @@ func (cmd *createSubcommand) run(ctx context.Context, logger log.Logger, stdin i
 		}))
 	}
 
-	if err := pipeline.Done(); err != nil {
+	if _, err := pipeline.Done(); err != nil {
 		return fmt.Errorf("create: %w", err)
 	}
 	return nil
