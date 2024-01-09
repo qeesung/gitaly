@@ -28,7 +28,6 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 	require.DirExists(t, repo1Path)
 	require.DirExists(t, repo1Path)
 
-	//nolint:staticcheck
 	_, err := client.RemoveAll(ctx, &gitalypb.RemoveAllRequest{
 		StorageName: cfg.Storages[0].Name,
 	})
