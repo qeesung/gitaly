@@ -391,7 +391,7 @@ message CountCommitsRequest {
   GlobalOptions global_options = 9;
 }
 
-// CountCommitsResponse is the response for the CountCommits RPC. 
+// CountCommitsResponse is the response for the CountCommits RPC.
 message CountCommitsResponse {
   // count denotes the number of commits found as per the given filters.
   int32 count = 1;
@@ -681,6 +681,20 @@ message FindCommitsRequest {
 message FindCommitsResponse {
   // commits is a list of commits produced as per the request.
   repeated GitCommit commits = 1;
+}
+
+// FindCommitsError is an error returned by the FindCommits RPC when no commit is found.
+message FindCommitsError {
+
+  // error denotes the type of error encountered.
+  oneof error {
+    // bad_object is returned when the revision cannot be found in the git repository.
+    BadObjectError bad_object = 1;
+    // ambiguous_ref is returned when the given revision cannot be found.
+    AmbiguousReferenceError ambiguous_ref = 2;
+    // invalid_range is returned when the provided revision-range cannot be found in the git repository.
+    InvalidRevisionRange invalid_range = 3;
+  }
 }
 
 // CommitLanguagesRequest requests to detect the source code languages.
