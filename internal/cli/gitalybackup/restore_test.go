@@ -75,6 +75,12 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 		}))
 	}
 
+	require.NoError(t, encoder.Encode(map[string]string{
+		"address":       "invalid",
+		"token":         "invalid",
+		"relative_path": "invalid",
+	}))
+
 	ctx = testhelper.MergeIncomingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 
 	args := []string{
@@ -97,7 +103,9 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 
 	require.DirExists(t, existRepoPath)
 
-	require.NoError(t, cmd.RunContext(ctx, args))
+	require.EqualError(t,
+		cmd.RunContext(ctx, args),
+		"restore: pipeline: 1 failures encountered:\n - invalid: manager: could not dial source: invalid connection string: \"invalid\"\n")
 
 	require.NoDirExists(t, existRepoPath)
 
@@ -171,6 +179,12 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 		}))
 	}
 
+	require.NoError(t, encoder.Encode(map[string]string{
+		"address":       "invalid",
+		"token":         "invalid",
+		"relative_path": "invalid",
+	}))
+
 	ctx = testhelper.MergeIncomingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 
 	args := []string{
@@ -193,7 +207,9 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 
 	require.DirExists(t, existRepoPath)
 
-	require.NoError(t, cmd.RunContext(ctx, args))
+	require.EqualError(t,
+		cmd.RunContext(ctx, args),
+		"restore: pipeline: 1 failures encountered:\n - invalid: server-side restore: could not dial source: invalid connection string: \"invalid\"\n")
 
 	require.NoDirExists(t, existRepoPath)
 

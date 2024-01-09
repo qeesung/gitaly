@@ -135,18 +135,15 @@ func (cmd *restoreSubcommand) run(ctx context.Context, logger log.Logger, stdin 
 		manager = backup.NewManager(sink, locator, pool)
 	}
 
-	// Get the set of existing repositories keyed by storage. We'll later use this to determine any
-	// dangling repos that should be removed.
-	existingRepos := make(map[string][]*gitalypb.Repository)
 	for _, storageName := range cmd.removeAllRepositories {
-		repos, err := manager.ListRepositories(ctx, &backup.ListRepositoriesRequest{
+		err := manager.RemoveAllRepositories(ctx, &backup.RemoveAllRepositoriesRequest{
 			StorageName: storageName,
 		})
 		if err != nil {
-			logger.WithError(err).WithField("storage_name", storageName).Warn("failed to list repositories")
+			// Treat RemoveAll failures as soft failures until we can determine
+			// how often it fails.
+			logger.WithError(err).WithField("storage_name", storageName).Warn("failed to remove all repositories")
 		}
-
-		existingRepos[storageName] = repos
 	}
 
 	var opts []backup.PipelineOption
@@ -181,29 +178,8 @@ func (cmd *restoreSubcommand) run(ctx context.Context, logger log.Logger, stdin 
 		}))
 	}
 
-	restoredRepos, err := pipeline.Done()
-	if err != nil {
+	if err := pipeline.Done(); err != nil {
 		return fmt.Errorf("restore: %w", err)
 	}
-
-	var removalErrors []error
-	for storageName, repos := range existingRepos {
-		for _, repo := range repos {
-			if dangling := restoredRepos[storageName][repo]; dangling == struct{}{} {
-				// If we have dangling repos (those which exist in the storage but
-				// weren't part of the restore), they need to be deleted so the
-				// state of repos in Gitaly matches that in the Rails DB.
-				if err := manager.RemoveRepository(ctx, &backup.RemoveRepositoryRequest{Repo: repo}); err != nil {
-					removalErrors = append(removalErrors, fmt.Errorf("storage_name %q relative_path %q: %w", storageName, repo.RelativePath, err))
-				}
-			}
-		}
-	}
-
-	if len(removalErrors) > 0 {
-		return fmt.Errorf("remove dangling repositories: %d failures encountered: %w",
-			len(removalErrors), errors.Join(removalErrors...))
-	}
-
 	return nil
 }
