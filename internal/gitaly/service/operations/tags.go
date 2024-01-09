@@ -111,6 +111,21 @@ func (s *Server) UserDeleteTag(ctx context.Context, req *gitalypb.UserDeleteTagR
 			}
 		}
 
+		var customHookErr updateref.CustomHookError
+		if errors.As(err, &customHookErr) {
+			return nil, structerr.NewPermissionDenied("deletion denied by custom hooks: %w", err).WithDetail(
+				&gitalypb.UserDeleteTagError{
+					Error: &gitalypb.UserDeleteTagError_CustomHook{
+						CustomHook: customHookErr.Proto(),
+					},
+				},
+			)
+		}
+
+		var updateRefError updateref.Error
+		if errors.As(err, &updateRefError) {
+			return nil, structerr.NewFailedPrecondition("%w", err)
+		}
 		return nil, structerr.NewInternal("%w", err)
 	}
 
