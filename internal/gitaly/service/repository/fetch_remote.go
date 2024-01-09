@@ -4,19 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/txinfo"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/voting"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
@@ -31,13 +26,7 @@ func (s *server) FetchRemote(ctx context.Context, req *gitalypb.FetchRemoteReque
 		defer cancel()
 	}
 
-	var tagsChanged bool
-	var err error
-	if featureflag.AtomicFetchRemote.IsEnabled(ctx) {
-		tagsChanged, err = s.fetchRemoteAtomic(ctx, req)
-	} else {
-		tagsChanged, err = s.fetchRemote(ctx, req)
-	}
+	tagsChanged, err := s.fetchRemoteAtomic(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -228,82 +217,6 @@ func (s *server) fetchRemoteAtomic(ctx context.Context, req *gitalypb.FetchRemot
 	return true, nil
 }
 
-func (s *server) fetchRemote(ctx context.Context, req *gitalypb.FetchRemoteRequest) (bool, error) {
-	var stderr bytes.Buffer
-	opts := localrepo.FetchOpts{
-		Stderr:              &stderr,
-		Force:               req.Force,
-		Prune:               !req.NoPrune,
-		Tags:                localrepo.FetchOptsTagsAll,
-		Verbose:             req.GetCheckTagsChanged(),
-		DisableTransactions: true,
-	}
-
-	if req.GetNoTags() {
-		opts.Tags = localrepo.FetchOptsTagsNone
-	}
-
-	if err := buildCommandOpts(&opts, req); err != nil {
-		return false, err
-	}
-
-	sshCommand, cleanup, err := git.BuildSSHInvocation(ctx, s.logger, req.GetSshKey(), req.GetKnownHosts())
-	if err != nil {
-		return false, err
-	}
-	defer cleanup()
-
-	opts.Env = append(opts.Env, "GIT_SSH_COMMAND="+sshCommand)
-
-	repo := s.localrepo(req.GetRepository())
-	remoteName := "inmemory"
-
-	if err := repo.FetchRemote(ctx, remoteName, opts); err != nil {
-		errMsg := stderr.String()
-		if errMsg != "" {
-			return false, structerr.NewInternal("fetch remote: %q: %w", errMsg, err)
-		}
-
-		return false, structerr.NewInternal("fetch remote: %w", err)
-	}
-
-	// Ideally, we'd do the voting process via git-fetch(1) using the reference-transaction
-	// hook. But by default this would lead to one hook invocation per updated ref, which is
-	// infeasible performance-wise. While this could be fixed via the `--atomic` flag, that's
-	// not a solution either: we rely on the fact that refs get updated even if a subset of refs
-	// diverged, and with atomic transactions it would instead be an all-or-nothing operation.
-	//
-	// Instead, we do the second-best thing, which is to vote on the resulting references. This
-	// is of course racy and may conflict with other mutators, causing the vote to fail. But it
-	// is arguably preferable to accept races in favour always replicating. If loosing the race,
-	// we'd fail this RPC and schedule a replication job afterwards.
-	if err := transaction.RunOnContext(ctx, func(tx txinfo.Transaction) error {
-		hash := voting.NewVoteHash()
-
-		if err := repo.ExecAndWait(ctx, git.Command{
-			Name: "for-each-ref",
-		}, git.WithStdout(hash)); err != nil {
-			return fmt.Errorf("cannot compute references vote: %w", err)
-		}
-
-		vote, err := hash.Vote()
-		if err != nil {
-			return err
-		}
-
-		return s.txManager.Vote(ctx, tx, vote, voting.UnknownPhase)
-	}); err != nil {
-		return false, structerr.NewAborted("failed vote on refs: %w", err)
-	}
-
-	tagsChanged := true
-	if req.GetCheckTagsChanged() {
-		tagsChanged = didTagsChange(&stderr)
-	}
-
-	return tagsChanged, nil
-}
-
 func buildCommandOpts(opts *localrepo.FetchOpts, req *gitalypb.FetchRemoteRequest) error {
 	remoteURL := req.GetRemoteParams().GetUrl()
 	var config []git.ConfigPair
@@ -336,23 +249,6 @@ func buildCommandOpts(opts *localrepo.FetchOpts, req *gitalypb.FetchRemoteReques
 	opts.CommandOptions = append(opts.CommandOptions, git.WithConfigEnv(config...))
 
 	return nil
-}
-
-func didTagsChange(r io.Reader) bool {
-	scanner := git.NewFetchScanner(r)
-	for scanner.Scan() {
-		status := scanner.StatusLine()
-
-		// We can't detect if tags have been deleted, but we never call fetch
-		// with --prune-tags at the moment, so it should never happen.
-		if status.IsTagAdded() || status.IsTagUpdated() {
-			return true
-		}
-	}
-
-	// If the scanner fails for some reason, we don't know if tags changed, so
-	// assume they did for safety reasons.
-	return scanner.Err() != nil
 }
 
 func (s *server) validateFetchRemoteRequest(req *gitalypb.FetchRemoteRequest) error {
