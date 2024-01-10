@@ -11,4 +11,6 @@ func main() {
 	if err := cli.NewApp().Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
+
+	// adding a comment
 }
