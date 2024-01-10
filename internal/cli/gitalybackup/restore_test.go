@@ -26,13 +26,6 @@ import (
 func TestRestoreSubcommand(t *testing.T) {
 	gittest.SkipWithSHA256(t)
 
-	testhelper.SkipWithWAL(t, `
-RemoveAll is removing the entire content of the storage. This would also remove the database's and
-the transaction manager's disk state. The RPC needs to be updated to shut down all partitions and
-the database and only then perform the removal.
-
-Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
-
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
@@ -121,13 +114,6 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 
 func TestRestoreSubcommand_serverSide(t *testing.T) {
 	gittest.SkipWithSHA256(t)
-
-	testhelper.SkipWithWAL(t, `
-RemoveAll is removing the entire content of the storage. This would also remove the database's and
-the transaction manager's disk state. The RPC needs to be updated to shut down all partitions and
-the database and only then perform the removal.
-
-Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5269`)
 
 	ctx := testhelper.Context(t)
 
