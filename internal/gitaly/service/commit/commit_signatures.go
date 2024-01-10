@@ -1,7 +1,6 @@
 package commit
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -47,6 +46,7 @@ func (s *server) GetCommitSignatures(request *gitalypb.GetCommitSignaturesReques
 		}
 	}
 
+	parser := catfile.NewParser()
 	for _, commitID := range request.CommitIds {
 		commitObj, err := objectReader.Object(ctx, git.Revision(commitID)+"^{commit}")
 		if err != nil {
@@ -56,73 +56,31 @@ func (s *server) GetCommitSignatures(request *gitalypb.GetCommitSignaturesReques
 			return structerr.NewInternal("%w", err)
 		}
 
-		signatureKey, commitText, err := extractSignature(commitObj)
+		commit, err := parser.ParseCommit(commitObj)
 		if err != nil {
 			return structerr.NewInternal("%w", err)
 		}
 
+		signature := []byte{}
+		if len(commit.SignatureData.Signatures) > 0 {
+			// While there could be potentially multiple signatures in a Git
+			// commit, like Git, we only consider the first.
+			signature = commit.SignatureData.Signatures[0]
+		}
+
 		signer := gitalypb.GetCommitSignaturesResponse_SIGNER_USER
 		if signingKeys != nil {
-			if err := signingKeys.Verify(signatureKey, commitText); err == nil {
+			if err := signingKeys.Verify(signature, commit.SignatureData.Payload); err == nil {
 				signer = gitalypb.GetCommitSignaturesResponse_SIGNER_SYSTEM
 			}
 		}
 
-		if err = sendResponse(commitID, signatureKey, commitText, signer, stream); err != nil {
+		if err = sendResponse(commitID, signature, commit.SignatureData.Payload, signer, stream); err != nil {
 			return structerr.NewInternal("%w", err)
 		}
 	}
 
 	return nil
-}
-
-func extractSignature(reader io.Reader) ([]byte, []byte, error) {
-	commitText := []byte{}
-	signatureKey := []byte{}
-	sawSignature := false
-	inSignature := false
-	lineBreak := []byte("\n")
-	whiteSpace := []byte(" ")
-	bufferedReader := bufio.NewReader(reader)
-
-	for {
-		line, err := bufferedReader.ReadBytes('\n')
-
-		if errors.Is(err, io.EOF) {
-			commitText = append(commitText, line...)
-			break
-		}
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if !sawSignature && !inSignature {
-			for _, signatureField := range [][]byte{[]byte("gpgsig "), []byte("gpgsig-sha256 ")} {
-				if !bytes.HasPrefix(line, signatureField) {
-					continue
-				}
-
-				sawSignature, inSignature = true, true
-				line = bytes.TrimPrefix(line, signatureField)
-				break
-			}
-		}
-
-		if inSignature && !bytes.Equal(line, lineBreak) {
-			line = bytes.TrimPrefix(line, whiteSpace)
-			signatureKey = append(signatureKey, line...)
-		} else if inSignature {
-			inSignature = false
-			commitText = append(commitText, line...)
-		} else {
-			commitText = append(commitText, line...)
-		}
-	}
-
-	// Remove last line break from signature
-	signatureKey = bytes.TrimSuffix(signatureKey, lineBreak)
-
-	return signatureKey, commitText, nil
 }
 
 func sendResponse(

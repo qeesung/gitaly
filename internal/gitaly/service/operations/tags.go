@@ -331,7 +331,7 @@ func (s *Server) createTag(
 		if err != nil {
 			return nil, "", structerr.NewInternal("getting commit: %w", err)
 		}
-		tagObject.TargetCommit = peeledTargetCommit
+		tagObject.TargetCommit = peeledTargetCommit.GitCommit
 	}
 
 	return tagObject, refObjectID, nil
