@@ -1,5 +1,11 @@
 # Gitaly changelog
 
+## 16.6.4 (2024-01-10)
+
+### Security (1 change)
+
+- [commit: Fix bug in commit signature parsing](gitlab-org/security/gitaly@615b117d20f45b8dd2b91a8a1f01e12dc966f193) ([merge request](gitlab-org/security/gitaly!91))
+
 ## 16.6.3 (2023-12-23)
 
 No changes.
