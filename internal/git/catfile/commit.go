@@ -14,7 +14,7 @@ import (
 )
 
 // GetCommit looks up a commit by revision using an existing Batch instance.
-func GetCommit(ctx context.Context, objectReader ObjectContentReader, revision git.Revision) (*gitalypb.GitCommit, error) {
+func GetCommit(ctx context.Context, objectReader ObjectContentReader, revision git.Revision) (*Commit, error) {
 	object, err := objectReader.Object(ctx, revision+"^{commit}")
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func GetCommitWithTrailers(
 		}
 	}
 
-	return commit, nil
+	return commit.GitCommit, nil
 }
 
 // GetCommitMessage looks up a commit message and returns it in its entirety.

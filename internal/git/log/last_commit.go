@@ -21,7 +21,7 @@ func LastCommitForPath(
 	revision git.Revision,
 	path string,
 	options *gitalypb.GlobalOptions,
-) (*gitalypb.GitCommit, error) {
+) (*catfile.Commit, error) {
 	var stdout strings.Builder
 	cmd, err := gitCmdFactory.New(ctx, repo, git.Command{
 		Name:        "log",
