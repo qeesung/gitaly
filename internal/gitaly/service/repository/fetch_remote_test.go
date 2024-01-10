@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -51,11 +49,8 @@ manually using update-ref with the fetch being just a dry-run.
 Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/3780`)
 
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.AtomicFetchRemote).Run(t, testFetchRemote)
-}
 
-func testFetchRemote(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	// Some of the tests require multiple calls to the clients each run struct
 	// encompasses the expected data for a single run
@@ -263,13 +258,10 @@ func testFetchRemote(t *testing.T, ctx context.Context) {
 							expectedRefs: map[string]git.ObjectID{
 								"refs/heads/branch/conflict": commitID,
 							},
-							expectedErr: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								testhelper.WithInterceptedMetadataItems(
-									structerr.NewInternal("preparing reference update: file directory conflict"),
-									structerr.MetadataItem{Key: "conflicting_reference", Value: "refs/heads/branch"},
-									structerr.MetadataItem{Key: "existing_reference", Value: "refs/heads/branch/conflict"},
-								),
-								structerr.NewInternal(`fetch remote: "error: cannot lock ref 'refs/heads/branch': 'refs/heads/branch/conflict' exists; cannot create 'refs/heads/branch'\nerror: some local refs could not be updated; try running\n 'git remote prune inmemory' to remove any old, conflicting branches\n": exit status 1`),
+							expectedErr: testhelper.WithInterceptedMetadataItems(
+								structerr.NewInternal("preparing reference update: file directory conflict"),
+								structerr.MetadataItem{Key: "conflicting_reference", Value: "refs/heads/branch"},
+								structerr.MetadataItem{Key: "existing_reference", Value: "refs/heads/branch/conflict"},
 							),
 						},
 					},
@@ -328,13 +320,10 @@ func testFetchRemote(t *testing.T, ctx context.Context) {
 							expectedRefs: map[string]git.ObjectID{
 								"refs/heads/branch": commitID,
 							},
-							expectedErr: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								testhelper.WithInterceptedMetadataItems(
-									structerr.NewInternal("preparing reference update: file directory conflict"),
-									structerr.MetadataItem{Key: "conflicting_reference", Value: "refs/heads/branch/conflict"},
-									structerr.MetadataItem{Key: "existing_reference", Value: "refs/heads/branch"},
-								),
-								structerr.NewInternal(`fetch remote: "error: cannot lock ref 'refs/heads/branch/conflict': 'refs/heads/branch' exists; cannot create 'refs/heads/branch/conflict'\nerror: some local refs could not be updated; try running\n 'git remote prune inmemory' to remove any old, conflicting branches\n": exit status 1`),
+							expectedErr: testhelper.WithInterceptedMetadataItems(
+								structerr.NewInternal("preparing reference update: file directory conflict"),
+								structerr.MetadataItem{Key: "conflicting_reference", Value: "refs/heads/branch/conflict"},
+								structerr.MetadataItem{Key: "existing_reference", Value: "refs/heads/branch"},
 							),
 						},
 					},
@@ -487,15 +476,9 @@ func testFetchRemote(t *testing.T, ctx context.Context) {
 					},
 					runs: []run{
 						{
-							expectedRefs: map[string]git.ObjectID{"refs/heads/master": commitID},
-							expectedResponse: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								&gitalypb.FetchRemoteResponse{TagsChanged: true},
-								nil,
-							),
-							expectedErr: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								nil,
-								error(structerr.NewInternal("fetch remote: exit status 1")),
-							),
+							expectedRefs:     map[string]git.ObjectID{"refs/heads/master": commitID},
+							expectedResponse: &gitalypb.FetchRemoteResponse{TagsChanged: true},
+							expectedErr:      nil,
 						},
 					},
 				}
@@ -558,14 +541,8 @@ func testFetchRemote(t *testing.T, ctx context.Context) {
 								"refs/heads/master": remoteCommitID,
 								"refs/tags/v1":      commitID,
 							},
-							expectedResponse: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								&gitalypb.FetchRemoteResponse{TagsChanged: true},
-								nil,
-							),
-							expectedErr: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								nil,
-								error(structerr.NewInternal("fetch remote: exit status 1")),
-							),
+							expectedResponse: &gitalypb.FetchRemoteResponse{TagsChanged: true},
+							expectedErr:      nil,
 						},
 					},
 				}
@@ -677,14 +654,8 @@ func testFetchRemote(t *testing.T, ctx context.Context) {
 								"refs/heads/main":   localDivergingID,
 								"refs/heads/branch": remoteUpdatedID,
 							},
-							expectedResponse: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								&gitalypb.FetchRemoteResponse{TagsChanged: true},
-								nil,
-							),
-							expectedErr: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								nil,
-								error(structerr.NewInternal("fetch remote: exit status 1")),
-							),
+							expectedResponse: &gitalypb.FetchRemoteResponse{TagsChanged: true},
+							expectedErr:      nil,
 						},
 					},
 				}
@@ -721,14 +692,8 @@ func testFetchRemote(t *testing.T, ctx context.Context) {
 								"refs/heads/main":  localDivergingID,
 								"refs/tags/v1.0.0": remoteTagID,
 							},
-							expectedResponse: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								&gitalypb.FetchRemoteResponse{TagsChanged: true},
-								nil,
-							),
-							expectedErr: testhelper.EnabledOrDisabledFlag(ctx, featureflag.AtomicFetchRemote,
-								nil,
-								error(structerr.NewInternal("fetch remote: exit status 1")),
-							),
+							expectedResponse: &gitalypb.FetchRemoteResponse{TagsChanged: true},
+							expectedErr:      nil,
 						},
 					},
 				}
@@ -986,12 +951,8 @@ func testFetchRemote(t *testing.T, ctx context.Context) {
 
 func TestFetchRemote_sshCommand(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.AtomicFetchRemote).Run(t, testFetchRemoteSSHCommand)
-}
 
-func testFetchRemoteSSHCommand(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
 	outputPath := filepath.Join(testhelper.TempDir(t), "output")
@@ -1070,11 +1031,8 @@ func testFetchRemoteSSHCommand(t *testing.T, ctx context.Context) {
 
 func TestFetchRemote_transaction(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.AtomicFetchRemote).Run(t, testFetchRemoteTransaction)
-}
 
-func testFetchRemoteTransaction(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	remoteCfg := testcfg.Build(t)
 	_, remoteRepoPath := gittest.CreateRepository(t, ctx, remoteCfg, gittest.CreateRepositoryConfig{
@@ -1107,11 +1065,7 @@ func testFetchRemoteTransaction(t *testing.T, ctx context.Context) {
 	})
 	require.NoError(t, err)
 
-	if featureflag.AtomicFetchRemote.IsEnabled(ctx) {
-		require.Equal(t, testhelper.GitalyOrPraefect(2, 4), len(txManager.Votes()))
-	} else {
-		require.Equal(t, testhelper.GitalyOrPraefect(1, 3), len(txManager.Votes()))
-	}
+	require.Equal(t, testhelper.GitalyOrPraefect(2, 4), len(txManager.Votes()))
 }
 
 func TestFetchRemote_pooledRepository(t *testing.T) {
@@ -1119,11 +1073,8 @@ func TestFetchRemote_pooledRepository(t *testing.T) {
 Object pools are not yet supported with transaction management.`)
 
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.AtomicFetchRemote).Run(t, testFetchRemotePooledRepository)
-}
 
-func testFetchRemotePooledRepository(t *testing.T, ctx context.Context) {
-	t.Parallel()
+	ctx := testhelper.Context(t)
 
 	// By default git-fetch(1) will always run with `core.alternateRefsCommand=exit 0 #`, which
 	// effectively disables use of alternate refs. We can't just unset this value, so instead we
