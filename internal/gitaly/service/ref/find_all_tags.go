@@ -100,10 +100,11 @@ func (s *server) findAllTags(ctx context.Context, repo *localrepo.Repo, sortFiel
 			// which refers to a commit object. Otherwise, we discard the object's
 			// contents.
 			if peeledTag.ObjectType() == "commit" {
-				result.TargetCommit, err = parser.ParseCommit(peeledTag)
+				commit, err := parser.ParseCommit(peeledTag)
 				if err != nil {
 					return fmt.Errorf("parsing tagged commit: %w", err)
 				}
+				result.TargetCommit = commit.GitCommit
 			} else {
 				if _, err := io.Copy(io.Discard, peeledTag); err != nil {
 					return fmt.Errorf("discarding tagged object contents: %w", err)
@@ -117,7 +118,7 @@ func (s *server) findAllTags(ctx context.Context, repo *localrepo.Repo, sortFiel
 
 			result = &gitalypb.Tag{
 				Id:           tag.ObjectID().String(),
-				TargetCommit: commit,
+				TargetCommit: commit.GitCommit,
 			}
 		default:
 			if _, err := io.Copy(io.Discard, tag); err != nil {
