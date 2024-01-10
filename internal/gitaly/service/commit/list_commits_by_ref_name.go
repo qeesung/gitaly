@@ -37,7 +37,7 @@ func (s *server) ListCommitsByRefName(in *gitalypb.ListCommitsByRefNameRequest, 
 		}
 
 		commitByRef := &gitalypb.ListCommitsByRefNameResponse_CommitForRef{
-			Commit: commit, RefName: refName,
+			Commit: commit.GitCommit, RefName: refName,
 		}
 
 		if err := sender.Send(commitByRef); err != nil {

@@ -55,7 +55,7 @@ func (parser *Parser) Parse(ctx context.Context) bool {
 		return false
 	}
 
-	parser.currentCommit = commit
+	parser.currentCommit = commit.GitCommit
 	return true
 }
 
