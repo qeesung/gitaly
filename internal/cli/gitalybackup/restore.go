@@ -189,7 +189,7 @@ func (cmd *restoreSubcommand) run(ctx context.Context, logger log.Logger, stdin 
 	var removalErrors []error
 	for storageName, repos := range existingRepos {
 		for _, repo := range repos {
-			if dangling := restoredRepos[storageName][repo]; dangling == struct{}{} {
+			if _, ok := restoredRepos[storageName][backup.NewRepositoryKey(repo)]; !ok {
 				// If we have dangling repos (those which exist in the storage but
 				// weren't part of the restore), they need to be deleted so the
 				// state of repos in Gitaly matches that in the Rails DB.
