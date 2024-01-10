@@ -61,15 +61,17 @@ func buildAnnotatedTag(ctx context.Context, objectReader ObjectContentReader, ob
 
 	switch tagged.objectType {
 	case "commit":
-		tag.TargetCommit, err = GetCommit(ctx, objectReader, git.Revision(tagged.objectID))
+		commit, err := GetCommit(ctx, objectReader, git.Revision(tagged.objectID))
 		if err != nil {
 			return nil, fmt.Errorf("buildAnnotatedTag error when getting target commit: %w", err)
 		}
+		tag.TargetCommit = commit.GitCommit
 
 	case "tag":
-		tag.TargetCommit, err = dereferenceTag(ctx, objectReader, git.Revision(tagged.objectID))
-		if err != nil {
+		if commit, err := dereferenceTag(ctx, objectReader, git.Revision(tagged.objectID)); err != nil {
 			return nil, fmt.Errorf("buildAnnotatedTag error when dereferencing tag: %w", err)
+		} else if commit != nil {
+			tag.TargetCommit = commit.GitCommit
 		}
 	}
 
@@ -79,7 +81,7 @@ func buildAnnotatedTag(ctx context.Context, objectReader ObjectContentReader, ob
 // dereferenceTag recursively dereferences annotated tags until it finds a non-tag object. If it is
 // a commit, then it will parse and return this commit. Otherwise, if the tagged object is not a
 // commit, it will simply discard the object and not return an error.
-func dereferenceTag(ctx context.Context, objectReader ObjectContentReader, oid git.Revision) (*gitalypb.GitCommit, error) {
+func dereferenceTag(ctx context.Context, objectReader ObjectContentReader, oid git.Revision) (*Commit, error) {
 	object, err := objectReader.Object(ctx, oid+"^{}")
 	if err != nil {
 		return nil, fmt.Errorf("peeling tag: %w", err)

@@ -57,7 +57,7 @@ func parseTagLine(ctx context.Context, objectReader catfile.ObjectContentReader,
 		if err != nil {
 			return nil, fmt.Errorf("getting commit catfile: %w", err)
 		}
-		tag.TargetCommit = commit
+		tag.TargetCommit = commit.GitCommit
 		return tag, nil
 	default:
 		return tag, nil
