@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -11,4 +12,6 @@ func main() {
 	if err := cli.NewApp().Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println("hello")
 }
