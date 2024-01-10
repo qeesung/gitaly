@@ -205,3 +205,21 @@ message PathNotFoundError {
   // path is the path that could not be found.
   bytes path = 1;
 }
+
+// AmbiguousReferenceError is an error returned when an reference is unknown.
+message AmbiguousReferenceError {
+  // reference is the reference passed to the git command.
+  bytes reference = 1;
+}
+// BadObjectError is an error returned when git cannot find a valid object based on its id.
+message BadObjectError {
+  // object_id is the object id passed to the git command.
+  bytes object_id = 1;
+}
+
+// InvalidRevisionRange is an error returned when the range given to the git log command is invalid.
+message InvalidRevisionRange {
+  // range is the commit range passed to git log command.
+  bytes range = 1;
+}
+

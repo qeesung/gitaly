@@ -1149,6 +1149,153 @@ func (x *PathNotFoundError) GetPath() []byte {
 	return nil
 }
 
+// AmbiguousReferenceError is an error returned when an reference is unknown.
+type AmbiguousReferenceError struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// reference is the reference passed to the git command.
+	Reference []byte `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+}
+
+func (x *AmbiguousReferenceError) Reset() {
+	*x = AmbiguousReferenceError{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_errors_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *AmbiguousReferenceError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AmbiguousReferenceError) ProtoMessage() {}
+
+func (x *AmbiguousReferenceError) ProtoReflect() protoreflect.Message {
+	mi := &file_errors_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AmbiguousReferenceError.ProtoReflect.Descriptor instead.
+func (*AmbiguousReferenceError) Descriptor() ([]byte, []int) {
+	return file_errors_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *AmbiguousReferenceError) GetReference() []byte {
+	if x != nil {
+		return x.Reference
+	}
+	return nil
+}
+
+// BadObjectError is an error returned when git cannot find a valid object based on its id.
+type BadObjectError struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// object_id is the object id passed to the git command.
+	ObjectId []byte `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
+}
+
+func (x *BadObjectError) Reset() {
+	*x = BadObjectError{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_errors_proto_msgTypes[17]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *BadObjectError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BadObjectError) ProtoMessage() {}
+
+func (x *BadObjectError) ProtoReflect() protoreflect.Message {
+	mi := &file_errors_proto_msgTypes[17]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BadObjectError.ProtoReflect.Descriptor instead.
+func (*BadObjectError) Descriptor() ([]byte, []int) {
+	return file_errors_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *BadObjectError) GetObjectId() []byte {
+	if x != nil {
+		return x.ObjectId
+	}
+	return nil
+}
+
+// InvalidRevisionRange is an error returned when the range given to the git log command is invalid.
+type InvalidRevisionRange struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// range is the commit range passed to git log command.
+	Range []byte `protobuf:"bytes,1,opt,name=range,proto3" json:"range,omitempty"`
+}
+
+func (x *InvalidRevisionRange) Reset() {
+	*x = InvalidRevisionRange{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_errors_proto_msgTypes[18]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *InvalidRevisionRange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InvalidRevisionRange) ProtoMessage() {}
+
+func (x *InvalidRevisionRange) ProtoReflect() protoreflect.Message {
+	mi := &file_errors_proto_msgTypes[18]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InvalidRevisionRange.ProtoReflect.Descriptor instead.
+func (*InvalidRevisionRange) Descriptor() ([]byte, []int) {
+	return file_errors_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *InvalidRevisionRange) GetRange() []byte {
+	if x != nil {
+		return x.Range
+	}
+	return nil
+}
+
 var File_errors_proto protoreflect.FileDescriptor
 
 var file_errors_proto_rawDesc = []byte{
@@ -1276,11 +1423,20 @@ var file_errors_proto_rawDesc = []byte{
 	0x5f, 0x4c, 0x4f, 0x4e, 0x47, 0x5f, 0x50, 0x41, 0x54, 0x48, 0x10, 0x04, 0x22, 0x27, 0x0a, 0x11,
 	0x50, 0x61, 0x74, 0x68, 0x4e, 0x6f, 0x74, 0x46, 0x6f, 0x75, 0x6e, 0x64, 0x45, 0x72, 0x72, 0x6f,
 	0x72, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52,
-	0x04, 0x70, 0x61, 0x74, 0x68, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2e,
-	0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2d, 0x6f, 0x72, 0x67, 0x2f, 0x67,
-	0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x36, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f,
-	0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x33,
+	0x04, 0x70, 0x61, 0x74, 0x68, 0x22, 0x37, 0x0a, 0x17, 0x41, 0x6d, 0x62, 0x69, 0x67, 0x75, 0x6f,
+	0x75, 0x73, 0x52, 0x65, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x45, 0x72, 0x72, 0x6f, 0x72,
+	0x12, 0x1c, 0x0a, 0x09, 0x72, 0x65, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x09, 0x72, 0x65, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x22, 0x2d,
+	0x0a, 0x0e, 0x42, 0x61, 0x64, 0x4f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x45, 0x72, 0x72, 0x6f, 0x72,
+	0x12, 0x1b, 0x0a, 0x09, 0x6f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x08, 0x6f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x49, 0x64, 0x22, 0x2c, 0x0a,
+	0x14, 0x49, 0x6e, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x52, 0x65, 0x76, 0x69, 0x73, 0x69, 0x6f, 0x6e,
+	0x52, 0x61, 0x6e, 0x67, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x72, 0x61, 0x6e, 0x67, 0x65, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x72, 0x61, 0x6e, 0x67, 0x65, 0x42, 0x34, 0x5a, 0x32, 0x67,
+	0x69, 0x74, 0x6c, 0x61, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62,
+	0x2d, 0x6f, 0x72, 0x67, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x36, 0x2f,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x2f, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x70,
+	0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1296,7 +1452,7 @@ func file_errors_proto_rawDescGZIP() []byte {
 }
 
 var file_errors_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_errors_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_errors_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_errors_proto_goTypes = []interface{}{
 	(IndexError_ErrorType)(0),           // 0: gitaly.IndexError.ErrorType
 	(CustomHookError_HookType)(0),       // 1: gitaly.CustomHookError.HookType
@@ -1317,11 +1473,14 @@ var file_errors_proto_goTypes = []interface{}{
 	(*CustomHookError)(nil),             // 16: gitaly.CustomHookError
 	(*PathError)(nil),                   // 17: gitaly.PathError
 	(*PathNotFoundError)(nil),           // 18: gitaly.PathNotFoundError
-	(*durationpb.Duration)(nil),         // 19: google.protobuf.Duration
+	(*AmbiguousReferenceError)(nil),     // 19: gitaly.AmbiguousReferenceError
+	(*BadObjectError)(nil),              // 20: gitaly.BadObjectError
+	(*InvalidRevisionRange)(nil),        // 21: gitaly.InvalidRevisionRange
+	(*durationpb.Duration)(nil),         // 22: google.protobuf.Duration
 }
 var file_errors_proto_depIdxs = []int32{
 	0,  // 0: gitaly.IndexError.error_type:type_name -> gitaly.IndexError.ErrorType
-	19, // 1: gitaly.LimitError.retry_after:type_name -> google.protobuf.Duration
+	22, // 1: gitaly.LimitError.retry_after:type_name -> google.protobuf.Duration
 	1,  // 2: gitaly.CustomHookError.hook_type:type_name -> gitaly.CustomHookError.HookType
 	2,  // 3: gitaly.PathError.error_type:type_name -> gitaly.PathError.ErrorType
 	4,  // [4:4] is the sub-list for method output_type
@@ -1529,6 +1688,42 @@ func file_errors_proto_init() {
 				return nil
 			}
 		}
+		file_errors_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*AmbiguousReferenceError); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_errors_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*BadObjectError); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_errors_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*InvalidRevisionRange); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1536,7 +1731,7 @@ func file_errors_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_errors_proto_rawDesc,
 			NumEnums:      3,
-			NumMessages:   16,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
