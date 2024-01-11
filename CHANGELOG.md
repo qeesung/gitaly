@@ -187,6 +187,10 @@ No changes.
 - [backup: Improve time taken to create a full backup bundle](gitlab-org/gitaly@c43b91c07de39a4e32b3bb855787ab43e9c6a6c7) ([merge request](gitlab-org/gitaly!6305))
 - [backup: Improve performance of writing ref lists](gitlab-org/gitaly@897aadac824654041b9c383b17ec8a5f217eac6b) ([merge request](gitlab-org/gitaly!6305))
 
+## 16.3.7 (2024-01-11)
+
+No changes.
+
 ## 16.3.6 (2023-10-30)
 
 No changes.
