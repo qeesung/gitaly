@@ -173,6 +173,12 @@ ifdef GIT_FIPS_BUILD_OPTIONS
 	GIT_BUILD_OPTIONS += ${GIT_FIPS_BUILD_OPTIONS}
 endif
 
+# git-filter-repo target
+GIT_FILTER_REPO                      ?= ${BUILD_DIR}/bin/git-filter-repo
+GIT_FILTER_REPO_VERSION              ?= v2.38.0
+GIT_FILTER_REPO_REPO_URL             ?= https://github.com/newren/git-filter-repo
+GIT_FILTER_REPO_SOURCE_DIR           ?= ${DEPENDENCY_DIR}/git-filter-repo
+
 # These variables control test options and artifacts
 ## List of Go packages which shall be tested.
 ## Go packages to test when using the test-go target.
@@ -333,7 +339,7 @@ run_go_tests += \
 endif
 
 .PHONY: prepare-tests
-prepare-tests: ${GOTESTSUM} ${GITALY_PACKED_EXECUTABLES}
+prepare-tests: ${GOTESTSUM} ${GITALY_PACKED_EXECUTABLES} ${GIT_FILTER_REPO}
 	${Q}mkdir -p "$(dir ${TEST_JUNIT_REPORT})"
 
 .PHONY: prepare-debug
@@ -588,7 +594,8 @@ ${DEPENDENCY_DIR}/git-%.version: dependency-version | ${DEPENDENCY_DIR}
 	${Q}[ x"$$(cat "$@" 2>/dev/null)" = x"${GIT_VERSION} ${GIT_BUILD_OPTIONS}" ] || >$@ echo -n "${GIT_VERSION} ${GIT_BUILD_OPTIONS}"
 ${DEPENDENCY_DIR}/protoc.version: dependency-version | ${DEPENDENCY_DIR}
 	${Q}[ x"$$(cat "$@" 2>/dev/null)" = x"${PROTOC_VERSION} ${PROTOC_BUILD_OPTIONS}" ] || >$@ echo -n "${PROTOC_VERSION} ${PROTOC_BUILD_OPTIONS}"
-
+${DEPENDENCY_DIR}/git-filter-repo.version: dependency-version | ${DEPENDENCY_DIR}
+	${Q}[ x"$$(cat "$@" 2>/dev/null)" = x"${GIT_FILTER_REPO_VERSION}" ] || >$@ echo -n "${GIT_FILTER_REPO_VERSION}"
 # This target is responsible for checking out Git sources. In theory, we'd only
 # need to depend on the source directory. But given that the source directory
 # always changes when anything inside of it changes, like when we for example
@@ -637,6 +644,15 @@ ${PROTOC_GEN_GITALY_LINT}: proto | ${TOOLS_DIR}
 
 ${PROTOC_GEN_GITALY_PROTOLIST}: | ${TOOLS_DIR}
 	${Q}go build -o $@ ${SOURCE_DIR}/tools/protoc-gen-gitaly-protolist
+
+${GIT_FILTER_REPO}: ${DEPENDENCY_DIR}/git-filter-repo.version | ${BUILD_DIR}/bin
+	${Q}${GIT} -c init.defaultBranch=master init ${GIT_QUIET} "${GIT_FILTER_REPO_SOURCE_DIR}"
+	${Q}${GIT} -C "${GIT_FILTER_REPO_SOURCE_DIR}" config remote.origin.url ${GIT_FILTER_REPO_REPO_URL}
+	${Q}${GIT} -C "${GIT_FILTER_REPO_SOURCE_DIR}" config remote.origin.tagOpt --no-tags
+	${Q}${GIT} -C "${GIT_FILTER_REPO_SOURCE_DIR}" fetch --depth 1 ${GIT_QUIET} origin ${GIT_FILTER_REPO_VERSION}
+	${Q}${GIT} -C "${GIT_FILTER_REPO_SOURCE_DIR}" reset --hard
+	${Q}${GIT} -C "${GIT_FILTER_REPO_SOURCE_DIR}" checkout ${GIT_QUIET} --detach FETCH_HEAD
+	${Q}cp "${GIT_FILTER_REPO_SOURCE_DIR}/git-filter-repo" ${GIT_FILTER_REPO}
 
 # External tools
 ${TOOLS_DIR}/%: ${SOURCE_DIR}/tools/%/tool.go ${SOURCE_DIR}/tools/%/go.mod ${SOURCE_DIR}/tools/%/go.sum | ${TOOLS_DIR}
