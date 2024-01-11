@@ -1198,6 +1198,10 @@ func (mgr *TransactionManager) preparePackRefs(ctx context.Context, transaction 
 		return structerr.New("exec pack-refs: %w", err).WithMetadata("stderr", stderr.String())
 	}
 
+	if err := os.Chmod(filepath.Join(filepath.Join(repoPath, "packed-refs")), perm.SharedReadOnlyFile); err != nil {
+		return fmt.Errorf("modifying permission of pack-refs file")
+	}
+
 	// Copy the resulting packed-refs file to the WAL directory.
 	if err := os.Link(
 		filepath.Join(filepath.Join(repoPath, "packed-refs")),
