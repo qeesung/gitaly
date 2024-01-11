@@ -8,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/hook"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/objectpool"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/repository"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -38,6 +39,7 @@ func runCleanupServiceServer(t *testing.T, cfg config.Cfg) string {
 		gitalypb.RegisterCleanupServiceServer(srv, NewServer(deps))
 		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps))
 		gitalypb.RegisterRepositoryServiceServer(srv, repository.NewServer(deps))
+		gitalypb.RegisterObjectPoolServiceServer(srv, objectpool.NewServer(deps))
 	})
 }
 
