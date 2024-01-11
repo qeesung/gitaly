@@ -139,7 +139,7 @@ func (s *server) ListCommits(
 			return structerr.NewInternal("parsing commit: %w", err)
 		}
 
-		if err := chunker.Send(commit); err != nil {
+		if err := chunker.Send(commit.GitCommit); err != nil {
 			return structerr.NewInternal("sending commit: %w", err)
 		}
 	}

@@ -195,7 +195,7 @@ func (g *GetCommits) Commit(ctx context.Context, trailers, shortStat, refs bool)
 		}
 	}
 
-	return commit, nil
+	return commit.GitCommit, nil
 }
 
 func streamCommits(getCommits *GetCommits, stream gitalypb.CommitService_FindCommitsServer, trailers, shortStat bool, refs bool) error {
