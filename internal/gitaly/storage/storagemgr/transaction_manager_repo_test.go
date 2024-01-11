@@ -114,9 +114,11 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/branch",
-						References: []git.Reference{
-							{Name: "refs/heads/branch", Target: setup.Commits.Second.OID.String()},
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":   setup.Commits.First.OID,
+								"refs/heads/branch": setup.Commits.Second.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -193,8 +195,10 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 					Repositories: RepositoryStates{
 						setup.RelativePath: {
 							DefaultBranch: "refs/heads/main",
-							References: []git.Reference{
-								{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/main": setup.Commits.First.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -248,8 +252,10 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/other",
-						References: []git.Reference{
-							{Name: "refs/heads/other", Target: setup.Commits.Second.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/other": setup.Commits.Second.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -359,8 +365,10 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/branch",
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						CustomHooks: testhelper.DirectoryState{
 							"/": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
@@ -439,8 +447,10 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Repositories: RepositoryStates{
 					"repository-1": {
-						References: []git.Reference{
-							{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -458,8 +468,10 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 					},
 					"repository-2": {
 						DefaultBranch: "refs/heads/branch",
-						References: []git.Reference{
-							{Name: "refs/heads/branch", Target: setup.Commits.Third.OID.String()},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/branch": setup.Commits.Third.OID,
+							},
 						},
 						Objects: []git.ObjectID{
 							setup.ObjectHash.EmptyTreeOID,
@@ -887,8 +899,10 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 					Repositories: RepositoryStates{
 						setup.RelativePath: {
 							DefaultBranch: "refs/heads/new-head",
-							References: []git.Reference{
-								{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()},
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/main": setup.Commits.First.OID,
+								},
 							},
 							Objects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,

@@ -394,7 +394,11 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
 					},
 				},
 			},
@@ -435,7 +439,11 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
 					},
 				},
 			},
@@ -479,7 +487,11 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
 					},
 				},
 			},
@@ -529,7 +541,11 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
 					},
 				},
 			},
@@ -576,7 +592,11 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.Second.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
 					},
 				},
 			},
@@ -628,7 +648,11 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References:    []git.Reference{{Name: "refs/heads/main", Target: setup.Commits.First.OID.String()}},
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},

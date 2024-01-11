@@ -42,23 +42,21 @@ func TestMain(m *testing.M) {
 type RepositoryState struct {
 	// DefaultBranch is the expected refname that HEAD points to.
 	DefaultBranch git.ReferenceName
-	// References are references expected to exist.
-	References []git.Reference
 	// CustomHooks is the expected state of the custom hooks.
 	CustomHooks testhelper.DirectoryState
 	// Objects are the objects that are expected to exist.
 	Objects []git.ObjectID
 	// Alternate is the content of 'objects/info/alternates'.
 	Alternate string
-	// PackedRefs is the expected state of the packed-refs and loose references.
-	PackedRefs *PackedRefsState
+	// References is the references that should exist, including ones in the packed-refs file and loose references.
+	References *ReferencesState
 }
 
-// PackedRefsState describes the asserted state of packed-refs and loose references. It's mostly used for verifying
+// ReferencesState describes the asserted state of packed-refs and loose references. It's mostly used for verifying
 // pack-refs housekeeping task.
-type PackedRefsState struct {
-	// PackedRefsContent is the content of pack-refs file, line by line
-	PackedRefsContent []string
+type ReferencesState struct {
+	// PackedReferences is the content of pack-refs file, line by line
+	PackedReferences map[git.ReferenceName]git.ObjectID
 	// LooseReferences is the exact list of loose references outside packed-refs.
 	LooseReferences map[git.ReferenceName]git.ObjectID
 }
@@ -73,11 +71,27 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 	headReference, err := repo.HeadReference(ctx)
 	require.NoError(tb, err)
 
-	actualReferences, err := repo.GetReferences(ctx)
+	actualReferencesState, err := collectReferencesState(tb, expected, repoPath)
 	require.NoError(tb, err)
 
-	actualPackedRefsState, err := collectPackedRefsState(tb, expected, repoPath)
+	// Verify if the combination of packed-refs and loose refs match the point of view of Git.
+	referencesFromFile := map[git.ReferenceName]git.ObjectID{}
+	if actualReferencesState != nil {
+		for name, oid := range actualReferencesState.PackedReferences {
+			referencesFromFile[name] = oid
+		}
+		for name, oid := range actualReferencesState.LooseReferences {
+			referencesFromFile[name] = oid
+		}
+	}
+
+	actualGitReferences := map[git.ReferenceName]git.ObjectID{}
+	gitReferences, err := repo.GetReferences(ctx)
 	require.NoError(tb, err)
+	for _, ref := range gitReferences {
+		actualGitReferences[ref.Name] = git.ObjectID(ref.Target)
+	}
+	require.Equalf(tb, referencesFromFile, actualGitReferences, "references perceived by Git don't match the ones in loose reference and packed-refs file")
 
 	// Assert if there is any empty directory in the refs hierarchy excepts for heads and tags
 	rootRefsDir := filepath.Join(repoPath, "refs")
@@ -121,24 +135,22 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 	require.Equal(tb,
 		RepositoryState{
 			DefaultBranch: expected.DefaultBranch,
-			References:    expected.References,
 			Objects:       expectedObjects,
 			Alternate:     expected.Alternate,
-			PackedRefs:    expected.PackedRefs,
+			References:    expected.References,
 		},
 		RepositoryState{
 			DefaultBranch: headReference,
-			References:    actualReferences,
 			Objects:       actualObjects,
 			Alternate:     string(alternate),
-			PackedRefs:    actualPackedRefsState,
+			References:    actualReferencesState,
 		},
 	)
 	testhelper.RequireDirectoryState(tb, filepath.Join(repoPath, repoutil.CustomHooksDir), "", expected.CustomHooks)
 }
 
-func collectPackedRefsState(tb testing.TB, expected RepositoryState, repoPath string) (*PackedRefsState, error) {
-	if expected.PackedRefs == nil {
+func collectReferencesState(tb testing.TB, expected RepositoryState, repoPath string) (*ReferencesState, error) {
+	if expected.References == nil {
 		return nil, nil
 	}
 
@@ -149,6 +161,32 @@ func collectPackedRefsState(tb testing.TB, expected RepositoryState, repoPath st
 	} else {
 		require.NoError(tb, err)
 	}
+
+	// Parse packed-refs file
+	var packedReferences map[git.ReferenceName]git.ObjectID
+	if len(packRefsFile) != 0 {
+		packedReferences = make(map[git.ReferenceName]git.ObjectID)
+		lines := strings.Split(string(packRefsFile), "\n")
+		require.Equalf(tb, strings.TrimSpace(lines[0]), "# pack-refs with: peeled fully-peeled sorted", "invalid packed-refs header")
+		lines = lines[1:]
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+
+			if len(line) == 0 {
+				continue
+			}
+
+			// We don't care about the peeled object ID.
+			if strings.HasPrefix(line, "^") {
+				continue
+			}
+
+			parts := strings.Split(line, " ")
+			require.Equalf(tb, 2, len(parts), "invalid packed-refs format: %q", line)
+			packedReferences[git.ReferenceName(parts[1])] = git.ObjectID(parts[0])
+		}
+	}
+
 	// Walk and collect loose refs.
 	looseReferences := map[git.ReferenceName]git.ObjectID{}
 	refsPath := filepath.Join(repoPath, "refs")
@@ -169,9 +207,9 @@ func collectPackedRefsState(tb testing.TB, expected RepositoryState, repoPath st
 		return nil
 	}))
 
-	return &PackedRefsState{
-		PackedRefsContent: strings.Split(strings.TrimSpace(string(packRefsFile)), "\n"),
-		LooseReferences:   looseReferences,
+	return &ReferencesState{
+		PackedReferences: packedReferences,
+		LooseReferences:  looseReferences,
 	}, nil
 }
 
