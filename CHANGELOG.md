@@ -125,6 +125,10 @@ No changes.
 - [gitaly: Don't block on preloading licensedb](gitlab-org/gitaly@d96964bf6fe4a17adfded56a28bc276377351bc8) ([merge request](gitlab-org/gitaly!6397))
 - [packed_binaries: Extract binaries in parallel](gitlab-org/gitaly@2f5d4f93bdd27d3299f9ccc005ee7bcca35efcc9) ([merge request](gitlab-org/gitaly!6401))
 
+## 16.4.5 (2024-01-11)
+
+No changes.
+
 ## 16.4.4 (2023-12-13)
 
 No changes.
