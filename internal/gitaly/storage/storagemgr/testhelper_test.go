@@ -61,6 +61,12 @@ type ReferencesState struct {
 	LooseReferences map[git.ReferenceName]git.ObjectID
 }
 
+func sortObjects(objects []git.ObjectID) {
+	sort.Slice(objects, func(i, j int) bool {
+		return objects[i] < objects[j]
+	})
+}
+
 // RequireRepositoryState asserts the given repository matches the expected state.
 func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, repo *localrepo.Repo, expected RepositoryState) {
 	tb.Helper()
@@ -117,12 +123,6 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 	}
 
 	actualObjects := gittest.ListObjects(tb, cfg, repoPath)
-
-	sortObjects := func(objects []git.ObjectID) {
-		sort.Slice(objects, func(i, j int) bool {
-			return objects[i] < objects[j]
-		})
-	}
 
 	alternate, err := os.ReadFile(stats.AlternatesFilePath(repoPath))
 	if err != nil {

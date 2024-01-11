@@ -16,7 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
 
-func generateHousekeepingTests(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) []transactionTestCase {
+func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) []transactionTestCase {
 	customSetup := func(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) testTransactionSetup {
 		setup := setupTest(t, ctx, testPartitionID, relativePath)
 		gittest.WriteRef(t, setup.Config, setup.RepositoryPath, "refs/heads/main", setup.Commits.First.OID)
@@ -44,7 +44,7 @@ func generateHousekeepingTests(t *testing.T, ctx context.Context, testPartitionI
 			"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
 			// LSN is when a log entry is appended, it's different from transaction ID.
 			fmt.Sprintf("/wal/%d", lsn):             {Mode: fs.ModeDir | perm.PrivateDir},
-			fmt.Sprintf("/wal/%s/packed-refs", lsn): packRefsDirectoryEntry(setup.Config),
+			fmt.Sprintf("/wal/%s/packed-refs", lsn): anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 		}
 	}
 
@@ -666,7 +666,7 @@ func generateHousekeepingTests(t *testing.T, ctx context.Context, testPartitionI
 					),
 					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 					"/wal/5":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/5/packed-refs": packRefsDirectoryEntry(setup.Config),
+					"/wal/5/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 				},
 			},
 		},
@@ -775,7 +775,7 @@ func generateHousekeepingTests(t *testing.T, ctx context.Context, testPartitionI
 					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/2":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2/packed-refs": packRefsDirectoryEntry(setup.Config),
+					"/wal/2/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 				},
 				Repositories: RepositoryStates{
 					relativePath: {
@@ -979,9 +979,9 @@ func generateHousekeepingTests(t *testing.T, ctx context.Context, testPartitionI
 					),
 					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 					"/wal/3":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/3/packed-refs": packRefsDirectoryEntry(setup.Config),
+					"/wal/3/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 					"/wal/4":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/4/packed-refs": packRefsDirectoryEntry(setup.Config),
+					"/wal/4/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 				},
 			},
 		},
@@ -1020,9 +1020,9 @@ func generateHousekeepingTests(t *testing.T, ctx context.Context, testPartitionI
 					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/packed-refs": packRefsDirectoryEntry(setup.Config),
+					"/wal/1/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 					"/wal/2":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2/packed-refs": packRefsDirectoryEntry(setup.Config),
+					"/wal/2/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 				},
 				Repositories: RepositoryStates{
 					relativePath: {

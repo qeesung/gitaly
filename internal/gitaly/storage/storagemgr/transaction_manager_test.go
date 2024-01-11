@@ -11,7 +11,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -83,15 +82,29 @@ func writePack(tb testing.TB, cfg config.Cfg, packFile []byte, destinationPack s
 	)
 }
 
+// anyDirectoryEntry returns a DirectoryEntry that checks for the existence of a file. The content will be asserted in
+// the later state.
+func anyDirectoryEntry(cfg config.Cfg) testhelper.DirectoryEntry {
+	return testhelper.DirectoryEntry{
+		Mode:         perm.SharedReadOnlyFile,
+		Content:      "",
+		ParseContent: func(testing.TB, string, []byte) any { return "" },
+	}
+}
+
+// anyDirectoryEntryWithPerm returns a DirectoryEntry that checks for the existence of a file having a particular perm.
+// The content will be asserted in the later state.
+func anyDirectoryEntryWithPerm(cfg config.Cfg, perm os.FileMode) testhelper.DirectoryEntry {
+	return testhelper.DirectoryEntry{
+		Mode:         perm,
+		Content:      "",
+		ParseContent: func(testing.TB, string, []byte) any { return "" },
+	}
+}
+
 // packFileDirectoryEntry returns a DirectoryEntry that parses content as a pack file and asserts that the
 // set of objects in the pack file matches the expected objects.
 func packFileDirectoryEntry(cfg config.Cfg, expectedObjects []git.ObjectID) testhelper.DirectoryEntry {
-	sortObjects := func(objects []git.ObjectID) {
-		sort.Slice(objects, func(i, j int) bool {
-			return objects[i] < objects[j]
-		})
-	}
-
 	sortObjects(expectedObjects)
 
 	return testhelper.DirectoryEntry{
@@ -112,16 +125,6 @@ func packFileDirectoryEntry(cfg config.Cfg, expectedObjects []git.ObjectID) test
 
 			return actualObjects
 		},
-	}
-}
-
-// packRefsDirectoryEntry returns a DirectoryEntry that checks for the existence of packed-refs file. The content does
-// not matter because it will be asserted in the repository state insteaad.
-func packRefsDirectoryEntry(cfg config.Cfg) testhelper.DirectoryEntry {
-	return testhelper.DirectoryEntry{
-		Mode:         perm.SharedFile,
-		Content:      "",
-		ParseContent: func(testing.TB, string, []byte) any { return "" },
 	}
 }
 
@@ -269,7 +272,7 @@ func TestTransactionManager(t *testing.T) {
 		generateDefaultBranchTests(t, setup),
 		generateAlternateTests(t, setup),
 		generateCustomHooksTests(t, setup),
-		generateHousekeepingTests(t, ctx, testPartitionID, relativePath),
+		generateHousekeepingPackRefsTests(t, ctx, testPartitionID, relativePath),
 	}
 	for _, subCases := range subTests {
 		testCases = append(testCases, subCases...)
