@@ -57,7 +57,7 @@ func (s *server) lastCommitForPath(ctx context.Context, in *gitalypb.LastCommitF
 		return &gitalypb.LastCommitForPathResponse{}, nil
 	}
 
-	return &gitalypb.LastCommitForPathResponse{Commit: commit}, err
+	return &gitalypb.LastCommitForPathResponse{Commit: commit.GitCommit}, err
 }
 
 func validateLastCommitForPathRequest(locator storage.Locator, in *gitalypb.LastCommitForPathRequest) error {

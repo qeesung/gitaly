@@ -111,8 +111,6 @@ type RepositoryStore interface {
 	MarkVirtualStorageUnverified(ctx context.Context, virtualStorage string) (int64, error)
 	// MarkStorageUnverified marsk all replicas on the storage as unverified.
 	MarkStorageUnverified(ctx context.Context, virtualStorage, storage string) (int64, error)
-	// ListRepositoryPaths retrieves the relative path for all repositories present on the given virtual storage.
-	ListRepositoryPaths(ctx context.Context, virtualStorage string) ([]string, error)
 }
 
 // PostgresRepositoryStore is a Postgres implementation of RepositoryStore.
@@ -917,29 +915,4 @@ func (rs *PostgresRepositoryStore) GetReplicaPath(ctx context.Context, repositor
 	}
 
 	return replicaPath, nil
-}
-
-// ListRepositoryPaths retrieves the relative path for all repositories present on the given virtual storage.
-func (rs *PostgresRepositoryStore) ListRepositoryPaths(ctx context.Context, virtualStorage string) ([]string, error) {
-	rows, err := rs.db.QueryContext(ctx, `
-SELECT relative_path
-FROM repositories
-WHERE virtual_storage = $1
-`, virtualStorage)
-	if err != nil {
-		return nil, fmt.Errorf("query: %w", err)
-	}
-	defer rows.Close()
-
-	var relativePaths []string
-	for rows.Next() {
-		var relativePath string
-		if err := rows.Scan(&relativePath); err != nil {
-			return nil, fmt.Errorf("scan: %w", err)
-		}
-
-		relativePaths = append(relativePaths, relativePath)
-	}
-
-	return relativePaths, rows.Err()
 }

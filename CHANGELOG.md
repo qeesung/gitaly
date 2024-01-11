@@ -1,5 +1,15 @@
 # Gitaly changelog
 
+## 16.7.2 (2024-01-10)
+
+### Security (1 change)
+
+- [commit: Fix bug in commit signature parsing](gitlab-org/security/gitaly@50ef27b6e9af04d821133dd6a11fbe6d8cee8e97) ([merge request](gitlab-org/security/gitaly!87))
+
+## 16.7.1 (2023-12-23)
+
+No changes.
+
 ## 16.7.0 (2023-12-20)
 
 ### Fixed (3 changes)
@@ -18,6 +28,16 @@
 
 - [gitaly: Move asynchronous tasks to end of startup](gitlab-org/gitaly@dd4ea4388b4b8e7c49ea423126f8be5e067729cd) ([merge request](gitlab-org/gitaly!6532))
 - [cgroups: Create repository cgroups on-demand](gitlab-org/gitaly@105f6dd81689b7819b844b8be1be844bca6f2a67) ([merge request](gitlab-org/gitaly!6499))
+
+## 16.6.4 (2024-01-10)
+
+### Security (1 change)
+
+- [commit: Fix bug in commit signature parsing](gitlab-org/security/gitaly@615b117d20f45b8dd2b91a8a1f01e12dc966f193) ([merge request](gitlab-org/security/gitaly!91))
+
+## 16.6.3 (2023-12-23)
+
+No changes.
 
 ## 16.6.2 (2023-12-13)
 
@@ -52,6 +72,16 @@ No changes.
 ### Performance (1 change)
 
 - [backup: Use --all when creating an incremental backup bundle](gitlab-org/gitaly@d874d8c3eb0d0c9b9362b583ba8ccc42221140cd) ([merge request](gitlab-org/gitaly!6421))
+
+## 16.5.6 (2024-01-11)
+
+### Security (1 change)
+
+- [commit: Fix bug in commit signature parsing](gitlab-org/security/gitaly@d410c35c0906cb75bc0d8d967744b12991cefaa0) ([merge request](gitlab-org/security/gitaly!89))
+
+## 16.5.5 (2023-12-23)
+
+No changes.
 
 ## 16.5.4 (2023-12-13)
 
@@ -94,6 +124,10 @@ No changes.
 
 - [gitaly: Don't block on preloading licensedb](gitlab-org/gitaly@d96964bf6fe4a17adfded56a28bc276377351bc8) ([merge request](gitlab-org/gitaly!6397))
 - [packed_binaries: Extract binaries in parallel](gitlab-org/gitaly@2f5d4f93bdd27d3299f9ccc005ee7bcca35efcc9) ([merge request](gitlab-org/gitaly!6401))
+
+## 16.4.5 (2024-01-11)
+
+No changes.
 
 ## 16.4.4 (2023-12-13)
 
@@ -152,6 +186,10 @@ No changes.
 
 - [backup: Improve time taken to create a full backup bundle](gitlab-org/gitaly@c43b91c07de39a4e32b3bb855787ab43e9c6a6c7) ([merge request](gitlab-org/gitaly!6305))
 - [backup: Improve performance of writing ref lists](gitlab-org/gitaly@897aadac824654041b9c383b17ec8a5f217eac6b) ([merge request](gitlab-org/gitaly!6305))
+
+## 16.3.7 (2024-01-11)
+
+No changes.
 
 ## 16.3.6 (2023-10-30)
 
@@ -219,6 +257,10 @@ No changes.
 ### updated (1 change)
 
 - [backup: Write an empty ref list for empty repositories](gitlab-org/gitaly@7fbae125172570e5bef222908388ba0ca1c9e43a) ([merge request](gitlab-org/gitaly!6090))
+
+## 16.2.9 (2024-01-11)
+
+No changes.
 
 ## 16.2.8 (2023-09-28)
 
@@ -291,6 +333,10 @@ No changes.
 ### Performance (1 change)
 
 - [localrepo: Avoid getting all branches for default branch detection](gitlab-org/gitaly@bdd3c05a2cc2889260050f2714884cc24503ae1a) by @blanet ([merge request](gitlab-org/gitaly!5725))
+
+## 16.1.6 (2024-01-11)
+
+No changes.
 
 ## 16.1.5 (2023-08-31)
 
