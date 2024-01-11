@@ -50,7 +50,7 @@ func (s *server) ListCommitsByOid(in *gitalypb.ListCommitsByOidRequest, stream g
 			return err
 		}
 
-		if err := sender.Send(commit); err != nil {
+		if err := sender.Send(commit.GitCommit); err != nil {
 			return err
 		}
 	}
