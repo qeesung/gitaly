@@ -1259,40 +1259,6 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 // prints the packs prefix in the format `pack <digest>`.
 var packPrefixRegexp = regexp.MustCompile(`^pack\t([0-9a-f]+)\n$`)
 
-// shouldPackObjects checks whether the quarantine directory has any non-default content in it.
-// If so, this signifies objects were written into it and we should pack them.
-func shouldPackObjects(quarantineDirectory string) (bool, error) {
-	errHasNewContent := errors.New("new content found")
-
-	// The quarantine directory itself and the pack directory within it are created when the transaction
-	// begins. These don't signify new content so we ignore them.
-	preExistingDirs := map[string]struct{}{
-		quarantineDirectory:                        {},
-		filepath.Join(quarantineDirectory, "pack"): {},
-	}
-	if err := filepath.Walk(quarantineDirectory, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if _, ok := preExistingDirs[path]; ok {
-			// The pre-existing directories don't signal any new content to pack.
-			return nil
-		}
-
-		// Use an error sentinel to cancel the walk as soon as new content has been found.
-		return errHasNewContent
-	}); err != nil {
-		if errors.Is(err, errHasNewContent) {
-			return true, nil
-		}
-
-		return false, fmt.Errorf("check for objects: %w", err)
-	}
-
-	return false, nil
-}
-
 // packObjects walks the objects in the quarantine directory starting from the new
 // reference tips introduced by the transaction and the explicitly included objects. All
 // objects in the quarantine directory that are encountered during the walk are included in
@@ -1309,9 +1275,13 @@ func shouldPackObjects(quarantineDirectory string) (bool, error) {
 // The packed objects are not yet checked for validity. See the following issue for more
 // details on this: https://gitlab.com/gitlab-org/gitaly/-/issues/5779
 func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Transaction) (returnedErr error) {
-	if shouldPack, err := shouldPackObjects(transaction.quarantineDirectory); err != nil {
-		return fmt.Errorf("should pack objects: %w", err)
-	} else if !shouldPack {
+	if _, err := os.Stat(mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())); err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("stat: %w", err)
+		}
+
+		// The repository does not exist. Exit early as the Git commands below would fail. There's
+		// nothing to pack and no dependencies if the repository doesn't exist.
 		return nil
 	}
 
@@ -1404,13 +1374,51 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 		return nil
 	})
 
-	transaction.objectDependencies = map[git.ObjectID]struct{}{}
 	objectsToPackReader, objectsToPackWriter := io.Pipe()
+	// We'll only start the commands needed for object packing if the walk above produces objects
+	// we need to pack.
+	startObjectPacking := func() {
+		packReader, packWriter := io.Pipe()
+		group.Go(func() (returnedErr error) {
+			defer func() {
+				objectsToPackReader.CloseWithError(returnedErr)
+				packWriter.CloseWithError(returnedErr)
+			}()
+
+			if err := quarantineOnlySnapshotRepository.PackObjects(ctx, objectsToPackReader, packWriter); err != nil {
+				return fmt.Errorf("pack objects: %w", err)
+			}
+
+			return nil
+		})
+
+		group.Go(func() (returnedErr error) {
+			defer packReader.CloseWithError(returnedErr)
+
+			// index-pack places the pack, index, and reverse index into the transaction's staging directory.
+			var stdout, stderr bytes.Buffer
+			if err := quarantineOnlySnapshotRepository.ExecAndWait(ctx, git.Command{
+				Name:  "index-pack",
+				Flags: []git.Option{git.Flag{Name: "--stdin"}, git.Flag{Name: "--rev-index"}},
+				Args:  []string{filepath.Join(transaction.stagingDirectory, "objects.pack")},
+			}, git.WithStdin(packReader), git.WithStdout(&stdout), git.WithStderr(&stderr)); err != nil {
+				return structerr.New("index pack: %w", err).WithMetadata("stderr", stderr.String())
+			}
+
+			matches := packPrefixRegexp.FindStringSubmatch(stdout.String())
+			if len(matches) != 2 {
+				return structerr.New("unexpected index-pack output").WithMetadata("stdout", stdout.String())
+			}
+
+			transaction.packPrefix = fmt.Sprintf("pack-%s", matches[1])
+
+			return nil
+		})
+	}
+
+	transaction.objectDependencies = map[git.ObjectID]struct{}{}
 	group.Go(func() (returnedErr error) {
-		defer func() {
-			objectWalkReader.CloseWithError(returnedErr)
-			objectsToPackWriter.CloseWithError(returnedErr)
-		}()
+		defer objectWalkReader.CloseWithError(returnedErr)
 
 		// objectLine comes in two formats from the walk:
 		//   1. '<oid> <path>\n' in case the object is found. <path> may or may not be set.
@@ -1421,12 +1429,23 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 		// Objects that are not found are recorded as the transaction's
 		// dependencies since they should exist in the repository.
 		scanner := bufio.NewScanner(objectWalkReader)
+
+		defer objectsToPackWriter.CloseWithError(returnedErr)
+
+		packObjectsStarted := false
 		for scanner.Scan() {
 			objectLine := scanner.Text()
 			if objectLine[0] == '?' {
 				// Remove the '?' prefix so we're left with just the object ID.
 				transaction.objectDependencies[git.ObjectID(objectLine[1:])] = struct{}{}
 				continue
+			}
+
+			// At this point we have an object that we need to pack. If `pack-objects` and `index-pack`
+			// haven't yet been launched, launch them.
+			if !packObjectsStarted {
+				packObjectsStarted = true
+				startObjectPacking()
 			}
 
 			// Write the objects to `git pack-objects`. Restore the new line that was
@@ -1439,43 +1458,6 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 		if err := scanner.Err(); err != nil {
 			return fmt.Errorf("scanning rev-list output: %w", err)
 		}
-
-		return nil
-	})
-
-	packReader, packWriter := io.Pipe()
-	group.Go(func() (returnedErr error) {
-		defer func() {
-			objectsToPackReader.CloseWithError(returnedErr)
-			packWriter.CloseWithError(returnedErr)
-		}()
-
-		if err := quarantineOnlySnapshotRepository.PackObjects(ctx, objectsToPackReader, packWriter); err != nil {
-			return fmt.Errorf("pack objects: %w", err)
-		}
-
-		return nil
-	})
-
-	group.Go(func() (returnedErr error) {
-		defer packReader.CloseWithError(returnedErr)
-
-		// index-pack places the pack, index, and reverse index into the transaction's staging directory.
-		var stdout, stderr bytes.Buffer
-		if err := quarantineOnlySnapshotRepository.ExecAndWait(ctx, git.Command{
-			Name:  "index-pack",
-			Flags: []git.Option{git.Flag{Name: "--stdin"}, git.Flag{Name: "--rev-index"}},
-			Args:  []string{filepath.Join(transaction.stagingDirectory, "objects.pack")},
-		}, git.WithStdin(packReader), git.WithStdout(&stdout), git.WithStderr(&stderr)); err != nil {
-			return structerr.New("index pack: %w", err).WithMetadata("stderr", stderr.String())
-		}
-
-		matches := packPrefixRegexp.FindStringSubmatch(stdout.String())
-		if len(matches) != 2 {
-			return structerr.New("unexpected index-pack output").WithMetadata("stdout", stdout.String())
-		}
-
-		transaction.packPrefix = fmt.Sprintf("pack-%s", matches[1])
 
 		return nil
 	})
