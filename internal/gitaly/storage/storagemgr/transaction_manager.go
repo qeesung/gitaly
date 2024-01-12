@@ -242,6 +242,9 @@ type Transaction struct {
 	// yet, the staging repository is a temporary repository that is deleted once the transaction has been
 	// finished.
 	stagingRepository *localrepo.Repo
+	// stagingSnapshot is the snapshot used for staging the transaction, and where the staging repository
+	// exists.
+	stagingSnapshot snapshot
 
 	// walEntry is the log entry where the transaction stages its state for committing.
 	walEntry                 *wal.Entry
@@ -255,6 +258,13 @@ type Transaction struct {
 	includedObjects          map[git.ObjectID]struct{}
 	runHousekeeping          *runHousekeeping
 	alternateUpdated         bool
+
+	// objectDependencies are the object IDs this transaction depends on in
+	// the repository. The dependencies are used to guard against invalid packs
+	// being committed which don't contain all necessary objects. The write could
+	// either be missing objects, or a concurrent prune could have removed the
+	// dependencies.
+	objectDependencies map[git.ObjectID]struct{}
 }
 
 // Begin opens a new transaction. The caller must call either Commit or Rollback to release
@@ -954,10 +964,6 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 
 	transaction.walEntry = wal.NewEntry(transaction.walFilesPath())
 
-	if err := mgr.setupStagingRepository(ctx, transaction); err != nil {
-		return fmt.Errorf("setup staging repository: %w", err)
-	}
-
 	if err := mgr.packObjects(ctx, transaction); err != nil {
 		return fmt.Errorf("pack objects: %w", err)
 	}
@@ -1192,38 +1198,59 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 	return nil
 }
 
-// setupStagingRepository sets a repository that is used to stage the transaction. The staging repository
-// has the quarantine applied so the objects are available for packing and verifying the references.
-func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, transaction *Transaction) error {
+// setupStagingRepository sets up a snapshot that is used for verifying and staging changes. It contains up to
+// date state of the partition. It does not have the quarantine configured.
+func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, transaction *Transaction, alternateRelativePath string) error {
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.setupStagingRepository", nil)
 	defer span.Finish()
 
-	// If this is not a creation, the repository should already exist. Use it to stage the transaction.
-	stagingRepository := mgr.repositoryFactory.Build(transaction.relativePath)
+	relativePaths := []string{transaction.relativePath}
+	if alternateRelativePath != "" {
+		relativePaths = append(relativePaths, alternateRelativePath)
+	}
+
+	snapshot, err := newSnapshot(ctx,
+		mgr.storagePath,
+		filepath.Join(transaction.stagingDirectory, "staging-snapshot"),
+		relativePaths,
+	)
+	if err != nil {
+		return fmt.Errorf("new snapshot: %w", err)
+	}
+
+	// If this is a creation, the repository does not yet exist in the storage. Create a temporary repository
+	// we can use to stage the updates.
 	if transaction.repositoryCreation != nil {
 		// The reference updates in the transaction are normally verified against the actual repository.
 		// If the repository doesn't exist yet, the reference updates are verified against an empty
 		// repository to ensure they'll apply when the log entry creates the repository. After the
 		// transaction is logged, the staging repository is removed, and the actual repository will be
 		// created when the log entry is applied.
+		if err := mgr.createRepository(ctx, mgr.getAbsolutePath(snapshot.relativePath(transaction.relativePath)), transaction.repositoryCreation.objectHash.ProtoFormat); err != nil {
+			return fmt.Errorf("create staging repository: %w", err)
+		}
+	}
 
-		relativePath, err := filepath.Rel(mgr.storagePath, filepath.Join(transaction.stagingDirectory, "staging.git"))
+	if alternateRelativePath != "" {
+		alternatesContent, err := filepath.Rel(
+			filepath.Join(transaction.relativePath, "objects"),
+			filepath.Join(alternateRelativePath, "objects"),
+		)
 		if err != nil {
 			return fmt.Errorf("rel: %w", err)
 		}
 
-		if err := mgr.createRepository(ctx, filepath.Join(mgr.storagePath, relativePath), transaction.repositoryCreation.objectHash.ProtoFormat); err != nil {
-			return fmt.Errorf("create staging repository: %w", err)
+		if err := os.WriteFile(
+			stats.AlternatesFilePath(mgr.getAbsolutePath(snapshot.relativePath(transaction.relativePath))),
+			[]byte(alternatesContent),
+			perm.PrivateFile,
+		); err != nil {
+			return fmt.Errorf("insert modified alternate file: %w", err)
 		}
-
-		stagingRepository = mgr.repositoryFactory.Build(relativePath)
 	}
 
-	var err error
-	transaction.stagingRepository, err = stagingRepository.Quarantine(transaction.quarantineDirectory)
-	if err != nil {
-		return fmt.Errorf("quarantine: %w", err)
-	}
+	transaction.stagingSnapshot = snapshot
+	transaction.stagingRepository = mgr.repositoryFactory.Build(snapshot.relativePath(transaction.relativePath))
 
 	return nil
 }
@@ -1266,10 +1293,22 @@ func shouldPackObjects(quarantineDirectory string) (bool, error) {
 	return false, nil
 }
 
-// packObjects packs the objects included in the transaction into a single pack file that is ready
-// for logging. The pack file includes all unreachable objects that are about to be made reachable and
-// unreachable objects that have been explicitly included in the transaction.
-func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Transaction) error {
+// packObjects walks the objects in the quarantine directory starting from the new
+// reference tips introduced by the transaction and the explicitly included objects. All
+// objects in the quarantine directory that are encountered during the walk are included in
+// a packfile that gets committed with the transaction. All encountered objects that are missing
+// from the quarantine directory are considered the transaction's dependencies. The dependencies
+// are later verified to exist in the repository before committing the transaction, and they will
+// be guarded against concurrent pruning operations. The final pack is staged in the WAL directory
+// of the transaction ready for committing. The pack's index and reverse index is also included.
+//
+// Objects that were not reachable from the walk are not committed with the transaction. Objects
+// that already exist in the repository are included in the packfile if the client wrote them into
+// the quarantine directory.
+//
+// The packed objects are not yet checked for validity. See the following issue for more
+// details on this: https://gitlab.com/gitlab-org/gitaly/-/issues/5779
+func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Transaction) (returnedErr error) {
 	if shouldPack, err := shouldPackObjects(transaction.quarantineDirectory); err != nil {
 		return fmt.Errorf("should pack objects: %w", err)
 	} else if !shouldPack {
@@ -1279,13 +1318,50 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.packObjects", nil)
 	defer span.Finish()
 
-	// We should actually be figuring out the new objects to pack against the transaction's snapshot
-	// repository as the objects and references in the actual repository may change while we're doing
-	// this. We don't yet have a way to figure out which objects the new quarantined objects depend on
-	// in the main object database of the snapshot.
-	//
-	// This is pending https://gitlab.com/groups/gitlab-org/-/epics/11242.
-	objectHash, err := transaction.stagingRepository.ObjectHash(ctx)
+	quarantineOnlySnapshotRepository := transaction.snapshotRepository
+	if transaction.snapshotRepository.GetGitObjectDirectory() != "" {
+		// We want to only pack the objects that are present in the quarantine as they are potentially
+		// new. Disable the alternate, which is the repository's original object directory, so that we'll
+		// only walk the objects in the quarantine directory below.
+		var err error
+		quarantineOnlySnapshotRepository, err = transaction.snapshotRepository.QuarantineOnly()
+		if err != nil {
+			return fmt.Errorf("quarantine only: %w", err)
+		}
+	} else {
+		// If this transaction is creating a repository, the repository is not configured with a quarantine.
+		// The objects in the repository's object directory are the new objects. The repository's actual
+		// object directory may contain an `objects/info/alternates` file pointing to an alternate. We don't
+		// want to include the objects in the alternate in the packfile given they should already be present
+		// in the alternate. In order to only walk the new objects, we disable the alternate by renaming
+		// the alternates file so Git doesn't recognize the file, and restore it after we're done walking the
+		// objects. We have an issue tracking an option to disasble the alternate through configuration in Git.
+		//
+		// Issue: https://gitlab.com/gitlab-org/git/-/issues/177
+		repoPath, err := quarantineOnlySnapshotRepository.Path()
+		if err != nil {
+			return fmt.Errorf("repo path: %w", err)
+		}
+
+		originalAlternatesPath := stats.AlternatesFilePath(repoPath)
+		disabledAlternatesPath := originalAlternatesPath + ".disabled"
+		if err := os.Rename(originalAlternatesPath, disabledAlternatesPath); err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("disable alternates: %w", err)
+			}
+
+			// There was no alternates file.
+		} else {
+			// If the alternates file existed, we'll restore it back in its place after packing the objects.
+			defer func() {
+				if err := os.Rename(disabledAlternatesPath, originalAlternatesPath); err != nil && returnedErr == nil {
+					returnedErr = fmt.Errorf("restore alternates: %w", err)
+				}
+			}()
+		}
+	}
+
+	objectHash, err := quarantineOnlySnapshotRepository.ObjectHash(ctx)
 	if err != nil {
 		return fmt.Errorf("object hash: %w", err)
 	}
@@ -1309,17 +1385,59 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 		return nil
 	}
 
-	objectsReader, objectsWriter := io.Pipe()
+	objectWalkReader, objectWalkWriter := io.Pipe()
 
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() (returnedErr error) {
-		defer func() { objectsWriter.CloseWithError(returnedErr) }()
+		defer objectWalkWriter.CloseWithError(returnedErr)
 
-		if err := transaction.stagingRepository.WalkUnreachableObjects(ctx,
+		// Walk the new reference tips and included objects in the quarantine directory. The reachable
+		// objects will be included in the transaction's logged packfile and the unreachable ones
+		// discarded, and missing objects regard as the transaction's dependencies.
+		if err := quarantineOnlySnapshotRepository.WalkObjects(ctx,
 			strings.NewReader(strings.Join(heads, "\n")),
-			objectsWriter,
+			objectWalkWriter,
 		); err != nil {
 			return fmt.Errorf("walk objects: %w", err)
+		}
+
+		return nil
+	})
+
+	transaction.objectDependencies = map[git.ObjectID]struct{}{}
+	objectsToPackReader, objectsToPackWriter := io.Pipe()
+	group.Go(func() (returnedErr error) {
+		defer func() {
+			objectWalkReader.CloseWithError(returnedErr)
+			objectsToPackWriter.CloseWithError(returnedErr)
+		}()
+
+		// objectLine comes in two formats from the walk:
+		//   1. '<oid> <path>\n' in case the object is found. <path> may or may not be set.
+		//   2. '?<oid>\n' in case the object is not found.
+		//
+		// Objects that are found are included in the transaction's packfile.
+		//
+		// Objects that are not found are recorded as the transaction's
+		// dependencies since they should exist in the repository.
+		scanner := bufio.NewScanner(objectWalkReader)
+		for scanner.Scan() {
+			objectLine := scanner.Text()
+			if objectLine[0] == '?' {
+				// Remove the '?' prefix so we're left with just the object ID.
+				transaction.objectDependencies[git.ObjectID(objectLine[1:])] = struct{}{}
+				continue
+			}
+
+			// Write the objects to `git pack-objects`. Restore the new line that was
+			// trimmed by the scanner.
+			if _, err := objectsToPackWriter.Write([]byte(objectLine + "\n")); err != nil {
+				return fmt.Errorf("write object id for packing: %w", err)
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("scanning rev-list output: %w", err)
 		}
 
 		return nil
@@ -1328,11 +1446,11 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 	packReader, packWriter := io.Pipe()
 	group.Go(func() (returnedErr error) {
 		defer func() {
-			objectsReader.CloseWithError(returnedErr)
+			objectsToPackReader.CloseWithError(returnedErr)
 			packWriter.CloseWithError(returnedErr)
 		}()
 
-		if err := transaction.stagingRepository.PackObjects(ctx, objectsReader, packWriter); err != nil {
+		if err := quarantineOnlySnapshotRepository.PackObjects(ctx, objectsToPackReader, packWriter); err != nil {
 			return fmt.Errorf("pack objects: %w", err)
 		}
 
@@ -1342,10 +1460,9 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 	group.Go(func() (returnedErr error) {
 		defer packReader.CloseWithError(returnedErr)
 
-		// index-pack places the pack, index, and reverse index into the repository's object directory.
-		// The staging repository is configured with a quarantine so we execute it there.
+		// index-pack places the pack, index, and reverse index into the transaction's staging directory.
 		var stdout, stderr bytes.Buffer
-		if err := transaction.stagingRepository.ExecAndWait(ctx, git.Command{
+		if err := quarantineOnlySnapshotRepository.ExecAndWait(ctx, git.Command{
 			Name:  "index-pack",
 			Flags: []git.Option{git.Flag{Name: "--stdin"}, git.Flag{Name: "--rev-index"}},
 			Args:  []string{filepath.Join(transaction.stagingDirectory, "objects.pack")},
@@ -1791,8 +1908,17 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			return ErrRepositoryNotFound
 		}
 
-		if err := mgr.verifyAlternateUpdate(ctx, transaction); err != nil {
+		alternateRelativePath, err := mgr.verifyAlternateUpdate(ctx, transaction)
+		if err != nil {
 			return fmt.Errorf("verify alternate update: %w", err)
+		}
+
+		if err := mgr.setupStagingRepository(mgr.ctx, transaction, alternateRelativePath); err != nil {
+			return fmt.Errorf("setup staging snapshot: %w", err)
+		}
+
+		if err := mgr.verifyObjectDependencies(mgr.ctx, transaction); err != nil {
+			return fmt.Errorf("verify object dependencies: %w", err)
 		}
 
 		if transaction.repositoryCreation == nil && transaction.runHousekeeping == nil && !transaction.deleteRepository {
@@ -1843,6 +1969,80 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 	mgr.awaitingTransactions[mgr.appendedLSN] = transaction.result
 
 	return nil
+}
+
+// verifyObjectDependencies verifies that all objects this transaction depends on are present in the
+// repository. The dependency objects are the reference tips set in the transaction and the objects
+// the transaction's packfile is based on. If an object dependency is missing, the transaction is
+// aborted as applying it would result in repository corruption.
+func (mgr *TransactionManager) verifyObjectDependencies(ctx context.Context, tx *Transaction) error {
+	if len(tx.objectDependencies) == 0 {
+		return nil
+	}
+
+	eg, ctx := errgroup.WithContext(ctx)
+
+	dependencyReader, dependencyWriter := io.Pipe()
+	eg.Go(func() (returnedErr error) {
+		defer dependencyWriter.CloseWithError(returnedErr)
+
+		for oid := range tx.objectDependencies {
+			if _, err := fmt.Fprintln(dependencyWriter, oid.String()); err != nil {
+				return fmt.Errorf("write dependency oid: %w", err)
+			}
+		}
+
+		return nil
+	})
+
+	resultReader, resultWriter := io.Pipe()
+	eg.Go(func() (returnedErr error) {
+		defer dependencyReader.CloseWithError(returnedErr)
+		defer resultWriter.CloseWithError(returnedErr)
+
+		var stderr bytes.Buffer
+		if err := tx.stagingRepository.ExecAndWait(ctx,
+			git.Command{
+				Name: "cat-file",
+				Flags: []git.Option{
+					git.Flag{Name: "--batch-check=%(objectname)"},
+					git.Flag{Name: "--buffer"},
+				},
+			},
+			git.WithStdin(dependencyReader),
+			git.WithStdout(resultWriter),
+			git.WithStderr(&stderr),
+		); err != nil {
+			return structerr.New("cat-file: %w", err).WithMetadata("stderr", stderr.String())
+		}
+
+		return nil
+	})
+
+	eg.Go(func() (returnedErr error) {
+		defer resultReader.CloseWithError(returnedErr)
+
+		scanner := bufio.NewScanner(resultReader)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if oid, isMissing := strings.CutSuffix(line, " missing"); isMissing {
+				return localrepo.InvalidObjectError(oid)
+			}
+
+			// Sanity check this was actually an object ID we were looking for.
+			if _, ok := tx.objectDependencies[git.ObjectID(line)]; !ok {
+				return fmt.Errorf("unexpected oid line: %q", line)
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("scanning cat-file output: %w", err)
+		}
+
+		return nil
+	})
+
+	return eg.Wait()
 }
 
 // Close stops the transaction processing causing Run to return.
@@ -2056,9 +2256,9 @@ func packFilePath(walFiles string) string {
 }
 
 // verifyAlternateUpdate verifies the staged alternate update.
-func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transaction *Transaction) error {
+func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transaction *Transaction) (string, error) {
 	if !transaction.alternateUpdated {
-		return nil
+		return "", nil
 	}
 
 	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.verifyAlternateUpdate", nil)
@@ -2067,35 +2267,35 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 	repositoryPath := mgr.getAbsolutePath(transaction.relativePath)
 	existingAlternate, err := readAlternatesFile(repositoryPath)
 	if err != nil && !errors.Is(err, errNoAlternate) {
-		return fmt.Errorf("read existing alternates file: %w", err)
+		return "", fmt.Errorf("read existing alternates file: %w", err)
 	}
 
 	snapshotRepoPath, err := transaction.snapshotRepository.Path()
 	if err != nil {
-		return fmt.Errorf("snapshot repo path: %w", err)
+		return "", fmt.Errorf("snapshot repo path: %w", err)
 	}
 
 	stagedAlternate, err := readAlternatesFile(snapshotRepoPath)
 	if err != nil && !errors.Is(err, errNoAlternate) {
-		return fmt.Errorf("read staged alternates file: %w", err)
+		return "", fmt.Errorf("read staged alternates file: %w", err)
 	}
 
 	if stagedAlternate == "" {
 		if existingAlternate == "" {
 			// Transaction attempted to remove an alternate from the repository
 			// even if it didn't have one.
-			return errNoAlternate
+			return "", errNoAlternate
 		}
 
 		if err := transaction.walEntry.RecordAlternateUnlink(mgr.storagePath, transaction.relativePath, existingAlternate); err != nil {
-			return fmt.Errorf("record alternate unlink: %w", err)
+			return "", fmt.Errorf("record alternate unlink: %w", err)
 		}
 
-		return nil
+		return "", nil
 	}
 
 	if existingAlternate != "" {
-		return errAlternateAlreadyLinked
+		return "", errAlternateAlreadyLinked
 	}
 
 	alternateObjectsDir, err := storage.ValidateRelativePath(
@@ -2103,31 +2303,31 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 		filepath.Join(transaction.relativePath, "objects", stagedAlternate),
 	)
 	if err != nil {
-		return fmt.Errorf("validate relative path: %w", err)
+		return "", fmt.Errorf("validate relative path: %w", err)
 	}
 
 	alternateRelativePath := filepath.Dir(alternateObjectsDir)
 	if alternateRelativePath == transaction.relativePath {
-		return errAlternatePointsToSelf
+		return "", errAlternatePointsToSelf
 	}
 
 	// Check that the alternate repository exists. This works as a basic conflict check
 	// to prevent linking a repository that was deleted concurrently.
 	alternateRepositoryPath := mgr.getAbsolutePath(alternateRelativePath)
 	if err := storage.ValidateGitDirectory(alternateRepositoryPath); err != nil {
-		return fmt.Errorf("validate git directory: %w", err)
+		return "", fmt.Errorf("validate git directory: %w", err)
 	}
 
 	if _, err := readAlternatesFile(alternateRepositoryPath); !errors.Is(err, errNoAlternate) {
 		if err == nil {
 			// We don't support chaining alternates like repo-1 > repo-2 > repo-3.
-			return errAlternateHasAlternate
+			return "", errAlternateHasAlternate
 		}
 
-		return fmt.Errorf("read alternates file: %w", err)
+		return "", fmt.Errorf("read alternates file: %w", err)
 	}
 
-	return nil
+	return alternateRelativePath, nil
 }
 
 // verifyReferences verifies that the references in the transaction apply on top of the already accepted
@@ -2141,6 +2341,14 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.verifyReferences", nil)
 	defer span.Finish()
 
+	// Apply quarantine to the staging repository in order to ensure the new objects are available when we
+	// are verifying references. Without it we'd encounter errors about missing objects as the new objects
+	// are not in the repository.
+	stagingRepositoryWithQuarantine, err := transaction.stagingRepository.Quarantine(transaction.quarantineDirectory)
+	if err != nil {
+		return nil, fmt.Errorf("quarantine: %w", err)
+	}
+
 	conflictingReferenceUpdates := map[git.ReferenceName]struct{}{}
 	for referenceName, update := range transaction.flattenReferenceTransactions() {
 		// Transactions should only stage references with valid names as otherwise Git would already
@@ -2151,9 +2359,9 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 			return nil, InvalidReferenceFormatError{ReferenceName: referenceName}
 		}
 
-		actualOldTip, err := transaction.stagingRepository.ResolveRevision(ctx, referenceName.Revision())
+		actualOldTip, err := stagingRepositoryWithQuarantine.ResolveRevision(ctx, referenceName.Revision())
 		if errors.Is(err, git.ErrReferenceNotFound) {
-			objectHash, err := transaction.stagingRepository.ObjectHash(ctx)
+			objectHash, err := stagingRepositoryWithQuarantine.ObjectHash(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("object hash: %w", err)
 			}
@@ -2216,17 +2424,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 // invalid reference names and file/directory conflicts with Git's loose reference storage which can occur with references
 // like 'refs/heads/parent' and 'refs/heads/parent/child'.
 func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, referenceTransactions []*gitalypb.LogEntry_ReferenceTransaction, tx *Transaction) error {
-	relativePath := tx.stagingRepository.GetRelativePath()
-	snapshot, err := newSnapshot(ctx,
-		mgr.storagePath,
-		filepath.Join(tx.stagingDirectory, "staging"),
-		[]string{relativePath},
-	)
-	if err != nil {
-		return fmt.Errorf("new snapshot: %w", err)
-	}
-
-	snapshotPackedRefsPath := mgr.getAbsolutePath(snapshot.relativePath(tx.relativePath), "packed-refs")
+	snapshotPackedRefsPath := mgr.getAbsolutePath(tx.stagingSnapshot.relativePath(tx.relativePath), "packed-refs")
 
 	// Record the original packed-refs file. We use it for determining whether the transaction has changed it and
 	// for conflict checking to see if other concurrent transactions have changed the `packed-refs` file. We link
@@ -2238,7 +2436,7 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 		return fmt.Errorf("record original packed-refs: %w", err)
 	}
 
-	repo, err := mgr.repositoryFactory.Build(snapshot.relativePath(relativePath)).Quarantine(tx.quarantineDirectory)
+	repo, err := tx.stagingRepository.Quarantine(tx.quarantineDirectory)
 	if err != nil {
 		return fmt.Errorf("quarantine: %w", err)
 	}
@@ -2251,7 +2449,7 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 	for _, referenceTransaction := range referenceTransactions {
 		if err := tx.walEntry.RecordReferenceUpdates(ctx,
 			mgr.storagePath,
-			snapshot.prefix,
+			tx.stagingSnapshot.prefix,
 			tx.relativePath,
 			referenceTransaction,
 			objectHash,

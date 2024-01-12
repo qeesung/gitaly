@@ -180,6 +180,8 @@ func TestTransactionManager(t *testing.T) {
 	relativePath := gittest.NewRepositoryName(t)
 	setup := setupTest(t, ctx, testPartitionID, relativePath)
 
+	gittest.SkipIfGitVersionLessThan(t, ctx, setup.Config, git.NewVersion(2, 44, 0, 1), "WalkObjects requires fixes to rev-list --missing that will be releasd in Git v2.45.")
+
 	var testCases []transactionTestCase
 	subTests := [][]transactionTestCase{
 		generateCommonTests(t, ctx, setup),
@@ -211,6 +213,7 @@ func TestTransactionManager(t *testing.T) {
 			} else {
 				setup = setupTest(t, ctx, testPartitionID, relativePath)
 			}
+
 			runTransactionTest(t, ctx, tc, setup)
 		})
 	}
@@ -618,6 +621,104 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 		},
 		{
+			desc: "repository contains packfile's unreachable dependency",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID:    1,
+					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
+					IncludeObjects:   []git.ObjectID{setup.Commits.First.OID},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+					QuarantinedPacks: [][]byte{setup.Commits.Second.Pack},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
+						Objects: []git.ObjectID{
+							setup.ObjectHash.EmptyTreeOID,
+							setup.Commits.First.OID,
+							setup.Commits.Second.OID,
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "transaction points references to a new and existing commit",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID:    1,
+					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
+					IncludeObjects:   []git.ObjectID{setup.Commits.First.OID},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/existing": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/new":      {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+					QuarantinedPacks: [][]byte{setup.Commits.Second.Pack},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/existing": setup.Commits.First.OID,
+								"refs/heads/new":      setup.Commits.Second.OID,
+							},
+						},
+						Objects: []git.ObjectID{
+							setup.ObjectHash.EmptyTreeOID,
+							setup.Commits.First.OID,
+							setup.Commits.Second.OID,
+						},
+					},
+				},
+			},
+		},
+		{
 			desc: "pack file missing intermediate commit",
 			steps: steps{
 				Prune{},
@@ -644,7 +745,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Third.OID},
 					},
 					QuarantinedPacks: [][]byte{setup.Commits.Third.Pack},
-					ExpectedError:    localrepo.ObjectReadError{ObjectID: setup.Commits.Second.OID},
+					ExpectedError:    localrepo.InvalidObjectError(setup.Commits.Second.OID),
 				},
 			},
 			expectedState: StateAssertion{
@@ -770,9 +871,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 						setup.Commits.First.Pack,
 					},
 					IncludeObjects: []git.ObjectID{setup.Commits.Second.OID},
-					ExpectedError: localrepo.BadObjectError{
-						ObjectID: setup.Commits.Second.OID,
-					},
+					ExpectedError:  localrepo.InvalidObjectError(setup.Commits.Second.OID),
 				},
 			},
 			expectedState: StateAssertion{
@@ -827,7 +926,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 		},
 		{
-			desc: "pack file applies with dependency concurrently deleted",
+			desc: "pack file fails to be committed with dependency concurrently deleted",
 			steps: steps{
 				Prune{},
 				StartManager{},
@@ -866,14 +965,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 						"refs/heads/dependant": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
 					},
 					QuarantinedPacks: [][]byte{setup.Commits.Second.Pack},
-					// The transaction fails to apply as we are not yet maintaining internal references
-					// to the old tips of concurrently deleted references. This causes the prune step to
-					// remove the object this the pack file depends on.
-					//
-					// For now, keep the test case to assert the behavior. We'll fix this in a later MR.
-					ExpectedError: localrepo.ObjectReadError{
-						ObjectID: setup.Commits.First.OID,
-					},
+					ExpectedError:    localrepo.InvalidObjectError(setup.Commits.First.OID),
 				},
 			},
 			expectedState: StateAssertion{

@@ -230,6 +230,10 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		return fmt.Errorf("unsupported Git version: %q", gitVersion)
 	}
 
+	if expectedVersion := git.NewVersion(2, 44, 0, 1); cfg.Transactions.Enabled && gitVersion.LessThan(expectedVersion) {
+		return fmt.Errorf("transactions are enabled and require Git version later than %q, the version in use was %q", expectedVersion, gitVersion)
+	}
+
 	registry := backchannel.NewRegistry()
 	transactionManager := transaction.NewManager(cfg, logger, registry)
 	prometheus.MustRegister(transactionManager)
