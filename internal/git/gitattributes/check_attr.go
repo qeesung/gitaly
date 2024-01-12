@@ -20,8 +20,6 @@ type CheckAttrCmd struct {
 	stdout *bufio.Reader
 	stdin  *bufio.Writer
 
-	count int
-
 	m *sync.Mutex
 }
 
@@ -31,14 +29,22 @@ func CheckAttr(ctx context.Context, repo git.RepositoryExecutor, revision git.Re
 		return nil, nil, structerr.NewInvalidArgument("empty list of attribute names")
 	}
 
+	flags := []git.Option{
+		git.Flag{Name: "--stdin"},
+		git.Flag{Name: "-z"},
+		git.ValueFlag{Name: "--source", Value: revision.String()},
+	}
+
+	// Special attribute "*" retrieves all attributes
+	if len(names) == 1 && names[0] == "*" {
+		flags = append(flags, git.Flag{Name: "-a"})
+		names = nil
+	}
+
 	cmd, err := repo.Exec(ctx, git.Command{
-		Name: "check-attr",
-		Flags: []git.Option{
-			git.Flag{Name: "--stdin"},
-			git.Flag{Name: "-z"},
-			git.ValueFlag{Name: "--source", Value: revision.String()},
-		},
-		Args: names,
+		Name:  "check-attr",
+		Flags: flags,
+		Args:  names,
 	},
 		git.WithSetupStdin(),
 		git.WithSetupStdout(),
@@ -51,7 +57,6 @@ func CheckAttr(ctx context.Context, repo git.RepositoryExecutor, revision git.Re
 		cmd:    cmd,
 		stdout: bufio.NewReader(cmd),
 		stdin:  bufio.NewWriter(cmd),
-		count:  len(names),
 		m:      &sync.Mutex{},
 	}
 
@@ -79,7 +84,7 @@ func (c CheckAttrCmd) Check(path string) (Attributes, error) {
 
 	// Using git-check-attr(1) with -z will return data in the format:
 	// <path> NUL <attribute> NUL <info> NUL ...
-	for i := 0; i < c.count; {
+	for {
 		word, err := c.stdout.ReadBytes('\000')
 		if err != nil {
 			return nil, fmt.Errorf("read line: %w", err)
@@ -98,8 +103,10 @@ func (c CheckAttrCmd) Check(path string) (Attributes, error) {
 			attrs = append(attrs, Attribute{Name: buf[1], State: buf[2]})
 		}
 
-		i++
 		buf = buf[:0]
+		if c.stdout.Buffered() == 0 {
+			break
+		}
 	}
 
 	return attrs, nil

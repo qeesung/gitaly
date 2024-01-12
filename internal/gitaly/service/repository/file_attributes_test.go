@@ -94,6 +94,33 @@ func TestGetFileAttributes(t *testing.T) {
 			},
 		},
 		{
+			desc: "returns multiple attributes for a file successfully",
+			setup: func(t *testing.T) setupData {
+				return setupData{
+					request: &gitalypb.GetFileAttributesRequest{
+						Repository: repoProto,
+						Revision:   []byte("main"),
+						Attributes: []string{"*"},
+						Paths:      []string{"example.go"},
+					},
+					expectedResponse: &gitalypb.GetFileAttributesResponse{
+						AttributeInfos: []*gitalypb.GetFileAttributesResponse_AttributeInfo{
+							{
+								Path:      string("example.go"),
+								Attribute: string("diff"),
+								Value:     string("go"),
+							},
+							{
+								Path:      string("example.go"),
+								Attribute: string("text"),
+								Value:     string("set"),
+							},
+						},
+					},
+				}
+			},
+		},
+		{
 			desc: "returns empty response when there are no matching attributes for the given path",
 			setup: func(t *testing.T) setupData {
 				return setupData{
