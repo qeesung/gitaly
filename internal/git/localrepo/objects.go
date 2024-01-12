@@ -148,6 +148,32 @@ func (repo *Repo) WalkUnreachableObjects(ctx context.Context, heads io.Reader, o
 	return nil
 }
 
+// WalkObjects walks the object graph starting from heads and writes to the output the objects it
+// sees. Objects that are encountered during the walk and exist in the object database are written
+// out as `<oid> <path>\n` with the `<path>` being sometimes present if applicable. Objects that
+// were encountered during the walk but do not exist in the object database are written out
+// as `?<oid>\n`.
+func (repo *Repo) WalkObjects(ctx context.Context, heads io.Reader, output io.Writer) error {
+	var stderr bytes.Buffer
+	if err := repo.ExecAndWait(ctx,
+		git.Command{
+			Name: "rev-list",
+			Flags: []git.Option{
+				git.Flag{Name: "--objects"},
+				git.Flag{Name: "--missing=print"},
+				git.Flag{Name: "--stdin"},
+			},
+		},
+		git.WithStdin(heads),
+		git.WithStdout(output),
+		git.WithStderr(&stderr),
+	); err != nil {
+		return structerr.New("rev-list: %w", err).WithMetadata("stderr", stderr.String())
+	}
+
+	return nil
+}
+
 // PackObjects takes in object IDs separated by newlines. It packs the objects into a pack file and
 // writes it into the output.
 func (repo *Repo) PackObjects(ctx context.Context, objectIDs io.Reader, output io.Writer) error {

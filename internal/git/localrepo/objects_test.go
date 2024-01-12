@@ -2,6 +2,8 @@ package localrepo
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -201,6 +203,208 @@ func TestWalkUnreachableObjects(t *testing.T) {
 			require.Equal(t,
 				tc.expectedError,
 				repo.WalkUnreachableObjects(ctx, strings.NewReader(strings.Join(heads, "\n")), &output))
+
+			var actualOutput []string
+			if output.Len() > 0 {
+				actualOutput = strings.Split(strings.TrimSpace(output.String()), "\n")
+			}
+			require.ElementsMatch(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestWalkObjects(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg, repo, repoPath := setupRepo(t)
+
+	gittest.SkipIfGitVersionLessThan(t, ctx, cfg, git.NewVersion(2, 44, 0, 1), "WalkObjects requires fixes to rev-list --missing that will be releasd in Git v2.45.")
+
+	// This blob is not expected to be encountered during walk as the tree referencing it is missing.
+	unexpectedBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("we should not see this blob during the walk"))
+	// Create a commit which has a tree missing from the object database. We expect the commit to be reported with the tree reported as missing.
+	missingTree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{{
+		OID:  unexpectedBlob,
+		Mode: "100644",
+		Path: "this tree will be deleted so this path should not be output",
+	}})
+	rootCommit1 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(missingTree))
+
+	// Create a commit with a blob missing from the tree. We expect the commit and tree be reported with the blob reported as missing.
+	missingBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("pruned blob"))
+	rootCommit2Tree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{{
+		OID:  missingBlob,
+		Mode: "100644",
+		Path: "missing_blob",
+	}})
+	rootCommit2 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(rootCommit2Tree))
+
+	// This commit is deleted and is expected to be reported as missing when it's encountered during the walk.
+	missingRootCommit := gittest.WriteCommit(t, cfg, repoPath)
+
+	// Create a commit with two parents. We expect both parents to be included.
+	mergeCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(gittest.DefaultObjectHash.EmptyTreeOID), gittest.WithParents(rootCommit1, rootCommit2, missingRootCommit))
+
+	// This commit is missing its only parent. Walking this we expect the commit to be reported but the parent reported as missing.
+	commitMissingParent := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(gittest.DefaultObjectHash.EmptyTreeOID), gittest.WithParents(missingRootCommit))
+
+	// This tag is referencing a missing commit. We expect the tag to be reported and the commit reported as missing.
+	tagMissingParent := gittest.WriteTag(t, cfg, repoPath, "refs/tags/tag-missing-parent", missingRootCommit.Revision(), gittest.WriteTagConfig{
+		Message: "tag missing parent",
+	})
+
+	// Create a hierarchy with some files and subdirectories to see they are reported expectedly.
+	blob1 := gittest.WriteBlob(t, cfg, repoPath, []byte("blob 1"))
+	blob2 := gittest.WriteBlob(t, cfg, repoPath, []byte("blob 2"))
+	blob3 := gittest.WriteBlob(t, cfg, repoPath, []byte("blob 3"))
+	leafCommitSubtree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{
+			OID:  blob2,
+			Mode: "100644",
+			Path: "blob2",
+		},
+		{
+			OID:  blob3,
+			Mode: "100644",
+			Path: "blob3",
+		},
+	})
+	leafCommitTree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+		{
+			OID:  leafCommitSubtree,
+			Mode: "040000",
+			Path: "subtree",
+		},
+		{
+			OID:  blob1,
+			Mode: "100644",
+			Path: "blob1",
+		},
+	})
+
+	// Create two commits that diverge from the same parent. When walking one, we don't expect to get the other one reported.
+	leafCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(leafCommitTree), gittest.WithParents(mergeCommit))
+	divergedCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTree(gittest.DefaultObjectHash.EmptyTreeOID), gittest.WithParents(mergeCommit))
+	divergedTag := gittest.WriteTag(t, cfg, repoPath, "refs/tags/diverged-tag", divergedCommit.Revision(), gittest.WriteTagConfig{
+		Message: "diverged tag",
+	})
+
+	// Remove the objects that we use for testing missing objects.
+	for _, removedOID := range []string{
+		missingBlob.String(),
+		missingTree.String(),
+		missingRootCommit.String(),
+	} {
+		require.NoError(t, os.Remove(filepath.Join(repoPath, "objects", removedOID[:2], removedOID[2:])))
+	}
+
+	for _, tc := range []struct {
+		desc                 string
+		heads                []git.ObjectID
+		expectedOutput       []string
+		expectedErrorMessage string
+	}{
+		{
+			desc: "no heads",
+		},
+		{
+			desc: "missing start points",
+			heads: []git.ObjectID{
+				missingBlob,
+				missingRootCommit,
+			},
+			expectedOutput: []string{
+				"?" + missingBlob.String(),
+				"?" + missingRootCommit.String(),
+			},
+		},
+		{
+			desc: "commit missing parent commit",
+			heads: []git.ObjectID{
+				commitMissingParent,
+			},
+			expectedOutput: []string{
+				commitMissingParent.String(),
+				gittest.DefaultObjectHash.EmptyTreeOID.String() + " ",
+				"?" + missingRootCommit.String(),
+			},
+		},
+		{
+			desc: "annotated tag missing referenced commit",
+			heads: []git.ObjectID{
+				tagMissingParent,
+			},
+			expectedOutput: []string{
+				tagMissingParent.String() + " refs/tags/tag-missing-parent",
+				"?" + missingRootCommit.String(),
+			},
+		},
+		{
+			desc: "diverged tag and commit are not reported",
+			heads: []git.ObjectID{
+				leafCommit,
+			},
+			expectedOutput: []string{
+				leafCommit.String(),
+				leafCommitTree.String() + " ",
+				blob1.String() + " blob1",
+				leafCommitSubtree.String() + " subtree",
+				blob2.String() + " subtree/blob2",
+				blob3.String() + " subtree/blob3",
+				mergeCommit.String(),
+				gittest.DefaultObjectHash.EmptyTreeOID.String() + " ",
+				"?" + missingRootCommit.String(),
+				rootCommit2.String(),
+				rootCommit2Tree.String() + " ",
+				"?" + missingBlob.String(),
+				rootCommit1.String(),
+				"?" + missingTree.String(),
+			},
+		},
+		{
+			desc: "walk the leaf commit and diverged tag",
+			heads: []git.ObjectID{
+				leafCommit,
+				divergedTag,
+			},
+			expectedOutput: []string{
+				divergedTag.String() + " refs/tags/diverged-tag",
+				divergedCommit.String(),
+				leafCommit.String(),
+				leafCommitTree.String() + " ",
+				blob1.String() + " blob1",
+				leafCommitSubtree.String() + " subtree",
+				blob2.String() + " subtree/blob2",
+				blob3.String() + " subtree/blob3",
+				mergeCommit.String(),
+				gittest.DefaultObjectHash.EmptyTreeOID.String() + " ",
+				"?" + missingRootCommit.String(),
+				rootCommit2.String(),
+				rootCommit2Tree.String() + " ",
+				"?" + missingBlob.String(),
+				rootCommit1.String(),
+				"?" + missingTree.String(),
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
+			var heads []string
+			for _, head := range tc.heads {
+				heads = append(heads, head.String())
+			}
+
+			var output bytes.Buffer
+			err := repo.WalkObjects(ctx, strings.NewReader(strings.Join(heads, "\n")), &output)
+			if tc.expectedErrorMessage != "" {
+				require.Equal(t, tc.expectedErrorMessage, err.Error())
+				return
+			}
+			require.NoError(t, err)
 
 			var actualOutput []string
 			if output.Len() > 0 {
