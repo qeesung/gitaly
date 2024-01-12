@@ -2,6 +2,7 @@ package localrepo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
 )
 
 // Repo represents a local Git repository.
@@ -87,6 +89,36 @@ func (repo *Repo) Quarantine(quarantineDirectory string) (*Repo, error) {
 		repo.gitCmdFactory,
 		repo.catfileCache,
 		quarantinedRepo,
+	), nil
+}
+
+// QuarantineOnly returns the repository with only the quarantine directory configured as an object
+// directory by dropping the alternate object directories. Returns an error if the repository doesn't
+// have a quarantine directory configured.
+//
+// Only the alternates configured in the *gitalypb.Repository object are dropped, not the alternates
+// that could be in `objects/info/alternates`. Dropping the configured alternates does however also
+// implicitly remove the `objects/info/alternates` in the alternate object directory since the file
+// would exist there. The quarantine directory itself would not typically contain an
+// `objects/info/alternates` file.
+func (repo *Repo) QuarantineOnly() (*Repo, error) {
+	pbRepo, ok := repo.Repository.(*gitalypb.Repository)
+	if !ok {
+		return nil, fmt.Errorf("unexpected repository type %t", repo.Repository)
+	}
+
+	cloneRepo := proto.Clone(pbRepo).(*gitalypb.Repository)
+	cloneRepo.GitAlternateObjectDirectories = nil
+	if cloneRepo.GitObjectDirectory == "" {
+		return nil, errors.New("repository wasn't quarantined")
+	}
+
+	return New(
+		repo.logger,
+		repo.locator,
+		repo.gitCmdFactory,
+		repo.catfileCache,
+		cloneRepo,
 	), nil
 }
 

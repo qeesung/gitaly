@@ -3,6 +3,7 @@ package localrepo
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -169,6 +170,58 @@ func TestRepo_Quarantine_nonExistentRepository(t *testing.T) {
 			testhelper.ProtoEqual(t, tc.expectedRepo, quarantinedRepo.Repository)
 		})
 	}
+}
+
+func TestRepo_QuarantineOnly(t *testing.T) {
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+	catfileCache := catfile.NewCache(cfg)
+	defer catfileCache.Stop()
+
+	ctx := testhelper.Context(t)
+	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
+
+	unquarantinedRepo := New(
+		testhelper.NewLogger(t),
+		config.NewLocator(cfg),
+		gittest.NewCommandFactory(t, cfg),
+		catfileCache,
+		repoProto,
+	)
+
+	t.Run("fails with unquarantined repository", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := unquarantinedRepo.QuarantineOnly()
+		require.Equal(t, err, errors.New("repository wasn't quarantined"))
+	})
+
+	t.Run("returns the repository with only the quarantine directory", func(t *testing.T) {
+		t.Parallel()
+
+		quarantinedRepo, err := unquarantinedRepo.Quarantine(filepath.Join(repoPath, "quarantine-directory"))
+		require.NoError(t, err)
+
+		expectedRepo := &gitalypb.Repository{
+			StorageName:                   repoProto.StorageName,
+			RelativePath:                  repoProto.RelativePath,
+			GlRepository:                  repoProto.GlRepository,
+			GlProjectPath:                 repoProto.GlProjectPath,
+			GitObjectDirectory:            "quarantine-directory",
+			GitAlternateObjectDirectories: []string{"objects"},
+		}
+
+		testhelper.ProtoEqual(t, expectedRepo, quarantinedRepo.Repository)
+
+		onlyQuarantineRepo, err := quarantinedRepo.QuarantineOnly()
+		require.NoError(t, err)
+
+		expectedRepo.GitAlternateObjectDirectories = nil
+		testhelper.ProtoEqual(t, expectedRepo, onlyQuarantineRepo.Repository)
+	})
 }
 
 func TestRepo_StorageTempDir(t *testing.T) {
