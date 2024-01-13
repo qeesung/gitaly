@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
@@ -86,66 +85,6 @@ func (repo *Repo) ReadObject(ctx context.Context, oid git.ObjectID) ([]byte, err
 	}
 
 	return data, nil
-}
-
-// BadObjectError is returned when attempting to walk a bad object.
-type BadObjectError struct {
-	// ObjectID is the object id of the object that was bad.
-	ObjectID git.ObjectID
-}
-
-// Error returns the error message.
-func (err BadObjectError) Error() string {
-	return fmt.Sprintf("bad object %q", err.ObjectID)
-}
-
-// ObjectReadError is returned when reading an object fails.
-type ObjectReadError struct {
-	// ObjectID is the object id of the object that git failed to read
-	ObjectID git.ObjectID
-}
-
-// Error returns the error message.
-func (err ObjectReadError) Error() string {
-	return fmt.Sprintf("failed reading object %q", err.ObjectID)
-}
-
-var (
-	regexpBadObjectError  = regexp.MustCompile(`^fatal: bad object ([[:xdigit:]]*)\n$`)
-	regexpObjectReadError = regexp.MustCompile(`^error: Could not read ([[:xdigit:]]*)\n`)
-)
-
-// WalkUnreachableObjects walks the object graph starting from heads and writes to the output object IDs
-// that are included in the walk but unreachable from any of the repository's references. Heads should
-// return object IDs separated with a newline. Output is object IDs separated by newlines.
-func (repo *Repo) WalkUnreachableObjects(ctx context.Context, heads io.Reader, output io.Writer) error {
-	var stderr bytes.Buffer
-	if err := repo.ExecAndWait(ctx,
-		git.Command{
-			Name: "rev-list",
-			Flags: []git.Option{
-				git.Flag{Name: "--objects"},
-				git.Flag{Name: "--not"},
-				git.Flag{Name: "--all"},
-				git.Flag{Name: "--stdin"},
-			},
-		},
-		git.WithStdin(heads),
-		git.WithStdout(output),
-		git.WithStderr(&stderr),
-	); err != nil {
-		if matches := regexpBadObjectError.FindSubmatch(stderr.Bytes()); len(matches) > 1 {
-			return BadObjectError{ObjectID: git.ObjectID(matches[1])}
-		}
-
-		if matches := regexpObjectReadError.FindSubmatch(stderr.Bytes()); len(matches) > 1 {
-			return ObjectReadError{ObjectID: git.ObjectID(matches[1])}
-		}
-
-		return structerr.New("rev-list: %w", err).WithMetadata("stderr", stderr.String())
-	}
-
-	return nil
 }
 
 // WalkObjects walks the object graph starting from heads and writes to the output the objects it
