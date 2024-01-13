@@ -1,5 +1,9 @@
 # Gitaly changelog
 
+## 16.7.3 (2024-01-13)
+
+No changes.
+
 ## 16.7.2 (2024-01-10)
 
 ### Security (1 change)
