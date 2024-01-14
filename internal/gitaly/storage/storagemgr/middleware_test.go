@@ -36,6 +36,7 @@ type mockRepositoryService struct {
 	removeRepositoryFunc   func(context.Context, *gitalypb.RemoveRepositoryRequest) (*gitalypb.RemoveRepositoryResponse, error)
 	setCustomHooksFunc     func(gitalypb.RepositoryService_SetCustomHooksServer) error
 	getCustomHooksFunc     func(*gitalypb.GetCustomHooksRequest, gitalypb.RepositoryService_GetCustomHooksServer) error
+	createForkFunc         func(context.Context, *gitalypb.CreateForkRequest) (*gitalypb.CreateForkResponse, error)
 	gitalypb.UnimplementedRepositoryServiceServer
 }
 
@@ -57,6 +58,10 @@ func (m mockRepositoryService) SetCustomHooks(stream gitalypb.RepositoryService_
 
 func (m mockRepositoryService) GetCustomHooks(req *gitalypb.GetCustomHooksRequest, stream gitalypb.RepositoryService_GetCustomHooksServer) error {
 	return m.getCustomHooksFunc(req, stream)
+}
+
+func (m mockRepositoryService) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest) (*gitalypb.CreateForkResponse, error) {
+	return m.createForkFunc(ctx, req)
 }
 
 type mockHealthService struct {
@@ -396,6 +401,35 @@ messages and behavior by erroring out the requests before they even hit this int
 			},
 			expectHandlerInvoked: true,
 		},
+		{
+			desc: "successful CreateFork request",
+			performRequest: func(t *testing.T, ctx context.Context, cc *grpc.ClientConn) {
+				resp, err := gitalypb.NewRepositoryServiceClient(cc).CreateFork(ctx, &gitalypb.CreateForkRequest{
+					Repository:       validAdditionalRepository(),
+					SourceRepository: validRepository(),
+				})
+				require.NoError(t, err)
+				testhelper.ProtoEqual(t, &gitalypb.CreateForkResponse{}, resp)
+			},
+			assertAdditionalRepository: func(t *testing.T, ctx context.Context, actual *gitalypb.Repository) {
+				testhelper.ProtoEqual(t, validRepository(), actual)
+			},
+			expectHandlerInvoked: true,
+		},
+		{
+			desc: "CreateFork fails due to repositories in different storages",
+			performRequest: func(t *testing.T, ctx context.Context, cc *grpc.ClientConn) {
+				sourceRepository := validRepository()
+				sourceRepository.StorageName = "different_storage"
+
+				resp, err := gitalypb.NewRepositoryServiceClient(cc).CreateFork(ctx, &gitalypb.CreateForkRequest{
+					Repository:       validAdditionalRepository(),
+					SourceRepository: sourceRepository,
+				})
+				require.Equal(t, status.Error(codes.InvalidArgument, storagemgr.ErrRepositoriesInDifferentStorages.Error()), err)
+				require.Nil(t, resp)
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			cfg := testcfg.Build(t)
@@ -414,7 +448,7 @@ messages and behavior by erroring out the requests before they even hit this int
 			handlerInvoked := false
 			var transactionID storage.TransactionID
 
-			assertHandler := func(ctx context.Context, isMutator bool, repo *gitalypb.Repository) {
+			assertHandler := func(ctx context.Context, shouldBeQuarantined bool, repo *gitalypb.Repository) {
 				handlerInvoked = true
 
 				// The repositories should be equal except for the relative path which
@@ -427,7 +461,7 @@ messages and behavior by erroring out the requests before they even hit this int
 				expectedRepo.RelativePath = ""
 				actualRepo.RelativePath = ""
 
-				if isMutator {
+				if shouldBeQuarantined {
 					// Mutators should have quarantine directory configured.
 					assert.NotEmpty(t, actualRepo.GitObjectDirectory)
 					actualRepo.GitObjectDirectory = ""
@@ -476,6 +510,11 @@ messages and behavior by erroring out the requests before they even hit this int
 					},
 				})
 				gitalypb.RegisterRepositoryServiceServer(server, mockRepositoryService{
+					createForkFunc: func(ctx context.Context, req *gitalypb.CreateForkRequest) (*gitalypb.CreateForkResponse, error) {
+						assertHandler(ctx, false, req.GetRepository())
+						tc.assertAdditionalRepository(t, ctx, req.GetSourceRepository())
+						return &gitalypb.CreateForkResponse{}, tc.handlerError
+					},
 					objectFormatFunc: func(ctx context.Context, req *gitalypb.ObjectFormatRequest) (*gitalypb.ObjectFormatResponse, error) {
 						assertHandler(ctx, false, req.GetRepository())
 						return &gitalypb.ObjectFormatResponse{}, tc.handlerError

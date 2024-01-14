@@ -13,6 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	hookservice "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/repository"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/ssh"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -66,6 +67,7 @@ func runObjectPoolServer(t *testing.T, cfg config.Cfg, locator storage.Locator, 
 		gitalypb.RegisterObjectPoolServiceServer(srv, NewServer(deps))
 		gitalypb.RegisterHookServiceServer(srv, hookservice.NewServer(deps))
 		gitalypb.RegisterRepositoryServiceServer(srv, repository.NewServer(deps))
+		gitalypb.RegisterSSHServiceServer(srv, ssh.NewServer(deps))
 	}, append(opts, testserver.WithLocator(locator), testserver.WithLogger(logger))...)
 }
 
