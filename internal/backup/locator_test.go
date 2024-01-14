@@ -470,7 +470,9 @@ custom_hooks_path = '%[1]s/%[2]s/001.custom_hooks.tar'
 		require.NoError(t, l.Commit(ctx, incremental))
 
 		manifest := testhelper.MustReadFile(t, filepath.Join(backupPath, "manifests", repo.StorageName, repo.RelativePath, backupID+".toml"))
-		require.Equal(t, fmt.Sprintf(`object_format = 'sha1'
+		latestManifest := testhelper.MustReadFile(t, filepath.Join(backupPath, "manifests", repo.StorageName, repo.RelativePath, "+latest.toml"))
+
+		expectedManifest := fmt.Sprintf(`object_format = 'sha1'
 
 [[steps]]
 bundle_path = '%[1]s/%[2]s/001.bundle'
@@ -482,7 +484,10 @@ bundle_path = '%[1]s/%[2]s/002.bundle'
 ref_path = '%[1]s/%[2]s/002.refs'
 previous_ref_path = '%[1]s/%[2]s/001.refs'
 custom_hooks_path = '%[1]s/%[2]s/002.custom_hooks.tar'
-`, repo.RelativePath, backupID), string(manifest))
+`, repo.RelativePath, backupID)
+
+		require.Equal(t, expectedManifest, string(manifest))
+		require.Equal(t, expectedManifest, string(latestManifest))
 	})
 }
 

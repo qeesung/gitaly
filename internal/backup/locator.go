@@ -294,17 +294,10 @@ func (l ManifestLocator) Commit(ctx context.Context, backup *Backup) (returnErr 
 		return err
 	}
 
-	f, err := l.Sink.GetWriter(ctx, manifestPath(backup.Repository, backup.ID))
-	if err != nil {
+	if err := l.writeManifest(ctx, backup, backup.ID); err != nil {
 		return fmt.Errorf("manifest: commit: %w", err)
 	}
-	defer func() {
-		if err := f.Close(); err != nil && returnErr == nil {
-			returnErr = fmt.Errorf("manifest: commit: %w", err)
-		}
-	}()
-
-	if err := toml.NewEncoder(f).Encode(backup); err != nil {
+	if err := l.writeManifest(ctx, backup, "+latest"); err != nil {
 		return fmt.Errorf("manifest: commit: %w", err)
 	}
 
@@ -338,6 +331,24 @@ func (l ManifestLocator) Find(ctx context.Context, repo storage.Repository, back
 	backup.Repository = repo
 
 	return &backup, nil
+}
+
+func (l ManifestLocator) writeManifest(ctx context.Context, backup *Backup, backupID string) (returnErr error) {
+	f, err := l.Sink.GetWriter(ctx, manifestPath(backup.Repository, backupID))
+	if err != nil {
+		return fmt.Errorf("write manifest: %w", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil && returnErr == nil {
+			returnErr = fmt.Errorf("write manifest: %w", err)
+		}
+	}()
+
+	if err := toml.NewEncoder(f).Encode(backup); err != nil {
+		return fmt.Errorf("write manifest: %w", err)
+	}
+
+	return nil
 }
 
 func manifestPath(repo storage.Repository, backupID string) string {
