@@ -267,6 +267,8 @@ func (l PointerLocator) writeLatest(ctx context.Context, path, target string) (r
 	return nil
 }
 
+const latestManifestName = "+latest"
+
 // ManifestLocator locates backup paths based on manifest files that are
 // written to a predetermined path:
 //
@@ -297,34 +299,52 @@ func (l ManifestLocator) Commit(ctx context.Context, backup *Backup) (returnErr 
 	if err := l.writeManifest(ctx, backup, backup.ID); err != nil {
 		return fmt.Errorf("manifest: commit: %w", err)
 	}
-	if err := l.writeManifest(ctx, backup, "+latest"); err != nil {
-		return fmt.Errorf("manifest: commit: %w", err)
+	if err := l.writeManifest(ctx, backup, latestManifestName); err != nil {
+		return fmt.Errorf("manifest: commit latest: %w", err)
 	}
 
 	return nil
 }
 
-// FindLatest passes through to Fallback
+// FindLatest loads the manifest called +latest. If this manifest does not
+// exist, the Fallback is used.
 func (l ManifestLocator) FindLatest(ctx context.Context, repo storage.Repository) (*Backup, error) {
-	return l.Fallback.FindLatest(ctx, repo)
+	backup, err := l.readManifest(ctx, repo, latestManifestName)
+	switch {
+	case errors.Is(err, ErrDoesntExist):
+		return l.Fallback.FindLatest(ctx, repo)
+	case err != nil:
+		return nil, fmt.Errorf("manifest: find latest: %w", err)
+	}
+
+	return backup, nil
 }
 
 // Find loads the manifest for the provided repo and backupID. If this manifest
 // does not exist, the fallback is used.
 func (l ManifestLocator) Find(ctx context.Context, repo storage.Repository, backupID string) (*Backup, error) {
-	f, err := l.Sink.GetReader(ctx, manifestPath(repo, backupID))
+	backup, err := l.readManifest(ctx, repo, backupID)
 	switch {
 	case errors.Is(err, ErrDoesntExist):
 		return l.Fallback.Find(ctx, repo, backupID)
 	case err != nil:
 		return nil, fmt.Errorf("manifest: find: %w", err)
 	}
+
+	return backup, nil
+}
+
+func (l ManifestLocator) readManifest(ctx context.Context, repo storage.Repository, backupID string) (*Backup, error) {
+	f, err := l.Sink.GetReader(ctx, manifestPath(repo, backupID))
+	if err != nil {
+		return nil, fmt.Errorf("read manifest: %w", err)
+	}
 	defer f.Close()
 
 	var backup Backup
 
 	if err := toml.NewDecoder(f).Decode(&backup); err != nil {
-		return nil, fmt.Errorf("manifest: find: %w", err)
+		return nil, fmt.Errorf("read manifest: %w", err)
 	}
 
 	backup.ID = backupID
