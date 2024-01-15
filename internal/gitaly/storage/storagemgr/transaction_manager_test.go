@@ -92,6 +92,16 @@ func anyDirectoryEntry(cfg config.Cfg) testhelper.DirectoryEntry {
 	}
 }
 
+// anyDirectoryEntryWithPerm returns a DirectoryEntry that checks for the existence of a file having a particular perm.
+// The content will be asserted in the later state.
+func anyDirectoryEntryWithPerm(cfg config.Cfg, perm os.FileMode) testhelper.DirectoryEntry {
+	return testhelper.DirectoryEntry{
+		Mode:         perm,
+		Content:      "",
+		ParseContent: func(testing.TB, string, []byte) any { return "" },
+	}
+}
+
 // packFileDirectoryEntry returns a DirectoryEntry that parses content as a pack file and asserts that the
 // set of objects in the pack file matches the expected objects.
 func packFileDirectoryEntry(cfg config.Cfg, expectedObjects []git.ObjectID) testhelper.DirectoryEntry {
@@ -263,6 +273,8 @@ func TestTransactionManager(t *testing.T) {
 		generateAlternateTests(t, setup),
 		generateCustomHooksTests(t, setup),
 		generateHousekeepingPackRefsTests(t, ctx, testPartitionID, relativePath),
+		generateHousekeepingRepackingStrategyTests(t, ctx, testPartitionID, relativePath),
+		generateHousekeepingRepackingConcurrentTests(t, ctx, setup),
 	}
 	for _, subCases := range subTests {
 		testCases = append(testCases, subCases...)
