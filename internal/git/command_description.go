@@ -321,6 +321,9 @@ var commandDescriptions = map[string]commandDescription{
 	"show": {
 		flags: scNoRefUpdates,
 	},
+	"show-index": {
+		flags: scNoRefUpdates,
+	},
 	"show-ref": {
 		flags: scNoRefUpdates,
 	},
