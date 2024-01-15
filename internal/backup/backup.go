@@ -13,6 +13,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -363,14 +364,50 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 		return fmt.Errorf("manager: no backup steps")
 	}
 
-	// If we can't reset the refs, perform a full restore by recreating the repo and cloning from the bundle.
-	if err := mgr.restoreFromBundle(ctx, repo, backup, req.AlwaysCreate); err != nil {
-		return fmt.Errorf("manager: restore from bundle: %w", err)
+	// Restore Git objects, potentially from increments.
+	if err := mgr.restoreFromRefs(ctx, repo, backup); err != nil {
+		mgr.logger.WithFields(log.Fields{
+			"storage":       req.Repository.GetStorageName(),
+			"relative_path": req.Repository.GetRelativePath(),
+			"backup_id":     backup.ID,
+			logrus.ErrorKey: err,
+		}).Warn("unable to reset refs. Proceeding with a normal restore")
+
+		// If we can't reset the refs, perform a full restore by recreating the repo and cloning from the bundle.
+		if err := mgr.restoreFromBundle(ctx, repo, backup, req.AlwaysCreate); err != nil {
+			return fmt.Errorf("manager: restore from bundle: %w", err)
+		}
 	}
 
-	// Restore custom hooks. The path is the same regardless of increment.
+	// Restore custom hooks. Each custom hooks archive contains the entirety of the hooks, so
+	// we can just restore the most recent archive.
 	latestStep := backup.Steps[len(backup.Steps)-1]
 	return mgr.restoreCustomHooks(ctx, repo, latestStep.CustomHooksPath)
+}
+
+func (mgr *Manager) restoreFromRefs(ctx context.Context, repo Repository, backup *Backup) error {
+	latestStep := backup.Steps[len(backup.Steps)-1]
+	refs, err := mgr.readRefs(ctx, latestStep.RefPath)
+	if err != nil {
+		return fmt.Errorf("read refs from backup: %w", err)
+	}
+	if len(refs) == 0 {
+		return errors.New("no refs in backup")
+	}
+
+	// Reset all refs except for HEAD.
+	if err := repo.ResetRefs(ctx, refs); err != nil {
+		return fmt.Errorf("reset refs: %w", err)
+	}
+
+	// Explicitly reset HEAD to the default branch tracked by the manifest if available. In a
+	// bundle restore, this would've been done during repository creation.
+	headRef := git.ReferenceName(backup.HeadReference)
+	if headRef == "" {
+		return errors.New("expected HEAD to be a symbolic reference")
+	}
+
+	return repo.SetHeadReference(ctx, headRef)
 }
 
 func (mgr *Manager) restoreFromBundle(ctx context.Context, repo Repository, backup *Backup, alwaysCreate bool) error {

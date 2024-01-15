@@ -21,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/client"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
@@ -569,22 +570,22 @@ func TestManager_Restore_latest(t *testing.T) {
 
 	for _, managerTC := range []struct {
 		desc  string
-		setup func(t testing.TB, sink backup.Sink, locator backup.Locator) *backup.Manager
+		setup func(t testing.TB, sink backup.Sink, locator backup.Locator, logger log.LogrusLogger) *backup.Manager
 	}{
 		{
 			desc: "RPC manager",
-			setup: func(tb testing.TB, sink backup.Sink, locator backup.Locator) *backup.Manager {
+			setup: func(tb testing.TB, sink backup.Sink, locator backup.Locator, logger log.LogrusLogger) *backup.Manager {
 				pool := client.NewPool()
 				tb.Cleanup(func() {
 					testhelper.MustClose(tb, pool)
 				})
 
-				return backup.NewManager(sink, testhelper.SharedLogger(t), locator, pool)
+				return backup.NewManager(sink, logger, locator, pool)
 			},
 		},
 		{
 			desc: "Local manager",
-			setup: func(tb testing.TB, sink backup.Sink, locator backup.Locator) *backup.Manager {
+			setup: func(tb testing.TB, sink backup.Sink, locator backup.Locator, logger log.LogrusLogger) *backup.Manager {
 				if testhelper.IsPraefectEnabled() {
 					tb.Skip("local backup manager expects to operate on the local filesystem so cannot operate through praefect")
 				}
@@ -595,7 +596,7 @@ func TestManager_Restore_latest(t *testing.T) {
 				tb.Cleanup(catfileCache.Stop)
 				txManager := transaction.NewTrackingManager()
 
-				return backup.NewManagerLocal(sink, testhelper.SharedLogger(t), locator, storageLocator, gitCmdFactory, catfileCache, txManager, repoCounter)
+				return backup.NewManagerLocal(sink, logger, locator, storageLocator, gitCmdFactory, catfileCache, txManager, repoCounter)
 			},
 		},
 	} {
@@ -612,62 +613,93 @@ func TestManager_Restore_latest(t *testing.T) {
 
 			repoClient := gitalypb.NewRepositoryServiceClient(cc)
 
-			_, repoPath := gittest.CreateRepository(t, ctx, cfg)
-			commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
-			gittest.WriteTag(t, cfg, repoPath, "v1.0.0", commitID.Revision())
-			repoChecksum := gittest.ChecksumRepo(t, cfg, repoPath)
-			repoBundle := gittest.BundleRepo(t, cfg, repoPath, "-")
-			repoRefs := gittest.Exec(t, cfg, "-C", repoPath, "show-ref", "--head")
-
 			backupRoot := testhelper.TempDir(t)
 
 			for _, tc := range []struct {
-				desc          string
-				setup         func(tb testing.TB) (*gitalypb.Repository, *git.Checksum)
-				alwaysCreate  bool
-				expectExists  bool
-				expectedPaths []string
-				expectedErrAs error
+				desc                           string
+				setup                          func(tb testing.TB) (*gitalypb.Repository, *git.Checksum)
+				alwaysCreate                   bool
+				expectExists                   bool
+				expectedPaths                  []string
+				expectedErrAs                  error
+				shouldUseResetRefsOptimisation bool
 			}{
 				{
-					desc: "existing repo, without hooks",
+					desc: "non-optimised",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
+						_, repoPath, _ := createAndSeedRepository(t, ctx, cfg)
+						repoChecksum, repoBundle, repoRefs := createBackupArtifacts(t, cfg, repoPath)
+
+						// Restoring into an empty repo, so ref reset won't work.
 						repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
 							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[3]s'
 
 [[steps]]
 bundle_path = '%[2]s.bundle'
 ref_path = '%[2]s.refs'
 custom_hooks_path = '%[2]s/custom_hooks.tar'
-							`, gittest.DefaultObjectHash.Format, relativePath),
+							`, gittest.DefaultObjectHash.Format, relativePath, git.DefaultRef.String()),
 							relativePath + ".bundle": repoBundle,
 							relativePath + ".refs":   repoRefs,
 						})
+
+						require.NoError(tb, os.MkdirAll(filepath.Join(backupRoot, relativePath), perm.PublicDir))
 
 						return repo, repoChecksum
 					},
 					expectExists: true,
 				},
 				{
+					desc: "existing repo, without hooks",
+					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
+						repo, repoPath, head := createAndSeedRepository(t, ctx, cfg)
+						repoChecksum, repoBundle, repoRefs := createBackupArtifacts(t, cfg, repoPath)
+						gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(head), gittest.WithBranch("main"))
+
+						relativePath := stripRelativePath(tb, repo)
+						testhelper.WriteFiles(tb, backupRoot, map[string]any{
+							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+head_reference = '%[3]s'
+
+[[steps]]
+bundle_path = '%[2]s.bundle'
+ref_path = '%[2]s.refs'
+custom_hooks_path = '%[2]s/custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, relativePath, git.DefaultRef.String()),
+							relativePath + ".bundle": repoBundle,
+							relativePath + ".refs":   repoRefs,
+						})
+
+						return repo, repoChecksum
+					},
+					expectExists:                   true,
+					shouldUseResetRefsOptimisation: true,
+				},
+				{
 					desc: "existing repo, with hooks",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
-						repo, _ := gittest.CreateRepository(t, ctx, cfg)
+						repo, repoPath, head := createAndSeedRepository(t, ctx, cfg)
+						repoChecksum, repoBundle, repoRefs := createBackupArtifacts(t, cfg, repoPath)
+						gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(head), gittest.WithBranch("main"))
 
 						relativePath := stripRelativePath(tb, repo)
 						customHooksPath := filepath.Join(backupRoot, relativePath, "custom_hooks.tar")
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
 							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[3]s'
 
 [[steps]]
 bundle_path = '%[2]s.bundle'
 ref_path = '%[2]s.refs'
 custom_hooks_path = '%[2]s/custom_hooks.tar'
-							`, gittest.DefaultObjectHash.Format, relativePath),
+							`, gittest.DefaultObjectHash.Format, relativePath, git.DefaultRef.String()),
 							relativePath + ".bundle": repoBundle,
 							relativePath + ".refs":   repoRefs,
 						})
@@ -682,7 +714,8 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 						"custom_hooks/prepare-commit-msg.sample",
 						"custom_hooks/pre-push.sample",
 					},
-					expectExists: true,
+					expectExists:                   true,
+					shouldUseResetRefsOptimisation: true,
 				},
 				{
 					desc: "missing backup",
@@ -710,11 +743,12 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
 							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[3]s'
 
 [[steps]]
 ref_path = '%[2]s.refs'
 custom_hooks_path = '%[2]s/custom_hooks.tar'
-							`, gittest.DefaultObjectHash.Format, relativePath),
+							`, gittest.DefaultObjectHash.Format, relativePath, git.DefaultRef.String()),
 							relativePath + ".refs": "",
 						})
 
@@ -731,11 +765,12 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
 							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[3]s'
 
 [[steps]]
 ref_path = '%[2]s.refs'
 custom_hooks_path = '%[2]s/custom_hooks.tar'
-							`, gittest.DefaultObjectHash.Format, relativePath),
+							`, gittest.DefaultObjectHash.Format, relativePath, git.DefaultRef.String()),
 							relativePath + ".refs": "",
 						})
 
@@ -747,26 +782,30 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 				{
 					desc: "nonexistent repo",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
-						repo := &gitalypb.Repository{
+						_, repoPath, _ := createAndSeedRepository(t, ctx, cfg)
+						repoChecksum, repoBundle, repoRefs := createBackupArtifacts(t, cfg, repoPath)
+
+						nonexistentRepo := &gitalypb.Repository{
 							StorageName:  "default",
 							RelativePath: gittest.NewRepositoryName(tb),
 						}
 
-						relativePath := stripRelativePath(tb, repo)
+						relativePath := stripRelativePath(tb, nonexistentRepo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
-							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+							filepath.Join("manifests", nonexistentRepo.GetStorageName(), nonexistentRepo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[3]s'
 
 [[steps]]
 bundle_path = '%[2]s.bundle'
 ref_path = '%[2]s.refs'
 custom_hooks_path = '%[2]s/custom_hooks.tar'
-							`, gittest.DefaultObjectHash.Format, relativePath),
+							`, gittest.DefaultObjectHash.Format, relativePath, git.DefaultRef.String()),
 							relativePath + ".bundle": repoBundle,
 							relativePath + ".refs":   repoRefs,
 						})
 
-						return repo, repoChecksum
+						return nonexistentRepo, repoChecksum
 					},
 					expectExists: true,
 				},
@@ -775,46 +814,58 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						const backupID = "abc123"
 
-						_, expectedRepoPath := gittest.CreateRepository(t, ctx, cfg)
+						repo, repoPath, head := createAndSeedRepository(t, ctx, cfg)
+						relativePath := stripRelativePath(tb, repo)
 
-						repo, _ := gittest.CreateRepository(t, ctx, cfg)
-
-						root := gittest.WriteCommit(tb, cfg, expectedRepoPath,
-							gittest.WithBranch("master"),
+						master1 := gittest.WriteCommit(tb, cfg, repoPath,
+							gittest.WithBranch("main"),
+							gittest.WithParents(head),
 						)
-						master1 := gittest.WriteCommit(tb, cfg, expectedRepoPath,
-							gittest.WithBranch("master"),
-							gittest.WithParents(root),
-						)
-						other := gittest.WriteCommit(tb, cfg, expectedRepoPath,
+						other := gittest.WriteCommit(tb, cfg, repoPath,
 							gittest.WithBranch("other"),
-							gittest.WithParents(root),
+							gittest.WithParents(head),
 						)
-						gittest.Exec(tb, cfg, "-C", expectedRepoPath, "symbolic-ref", "HEAD", "refs/heads/master")
-						bundle1 := gittest.Exec(tb, cfg, "-C", expectedRepoPath, "bundle", "create", "-",
+						gittest.Exec(tb, cfg, "-C", repoPath, "symbolic-ref", "HEAD", "refs/heads/main")
+						bundle1 := gittest.Exec(tb, cfg, "-C", repoPath, "bundle", "create", "-",
 							"HEAD",
-							"refs/heads/master",
+							"refs/heads/main",
 							"refs/heads/other",
 						)
-						refs1 := gittest.Exec(t, cfg, "-C", expectedRepoPath, "show-ref", "--head")
+						refs1 := gittest.Exec(t, cfg, "-C", repoPath, "show-ref", "--head")
+						customHooksPath1 := mustCreateCustomHooksArchive(t, ctx)
 
-						master2 := gittest.WriteCommit(tb, cfg, expectedRepoPath,
-							gittest.WithBranch("master"),
+						master2 := gittest.WriteCommit(tb, cfg, repoPath,
+							gittest.WithBranch("main"),
 							gittest.WithParents(master1),
 						)
-						bundle2 := gittest.Exec(tb, cfg, "-C", expectedRepoPath, "bundle", "create", "-",
+						bundle2 := gittest.Exec(tb, cfg, "-C", repoPath, "bundle", "create", "-",
 							"HEAD",
 							"^"+master1.String(),
 							"^"+other.String(),
-							"refs/heads/master",
+							"refs/heads/main",
 							"refs/heads/other",
 						)
-						refs2 := gittest.Exec(t, cfg, "-C", expectedRepoPath, "show-ref", "--head")
+						refs2 := gittest.Exec(t, cfg, "-C", repoPath, "show-ref", "--head")
+						customHooksPath2 := mustCreateCustomHooksArchive(t, ctx,
+							"another-hook-1.sample",
+							"another-hook-2.sample")
 
-						relativePath := stripRelativePath(tb, repo)
+						checksum := gittest.ChecksumRepo(t, cfg, repoPath)
+
+						// Create some more commits that will be reverted by the restore.
+						gittest.WriteCommit(tb, cfg, repoPath,
+							gittest.WithBranch("main"),
+							gittest.WithParents(master2),
+						)
+						gittest.WriteCommit(tb, cfg, repoPath,
+							gittest.WithBranch("other-2"),
+							gittest.WithParents(master2),
+						)
+
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
 							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[4]s'
 
 [[steps]]
 bundle_path = '%[2]s/%[3]s/001.bundle'
@@ -825,21 +876,27 @@ custom_hooks_path = '%[2]s/%[3]s/001.custom_hooks.tar'
 bundle_path = '%[2]s/%[3]s/002.bundle'
 ref_path = '%[2]s/%[3]s/002.refs'
 custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
-							`, gittest.DefaultObjectHash.Format, relativePath, backupID),
+							`, gittest.DefaultObjectHash.Format, relativePath, backupID, git.DefaultRef.String()),
 							filepath.Join(relativePath, backupID, "001.bundle"): bundle1,
 							filepath.Join(relativePath, backupID, "002.bundle"): bundle2,
 							filepath.Join(relativePath, backupID, "001.refs"):   refs1,
 							filepath.Join(relativePath, backupID, "002.refs"):   refs2,
 						})
 
-						checksum := new(git.Checksum)
-						checksum.Add(git.NewReference("HEAD", master2))
-						checksum.Add(git.NewReference("refs/heads/master", master2))
-						checksum.Add(git.NewReference("refs/heads/other", other))
+						testhelper.CopyFile(tb, customHooksPath1, filepath.Join(backupRoot, relativePath, backupID, "001.custom_hooks.tar"))
+						testhelper.CopyFile(tb, customHooksPath2, filepath.Join(backupRoot, relativePath, backupID, "002.custom_hooks.tar"))
 
 						return repo, checksum
 					},
 					expectExists: true,
+					expectedPaths: []string{
+						"custom_hooks/pre-commit.sample",
+						"custom_hooks/prepare-commit-msg.sample",
+						"custom_hooks/pre-push.sample",
+						"custom_hooks/another-hook-1.sample",
+						"custom_hooks/another-hook-2.sample",
+					},
+					shouldUseResetRefsOptimisation: true,
 				},
 			} {
 				t.Run(tc.desc, func(t *testing.T) {
@@ -851,7 +908,10 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 					locator, err := backup.ResolveLocator("pointer", sink)
 					require.NoError(t, err)
 
-					fsBackup := managerTC.setup(t, sink, locator)
+					logger := testhelper.NewLogger(t)
+					hook := testhelper.AddLoggerHook(logger)
+
+					fsBackup := managerTC.setup(t, sink, locator, logger)
 					err = fsBackup.Restore(ctx, &backup.RestoreRequest{
 						Server:           storage.ServerInfo{Address: cfg.SocketPath, Token: cfg.Auth.Token},
 						Repository:       repo,
@@ -889,6 +949,13 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 							require.FileExists(t, filepath.Join(repoPath, p))
 						}
 					}
+
+					if tc.shouldUseResetRefsOptimisation {
+						require.Nil(t, hook.LastEntry())
+					} else if tc.expectedErrAs == nil {
+						// If we're not expecting an error, then we should've proceeded with a bundle restore.
+						require.Equal(t, hook.LastEntry().Message, "unable to reset refs. Proceeding with a normal restore")
+					}
 				})
 			}
 		})
@@ -909,22 +976,22 @@ func TestManager_Restore_specific(t *testing.T) {
 
 	for _, managerTC := range []struct {
 		desc  string
-		setup func(t testing.TB, sink backup.Sink, locator backup.Locator) *backup.Manager
+		setup func(t testing.TB, sink backup.Sink, locator backup.Locator, logger log.LogrusLogger) *backup.Manager
 	}{
 		{
 			desc: "RPC manager",
-			setup: func(tb testing.TB, sink backup.Sink, locator backup.Locator) *backup.Manager {
+			setup: func(tb testing.TB, sink backup.Sink, locator backup.Locator, logger log.LogrusLogger) *backup.Manager {
 				pool := client.NewPool()
 				tb.Cleanup(func() {
 					testhelper.MustClose(tb, pool)
 				})
 
-				return backup.NewManager(sink, testhelper.SharedLogger(t), locator, pool)
+				return backup.NewManager(sink, logger, locator, pool)
 			},
 		},
 		{
 			desc: "Local manager",
-			setup: func(tb testing.TB, sink backup.Sink, locator backup.Locator) *backup.Manager {
+			setup: func(tb testing.TB, sink backup.Sink, locator backup.Locator, logger log.LogrusLogger) *backup.Manager {
 				if testhelper.IsPraefectEnabled() {
 					tb.Skip("local backup manager expects to operate on the local filesystem so cannot operate through praefect")
 				}
@@ -935,7 +1002,7 @@ func TestManager_Restore_specific(t *testing.T) {
 				tb.Cleanup(catfileCache.Stop)
 				txManager := transaction.NewTrackingManager()
 
-				return backup.NewManagerLocal(sink, testhelper.SharedLogger(t), locator, storageLocator, gitCmdFactory, catfileCache, txManager, repoCounter)
+				return backup.NewManagerLocal(sink, logger, locator, storageLocator, gitCmdFactory, catfileCache, txManager, repoCounter)
 			},
 		},
 	} {
@@ -952,23 +1019,17 @@ func TestManager_Restore_specific(t *testing.T) {
 
 			repoClient := gitalypb.NewRepositoryServiceClient(cc)
 
-			_, repoPath := gittest.CreateRepository(t, ctx, cfg)
-			commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
-			gittest.WriteTag(t, cfg, repoPath, "v1.0.0", commitID.Revision())
-			repoChecksum := gittest.ChecksumRepo(t, cfg, repoPath)
-			repoBundle := gittest.BundleRepo(t, cfg, repoPath, "-")
-			repoRefs := gittest.Exec(t, cfg, "-C", repoPath, "show-ref", "--head")
-
 			backupRoot := testhelper.TempDir(t)
 
 			for _, tc := range []struct {
-				desc                  string
-				setup                 func(tb testing.TB) (*gitalypb.Repository, *git.Checksum)
-				alwaysCreate          bool
-				expectExists          bool
-				expectedPaths         []string
-				expectedErrAs         error
-				expectedHeadReference git.ReferenceName
+				desc                           string
+				setup                          func(tb testing.TB) (*gitalypb.Repository, *git.Checksum)
+				alwaysCreate                   bool
+				expectExists                   bool
+				expectedPaths                  []string
+				expectedErrAs                  error
+				expectedHeadReference          git.ReferenceName
+				shouldUseResetRefsOptimisation bool
 			}{
 				{
 					desc: "missing backup",
@@ -983,69 +1044,84 @@ func TestManager_Restore_specific(t *testing.T) {
 				{
 					desc: "single incremental",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
-						repo, _ := gittest.CreateRepository(tb, ctx, cfg)
+						repo, repoPath, _ := createAndSeedRepository(t, ctx, cfg)
+						repoChecksum, repoBundle, repoRefs := createBackupArtifacts(t, cfg, repoPath)
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
 							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), backupID+".toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[4]s'
 
 [[steps]]
 bundle_path = '%[2]s/%[3]s/001.bundle'
 ref_path = '%[2]s/%[3]s/001.refs'
 custom_hooks_path = '%[2]s/%[3]s/001.custom_hooks.tar'
-							`, gittest.DefaultObjectHash.Format, relativePath, backupID),
+							`, gittest.DefaultObjectHash.Format, relativePath, backupID, git.DefaultRef.String()),
 							filepath.Join(relativePath, backupID, "001.bundle"): repoBundle,
 							filepath.Join(relativePath, backupID, "001.refs"):   repoRefs,
 						})
 
 						return repo, repoChecksum
 					},
-					expectExists: true,
+					expectExists:                   true,
+					shouldUseResetRefsOptimisation: true,
 				},
 				{
 					desc: "many incrementals",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
-						_, expectedRepoPath := gittest.CreateRepository(tb, ctx, cfg)
+						repo, repoPath, head := createAndSeedRepository(t, ctx, cfg)
 
-						repo, _ := gittest.CreateRepository(tb, ctx, cfg)
-
-						root := gittest.WriteCommit(tb, cfg, expectedRepoPath,
-							gittest.WithBranch("master"),
+						master1 := gittest.WriteCommit(tb, cfg, repoPath,
+							gittest.WithBranch("main"),
+							gittest.WithParents(head),
 						)
-						master1 := gittest.WriteCommit(tb, cfg, expectedRepoPath,
-							gittest.WithBranch("master"),
-							gittest.WithParents(root),
-						)
-						other := gittest.WriteCommit(tb, cfg, expectedRepoPath,
+						other := gittest.WriteCommit(tb, cfg, repoPath,
 							gittest.WithBranch("other"),
-							gittest.WithParents(root),
+							gittest.WithParents(head),
 						)
-						gittest.Exec(tb, cfg, "-C", expectedRepoPath, "symbolic-ref", "HEAD", "refs/heads/master")
-						bundle1 := gittest.Exec(tb, cfg, "-C", expectedRepoPath, "bundle", "create", "-",
+						gittest.Exec(tb, cfg, "-C", repoPath, "symbolic-ref", "HEAD", "refs/heads/main")
+						bundle1 := gittest.Exec(tb, cfg, "-C", repoPath, "bundle", "create", "-",
 							"HEAD",
-							"refs/heads/master",
+							"refs/heads/main",
 							"refs/heads/other",
 						)
-						refs1 := gittest.Exec(tb, cfg, "-C", expectedRepoPath, "show-ref", "--head")
+						refs1 := gittest.Exec(tb, cfg, "-C", repoPath, "show-ref", "--head")
+						customHooksPath1 := mustCreateCustomHooksArchive(t, ctx)
 
-						master2 := gittest.WriteCommit(tb, cfg, expectedRepoPath,
-							gittest.WithBranch("master"),
+						master2 := gittest.WriteCommit(tb, cfg, repoPath,
+							gittest.WithBranch("main"),
 							gittest.WithParents(master1),
 						)
-						bundle2 := gittest.Exec(tb, cfg, "-C", expectedRepoPath, "bundle", "create", "-",
+						bundle2 := gittest.Exec(tb, cfg, "-C", repoPath, "bundle", "create", "-",
 							"HEAD",
 							"^"+master1.String(),
 							"^"+other.String(),
-							"refs/heads/master",
+							"refs/heads/main",
 							"refs/heads/other",
 						)
-						refs2 := gittest.Exec(tb, cfg, "-C", expectedRepoPath, "show-ref", "--head")
+						refs2 := gittest.Exec(tb, cfg, "-C", repoPath, "show-ref", "--head")
+						customHooksPath2 := mustCreateCustomHooksArchive(t, ctx,
+							"another-hook-1.sample",
+							"another-hook-2.sample")
+
+						checksum := gittest.ChecksumRepo(t, cfg, repoPath)
+
+						// Create some more commits that will be reverted by the restore.
+						gittest.WriteCommit(tb, cfg, repoPath,
+							gittest.WithBranch("main"),
+							gittest.WithParents(master2),
+						)
+						gittest.WriteCommit(tb, cfg, repoPath,
+							gittest.WithBranch("other-2"),
+							gittest.WithParents(master2),
+						)
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
 							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), backupID+".toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[4]s'
 
 [[steps]]
 bundle_path = '%[2]s/%[3]s/001.bundle'
@@ -1056,21 +1132,27 @@ custom_hooks_path = '%[2]s/%[3]s/001.custom_hooks.tar'
 bundle_path = '%[2]s/%[3]s/002.bundle'
 ref_path = '%[2]s/%[3]s/002.refs'
 custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
-							`, gittest.DefaultObjectHash.Format, relativePath, backupID),
+							`, gittest.DefaultObjectHash.Format, relativePath, backupID, git.DefaultRef.String()),
 							filepath.Join(relativePath, backupID, "001.bundle"): bundle1,
 							filepath.Join(relativePath, backupID, "002.bundle"): bundle2,
 							filepath.Join(relativePath, backupID, "001.refs"):   refs1,
 							filepath.Join(relativePath, backupID, "002.refs"):   refs2,
 						})
 
-						checksum := new(git.Checksum)
-						checksum.Add(git.NewReference("HEAD", master2))
-						checksum.Add(git.NewReference("refs/heads/master", master2))
-						checksum.Add(git.NewReference("refs/heads/other", other))
+						testhelper.CopyFile(tb, customHooksPath1, filepath.Join(backupRoot, relativePath, backupID, "001.custom_hooks.tar"))
+						testhelper.CopyFile(tb, customHooksPath2, filepath.Join(backupRoot, relativePath, backupID, "002.custom_hooks.tar"))
 
 						return repo, checksum
 					},
 					expectExists: true,
+					expectedPaths: []string{
+						"custom_hooks/pre-commit.sample",
+						"custom_hooks/prepare-commit-msg.sample",
+						"custom_hooks/pre-push.sample",
+						"custom_hooks/another-hook-1.sample",
+						"custom_hooks/another-hook-2.sample",
+					},
+					shouldUseResetRefsOptimisation: true,
 				},
 				{
 					desc: "empty backup",
@@ -1098,7 +1180,8 @@ custom_hooks_path = 'custom_hooks.tar'
 				{
 					desc: "head reference",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
-						repo, _ := gittest.CreateRepository(tb, ctx, cfg)
+						repo, repoPath, head := createAndSeedRepository(t, ctx, cfg)
+						_, repoBundle, repoRefs := createBackupArtifacts(t, cfg, repoPath)
 
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
 							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), backupID+".toml"): fmt.Sprintf(
@@ -1118,12 +1201,13 @@ custom_hooks_path = 'custom_hooks.tar'
 						// Negate off the default branch since the manifest is
 						// explicitly setting a different unborn branch that
 						// will not be part of the checksum.
-						checksum.Add(git.NewReference("HEAD", commitID))
+						checksum.Add(git.NewReference("HEAD", head))
 
 						return repo, checksum
 					},
-					expectExists:          true,
-					expectedHeadReference: "refs/heads/banana",
+					expectExists:                   true,
+					expectedHeadReference:          "refs/heads/banana",
+					shouldUseResetRefsOptimisation: true,
 				},
 			} {
 				t.Run(tc.desc, func(t *testing.T) {
@@ -1135,7 +1219,10 @@ custom_hooks_path = 'custom_hooks.tar'
 					locator, err := backup.ResolveLocator("pointer", sink)
 					require.NoError(t, err)
 
-					fsBackup := managerTC.setup(t, sink, locator)
+					logger := testhelper.NewLogger(t)
+					hook := testhelper.AddLoggerHook(logger)
+
+					fsBackup := managerTC.setup(t, sink, locator, logger)
 					err = fsBackup.Restore(ctx, &backup.RestoreRequest{
 						Server:           storage.ServerInfo{Address: cfg.SocketPath, Token: cfg.Auth.Token},
 						Repository:       repo,
@@ -1180,6 +1267,13 @@ custom_hooks_path = 'custom_hooks.tar'
 
 						ref := gittest.GetSymbolicRef(t, cfg, repoPath, "HEAD")
 						require.Equal(t, tc.expectedHeadReference, git.ReferenceName(ref.Target))
+					}
+
+					if tc.shouldUseResetRefsOptimisation {
+						require.Nil(t, hook.LastEntry())
+					} else if tc.expectedErrAs == nil {
+						// If we're not expecting an error, then we should've proceeded with a bundle restore.
+						require.Equal(t, hook.LastEntry().Message, "unable to reset refs. Proceeding with a normal restore")
 					}
 				})
 			}
@@ -1264,7 +1358,7 @@ func stripRelativePath(tb testing.TB, repo storage.Repository) string {
 	return strings.TrimSuffix(repo.GetRelativePath(), ".git")
 }
 
-func mustCreateCustomHooksArchive(t *testing.T, ctx context.Context) string {
+func mustCreateCustomHooksArchive(t *testing.T, ctx context.Context, additionalHooks ...string) string {
 	t.Helper()
 
 	tmpDir := testhelper.TempDir(t)
@@ -1276,6 +1370,10 @@ func mustCreateCustomHooksArchive(t *testing.T, ctx context.Context) string {
 	require.NoError(t, os.WriteFile(filepath.Join(hooksDirPath, "prepare-commit-msg.sample"), []byte("bar"), os.ModePerm))
 	require.NoError(t, os.WriteFile(filepath.Join(hooksDirPath, "pre-push.sample"), []byte("baz"), os.ModePerm))
 
+	for _, hookName := range additionalHooks {
+		require.NoError(t, os.WriteFile(filepath.Join(hooksDirPath, hookName), []byte("additional hook content"), os.ModePerm))
+	}
+
 	archivePath := filepath.Join(tmpDir, "custom_hooks.tar")
 	file, err := os.Create(archivePath)
 	require.NoError(t, err)
@@ -1284,4 +1382,20 @@ func mustCreateCustomHooksArchive(t *testing.T, ctx context.Context) string {
 	require.NoError(t, archive.WriteTarball(ctx, testhelper.SharedLogger(t), file, tmpDir, "custom_hooks"))
 
 	return archivePath
+}
+
+func createAndSeedRepository(t *testing.T, ctx context.Context, cfg config.Cfg) (repo *gitalypb.Repository, repoPath string, head git.ObjectID) {
+	repo, repoPath = gittest.CreateRepository(t, ctx, cfg)
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
+	gittest.WriteTag(t, cfg, repoPath, "v1.0.0", commitID.Revision())
+
+	return repo, repoPath, commitID
+}
+
+func createBackupArtifacts(t *testing.T, cfg config.Cfg, repoPath string) (repoChecksum *git.Checksum, repoBundle []byte, repoRefs []byte) {
+	repoChecksum = gittest.ChecksumRepo(t, cfg, repoPath)
+	repoBundle = gittest.BundleRepo(t, cfg, repoPath, "-")
+	repoRefs = gittest.Exec(t, cfg, "-C", repoPath, "show-ref", "--head")
+
+	return repoChecksum, repoBundle, repoRefs
 }

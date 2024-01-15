@@ -32,6 +32,7 @@ func removeHeadReference(refs []git.Reference) []git.Reference {
 
 func TestRemoteRepository_ResetRefs(t *testing.T) {
 	cfg := testcfg.Build(t)
+	testcfg.BuildGitalyHooks(t, cfg)
 	cfg.SocketPath = testserver.RunGitalyServer(t, cfg, setup.RegisterAll)
 	ctx := testhelper.Context(t)
 
