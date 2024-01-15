@@ -462,10 +462,12 @@ type testTransactionTag struct {
 }
 
 type testTransactionCommits struct {
-	First     testTransactionCommit
-	Second    testTransactionCommit
-	Third     testTransactionCommit
-	Diverging testTransactionCommit
+	First       testTransactionCommit
+	Second      testTransactionCommit
+	Third       testTransactionCommit
+	Diverging   testTransactionCommit
+	Orphan      testTransactionCommit
+	Unreachable testTransactionCommit
 }
 
 type testTransactionSetup struct {
@@ -563,6 +565,14 @@ type CreateRepository struct {
 type RunPackRefs struct {
 	// TransactionID is the transaction for which the pack-refs task runs.
 	TransactionID int
+}
+
+// RunRepack calls repack housekeeping task on a transaction.
+type RunRepack struct {
+	// TransactionID is the transaction for which the repack task runs.
+	TransactionID int
+	// Config is the desired repacking config for the task.
+	Config housekeeping.RepackObjectsConfig
 }
 
 // Commit calls Commit on a transaction.
@@ -785,7 +795,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			transaction, err := transactionManager.Begin(beginCtx, step.RelativePath, step.SnapshottedRelativePaths, step.ReadOnly)
 			require.ErrorIs(t, err, step.ExpectedError)
 			if err == nil {
-				require.Equal(t, step.ExpectedSnapshotLSN, transaction.SnapshotLSN())
+				require.Equalf(t, step.ExpectedSnapshotLSN, transaction.SnapshotLSN(), "mismatched ExpectedSnapshotLSN")
 			}
 
 			if step.ReadOnly {
@@ -944,6 +954,11 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 			transaction := openTransactions[step.TransactionID]
 			transaction.PackRefs()
+		case RunRepack:
+			require.Contains(t, openTransactions, step.TransactionID, "test error: repack housekeeping task aborted on committed before beginning it")
+
+			transaction := openTransactions[step.TransactionID]
+			transaction.Repack(step.Config)
 		case RepositoryAssertion:
 			require.Contains(t, openTransactions, step.TransactionID, "test error: transaction's snapshot asserted before beginning it")
 			transaction := openTransactions[step.TransactionID]
