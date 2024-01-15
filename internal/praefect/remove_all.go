@@ -32,6 +32,7 @@ func RemoveAllHandler(rs datastore.RepositoryStore, conns Connections) grpc.Stre
 			conn := conn
 
 			group.Go(func() error {
+				//nolint:staticcheck
 				_, err := gitalypb.NewRepositoryServiceClient(conn).RemoveAll(ctx, &gitalypb.RemoveAllRequest{
 					StorageName: rewrittenStorage,
 				})
