@@ -2,6 +2,7 @@ package packfile
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/binary"
@@ -17,6 +18,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 )
 
 const sumSize = sha1.Size
@@ -93,35 +95,26 @@ func ReadIndex(logger log.Logger, idxPath string) (*Index, error) {
 		return nil, err
 	}
 
-	showIndex, err := command.New(ctx, logger, []string{"git", "show-index"}, command.WithStdin(f), command.WithSetupStdout())
+	var stderr bytes.Buffer
+	showIndex, err := command.New(
+		ctx, logger,
+		[]string{"git", "show-index"},
+		command.WithStdin(f), command.WithSetupStdout(), command.WithStderr(&stderr),
+	)
 	if err != nil {
-		return nil, err
+		return nil, structerr.New("spawning git-show-index: %w: %s", err, stderr.String())
 	}
 
-	scanner := bufio.NewScanner(showIndex)
 	i := 0
-	for ; scanner.Scan(); i++ {
-		line := scanner.Text()
-		split := strings.SplitN(line, " ", 3)
-		if len(split) != 3 {
-			return nil, fmt.Errorf("unable to parse show-index line: %q", line)
-		}
-
-		offset, err := strconv.ParseUint(split[0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		oid := split[1]
-
-		idx.Objects[i] = &Object{OID: oid, Offset: offset}
-	}
-
-	if err := scanner.Err(); err != nil {
+	if err := ParseIndex(showIndex, func(obj *Object) {
+		idx.Objects[i] = obj
+		i++
+	}); err != nil {
 		return nil, err
 	}
 
 	if err := showIndex.Wait(); err != nil {
-		return nil, err
+		return nil, structerr.New("waiting git-show-index: %w: %s", err, stderr.String())
 	}
 
 	if i != len(idx.Objects) {
@@ -129,6 +122,29 @@ func ReadIndex(logger log.Logger, idxPath string) (*Index, error) {
 	}
 
 	return idx, nil
+}
+
+// ParseIndex parses the output of `git-show-index(1)` command. The caller needs to provide the output stream from that
+// command. This function triggers the input callback on each object it finds. The order of objects follows the output
+// of the command.
+func ParseIndex(stdout io.Reader, callback func(*Object)) error {
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := scanner.Text()
+		split := strings.SplitN(line, " ", 3)
+		if len(split) != 3 {
+			return fmt.Errorf("unable to parse show-index line: %q", line)
+		}
+
+		offset, err := strconv.ParseUint(split[0], 10, 64)
+		if err != nil {
+			return err
+		}
+		oid := split[1]
+
+		callback(&Object{OID: oid, Offset: offset})
+	}
+	return scanner.Err()
 }
 
 func (idx *Index) numPackObjects() (uint32, error) {
