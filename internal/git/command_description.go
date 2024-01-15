@@ -131,6 +131,9 @@ var commandDescriptions = map[string]commandDescription{
 			}, fetchFsckConfiguration(ctx)...), packConfiguration(ctx)...)
 		},
 	},
+	"filter-repo": {
+		flags: scNoEndOfOptions,
+	},
 	"for-each-ref": {
 		flags: scNoRefUpdates,
 	},
