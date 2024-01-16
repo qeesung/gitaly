@@ -518,6 +518,7 @@ rails-specs:
     variables: false  # Otherwise variables will be messed up
   variables:
     GITALY_TEST: "true"
+    ENABLE_RSPEC: "true"
   rules:
     - when: manual
       allow_failure: true
