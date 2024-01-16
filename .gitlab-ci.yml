@@ -514,9 +514,10 @@ rails-specs:
     project: gitlab-org/gitlab
     branch: "gitaly-ci-jobs-$CI_PIPELINE_IID" # Using $RAILS_BRANCH_FOR_JOB directly fails
     strategy: depend
+  inherit:
+    variables: false  # Otherwise variables will be messed up
   variables:
     GITALY_TEST: "true"
-    FORCE_GITLAB_CI: "true"
   rules:
     - when: manual
       allow_failure: true
