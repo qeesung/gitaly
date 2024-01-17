@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io"
 	"net"
 	"testing"
 	"time"
@@ -32,7 +31,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/v16/streamio"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -291,20 +289,15 @@ func TestStreamingNoAuth(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	client := gitalypb.NewRepositoryServiceClient(conn)
-	//nolint:staticcheck
-	stream, err := client.GetInfoAttributes(ctx, &gitalypb.GetInfoAttributesRequest{
+
+	response, err := client.GetFileAttributes(ctx, &gitalypb.GetFileAttributesRequest{
 		Repository: &gitalypb.Repository{
 			StorageName:  cfg.Storages[0].Name,
 			RelativePath: "new/project/path",
 		},
 	},
 	)
-	require.NoError(t, err)
-
-	_, err = io.ReadAll(streamio.NewReader(func() ([]byte, error) {
-		_, err = stream.Recv()
-		return nil, err
-	}))
+	require.Nil(t, response)
 	testhelper.RequireGrpcCode(t, err, codes.Unauthenticated)
 }
 
