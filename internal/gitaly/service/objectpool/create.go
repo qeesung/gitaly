@@ -32,7 +32,7 @@ func (s *server) CreateObjectPool(ctx context.Context, in *gitalypb.CreateObject
 	// repoutil.Create creates the repositories in a temporary directory. This means the repository is not created in the location
 	// expected by the transaction manager. This makes sense without transactions, but with transactions, there's no real point in
 	// doing so given a failed transaction's state is anyway removed. Creating the repository in a temporary directory is problematic
-	// as the reference transcation hook is invoked for the repository from unexpected location, causing the transaction to fail to
+	// as the reference transaction hook is invoked for the repository from unexpected location, causing the transaction to fail to
 	// associate the reference updates with the repository.
 	//
 	// Run the repository creation without the transaction in the context. The transactions reads the created repository's state from

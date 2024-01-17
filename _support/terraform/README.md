@@ -30,7 +30,7 @@ to install it on your system.
 ```
 
 This will open a browser to sign into GCP if necessary. Ansible will then ask
-you a set of questions before it performs the deplyoment.
+you a set of questions before it performs the deployment.
 
 When the script is done, `apt-get install gitlab-ee` is still busy
 running in the background on your new VM's.

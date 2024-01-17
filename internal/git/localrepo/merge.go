@@ -167,7 +167,7 @@ func parseMergeTreeError(objectHash git.ObjectHash, cfg mergeTreeConfig, output 
 	}
 
 	fields := strings.Split(infoMsg, "\x00")
-	// The git output contains a null characted at the end, which creates a stray empty field.
+	// The git output contains a null character at the end, which creates a stray empty field.
 	fields = fields[:len(fields)-1]
 
 	for i := 0; i < len(fields); {

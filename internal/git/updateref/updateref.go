@@ -360,7 +360,7 @@ func (u *Updater) checkState(expected state) error {
 	return nil
 }
 
-// Start begins a new reference transaction. The reference changes are not perfromed until Commit
+// Start begins a new reference transaction. The reference changes are not performed until Commit
 // is explicitly called.
 func (u *Updater) Start() error {
 	if err := u.expectState(stateIdle); err != nil {

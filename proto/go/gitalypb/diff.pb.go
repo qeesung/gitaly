@@ -1008,7 +1008,7 @@ func (x *RawPatchRequest) GetRightCommitId() string {
 	return ""
 }
 
-// RawPatchResponse is a reponse for the RawPatch RPC.
+// RawPatchResponse is a response for the RawPatch RPC.
 type RawPatchResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

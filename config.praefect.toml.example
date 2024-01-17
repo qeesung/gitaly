@@ -20,7 +20,7 @@ listen_addr = "127.0.0.1:2305"
 # [logging]
 #   format = "json"
 # # Optional: Set log level to only log entries with that severity or above
-# # One of, in order: debug, info, warn, errror, fatal, panic
+# # One of, in order: debug, info, warn, error, fatal, panic
 # # Defaults to "info"
 #   level = "warn"
 # [sentry]

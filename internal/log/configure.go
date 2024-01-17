@@ -42,7 +42,7 @@ func Configure(out io.Writer, format string, level string, hooks ...logrus.Hook)
 	}
 
 	if !SkipReplacingGlobalLoggers {
-		// Replace the logrus standar logger. While we shouldn't ever be using it in our own codebase, there
+		// Replace the logrus standard logger. While we shouldn't ever be using it in our own codebase, there
 		// will very likely be cases where dependencies use it.
 		//
 		//nolint:forbidigo

@@ -105,7 +105,7 @@ func WithStreamInterceptor(interceptor grpc.StreamServerInterceptor) ServerOptio
 	}
 }
 
-// NewGRPCServer returns gRPC server wuth registered proxy-handler and actual services praefect serves on its own.
+// NewGRPCServer returns gRPC server with registered proxy-handler and actual services praefect serves on its own.
 // It includes a set of unary and stream interceptors required to add logging, authentication, etc.
 func NewGRPCServer(
 	deps *Dependencies,

@@ -22,7 +22,7 @@ func readFilesystemID(t *testing.T, path string) string {
 	return metadata["gitaly_filesystem_id"]
 }
 
-func TestWriteMetdataFile(t *testing.T) {
+func TestWriteMetadataFile(t *testing.T) {
 	tempDir := testhelper.TempDir(t)
 
 	require.NoError(t, WriteMetadataFile(tempDir))

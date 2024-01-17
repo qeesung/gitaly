@@ -105,7 +105,7 @@ func TestGenerateSentryEvent(t *testing.T) {
 			expectedEvent: nil,
 		},
 		{
-			desc:          "DeadlineExceeded erorr is ignored",
+			desc:          "DeadlineExceeded error is ignored",
 			method:        "/gitaly.RepoService/RepoExists",
 			err:           status.Errorf(codes.DeadlineExceeded, "Something failed"),
 			expectedEvent: nil,

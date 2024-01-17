@@ -66,7 +66,7 @@ func UploadPackWithSidechannel(
 		return stream.ProxyPktLine(c, stdin, stdout, stderr)
 	})
 	defer func() {
-		// We aleady check the error further down.
+		// We already check the error further down.
 		_ = wt.Close()
 	}()
 

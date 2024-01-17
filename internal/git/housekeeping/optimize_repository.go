@@ -160,7 +160,7 @@ func optimizeRepository(
 
 	timer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("clean-stale-data"))
 	if err := m.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()); err != nil {
-		return fmt.Errorf("could not execute houskeeping: %w", err)
+		return fmt.Errorf("could not execute housekeeping: %w", err)
 	}
 	timer.ObserveDuration()
 

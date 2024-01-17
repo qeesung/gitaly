@@ -21,13 +21,13 @@ import (
 )
 
 var (
-	// ErrMissingTree indicates a missing tree when attemping to write a commit
+	// ErrMissingTree indicates a missing tree when attempting to write a commit
 	ErrMissingTree = errors.New("missing tree")
 	// ErrMissingCommitterName indicates an attempt to write a commit without a
-	// comitter name
+	// committer name
 	ErrMissingCommitterName = errors.New("missing committer name")
 	// ErrMissingAuthorName indicates an attempt to write a commit without a
-	// comitter name
+	// committer name
 	ErrMissingAuthorName = errors.New("missing author name")
 	// ErrDisallowedCharacters indicates the name and/or email contains disallowed
 	// characters

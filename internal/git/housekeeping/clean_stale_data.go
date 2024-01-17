@@ -290,7 +290,7 @@ func findStaleFiles(repoPath string, gracePeriod time.Duration, files ...string)
 }
 
 // findStaleLockfiles finds a subset of lockfiles which may be created by git
-// commands. We're quite conservative with what we're removing, we certaintly
+// commands. We're quite conservative with what we're removing, we certainly
 // don't just scan the repo for `*.lock` files. Instead, we only remove a known
 // set of lockfiles which have caused problems in the past.
 func findStaleLockfiles(ctx context.Context, repoPath string) ([]string, error) {

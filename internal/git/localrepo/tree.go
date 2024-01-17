@@ -504,7 +504,7 @@ func (t *TreeEntry) populate(
 
 	stack := treeStack{t}
 
-	// The outpout of ls-tree -r is the following:
+	// The output of ls-tree -r is the following:
 	// a1
 	// dir1/file2
 	// dir2/file3

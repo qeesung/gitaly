@@ -623,7 +623,7 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/3780`)
 			setup: func(t *testing.T, cfg config.Cfg) setupData {
 				// We set up two branches in both repositories:
 				//
-				// - "main" diverges as both repostiories have different commits on
+				// - "main" diverges as both repositories have different commits on
 				//   it.
 				// - "branch" does not diverge, but is out-of-date in the local
 				//   repository.

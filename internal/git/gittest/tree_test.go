@@ -120,7 +120,7 @@ func TestWriteTree(t *testing.T) {
 			},
 		},
 		{
-			desc: "two entries with nonexistant objects",
+			desc: "two entries with nonexistent objects",
 			entries: []TreeEntry{
 				{
 					OID:  git.ObjectID(strings.Repeat("1", DefaultObjectHash.Hash().Size()*2)),

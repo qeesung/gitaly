@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Order is the order in which commits shoud be traversed.
+// Order is the order in which commits should be traversed.
 type ListCommitsRequest_Order int32
 
 const (
@@ -239,7 +239,7 @@ func (GetTreeEntriesRequest_SortBy) EnumDescriptor() ([]byte, []int) {
 	return file_commit_proto_rawDescGZIP(), []int{15, 0}
 }
 
-// Order is the order in which commits shoud be traversed.
+// Order is the order in which commits should be traversed.
 type FindAllCommitsRequest_Order int32
 
 const (
@@ -297,7 +297,7 @@ func (FindAllCommitsRequest_Order) EnumDescriptor() ([]byte, []int) {
 	return file_commit_proto_rawDescGZIP(), []int{26, 0}
 }
 
-// Order is the order in which commits shoud be traversed.
+// Order is the order in which commits should be traversed.
 type FindCommitsRequest_Order int32
 
 const (
@@ -860,7 +860,7 @@ type CommitIsAncestorRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// repository is the repository for which we need to check the ancestory.
+	// repository is the repository for which we need to check the ancestry.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// ancestor_id is the object ID of the commit which needs to be checked as ancestor.
 	AncestorId string `protobuf:"bytes,2,opt,name=ancestor_id,json=ancestorId,proto3" json:"ancestor_id,omitempty"`
@@ -3631,7 +3631,7 @@ type GetCommitSignaturesRequest struct {
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// commit_ids is the list of commitish object IDs for whom we want to retrieve
 	// signature information. If a commit doesn't have associated signature information
-	// it will be ommitted from the results.
+	// it will be omitted from the results.
 	CommitIds []string `protobuf:"bytes,2,rep,name=commit_ids,json=commitIds,proto3" json:"commit_ids,omitempty"`
 }
 

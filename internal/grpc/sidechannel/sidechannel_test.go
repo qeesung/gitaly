@@ -185,7 +185,7 @@ func call(ctx context.Context, conn *grpc.ClientConn, registry *Registry, handle
 
 	ctxOut, waiter := RegisterSidechannel(ctx, registry, handler)
 	defer func() {
-		// We aleady check the error further down.
+		// We already check the error further down.
 		_ = waiter.Close()
 	}()
 

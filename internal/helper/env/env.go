@@ -67,7 +67,7 @@ func GetString(name string, fallback string) string {
 }
 
 // ExtractValue returns the value of the environment variable with the given key. The given key
-// should not have a trailing "=". If the same key occurrs multiple times in the environment, then
+// should not have a trailing "=". If the same key occurs multiple times in the environment, then
 // any later occurrences will override previous ones.
 func ExtractValue(environment []string, key string) string {
 	var value string

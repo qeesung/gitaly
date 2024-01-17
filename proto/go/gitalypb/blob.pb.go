@@ -358,7 +358,7 @@ type ListBlobsRequest struct {
 	// dash. Please consult gitrevisions(7) for more info. Must not be empty.
 	Revisions []string `protobuf:"bytes,2,rep,name=revisions,proto3" json:"revisions,omitempty"`
 	// limit is the maximum number of blobs to return. If set to its default
-	// (`0`), then all found blobs wll be returned.
+	// (`0`), then all found blobs will be returned.
 	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	// bytes_limit is the maximum number of bytes to receive for each blob. If set
 	// to `0`, then no blob data will be sent. If `-1`, then all blob data will
@@ -499,7 +499,7 @@ type ListAllBlobsRequest struct {
 	// repository is the repository in which blobs should be enumerated.
 	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
 	// limit is the maximum number of blobs to return. If set to its default
-	// (`0`), then all found blobs wll be returned.
+	// (`0`), then all found blobs will be returned.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 	// bytes_limit is the maximum number of bytes to receive for each blob. If set
 	// to `0`, then no blob data will be sent. If `-1`, then all blob data will

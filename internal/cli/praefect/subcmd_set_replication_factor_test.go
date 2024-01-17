@@ -30,7 +30,7 @@ func TestSetReplicationFactorSubcommand(t *testing.T) {
 	}{
 		{
 			desc:  "unexpected positional arguments",
-			args:  []string{"-virtual-storage=virtual-storage", "-relative-path=relative-path", "-replication-factor=1", "positonal-arg"},
+			args:  []string{"-virtual-storage=virtual-storage", "-relative-path=relative-path", "-replication-factor=1", "positional-arg"},
 			error: cli.Exit(unexpectedPositionalArgsError{Command: "set-replication-factor"}, 1),
 		},
 		{

@@ -145,7 +145,7 @@ With this error model, the server can attach structured Protobuf messages to
 errors returned to the client. These Protobuf messages can be extracted on the
 client side to allow more fine-grained error handling. Error details should be
 added to an error when you know that the client side needs to base its
-behavior on the specific error that has occured.
+behavior on the specific error that has occurred.
 
 For an RPC `Frobnicate()`, the error details should be of the message type
 `FrobnicateError`. The different error cases should then be wrapped into a

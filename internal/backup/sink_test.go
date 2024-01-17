@@ -39,7 +39,7 @@ func TestResolveSink(t *testing.T) {
   "type": "service_account",
   "project_id": "hostfactory-179005",
   "private_key_id": "6253b144ccd94f50ce1224a73ffc48bda256d0a7",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nXXXX<KEY CONTENT OMMIT HERR> \n-----END PRIVATE KEY-----\n",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nXXXX<KEY CONTENT OMIT HERE> \n-----END PRIVATE KEY-----\n",
   "client_email": "303721356529-compute@developer.gserviceaccount.com",
   "client_id": "116595416948414952474",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",

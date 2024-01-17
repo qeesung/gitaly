@@ -298,7 +298,7 @@ func (c *cache) newEntry(key string, create func(io.Writer) error) (_ io.ReadClo
 
 	// Every entry gets a unique underlying file. We do not want to reuse
 	// existing cache files because we do not know whether they are the
-	// result of a succesfull call to create.
+	// result of a successful call to create.
 	//
 	// This may sound like we should be using an anonymous tempfile, but that
 	// would be at odds with the requirement to be able to open and close
