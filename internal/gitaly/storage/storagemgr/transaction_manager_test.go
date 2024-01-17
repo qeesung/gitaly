@@ -1543,8 +1543,14 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 	}
 }
 
+type expectedCommittedEntry struct {
+	lsn             LSN
+	snapshotReaders int
+	entry           *gitalypb.LogEntry
+}
+
 func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
-	assertCommittedEntries := func(t *testing.T, expected []*committedEntry, actualList *list.List) {
+	assertCommittedEntries := func(t *testing.T, manager *TransactionManager, expected []*expectedCommittedEntry, actualList *list.List) {
 		require.Equal(t, len(expected), actualList.Len())
 
 		i := 0
@@ -1552,7 +1558,13 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 			actual := elm.Value.(*committedEntry)
 			require.Equal(t, expected[i].lsn, actual.lsn)
 			require.Equal(t, expected[i].snapshotReaders, actual.snapshotReaders)
-			testhelper.ProtoEqual(t, expected[i].entry, actual.entry)
+
+			if expected[i].entry != nil {
+				actualEntry, err := manager.readLogEntry(actual.lsn)
+				require.NoError(t, err)
+
+				testhelper.ProtoEqual(t, expected[i].entry, actualEntry)
+			}
 			i++
 		}
 	}
@@ -1579,7 +1591,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 			steps: steps{
 				StartManager{},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 			},
 		},
@@ -1592,7 +1604,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					RelativePath:  setup.RelativePath,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             0,
 							snapshotReaders: 1,
@@ -1606,7 +1618,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 				Begin{
 					TransactionID:       2,
@@ -1614,7 +1626,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					ExpectedSnapshotLSN: 1,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             1,
 							snapshotReaders: 1,
@@ -1628,7 +1640,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 			},
 			expectedState: StateAssertion{
@@ -1673,7 +1685,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					ExpectedSnapshotLSN: 1,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             1,
 							snapshotReaders: 2,
@@ -1687,7 +1699,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             1,
 							snapshotReaders: 1,
@@ -1704,7 +1716,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					ExpectedSnapshotLSN: 2,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             1,
 							snapshotReaders: 1,
@@ -1723,7 +1735,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             2,
 							entry:           refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID),
@@ -1739,7 +1751,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 4,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 			},
 			expectedState: StateAssertion{
@@ -1773,7 +1785,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 1,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 				Begin{
 					TransactionID: 2,
@@ -1784,7 +1796,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 2,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 			},
 			expectedState: StateAssertion{
