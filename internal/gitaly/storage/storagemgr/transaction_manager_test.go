@@ -1548,8 +1548,14 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 	}
 }
 
+type expectedCommittedEntry struct {
+	lsn             LSN
+	snapshotReaders int
+	entry           *gitalypb.LogEntry
+}
+
 func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
-	assertCommittedEntries := func(t *testing.T, expected []*committedEntry, actualList *list.List) {
+	assertCommittedEntries := func(t *testing.T, manager *TransactionManager, expected []*expectedCommittedEntry, actualList *list.List) {
 		require.Equal(t, len(expected), actualList.Len())
 
 		i := 0
@@ -1557,7 +1563,13 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 			actual := elm.Value.(*committedEntry)
 			require.Equal(t, expected[i].lsn, actual.lsn)
 			require.Equal(t, expected[i].snapshotReaders, actual.snapshotReaders)
-			testhelper.ProtoEqual(t, expected[i].entry, actual.entry)
+
+			if expected[i].entry != nil {
+				actualEntry, err := manager.readLogEntry(actual.lsn)
+				require.NoError(t, err)
+
+				testhelper.ProtoEqual(t, expected[i].entry, actualEntry)
+			}
 			i++
 		}
 	}
@@ -1584,7 +1596,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 			steps: steps{
 				StartManager{},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 			},
 		},
@@ -1597,7 +1609,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					RelativePath:  setup.RelativePath,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             0,
 							snapshotReaders: 1,
@@ -1611,7 +1623,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 				Begin{
 					TransactionID:       2,
@@ -1619,7 +1631,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					ExpectedSnapshotLSN: 1,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             1,
 							snapshotReaders: 1,
@@ -1633,7 +1645,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 			},
 			expectedState: StateAssertion{
@@ -1678,7 +1690,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					ExpectedSnapshotLSN: 1,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             1,
 							snapshotReaders: 2,
@@ -1692,7 +1704,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             1,
 							snapshotReaders: 1,
@@ -1709,7 +1721,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					ExpectedSnapshotLSN: 2,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             1,
 							snapshotReaders: 1,
@@ -1728,7 +1740,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             2,
 							entry:           refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID),
@@ -1744,7 +1756,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 4,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 			},
 			expectedState: StateAssertion{
@@ -1778,7 +1790,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 1,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 				Begin{
 					TransactionID: 2,
@@ -1789,7 +1801,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 2,
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
-					assertCommittedEntries(t, []*committedEntry{}, tm.committedEntries)
+					assertCommittedEntries(t, tm, []*expectedCommittedEntry{}, tm.committedEntries)
 				}),
 			},
 			expectedState: StateAssertion{
@@ -1797,6 +1809,179 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
+					},
+				},
+			},
+		},
+		{
+			desc: "transaction manager cleans up left-over committed entries when appliedLSN == appendedLSN",
+			steps: steps{
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-1": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       4,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 2,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-2": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				CloseManager{},
+				Commit{
+					TransactionID: 4,
+					ExpectedError: ErrTransactionProcessingStopped,
+				},
+				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
+					RequireDatabase(t, ctx, tm.db, DatabaseState{
+						string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+						// Transaction 2 and 3 are left-over.
+						string(keyLogEntry(setup.PartitionID, 2)): refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID),
+						string(keyLogEntry(setup.PartitionID, 3)): refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID),
+					})
+				}),
+				StartManager{},
+				AssertManager{},
+				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
+					// When the manager finishes initialization, the left-over log entries are
+					// cleaned up.
+					RequireDatabase(t, ctx, tm.db, DatabaseState{
+						string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					})
+					require.Equal(t, tm.appliedLSN, LSN(3))
+					require.Equal(t, tm.appendedLSN, LSN(3))
+				}),
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":     setup.Commits.First.OID,
+								"refs/heads/branch-1": setup.Commits.First.OID,
+								"refs/heads/branch-2": setup.Commits.First.OID,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "transaction manager cleans up left-over committed entries when appliedLSN < appendedLSN",
+			steps: steps{
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-1": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       4,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 2,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-2": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				CloseManager{},
+				Commit{
+					TransactionID: 4,
+					ExpectedError: ErrTransactionProcessingStopped,
+				},
+				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
+					// Insert an out-of-band log-entry directly into the database for easier test
+					// setup. It's a bit tricky to simulate committed log entries and un-processed
+					// appended log entries at the same time.
+					require.NoError(t, tm.setKey(keyLogEntry(tm.partitionID, 4), refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID)))
+					RequireDatabase(t, ctx, tm.db, DatabaseState{
+						string(keyAppliedLSN(setup.PartitionID)):  LSN(3).toProto(),
+						string(keyLogEntry(setup.PartitionID, 2)): refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID),
+						string(keyLogEntry(setup.PartitionID, 3)): refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID),
+						string(keyLogEntry(setup.PartitionID, 4)): refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID),
+					})
+				}),
+				StartManager{},
+				AssertManager{},
+				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
+					// When the manager finishes initialization, the left-over log entries are
+					// cleaned up.
+					RequireDatabase(t, ctx, tm.db, DatabaseState{
+						string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+					})
+					require.Equal(t, tm.appliedLSN, LSN(4))
+					require.Equal(t, tm.appendedLSN, LSN(4))
+				}),
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":     setup.Commits.First.OID,
+								"refs/heads/branch-1": setup.Commits.First.OID,
+								"refs/heads/branch-2": setup.Commits.First.OID,
+								"refs/heads/branch-3": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},

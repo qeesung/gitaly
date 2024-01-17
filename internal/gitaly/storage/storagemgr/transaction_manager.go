@@ -51,6 +51,9 @@ var (
 	ErrTransactionAlreadyRollbacked = errors.New("transaction already rollbacked")
 	// errInitializationFailed is returned when the TransactionManager failed to initialize successfully.
 	errInitializationFailed = errors.New("initializing transaction processing failed")
+	// errCommittedEntryGone is returned when the log entry of a LSN is gone from database while it's still
+	// accessed by other transactions.
+	errCommittedEntryGone = errors.New("in-used committed entry is gone")
 	// errNotDirectory is returned when the repository's path doesn't point to a directory
 	errNotDirectory = errors.New("repository's path didn't point to a directory")
 	// errRelativePathNotSet is returned when a transaction is begun without providing a relative path
@@ -333,6 +336,18 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 
 	txn.finish = func() error {
 		defer close(txn.finished)
+		defer func() {
+			if !txn.readOnly {
+				// Signal the manager this transaction finishes. The purpose of this signaling is to wake it up
+				// and clean up stale entries. If the manager is not listening to this channel, it is either
+				// processing other transaction or applying appended log entries. In either cases, it will
+				// circle back. So, no need to wait for the manager to pick up the signal.
+				select {
+				case mgr.completedQueue <- struct{}{}:
+				default:
+				}
+			}
+		}()
 
 		if txn.stagingDirectory != "" {
 			if err := os.RemoveAll(txn.stagingDirectory); err != nil {
@@ -343,7 +358,9 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		if !txn.readOnly {
 			mgr.mutex.Lock()
 			defer mgr.mutex.Unlock()
-			mgr.cleanCommittedEntry(entry)
+			if err := mgr.cleanCommittedEntry(entry); err != nil {
+				return fmt.Errorf("cleaning committed entry: %w", err)
+			}
 		}
 
 		return nil
@@ -702,8 +719,6 @@ type snapshotLock struct {
 type committedEntry struct {
 	// lsn is the associated LSN of the entry
 	lsn LSN
-	// entry is the pointer to the corresponding log entry.
-	entry *gitalypb.LogEntry
 	// snapshotReaders accounts for the number of transaction readers of the snapshot.
 	snapshotReaders int
 }
@@ -781,6 +796,8 @@ type TransactionManager struct {
 	// admissionQueue is where the incoming writes are waiting to be admitted to the transaction
 	// manager.
 	admissionQueue chan *Transaction
+	// completedQueue is a queue notifying when a transaction finishes.
+	completedQueue chan struct{}
 
 	// initialized is closed when the manager has been initialized. It's used to block new transactions
 	// from beginning prior to the manager having initialized its runtime state on start up.
@@ -800,6 +817,9 @@ type TransactionManager struct {
 	appendedLSN LSN
 	// appliedLSN holds the LSN of the last log entry applied to the partition.
 	appliedLSN LSN
+	// oldestLSN holds the LSN of the head of log entries which is still kept in the database. The manager keeps
+	// them because they are still referred by a transaction.
+	oldestLSN LSN
 	// housekeepingManager access to the housekeeping.Manager.
 	housekeepingManager housekeeping.Manager
 
@@ -840,6 +860,7 @@ func NewTransactionManager(
 		partitionID:          ptnID,
 		db:                   db,
 		admissionQueue:       make(chan *Transaction),
+		completedQueue:       make(chan struct{}),
 		initialized:          make(chan struct{}),
 		snapshotLocks:        make(map[LSN]*snapshotLock),
 		stateDirectory:       stateDir,
@@ -1498,6 +1519,22 @@ func (mgr *TransactionManager) Run() (returnedErr error) {
 			continue
 		}
 
+		// When a log entry is applied, if there is any log in front of it which are still referred, we cannot delete
+		// it. This condition is to prevent a "hole" in the list. A transaction referring to a log entry at the
+		// low-water mark might scan all afterward log entries. Thus, the manager needs to keep in the database.
+		//
+		// ┌─ Oldest LSN
+		// ┌─ Can be removed ─┐            ┌─ Cannot be removed
+		// □ □ □ □ □ □ □ □ □ □ ■ ■ ⧅ ⧅ ⧅ ⧅ ⧅ ⧅ ■ ■ ⧅ ⧅ ⧅ ⧅ ■
+		//                     └─ Low-water mark, still referred by another transaction
+		if mgr.oldestLSN < mgr.lowWaterMark() {
+			if err := mgr.deleteLogEntry(mgr.oldestLSN); err != nil {
+				return fmt.Errorf("deleting log entry: %w", err)
+			}
+			mgr.oldestLSN++
+			continue
+		}
+
 		if err := mgr.processTransaction(); err != nil {
 			return fmt.Errorf("process transaction: %w", err)
 		}
@@ -1523,6 +1560,8 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 		// processing. This avoids the Transaction concurrently removing the staged state
 		// while the manager is still operating on it. We thus need to defer its finishing.
 		cleanUps = append(cleanUps, transaction.finish)
+	case <-mgr.completedQueue:
+		return nil
 	case <-mgr.ctx.Done():
 	}
 
@@ -1657,25 +1696,40 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	mgr.appliedLSN = LSN(appliedLSN.Value)
 
 	// The LSN of the last appended log entry is determined from the LSN of the latest entry in the log and
-	// the latest applied log entry. If there is a log entry, it is the latest appended log entry. If there are no
-	// log entries, the latest log entry must have been applied to the repository and pruned away, meaning the LSN
-	// of the last appended log entry is the same as the LSN if the last applied log entry.
+	// the latest applied log entry. The manager also keeps track of committed entries and reserves them until there
+	// is no transaction refers them. It's possible there are some left-over entries in the database because a
+	// transaction can hold the entry stubbornly. So, the manager could not clean them up in the last session.
+	// We need to perform two scans: one to determine the appendedLSN and another one for oldestLSN.
+	//
+	// ┌─ oldestLSN                    ┌─ appendedLSN
+	// ⧅ ⧅ ⧅ ⧅ ⧅ ⧅ ⧅ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
+	//                └─ appliedLSN
 	//
 	// As the LSNs in the keys are encoded in big endian, the latest log entry can be found by taking
 	// the first key when iterating the log entry key space in reverse.
 	if err := mgr.db.View(func(txn DatabaseTransaction) error {
 		logPrefix := keyPrefixLogEntries(mgr.partitionID)
 
-		iterator := txn.NewIterator(badger.IteratorOptions{Reverse: true, Prefix: logPrefix})
-		defer iterator.Close()
-
 		mgr.appendedLSN = mgr.appliedLSN
 
-		// The iterator seeks to a key that is greater than or equal than sought key. Since we are doing a reverse
-		// seek, we need to add 0xff to the prefix so the first iterated key is the latest log entry.
+		iterator := txn.NewIterator(badger.IteratorOptions{Reverse: true, Prefix: logPrefix})
+		// The iterator seeks to a key that is greater than or equal than sought key. Since we are doing a
+		// reverse seek, we need to add 0xff to the prefix so the first iterated key is the latest log entry. If
+		// there is a log entry, it is the latest appended log entry. If there are no log entries, the latest
+		// log entry must have been applied to the repository and pruned away, meaning the LSN of the last
+		// appended log entry is the same as the LSN if the last applied log entry.
 		if iterator.Seek(append(logPrefix, 0xff)); iterator.Valid() {
 			mgr.appendedLSN = LSN(binary.BigEndian.Uint64(bytes.TrimPrefix(iterator.Item().Key(), logPrefix)))
 		}
+		iterator.Close()
+
+		mgr.oldestLSN = mgr.appliedLSN + 1
+		// Second scan to find the oldestLSN in the database, which is the log entry with smallest LSN possible.
+		iterator = txn.NewIterator(badger.IteratorOptions{Prefix: logPrefix})
+		if iterator.Seek(logPrefix); iterator.Valid() {
+			mgr.oldestLSN = LSN(binary.BigEndian.Uint64(bytes.TrimPrefix(iterator.Item().Key(), logPrefix)))
+		}
+		iterator.Close()
 
 		return nil
 	}); err != nil {
@@ -2034,18 +2088,16 @@ func (mgr *TransactionManager) verifyHousekeeping(ctx context.Context, transacti
 	defer mgr.mutex.Unlock()
 
 	// Check for any concurrent housekeeping between this transaction's snapshot LSN and the latest appended LSN.
-	elm := mgr.committedEntries.Front()
-	for elm != nil {
-		entry := elm.Value.(*committedEntry)
-		if entry.lsn > transaction.snapshotLSN && entry.entry.RelativePath == transaction.relativePath {
-			if entry.entry.GetHousekeeping() != nil {
-				return nil, errHousekeepingConflictConcurrent
-			}
-			if entry.entry.GetRepositoryDeletion() != nil {
-				return nil, errConflictRepositoryDeletion
-			}
+	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry) error {
+		if entry.GetHousekeeping() != nil {
+			return errHousekeepingConflictConcurrent
 		}
-		elm = elm.Next()
+		if entry.GetRepositoryDeletion() != nil {
+			return errConflictRepositoryDeletion
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("walking committed entries: %w", err)
 	}
 
 	packRefsEntry, err := mgr.verifyPackRefs(mgr.ctx, transaction)
@@ -2093,23 +2145,21 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 	packRefs := transaction.runHousekeeping.packRefs
 
 	// Check for any concurrent ref deletion between this transaction's snapshot LSN to the end.
-	elm := mgr.committedEntries.Front()
-	for elm != nil {
-		entry := elm.Value.(*committedEntry)
-		if entry.lsn > transaction.snapshotLSN && entry.entry.RelativePath == transaction.relativePath {
-			for _, refTransaction := range entry.entry.ReferenceTransactions {
-				for _, change := range refTransaction.Changes {
-					if objectHash.IsZeroOID(git.ObjectID(change.GetNewOid())) {
-						// Oops, there is a reference deletion. Bail out.
-						return nil, errPackRefsConflictRefDeletion
-					}
-					// Ref update. Remove the updated ref from the list of pruned refs so that the
-					// new OID in loose reference shadows the outdated OID in packed-refs.
-					delete(packRefs.PrunedRefs, git.ReferenceName(change.GetReferenceName()))
+	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry) error {
+		for _, refTransaction := range entry.ReferenceTransactions {
+			for _, change := range refTransaction.Changes {
+				if objectHash.IsZeroOID(git.ObjectID(change.GetNewOid())) {
+					// Oops, there is a reference deletion. Bail out.
+					return errPackRefsConflictRefDeletion
 				}
+				// Ref update. Remove the updated ref from the list of pruned refs so that the
+				// new OID in loose reference shadows the outdated OID in packed-refs.
+				delete(packRefs.PrunedRefs, git.ReferenceName(change.GetReferenceName()))
 			}
 		}
-		elm = elm.Next()
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("walking committed entries: %w", err)
 	}
 
 	var prunedRefs [][]byte
@@ -2183,20 +2233,18 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 	// Collect reference tips. All of them should exist in the resulting packfile or new concurrent
 	// packfiles while repacking is running.
 	referenceTips := map[string]struct{}{}
-	elm := mgr.committedEntries.Front()
-	for elm != nil {
-		committed := elm.Value.(*committedEntry)
-		if committed.lsn > transaction.snapshotLSN && committed.entry.RelativePath == transaction.relativePath {
-			for _, txn := range committed.entry.GetReferenceTransactions() {
-				for _, change := range txn.GetChanges() {
-					oid := change.GetNewOid()
-					if !objectHash.IsZeroOID(git.ObjectID(oid)) {
-						referenceTips[string(oid)] = struct{}{}
-					}
+	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry) error {
+		for _, txn := range entry.GetReferenceTransactions() {
+			for _, change := range txn.GetChanges() {
+				oid := change.GetNewOid()
+				if !objectHash.IsZeroOID(git.ObjectID(oid)) {
+					referenceTips[string(oid)] = struct{}{}
 				}
 			}
 		}
-		elm = elm.Next()
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("walking committed entries: %w", err)
 	}
 
 	if len(referenceTips) == 0 {
@@ -2377,8 +2425,7 @@ func (mgr *TransactionManager) appendLogEntry(nextLSN LSN, logEntry *gitalypb.Lo
 	mgr.appendedLSN = nextLSN
 	mgr.snapshotLocks[nextLSN] = &snapshotLock{applied: make(chan struct{})}
 	mgr.committedEntries.PushBack(&committedEntry{
-		lsn:   nextLSN,
-		entry: logEntry,
+		lsn: nextLSN,
 	})
 	mgr.mutex.Unlock()
 
@@ -2442,10 +2489,6 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 
 	if err := mgr.storeAppliedLSN(lsn); err != nil {
 		return fmt.Errorf("set applied LSN: %w", err)
-	}
-
-	if err := mgr.deleteLogEntry(lsn); err != nil {
-		return fmt.Errorf("deleting log entry: %w", err)
 	}
 
 	mgr.appliedLSN = lsn
@@ -3036,6 +3079,19 @@ func (mgr *TransactionManager) deleteKey(key []byte) error {
 	})
 }
 
+// lowWaterMark returns the earliest LSN of log entries which should be kept in the database. Any log entries LESS than
+// this mark are removed.
+func (mgr *TransactionManager) lowWaterMark() LSN {
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+
+	elm := mgr.committedEntries.Front()
+	if elm == nil {
+		return mgr.appliedLSN + 1
+	}
+	return elm.Value.(*committedEntry).lsn
+}
+
 // updateCommittedEntry updates the reader counter of the committed entry of the snapshot that this transaction depends on.
 func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) (*committedEntry, error) {
 	// Since the goroutine doing this is holding the lock, the snapshotLSN shouldn't change and no new transactions
@@ -3050,11 +3106,6 @@ func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) (*committed
 	entry := &committedEntry{
 		lsn:             snapshotLSN,
 		snapshotReaders: 1,
-		// The log entry is left nil. This doesn't matter as the conflict checking only
-		// needs it when checking for conflicts with transactions committed after we took
-		// our snapshot.
-		//
-		// This `committedEntry` only exists to record the `snapshotReaders` at this LSN.
 	}
 
 	mgr.committedEntries.PushBack(entry)
@@ -3062,9 +3113,34 @@ func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) (*committed
 	return entry, nil
 }
 
+// walkCommittedEntries walks all committed entries after input transaction's snapshot LSN. It loads the content of the
+// entry from disk and triggers the callback with entry content.
+func (mgr *TransactionManager) walkCommittedEntries(transaction *Transaction, callback func(*gitalypb.LogEntry) error) error {
+	for elm := mgr.committedEntries.Front(); elm != nil; elm = elm.Next() {
+		committed := elm.Value.(*committedEntry)
+		if committed.lsn <= transaction.snapshotLSN {
+			continue
+		}
+		entry, err := mgr.readLogEntry(committed.lsn)
+		if err != nil {
+			return errCommittedEntryGone
+		}
+		// Transaction manager works on the partition level, including a repository and all of its pool
+		// member repositories (if any). We need to filter log entries of the repository this
+		// transaction targets.
+		if entry.RelativePath != transaction.relativePath {
+			continue
+		}
+		if err := callback(entry); err != nil {
+			return fmt.Errorf("callback: %w", err)
+		}
+	}
+	return nil
+}
+
 // cleanCommittedEntry reduces the snapshot readers counter of the committed entry. It also removes entries with no more
 // readers at the head of the list.
-func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) {
+func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) error {
 	entry.snapshotReaders--
 
 	elm := mgr.committedEntries.Front()
@@ -3074,11 +3150,13 @@ func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) {
 			// If the first entry had still some snapshot readers, that means
 			// our transaction was not the oldest reader. We can't remove any entries
 			// as they'll still be needed for conlict checking the older transactions.
-			return
+			return nil
 		}
+
 		mgr.committedEntries.Remove(elm)
 		elm = mgr.committedEntries.Front()
 	}
+	return nil
 }
 
 // keyAppliedLSN returns the database key storing a partition's last applied log entry's LSN.
