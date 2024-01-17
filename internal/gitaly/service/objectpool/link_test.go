@@ -13,9 +13,76 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
+
+func TestCompleteForkCreationFlow(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg, sourceRepository, _, _, objectPoolClient := setup(t, ctx, testserver.WithDisablePraefect())
+
+	repositoryClient := gitalypb.NewRepositoryServiceClient(
+		objectPoolClient.(clientWithConn).conn,
+	)
+
+	forkRepository := &gitalypb.Repository{
+		StorageName:  sourceRepository.StorageName,
+		RelativePath: gittest.NewRepositoryName(t),
+	}
+
+	// Inject the Gitaly's address information in the context. CreateFork uses this to
+	// fetch from the source repository.
+	ctx = testhelper.MergeOutgoingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
+	// Build GitalySSH as CreateFork uses to perform the fetch.
+	testcfg.BuildGitalySSH(t, cfg)
+	createForkResponse, err := repositoryClient.CreateFork(ctx, &gitalypb.CreateForkRequest{
+		Repository:       forkRepository,
+		SourceRepository: sourceRepository,
+	})
+	require.NoError(t, err)
+	testhelper.ProtoEqual(t, &gitalypb.CreateForkResponse{}, createForkResponse)
+
+	// Create an object pool from the source repository.
+	objectPool, _, _ := createObjectPool(t, ctx, cfg, sourceRepository)
+
+	// Link the source repository itself to the object pool.
+	linkSourceToObjectPoolResponse, err := objectPoolClient.LinkRepositoryToObjectPool(ctx, &gitalypb.LinkRepositoryToObjectPoolRequest{
+		ObjectPool: objectPool,
+		Repository: sourceRepository,
+	})
+	require.NoError(t, err)
+	testhelper.ProtoEqual(t, &gitalypb.LinkRepositoryToObjectPoolResponse{}, linkSourceToObjectPoolResponse)
+
+	// Link the fork to the object pool.
+	linkForkToObjectPoolResponse, err := objectPoolClient.LinkRepositoryToObjectPool(ctx, &gitalypb.LinkRepositoryToObjectPoolRequest{
+		ObjectPool: objectPool,
+		Repository: forkRepository,
+	})
+	require.NoError(t, err)
+	testhelper.ProtoEqual(t, &gitalypb.LinkRepositoryToObjectPoolResponse{}, linkForkToObjectPoolResponse)
+
+	// Ensure the source is linked to the pool now.
+	getSourceObjectPoolResponse, err := objectPoolClient.GetObjectPool(ctx, &gitalypb.GetObjectPoolRequest{
+		Repository: sourceRepository,
+	})
+	require.NoError(t, err)
+	testhelper.ProtoEqual(t, &gitalypb.GetObjectPoolResponse{
+		ObjectPool: objectPool,
+	}, getSourceObjectPoolResponse)
+
+	// Ensure the fork is linked to the pool now.
+	getForkObjectPoolResponse, err := objectPoolClient.GetObjectPool(ctx, &gitalypb.GetObjectPoolRequest{
+		Repository: forkRepository,
+	})
+	require.NoError(t, err)
+	testhelper.ProtoEqual(t, &gitalypb.GetObjectPoolResponse{
+		ObjectPool: objectPool,
+	}, getForkObjectPoolResponse)
+}
 
 func TestLink(t *testing.T) {
 	t.Parallel()

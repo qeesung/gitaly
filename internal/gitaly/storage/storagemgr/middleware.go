@@ -26,6 +26,9 @@ var (
 	// ErrQuarantineWithoutSnapshotRelativePath is returned when a request is configured with a quarantine but the snapshot's
 	// relative path was not sent in a header.
 	ErrQuarantineWithoutSnapshotRelativePath = errors.New("quarantined request did not contain snapshot relative path")
+	// ErrRepositoriesInDifferentStorages is returned when trying to access two repositories in different storages in the
+	// same transaction.
+	ErrRepositoriesInDifferentStorages = structerr.NewInvalidArgument("additional and target repositories are in different storages")
 )
 
 // NonTransactionalRPCs are the RPCs that do not support transactions.
@@ -247,22 +250,36 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 		return transactionalizedRequest{}, err
 	}
 
-	var alternateRelativePath string
-	if additionalRepo, err := methodInfo.AdditionalRepo(req); err != nil {
+	// Object pools need to be placed in the same partition as their members. Below we figure out which repository,
+	// if any, the target repository of the RPC must be partitioned with. We figure this out using two strategies:
+	//
+	// The general case is handled by extracting the additional repository from the RPC, and paritioning the target
+	// repository of the RPC with the additional repository. Many of the ObjectPoolService's RPCs operate on two
+	// repositories. Depending on the RPC, the additional repository is either the object pool itself or a member
+	// of the pool.
+	//
+	// CreateFork is special cased. The fork must partitioned with the source repository in order to successfully
+	// link it with the object pool later. The source repository is not tagged as additional repository in the
+	// CreateForkRequest. If the request is CreateForkRequest, we extract the source repository and partition the
+	// fork with it.
+	var additionalRepo *gitalypb.Repository
+	if additionalRepo, err = methodInfo.AdditionalRepo(req); err != nil {
 		if !errors.Is(err, protoregistry.ErrRepositoryFieldNotFound) {
 			return transactionalizedRequest{}, fmt.Errorf("extract additional repository: %w", err)
 		}
 
 		// There was no additional repository.
-	} else {
-		if additionalRepo.StorageName != targetRepo.StorageName {
-			return transactionalizedRequest{}, structerr.NewInvalidArgument("additional and target repositories are in different storages")
-		}
-
-		alternateRelativePath = additionalRepo.RelativePath
 	}
 
-	tx, err := mgr.Begin(ctx, targetRepo.StorageName, targetRepo.RelativePath, alternateRelativePath, methodInfo.Operation == protoregistry.OpAccessor)
+	if req, ok := req.(*gitalypb.CreateForkRequest); ok {
+		additionalRepo = req.GetSourceRepository()
+	}
+
+	if additionalRepo != nil && additionalRepo.StorageName != targetRepo.StorageName {
+		return transactionalizedRequest{}, ErrRepositoriesInDifferentStorages
+	}
+
+	tx, err := mgr.Begin(ctx, targetRepo.StorageName, targetRepo.RelativePath, additionalRepo.GetRelativePath(), methodInfo.Operation == protoregistry.OpAccessor)
 	if err != nil {
 		return transactionalizedRequest{}, fmt.Errorf("begin transaction: %w", err)
 	}
