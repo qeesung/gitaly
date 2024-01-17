@@ -195,6 +195,9 @@ func NewGRPCServer(
 			"DeleteObjectPool": DeleteObjectPoolHandler(deps.RepositoryStore, deps.Logger, deps.Conns),
 			"GetObjectPool":    GetObjectPoolHandler(deps.RepositoryStore, deps.Router),
 		})
+		proxy.RegisterStreamHandlers(srv, "gitaly.InternalGitaly", map[string]grpc.StreamHandler{
+			"WalkRepos": WalkReposHandler(deps.RepositoryStore),
+		})
 	}
 
 	return srv
