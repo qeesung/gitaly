@@ -1,5 +1,16 @@
 # Gitaly changelog
 
+## 16.8.0 (2024-01-17)
+
+### Fixed (2 changes)
+
+- [Defualt enable CLONE_INTO_CGROUP support](gitlab-org/gitaly@514ff4c96aebf2a0f5a897fe9edfb91d92aff59a) ([merge request](gitlab-org/gitaly!6598))
+- [Report stat failures correctly when creating a repository](gitlab-org/gitaly@e95f3408ddd61a77beb276a0ea90a116dfba9e22) ([merge request](gitlab-org/gitaly!6597))
+
+### Deprecated (1 change)
+
+- [proto: Deprecate RemoveAll](gitlab-org/gitaly@bead28d4dd8c6fa0166d4490fe479dca78c51bc7) ([merge request](gitlab-org/gitaly!6579))
+
 ## 16.7.2 (2024-01-10)
 
 ### Security (1 change)
