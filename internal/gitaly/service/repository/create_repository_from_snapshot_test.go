@@ -249,7 +249,7 @@ func TestCreateRepositoryFromSnapshot_malformedArchive(t *testing.T) {
 	// to https://gitlab.com/gitlab-org/gitaly/-/issues/5503.
 	_, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 	gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch(git.DefaultBranch), gittest.WithTreeEntries(
-		gittest.TreeEntry{Path: "blob", Mode: "100644", Content: string(uncompressibleData(16 * 1024))},
+		gittest.TreeEntry{Path: "blob", Mode: "100644", Content: string(incompressibleData(16 * 1024))},
 	))
 
 	data, _ := generateTarFile(t, sourceRepoPath)

@@ -1393,7 +1393,7 @@ func TestTreeEntry_Delete(t *testing.T) {
 			},
 		},
 		{
-			desc: "nested tree with only single childs",
+			desc: "nested tree with only single child",
 			tree: &TreeEntry{
 				Type: Tree,
 				Mode: "040000",

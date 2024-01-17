@@ -18,7 +18,7 @@ import (
 // influence the execution of the test.
 type hookFunc func(hookContext)
 
-// hookContext are the control toggels available in a hook.
+// hookContext are the control toggles available in a hook.
 type hookContext struct {
 	// closeManager calls the calls Close on the TransactionManager.
 	closeManager func()
@@ -28,7 +28,7 @@ type hookContext struct {
 }
 
 // hooks are functions that get invoked at specific points of the TransactionManager Run method. They allow
-// for hooking into the Run method at specific poins which would otherwise to do assertions that would otherwise
+// for hooking into the Run method at specific points which would otherwise to do assertions that would otherwise
 // not be possible.
 type hooks struct {
 	// beforeReadLogEntry is invoked before a log entry is read from the database.

@@ -33,7 +33,7 @@ func TestSubCmdSqlMigrate(t *testing.T) {
 	}{
 		{
 			desc:        "unexpected positional arguments",
-			args:        []string{"positonal-arg"},
+			args:        []string{"positional-arg"},
 			expectedErr: cli.Exit(unexpectedPositionalArgsError{Command: "sql-migrate"}, 1),
 		},
 		{

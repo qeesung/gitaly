@@ -315,7 +315,7 @@ type commit
 tag signed-tag
 tagger Some Author <some.author@example.com> 100000000 +0100
 gpgsig -----BEGIN PGP SIGNATURE-----
- this is a pseude PGP signature
+ this is a pseudo PGP signature
  -----END PGP SIGNATURE-----
 
 signed tag message

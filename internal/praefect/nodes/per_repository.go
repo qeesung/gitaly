@@ -50,7 +50,7 @@ func (pr *PerRepositoryElector) GetPrimary(ctx context.Context, virtualStorage s
 	//   1. `election`, as this indicates this transaction re-elected the primary and the CTE now contains the most
 	//      recent change
 	//   2. `reread`, as this indicates a concurrent transaction had potentially changed the primary.
-	//   3. `snapshot`, if the current primary was valid in the transcation's database snapshot.
+	//   3. `snapshot`, if the current primary was valid in the transaction's database snapshot.
 	var current, previous sql.NullString
 	if err := pr.db.QueryRowContext(ctx, `
 WITH reread AS (

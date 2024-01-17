@@ -38,7 +38,7 @@ Object pools are not yet supported with transaction management.`)
 	// a packfile or otherwise it won't get pulled into the object pool. We thus repack the repository first before
 	// linking it to the pool repository.
 	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch), gittest.WithTreeEntries(
-		gittest.TreeEntry{Mode: "100644", Path: "16kbblob", Content: string(uncompressibleData(16 * 1000))},
+		gittest.TreeEntry{Mode: "100644", Path: "16kbblob", Content: string(incompressibleData(16 * 1000))},
 	))
 	gittest.Exec(t, cfg, "-C", repoPath, "repack", "-Adl")
 	requireRepositorySize(t, ctx, client, repo, 17)
@@ -66,15 +66,15 @@ func TestRepositorySize_normalRepository(t *testing.T) {
 	requireRepositorySize(t, ctx, client, repo, 0)
 
 	// When writing a largish blob into the repository it's expected to grow.
-	gittest.WriteBlob(t, cfg, repoPath, uncompressibleData(16*1024))
+	gittest.WriteBlob(t, cfg, repoPath, incompressibleData(16*1024))
 	requireRepositorySize(t, ctx, client, repo, 16)
 
 	// Also, updating any other files should cause a size increase.
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "packed-refs"), uncompressibleData(7*1024), perm.PrivateFile))
+	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "packed-refs"), incompressibleData(7*1024), perm.PrivateFile))
 	requireRepositorySize(t, ctx, client, repo, 23)
 
 	// Even garbage should increase the size.
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "garbage"), uncompressibleData(5*1024), perm.PrivateFile))
+	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "garbage"), incompressibleData(5*1024), perm.PrivateFile))
 	requireRepositorySize(t, ctx, client, repo, 28)
 }
 
@@ -169,7 +169,7 @@ func TestGetObjectDirectorySize_successful(t *testing.T) {
 	requireObjectDirectorySize(t, ctx, client, repo, 0)
 
 	// Writing an object into the repository should increase the size accordingly.
-	gittest.WriteBlob(t, cfg, repoPath, uncompressibleData(16*1024))
+	gittest.WriteBlob(t, cfg, repoPath, incompressibleData(16*1024))
 	requireObjectDirectorySize(t, ctx, client, repo, 16)
 }
 
@@ -184,7 +184,7 @@ func TestGetObjectDirectorySize_quarantine(t *testing.T) {
 	t.Run("quarantined repo", func(t *testing.T) {
 		repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 		repo.GitObjectDirectory = "objects/"
-		gittest.WriteBlob(t, cfg, repoPath, uncompressibleData(16*1024))
+		gittest.WriteBlob(t, cfg, repoPath, incompressibleData(16*1024))
 
 		// Rails sends the repository's relative path from the access checks as provided by Gitaly. If transactions are enabled,
 		// this is the snapshot's relative path. Include the metadata in the test as well as we're testing requests with quarantine
@@ -274,10 +274,10 @@ func requireObjectDirectorySize(tb testing.TB, ctx context.Context, client gital
 	require.Equal(tb, expectedSize, response.GetSize())
 }
 
-// uncompressibleData returns data that will not be easily compressible by Git. This is required because
+// incompressibleData returns data that will not be easily compressible by Git. This is required because
 // well-compressible objects would not lead to a repository size increase due to the zlib compression used for Git
 // objects.
-func uncompressibleData(bytes int) []byte {
+func incompressibleData(bytes int) []byte {
 	data := make([]byte, bytes)
 	_, _ = rand.Read(data[:])
 	return data

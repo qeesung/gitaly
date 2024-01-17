@@ -13,7 +13,7 @@ sequenceDiagram
   release-tools bot->>gitlab-org/security/gitaly: Get latest green commit on default branch
   release-tools bot->>gitlab-org/gitlab: Create "Update Gitaly version" MR
   deactivate release-tools bot
-  alt Pipeline succeded
+  alt Pipeline succeeded
     gitlab-org/gitlab->>gitlab-org/gitlab: Merge and deploy
     gitlab-org/gitlab->>Slack gitaly_alerts: Deployment progress
   else Pipeline failed

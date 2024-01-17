@@ -618,7 +618,7 @@ func streamParametersContext(ctx context.Context) context.Context {
 	// world view of which features are enabled and which ones aren't and ideally do the same
 	// thing.
 	//
-	// This problem isn't solveable on Gitaly side, but Praefect is in a perfect position to do
+	// This problem isn't solvable on Gitaly side, but Praefect is in a perfect position to do
 	// so. While it may have the same problem in a load-balanced multi-Praefect setup, this is
 	// much less of a problem: the most important thing is that the view on feature flags is
 	// consistent for a single RPC call, and that will always be the case regardless of which
@@ -1141,7 +1141,7 @@ func (c *Coordinator) newRequestFinalizer(
 		}
 
 		// The cancellation signal is suppressed earlier in the function, so we'd return no error if the
-		// orignal context exceeded its deadline while running the request finalizer. If there were
+		// original context exceeded its deadline while running the request finalizer. If there were
 		// no other errors, return the possible error from the context so we don't return OK code for
 		// failed requests.
 		return originalCtx.Err()

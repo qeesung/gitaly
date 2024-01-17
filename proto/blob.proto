@@ -159,7 +159,7 @@ message ListBlobsRequest {
   // dash. Please consult gitrevisions(7) for more info. Must not be empty.
   repeated string revisions = 2;
   // limit is the maximum number of blobs to return. If set to its default
-  // (`0`), then all found blobs wll be returned.
+  // (`0`), then all found blobs will be returned.
   uint32 limit = 3;
   // bytes_limit is the maximum number of bytes to receive for each blob. If set
   // to `0`, then no blob data will be sent. If `-1`, then all blob data will
@@ -202,7 +202,7 @@ message ListAllBlobsRequest {
   // repository is the repository in which blobs should be enumerated.
   Repository repository = 1 [(target_repository)=true];
   // limit is the maximum number of blobs to return. If set to its default
-  // (`0`), then all found blobs wll be returned.
+  // (`0`), then all found blobs will be returned.
   uint32 limit = 2;
   // bytes_limit is the maximum number of bytes to receive for each blob. If set
   // to `0`, then no blob data will be sent. If `-1`, then all blob data will

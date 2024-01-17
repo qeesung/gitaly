@@ -163,13 +163,13 @@ func TestRunner_Run(t *testing.T) {
 
 	var iteration int32
 	runner := NewRunner(cfg, logger, praefect.StaticHealthChecker{virtualStorage: []string{storage1, storage2, storage3}}, nodeSet.Connections(), storageCleanup, storageCleanup, actionStub{
-		PerformMethod: func(ctx context.Context, argVirtualStoage, argStorage string, notExisting []string) error {
+		PerformMethod: func(ctx context.Context, argVirtualStorage, argStorage string, notExisting []string) error {
 			// There should be three iterations, as each storage has
 			// one repository that is unused by praefect.
 			atomic.AddInt32(&iteration, 1)
 
 			i := atomic.LoadInt32(&iteration)
-			assert.Equal(t, virtualStorage, argVirtualStoage)
+			assert.Equal(t, virtualStorage, argVirtualStorage)
 			assert.Equal(t, []string{"repo-4.git"}, notExisting)
 
 			if i == 3 {

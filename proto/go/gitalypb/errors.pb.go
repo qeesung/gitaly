@@ -30,7 +30,7 @@ const (
 	// ERROR_TYPE_EMPTY_PATH indicates an empty path was provided by the caller.
 	IndexError_ERROR_TYPE_EMPTY_PATH IndexError_ErrorType = 1
 	// ERROR_TYPE_INVALID_PATH indicates a path either contained '.git', or was
-	// incorrectly formated, e.g. invalid://file/path.
+	// incorrectly formatted, e.g. invalid://file/path.
 	IndexError_ERROR_TYPE_INVALID_PATH IndexError_ErrorType = 2
 	// ERROR_TYPE_DIRECTORY_EXISTS indicates the directory being created already exists.
 	IndexError_ERROR_TYPE_DIRECTORY_EXISTS IndexError_ErrorType = 3
@@ -678,7 +678,7 @@ func (x *ReferenceExistsError) GetOid() string {
 	return ""
 }
 
-// ReferenceNotFoundError is an error retruned when a reference that ought to exist does not exist.
+// ReferenceNotFoundError is an error returned when a reference that ought to exist does not exist.
 type ReferenceNotFoundError struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

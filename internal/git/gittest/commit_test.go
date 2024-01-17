@@ -69,7 +69,7 @@ func TestWriteCommit(t *testing.T) {
 			}, "\n"),
 		},
 		{
-			desc: "with commiter",
+			desc: "with committer",
 			opts: []WriteCommitOption{
 				WithCommitterName("John Doe"),
 				WithCommitterDate(time.Date(2005, 4, 7, 15, 13, 13, 0, time.FixedZone("UTC-7", -7*60*60))),

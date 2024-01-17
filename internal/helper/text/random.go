@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-// RandomHex returns an n-byte hexademical random string.
+// RandomHex returns an n-byte hexadecimal random string.
 func RandomHex(n int) (string, error) {
 	buf := make([]byte, n)
 	if _, err := io.ReadFull(rand.Reader, buf); err != nil {

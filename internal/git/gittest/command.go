@@ -128,7 +128,7 @@ type RepositoryPathExecutor struct {
 	factory git.CommandFactory
 }
 
-// NewRepositoryPathExecutor creates a new ReposiotryPathExecutor for the given repository.
+// NewRepositoryPathExecutor creates a new RepositoryPathExecutor for the given repository.
 func NewRepositoryPathExecutor(tb testing.TB, cfg config.Cfg, repoPath string) RepositoryPathExecutor {
 	relativePath, err := filepath.Rel(cfg.Storages[0].Path, repoPath)
 	require.NoError(tb, err)

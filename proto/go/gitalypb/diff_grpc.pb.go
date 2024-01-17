@@ -26,7 +26,7 @@ type DiffServiceClient interface {
 	// chunked across messages and get streamed back to the client.
 	CommitDiff(ctx context.Context, in *CommitDiffRequest, opts ...grpc.CallOption) (DiffService_CommitDiffClient, error)
 	// CommitDelta returns the deltas between two different commits. A delta
-	// includes everthing that changed about a set of paths except for the actual
+	// includes everything that changed about a set of paths except for the actual
 	// diff.
 	CommitDelta(ctx context.Context, in *CommitDeltaRequest, opts ...grpc.CallOption) (DiffService_CommitDeltaClient, error)
 	// RawDiff returns a diff between two commits. The output is the unmodified
@@ -266,7 +266,7 @@ type DiffServiceServer interface {
 	// chunked across messages and get streamed back to the client.
 	CommitDiff(*CommitDiffRequest, DiffService_CommitDiffServer) error
 	// CommitDelta returns the deltas between two different commits. A delta
-	// includes everthing that changed about a set of paths except for the actual
+	// includes everything that changed about a set of paths except for the actual
 	// diff.
 	CommitDelta(*CommitDeltaRequest, DiffService_CommitDeltaServer) error
 	// RawDiff returns a diff between two commits. The output is the unmodified

@@ -1320,7 +1320,7 @@ func testResolveConflicts(t *testing.T, ctx context.Context) {
 					skipCommitCheck: true,
 					additionalChecks: func() {
 						objectsAfter := len(strings.Split(text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "rev-list", "--objects", "--all")), "\n"))
-						require.Equal(t, objectsBefore, objectsAfter, "No new objets should've been added")
+						require.Equal(t, objectsBefore, objectsAfter, "No new objects should've been added")
 					},
 				}
 			},

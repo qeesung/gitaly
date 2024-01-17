@@ -33,7 +33,7 @@ type UpdateRemoteMirrorRequest struct {
 	// on-disk remote configuration.
 	Remote *UpdateRemoteMirrorRequest_Remote `protobuf:"bytes,7,opt,name=remote,proto3" json:"remote,omitempty"`
 	// only_branches_matching contains patterns to match branches against. Only the
-	// matched brances are updated in the remote mirror. If no patterns are
+	// matched branches are updated in the remote mirror. If no patterns are
 	// specified, all branches are updated. The patterns should only contain the
 	// branch name without the 'refs/heads/' prefix. "*" can be used as a
 	// wildcard to match anything. only_branches_matching can be streamed to the

@@ -156,7 +156,7 @@ func Dial(ctx context.Context, rawAddress string, opts ...DialOption) (*grpc.Cli
 		} else {
 			certPool, err := gitalyx509.SystemCertPool()
 			if err != nil {
-				return nil, fmt.Errorf("failed to get system certificat pool for 'tls' connection: %w", err)
+				return nil, fmt.Errorf("failed to get system certificate pool for 'tls' connection: %w", err)
 			}
 
 			transportCredentials = credentials.NewTLS(&tls.Config{

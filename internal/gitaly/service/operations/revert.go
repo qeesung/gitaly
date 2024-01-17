@@ -199,7 +199,7 @@ func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 // housekeeping.
 func (s *Server) writeCommitWithEmptyTree(ctx context.Context, quarantineRepo *localrepo.Repo) (git.ObjectID, error) {
 	const fakeName = "GitLab Bot"
-	const fakcEmail = "gitlab-bot@gitlab.com"
+	const fakeEmail = "gitlab-bot@gitlab.com"
 	fakeDate := time.Unix(694540800, 0).UTC()
 
 	hash, err := quarantineRepo.ObjectHash(ctx)
@@ -209,10 +209,10 @@ func (s *Server) writeCommitWithEmptyTree(ctx context.Context, quarantineRepo *l
 
 	return quarantineRepo.WriteCommit(ctx, localrepo.WriteCommitConfig{
 		AuthorName:     fakeName,
-		AuthorEmail:    fakcEmail,
+		AuthorEmail:    fakeEmail,
 		AuthorDate:     fakeDate,
 		CommitterName:  fakeName,
-		CommitterEmail: fakcEmail,
+		CommitterEmail: fakeEmail,
 		CommitterDate:  fakeDate,
 		TreeID:         hash.EmptyTreeOID,
 	})

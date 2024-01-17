@@ -200,7 +200,7 @@ data inside repositories, so we can rarely assume data to be a Protobuf "string"
 
 ### Stream patterns
 
-Protobuf suppports streaming RPCs which allow for multiple request or response
+Protobuf supports streaming RPCs which allow for multiple request or response
 messages to be sent in a single RPC call. We use these whenever it is expected
 that an RPC may be invoked with lots of input parameters or when it may generate
 a lot of data. This is required by limitations in the gRPC framework where
@@ -320,7 +320,7 @@ To declare the scope, mutators must contain one of the following lines:
   tagged with `[(storage)=true]` that indicates the storage's name.
 - `option(op_type).scope = REPOSITORY;`: This is the default scoped and thus
   doesn't need to be explicitly declared. The associated request must have a
-  field tagged with `[(target_repository)=true]` that indcates the repository's
+  field tagged with `[(target_repository)=true]` that indicates the repository's
   location.
 
 The target repository represents the location or address of the repository being

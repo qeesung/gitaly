@@ -29,7 +29,7 @@ message IndexError {
     // ERROR_TYPE_EMPTY_PATH indicates an empty path was provided by the caller.
     ERROR_TYPE_EMPTY_PATH = 1;
     // ERROR_TYPE_INVALID_PATH indicates a path either contained '.git', or was
-    // incorrectly formated, e.g. invalid://file/path.
+    // incorrectly formatted, e.g. invalid://file/path.
     ERROR_TYPE_INVALID_PATH = 2;
     // ERROR_TYPE_DIRECTORY_EXISTS indicates the directory being created already exists.
     ERROR_TYPE_DIRECTORY_EXISTS = 3;
@@ -98,7 +98,7 @@ message ReferenceExistsError {
   string oid = 2;
 }
 
-// ReferenceNotFoundError is an error retruned when a reference that ought to exist does not exist.
+// ReferenceNotFoundError is an error returned when a reference that ought to exist does not exist.
 message ReferenceNotFoundError {
   // reference_name is the name of the reference that does not exist.
   bytes reference_name = 1;
