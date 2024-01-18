@@ -70,6 +70,7 @@ workflow:
     - if: $CI_MERGE_REQUEST_IID
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == "jc/automate-rails-pipeline"
     - if: '$CI_COMMIT_BRANCH =~ /^[\d-]+-stable$/'
     - if: $FORCE_GITALY_CI
 
@@ -504,7 +505,8 @@ start-rails-specs:
     name: merge-requests/$RAILS_BRANCH_FOR_JOB
     on_stop: rails-specs-cleanup
   rules:
-    - when: manual
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
+      when: manual
       allow_failure: true
 
 rails-specs:
@@ -523,8 +525,7 @@ rails-specs:
     ENABLE_RSPEC_INTEGRATION: "true"
     ENABLE_RSPEC_SYSTEM: "true"
   rules:
-    - when: manual
-      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
 
 rails-specs-cleanup:
   stage: qa
@@ -537,8 +538,8 @@ rails-specs-cleanup:
     name: merge-requests/$RAILS_BRANCH_FOR_JOB
     action: stop
   rules:
-    - when: manual
-      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
+      when: manual
 
 cleanup-rails-spec-test-env:
   needs: ["rails-specs-cleanup"]
@@ -551,8 +552,7 @@ cleanup-rails-spec-test-env:
        ENV_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: $GITALY_PROJECT_TOKEN" "https://gitlab.com/api/v4/projects/2009901/environments" --data-urlencode "name=merge-requests/$RAILS_BRANCH_FOR_JOB" | jq '.[0].id')
        curl --fail -s --request DELETE --header "PRIVATE-TOKEN: $GITALY_PROJECT_TOKEN" "https://gitlab.com/api/v4/projects/2009901/environments/$ENV_ID"
   rules:
-    - when: manual
-      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
 
 build-package-and-qa:
   needs: []
