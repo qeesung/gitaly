@@ -70,6 +70,7 @@ workflow:
     - if: $CI_MERGE_REQUEST_IID
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == "jc/automate-rails-pipeline"
     - if: '$CI_COMMIT_BRANCH =~ /^[\d-]+-stable$/'
     - if: $FORCE_GITALY_CI
 
@@ -525,7 +526,6 @@ rails-specs:
     ENABLE_RSPEC_SYSTEM: "true"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
-      allow_failure: true
 
 rails-specs-cleanup:
   stage: qa
@@ -540,7 +540,6 @@ rails-specs-cleanup:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
       when: manual
-      allow_failure: true
 
 cleanup-rails-spec-test-env:
   needs: ["rails-specs-cleanup"]
@@ -554,7 +553,6 @@ cleanup-rails-spec-test-env:
        curl --fail -s --request DELETE --header "PRIVATE-TOKEN: $GITALY_PROJECT_TOKEN" "https://gitlab.com/api/v4/projects/2009901/environments/$ENV_ID"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
-      allow_failure: true
 
 build-package-and-qa:
   needs: []
