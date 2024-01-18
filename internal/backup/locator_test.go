@@ -470,7 +470,9 @@ custom_hooks_path = '%[1]s/%[2]s/001.custom_hooks.tar'
 		require.NoError(t, l.Commit(ctx, incremental))
 
 		manifest := testhelper.MustReadFile(t, filepath.Join(backupPath, "manifests", repo.StorageName, repo.RelativePath, backupID+".toml"))
-		require.Equal(t, fmt.Sprintf(`object_format = 'sha1'
+		latestManifest := testhelper.MustReadFile(t, filepath.Join(backupPath, "manifests", repo.StorageName, repo.RelativePath, "+latest.toml"))
+
+		expectedManifest := fmt.Sprintf(`object_format = 'sha1'
 
 [[steps]]
 bundle_path = '%[1]s/%[2]s/001.bundle'
@@ -482,7 +484,10 @@ bundle_path = '%[1]s/%[2]s/002.bundle'
 ref_path = '%[1]s/%[2]s/002.refs'
 previous_ref_path = '%[1]s/%[2]s/001.refs'
 custom_hooks_path = '%[1]s/%[2]s/002.custom_hooks.tar'
-`, repo.RelativePath, backupID), string(manifest))
+`, repo.RelativePath, backupID)
+
+		require.Equal(t, expectedManifest, string(manifest))
+		require.Equal(t, expectedManifest, string(latestManifest))
 	})
 }
 
@@ -599,6 +604,123 @@ custom_hooks_path = 'path/to/002.custom_hooks.tar'
 			}
 
 			backup, err := l.Find(ctx, tc.repo, tc.backupID)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.expectedBackup, backup)
+		})
+	}
+}
+
+func TestManifestLocator_FindLatest(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		desc           string
+		repo           storage.Repository
+		setup          func(t *testing.T, ctx context.Context, backupPath string)
+		expectedBackup *Backup
+	}{
+		{
+			desc: "finds manifest",
+			repo: &gitalypb.Repository{
+				StorageName:  "default",
+				RelativePath: "vanity/repo.git",
+			},
+			setup: func(t *testing.T, ctx context.Context, backupPath string) {
+				testhelper.WriteFiles(t, backupPath, map[string]any{
+					"vanity/repo/LATEST":        "abc123",
+					"vanity/repo/abc123/LATEST": "002",
+					"manifests/default/vanity/repo.git/+latest.toml": `object_format = 'sha1'
+
+[[steps]]
+bundle_path = 'manifest-path/to/001.bundle'
+ref_path = 'manifest-path/to/001.refs'
+custom_hooks_path = 'manifest-path/to/001.custom_hooks.tar'
+
+[[steps]]
+bundle_path = 'manifest-path/to/002.bundle'
+ref_path = 'manifest-path/to/002.refs'
+previous_ref_path = 'manifest-path/to/001.refs'
+custom_hooks_path = 'manifest-path/to/002.custom_hooks.tar'
+`,
+				})
+			},
+			expectedBackup: &Backup{
+				ID: "+latest",
+				Repository: &gitalypb.Repository{
+					StorageName:  "default",
+					RelativePath: "vanity/repo.git",
+				},
+				ObjectFormat: "sha1",
+				Steps: []Step{
+					{
+						BundlePath:      "manifest-path/to/001.bundle",
+						RefPath:         "manifest-path/to/001.refs",
+						CustomHooksPath: "manifest-path/to/001.custom_hooks.tar",
+					},
+					{
+						BundlePath:      "manifest-path/to/002.bundle",
+						RefPath:         "manifest-path/to/002.refs",
+						PreviousRefPath: "manifest-path/to/001.refs",
+						CustomHooksPath: "manifest-path/to/002.custom_hooks.tar",
+					},
+				},
+			},
+		},
+		{
+			desc: "fallback",
+			repo: &gitalypb.Repository{
+				StorageName:  "default",
+				RelativePath: "vanity/repo.git",
+			},
+			setup: func(t *testing.T, ctx context.Context, backupPath string) {
+				testhelper.WriteFiles(t, backupPath, map[string]any{
+					"vanity/repo/LATEST":        "abc123",
+					"vanity/repo/abc123/LATEST": "002",
+				})
+			},
+			expectedBackup: &Backup{
+				ID: "abc123",
+				Repository: &gitalypb.Repository{
+					StorageName:  "default",
+					RelativePath: "vanity/repo.git",
+				},
+				ObjectFormat: "sha1",
+				Steps: []Step{
+					{
+						BundlePath:      "vanity/repo/abc123/001.bundle",
+						RefPath:         "vanity/repo/abc123/001.refs",
+						CustomHooksPath: "vanity/repo/abc123/001.custom_hooks.tar",
+					},
+					{
+						BundlePath:      "vanity/repo/abc123/002.bundle",
+						RefPath:         "vanity/repo/abc123/002.refs",
+						PreviousRefPath: "vanity/repo/abc123/001.refs",
+						CustomHooksPath: "vanity/repo/abc123/002.custom_hooks.tar",
+					},
+				},
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := testhelper.Context(t)
+			backupPath := testhelper.TempDir(t)
+
+			tc.setup(t, ctx, backupPath)
+
+			sink := NewFilesystemSink(backupPath)
+			var l Locator = PointerLocator{
+				Sink: sink,
+			}
+			l = ManifestLocator{
+				Sink:     sink,
+				Fallback: l,
+			}
+
+			backup, err := l.FindLatest(ctx, tc.repo)
 			require.NoError(t, err)
 
 			require.Equal(t, tc.expectedBackup, backup)
