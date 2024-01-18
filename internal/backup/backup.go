@@ -335,10 +335,6 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 		return fmt.Errorf("manager: %w", err)
 	}
 
-	if err := repo.Remove(ctx); err != nil {
-		return fmt.Errorf("manager: %w", err)
-	}
-
 	var backup *Backup
 	if req.BackupID == "" {
 		backup, err = mgr.locator.FindLatest(ctx, req.VanityRepository)
@@ -358,6 +354,10 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 	}
 
 	defaultBranch, defaultBranchKnown := git.ReferenceName(backup.HeadReference).Branch()
+
+	if err := repo.Remove(ctx); err != nil {
+		return fmt.Errorf("manager: %w", err)
+	}
 
 	if err := repo.Create(ctx, hash, defaultBranch); err != nil {
 		return fmt.Errorf("manager: %w", err)
