@@ -677,6 +677,7 @@ func TestManager_Restore_latest(t *testing.T) {
 						return repo, nil
 					},
 					expectedErrAs: backup.ErrSkipped,
+					expectExists:  true,
 				},
 				{
 					desc:     "missing backup, always create",
