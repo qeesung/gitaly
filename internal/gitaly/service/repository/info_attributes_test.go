@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -33,6 +33,13 @@ func TestGetInfoAttributesExisting(t *testing.T) {
 	err := os.WriteFile(attrsPath, data, perm.SharedFile)
 	require.NoError(t, err)
 
+	gitattributesContent := "*.go diff=go text\n*.md text\n*.jpg -text"
+	gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithBranch("main"),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Path: ".gitattributes", Mode: "100644", Content: gitattributesContent},
+		))
+
 	request := &gitalypb.GetInfoAttributesRequest{Repository: repo}
 
 	//nolint:staticcheck
@@ -45,7 +52,8 @@ func TestGetInfoAttributesExisting(t *testing.T) {
 	}))
 
 	require.NoError(t, err)
-	require.Equal(t, data, receivedData)
+	require.Equal(t, gitattributesContent, string(receivedData))
+	require.NoFileExists(t, attrsPath)
 }
 
 func TestGetInfoAttributesNonExisting(t *testing.T) {
