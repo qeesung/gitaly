@@ -977,6 +977,7 @@ func TestManager_Restore_specific(t *testing.T) {
 						return repo, nil
 					},
 					expectedErrAs: backup.ErrSkipped,
+					expectExists:  true,
 				},
 				{
 					desc: "single incremental",
