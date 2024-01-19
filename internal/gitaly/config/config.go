@@ -52,6 +52,11 @@ type DailyJob struct {
 	Disabled bool `toml:"disabled,omitempty" json:"disabled"`
 }
 
+// IsDisabled returns true if the daily job is disabled and should not run.
+func (dj DailyJob) IsDisabled() bool {
+	return dj.Duration == 0 || len(dj.Storages) == 0 || dj.Disabled
+}
+
 // Validate runs validation on all fields and compose all found errors.
 func (dj DailyJob) Validate(allowedStorages []string) error {
 	if dj.Disabled {
