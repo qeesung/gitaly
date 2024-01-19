@@ -114,9 +114,9 @@ func TestParser_Parse(t *testing.T) {
 `,
 			expectedTrace: `
 2023-02-22T12:05:04.840009Z | 0001-01-01T00:00:00Z |   | main | root
-2023-02-22T12:05:04.840009Z | 2023-02-22T12:05:04.840009Z |   | main | .version
+2023-02-22T12:05:04.840009Z | 2023-02-22T12:05:04.840009Z |   | main | .version (evt="3" exe="2.39.1")
 2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.842347Z |   | main | .start (argv="git pack-objects toon --compression=0")
-2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.842347Z |   | main | .def_repo
+2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.842347Z |   | main | .def_repo (worktree="/gitaly")
 2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.842347Z |   | main | .pack-objects:enumerate-objects
 2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.84343Z |   | main | ..progress:Enumerating objects
 `,
@@ -150,9 +150,9 @@ func TestParser_Parse(t *testing.T) {
 			events: string(testhelper.MustReadFile(t, "testdata/git-status.event")),
 			expectedTrace: `
 2023-02-21T08:10:10.668546Z | 2023-02-21T08:10:10.687877Z |   | main | root (code="0")
-2023-02-21T08:10:10.668546Z | 2023-02-21T08:10:10.668546Z |   | main | .version
+2023-02-21T08:10:10.668546Z | 2023-02-21T08:10:10.668546Z |   | main | .version (evt="3" exe="2.39.1")
 2023-02-21T08:10:10.754608Z | 2023-02-21T08:10:10.754608Z |   | main | .start (argv="git status")
-2023-02-21T08:10:10.754608Z | 2023-02-21T08:10:10.754608Z |   | main | .def_repo
+2023-02-21T08:10:10.754608Z | 2023-02-21T08:10:10.754608Z |   | main | .def_repo (worktree="/Users/userx/www/gitlab-development-kit/gitaly")
 2023-02-21T08:10:10.754608Z | 2023-02-21T08:10:10.755102Z |   | main | .index:do_read_index (msg=".git/index")
 2023-02-21T08:10:10.754608Z | 2023-02-21T08:10:10.754732Z |   | main | ..cache_tree:read
 2023-02-21T08:10:10.758297Z | 2023-02-21T08:10:10.758297Z |   | main | ..data:index:read/version (data="2")
@@ -182,9 +182,9 @@ func TestParser_Parse(t *testing.T) {
 			events: string(testhelper.MustReadFile(t, "testdata/git-fetch.event")),
 			expectedTrace: `
 2023-02-22T07:24:36.291735Z | 2023-02-22T07:24:40.554407Z |   | main | root (code="0")
-2023-02-22T07:24:36.291735Z | 2023-02-22T07:24:36.291735Z |   | main | .version
+2023-02-22T07:24:36.291735Z | 2023-02-22T07:24:36.291735Z |   | main | .version (evt="3" exe="2.39.1")
 2023-02-22T07:24:36.293932Z | 2023-02-22T07:24:36.293932Z |   | main | .start (argv="git fetch origin master")
-2023-02-22T07:24:36.293932Z | 2023-02-22T07:24:36.293932Z |   | main | .def_repo
+2023-02-22T07:24:36.293932Z | 2023-02-22T07:24:36.293932Z |   | main | .def_repo (worktree="/gitaly")
 2023-02-22T07:24:36.293932Z | 2023-02-22T07:24:36.294119Z |   | main | .index:do_read_index (msg=".git/index")
 2023-02-22T07:24:36.293932Z | 2023-02-22T07:24:36.293975Z |   | main | ..cache_tree:read
 2023-02-22T07:24:36.294718Z | 2023-02-22T07:24:36.294718Z |   | main | ..data:index:read/version (data="2")
@@ -193,15 +193,15 @@ func TestParser_Parse(t *testing.T) {
 2023-02-22T07:24:36.294119Z | 2023-02-22T07:24:40.128447Z | 0 | main | ..child_start (argv="ssh -o SendEnv=GIT_PROTOCOL git@gitlab.com git-upload-pack 'gitlab-org/gitaly.git'")
 2023-02-22T07:24:39.314775Z | 2023-02-22T07:24:39.314775Z | 0 | main | ...data:transfer:negotiated-version (data="2")
 2023-02-22T07:24:40.128447Z | 2023-02-22T07:24:40.165067Z | 1 | main | ..child_start (argv="git rev-list --objects --stdin --not --all --quiet --alternate-refs" code="0")
-2023-02-22T07:24:40.148998Z | 2023-02-22T07:24:40.148998Z | 1 | main | ...version
+2023-02-22T07:24:40.148998Z | 2023-02-22T07:24:40.148998Z | 1 | main | ...version (evt="3" exe="2.39.1")
 2023-02-22T07:24:36.295636Z | 2023-02-22T07:24:36.295636Z | 1 | main | ...start (argv="git rev-list --objects --stdin --not --all --quiet --alternate-refs")
-2023-02-22T07:24:36.295636Z | 2023-02-22T07:24:36.295636Z | 1 | main | ...def_repo
+2023-02-22T07:24:36.295636Z | 2023-02-22T07:24:36.295636Z | 1 | main | ...def_repo (worktree="/gitaly")
 2023-02-22T07:24:40.165067Z | 2023-02-22T07:24:40.1658Z |   | main | ..fetch:consume_refs
 2023-02-22T07:24:40.539196Z | 2023-02-22T07:24:40.539281Z |   | main | .submodule:parallel/fetch (msg="max:1")
 2023-02-22T07:24:40.539281Z | 2023-02-22T07:24:40.550543Z | 2 | main | .child_start (argv="git maintenance run --auto --no-quiet" code="0")
-2023-02-22T07:24:40.54863Z | 2023-02-22T07:24:40.54863Z | 2 | main | ..version
+2023-02-22T07:24:40.54863Z | 2023-02-22T07:24:40.54863Z | 2 | main | ..version (evt="3" exe="2.39.1")
 2023-02-22T07:24:36.294627Z | 2023-02-22T07:24:36.294627Z | 2 | main | ..start (argv="git maintenance run --auto --no-quiet")
-2023-02-22T07:24:36.294627Z | 2023-02-22T07:24:36.294627Z | 2 | main | ..def_repo
+2023-02-22T07:24:36.294627Z | 2023-02-22T07:24:36.294627Z | 2 | main | ..def_repo (worktree="/gitaly")
 `,
 		},
 		{
@@ -209,9 +209,9 @@ func TestParser_Parse(t *testing.T) {
 			events: string(testhelper.MustReadFile(t, "testdata/git-commit.event")),
 			expectedTrace: `
 2023-02-22T11:26:37.174893Z | 2023-02-22T11:26:38.677971Z |   | main | root (code="0")
-2023-02-22T11:26:37.174893Z | 2023-02-22T11:26:37.174893Z |   | main | .version
+2023-02-22T11:26:37.174893Z | 2023-02-22T11:26:37.174893Z |   | main | .version (evt="3" exe="2.39.1")
 2023-02-22T11:26:37.180753Z | 2023-02-22T11:26:37.180753Z |   | main | .start (argv="git commit --amend")
-2023-02-22T11:26:37.180753Z | 2023-02-22T11:26:37.180753Z |   | main | .def_repo
+2023-02-22T11:26:37.180753Z | 2023-02-22T11:26:37.180753Z |   | main | .def_repo (worktree="/gitaly")
 2023-02-22T11:26:37.180753Z | 2023-02-22T11:26:37.181072Z |   | main | .index:do_read_index (msg=".git/index")
 2023-02-22T11:26:37.180753Z | 2023-02-22T11:26:37.180832Z |   | main | ..cache_tree:read
 2023-02-22T11:26:37.185091Z | 2023-02-22T11:26:37.185091Z |   | main | ..data:index:read/version (data="2")
@@ -243,16 +243,16 @@ func TestParser_Parse(t *testing.T) {
 2023-02-22T11:26:37.21406Z | 2023-02-22T11:26:37.214271Z |   | main | .status:print
 2023-02-22T11:26:37.214271Z | 2023-02-22T11:26:37.214297Z |   | main | .cache_tree:update
 2023-02-22T11:26:37.214297Z | 2023-02-22T11:26:38.663953Z | 0 | main | .child_start (argv="nvim /gitaly/.git/COMMIT_EDITMSG" code="0")
-2023-02-22T11:26:37.353241Z | 2023-02-22T11:26:37.353241Z | 0 | main | ..version
+2023-02-22T11:26:37.353241Z | 2023-02-22T11:26:37.353241Z | 0 | main | ..version (evt="3" exe="2.39.1")
 2023-02-22T11:26:37.175671Z | 2023-02-22T11:26:37.175671Z | 0 | main | ..start (argv="git diff --no-color --no-ext-diff -U0 -- COMMIT_EDITMSG")
 2023-02-22T11:26:37.175671Z | 2023-02-22T11:26:37.175671Z | 0 | main | ..error (msg="this operation must be run in a work tree")
-2023-02-22T11:26:38.624567Z | 2023-02-22T11:26:38.624567Z | 0 | main | ..version
+2023-02-22T11:26:38.624567Z | 2023-02-22T11:26:38.624567Z | 0 | main | ..version (evt="3" exe="2.39.1")
 2023-02-22T11:26:37.175517Z | 2023-02-22T11:26:37.175517Z | 0 | main | ..start (argv="git branch --no-color --show-current")
-2023-02-22T11:26:37.175517Z | 2023-02-22T11:26:37.175517Z | 0 | main | ..def_repo
+2023-02-22T11:26:37.175517Z | 2023-02-22T11:26:37.175517Z | 0 | main | ..def_repo (worktree="/gitaly")
 2023-02-22T11:26:38.663953Z | 2023-02-22T11:26:38.672888Z | 1 | main | .child_start (argv="git maintenance run --auto --no-quiet" code="0")
-2023-02-22T11:26:38.667832Z | 2023-02-22T11:26:38.667832Z | 1 | main | ..version
+2023-02-22T11:26:38.667832Z | 2023-02-22T11:26:38.667832Z | 1 | main | ..version (evt="3" exe="2.39.1")
 2023-02-22T11:26:37.178802Z | 2023-02-22T11:26:37.178802Z | 1 | main | ..start (argv="git maintenance run --auto --no-quiet")
-2023-02-22T11:26:37.178802Z | 2023-02-22T11:26:37.178802Z | 1 | main | ..def_repo
+2023-02-22T11:26:37.178802Z | 2023-02-22T11:26:37.178802Z | 1 | main | ..def_repo (worktree="/gitaly")
 2023-02-22T11:26:38.672888Z | 2023-02-22T11:26:38.672902Z |   | main | .diff:setup
 2023-02-22T11:26:38.672902Z | 2023-02-22T11:26:38.672907Z |   | main | .diff:write back to queue
 2023-02-22T11:26:38.677965Z | 2023-02-22T11:26:38.677965Z |   | main | .data_json:traverse_trees:statistics (data="{\"traverse_trees_count\":2,\"traverse_trees_max_depth\":2}")
@@ -263,9 +263,9 @@ func TestParser_Parse(t *testing.T) {
 			events: string(testhelper.MustReadFile(t, "testdata/git-pack-objects.event")),
 			expectedTrace: `
 2023-02-22T12:05:04.840009Z | 2023-02-22T12:05:04.848504Z |   | main | root (code="0")
-2023-02-22T12:05:04.840009Z | 2023-02-22T12:05:04.840009Z |   | main | .version
+2023-02-22T12:05:04.840009Z | 2023-02-22T12:05:04.840009Z |   | main | .version (evt="3" exe="2.39.1")
 2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.842347Z |   | main | .start (argv="git pack-objects toon --compression=0")
-2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.842347Z |   | main | .def_repo
+2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.842347Z |   | main | .def_repo (worktree="/gitaly")
 2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.843782Z |   | main | .pack-objects:enumerate-objects
 2023-02-22T12:05:04.842347Z | 2023-02-22T12:05:04.84343Z |   | main | ..progress:Enumerating objects
 2023-02-22T12:05:04.843782Z | 2023-02-22T12:05:04.843872Z |   | main | .pack-objects:prepare-pack

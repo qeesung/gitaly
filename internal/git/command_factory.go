@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/alternates"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2hooks"
@@ -21,12 +22,18 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
 	"gitlab.com/gitlab-org/labkit/correlation"
+	"golang.org/x/time/rate"
 )
 
 const (
 	// BigFileThresholdMB is the threshold we configure via `core.bigFileThreshold` and determines the maximum size
 	// after which Git considers files to be big. Please refer to `GlobalConfiguration()` for more details.
 	BigFileThresholdMB = 50
+	// maxTrace2EventPerSecond is the maximum number of events that can be processed per second
+	maxTrace2EventPerSecond = 40
+	// Rate limiter is immediately allocated the maxBurstToken value. Burst is the maximum number of tokens
+	// that can be consumed in a single call
+	maxBurstToken = 40
 )
 
 // CommandFactory is designed to create and run git commands in a protected and fully managed manner.
@@ -48,6 +55,7 @@ type execCommandFactoryConfig struct {
 	gitBinaryPath       string
 	cgroupsManager      cgroups.Manager
 	trace2Hooks         []trace2.Hook
+	traceRateLimiter    *rate.Limiter
 	execEnvConstructors []ExecutionEnvironmentConstructor
 }
 
@@ -91,13 +99,16 @@ func WithTrace2Hooks(hooks []trace2.Hook) ExecCommandFactoryOption {
 
 // DefaultTrace2HooksFor creates a list of all Trace2 hooks. It doesn't mean all hooks are triggered.
 // Each hook's activation status will be evaluated before the command starts.
-func DefaultTrace2HooksFor(ctx context.Context, subCmd string) []trace2.Hook {
+func DefaultTrace2HooksFor(ctx context.Context, subCmd string, logger log.Logger, rl *rate.Limiter) []trace2.Hook {
 	var hooks []trace2.Hook
 	if tracing.IsSampled(ctx) {
 		hooks = append(hooks, trace2hooks.NewTracingExporter())
 	}
 	if subCmd == "pack-objects" {
 		hooks = append(hooks, trace2hooks.NewPackObjectsMetrics())
+	}
+	if featureflag.LogGitTraces.IsEnabled(ctx) {
+		hooks = append(hooks, trace2hooks.NewLogExporter(rl, logger))
 	}
 	return hooks
 }
@@ -127,6 +138,7 @@ type ExecCommandFactory struct {
 	logger                log.Logger
 	cgroupsManager        cgroups.Manager
 	trace2Hooks           []trace2.Hook
+	traceRateLimiter      *rate.Limiter
 	invalidCommandsMetric *prometheus.CounterVec
 	hookDirs              hookDirectories
 
@@ -172,13 +184,19 @@ func NewExecCommandFactory(cfg config.Cfg, logger log.Logger, opts ...ExecComman
 		cgroupsManager = cgroups.NewManager(cfg.Cgroups, logger, os.Getpid())
 	}
 
+	traceRateLimiter := factoryCfg.traceRateLimiter
+	if traceRateLimiter == nil {
+		traceRateLimiter = rate.NewLimiter(maxTrace2EventPerSecond, maxBurstToken)
+	}
+
 	gitCmdFactory := &ExecCommandFactory{
-		cfg:            cfg,
-		execEnvs:       execEnvs,
-		logger:         logger,
-		locator:        config.NewLocator(cfg),
-		cgroupsManager: cgroupsManager,
-		trace2Hooks:    factoryCfg.trace2Hooks,
+		cfg:              cfg,
+		execEnvs:         execEnvs,
+		logger:           logger,
+		locator:          config.NewLocator(cfg),
+		cgroupsManager:   cgroupsManager,
+		trace2Hooks:      factoryCfg.trace2Hooks,
+		traceRateLimiter: traceRateLimiter,
 		invalidCommandsMetric: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "gitaly_invalid_commands_total",
@@ -469,7 +487,7 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repos
 
 	trace2Hooks := cf.trace2Hooks
 	if trace2Hooks == nil {
-		trace2Hooks = DefaultTrace2HooksFor(ctx, sc.Name)
+		trace2Hooks = DefaultTrace2HooksFor(ctx, sc.Name, cf.logger, cf.traceRateLimiter)
 	}
 	if len(trace2Hooks) != 0 {
 		trace2Manager, err := trace2.NewManager(correlation.ExtractFromContextOrGenerate(ctx), trace2Hooks)

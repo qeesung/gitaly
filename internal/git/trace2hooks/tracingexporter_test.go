@@ -20,80 +20,7 @@ func TestTracingExporter_Handle(t *testing.T) {
 	current, err := time.Parse("2006-01-02T15:04:05Z", "2023-01-01T00:00:00Z")
 	require.NoError(t, err)
 
-	//                         0s    1s    2s    3s    4s    5s    6s    7s
-	// root                    |---->|---->|---->|---->|---->|---->|---->|
-	// version                 |---->|     |     |     |     |     |     |
-	// start                   |     |---->|     |     |     |     |     |
-	// def_repo                |     |     |---->|     |     |     |     |
-	// index:do_read_index     |     |     |     |---->|---->|---->|     |
-	// cache_tree:read         |     |     |     |---->|     |     |     |
-	// data:index:read/version |     |     |     |     |---->|     |     |
-	// data:index:read/cache_nr|     |     |     |     |     |---->|     |
-	// submodule:parallel/fetch|     |     |     |     |     |     |---->|
-	exampleTrace := connectChildren(&trace2.Trace{
-		Thread:     "main",
-		Name:       "root",
-		StartTime:  current,
-		FinishTime: current.Add(7 * time.Second),
-		Children: []*trace2.Trace{
-			{
-				Thread:     "main",
-				Name:       "version",
-				StartTime:  current,
-				FinishTime: current.Add(1 * time.Second),
-			},
-			{
-				Thread:     "main",
-				Name:       "start",
-				StartTime:  current.Add(1 * time.Second),
-				FinishTime: current.Add(2 * time.Second),
-				Metadata:   map[string]string{"argv": "git fetch origin master"},
-			},
-			{
-				Thread:     "main",
-				Name:       "def_repo",
-				StartTime:  current.Add(2 * time.Second),
-				FinishTime: current.Add(3 * time.Second),
-			},
-			connectChildren(&trace2.Trace{
-				Thread:     "main",
-				Name:       "index:do_read_index",
-				StartTime:  current.Add(3 * time.Second),
-				FinishTime: current.Add(6 * time.Second),
-				Children: []*trace2.Trace{
-					{
-						Thread:     "main",
-						Name:       "cache_tree:read",
-						ChildID:    "0",
-						StartTime:  current.Add(3 * time.Second),
-						FinishTime: current.Add(4 * time.Second),
-					},
-					{
-						Thread:     "main",
-						ChildID:    "0",
-						Name:       "data:index:read/version",
-						StartTime:  current.Add(4 * time.Second),
-						FinishTime: current.Add(5 * time.Second),
-						Metadata:   map[string]string{"data": "2"},
-					},
-					{
-						Thread:     "main",
-						ChildID:    "0",
-						Name:       "data:index:read/cache_nr",
-						StartTime:  current.Add(5 * time.Second),
-						FinishTime: current.Add(6 * time.Second),
-						Metadata:   map[string]string{"data": "1500"},
-					},
-				},
-			}),
-			{
-				Thread:     "main",
-				Name:       "submodule:parallel/fetch",
-				StartTime:  current.Add(6 * time.Second),
-				FinishTime: current.Add(7 * time.Second),
-			},
-		},
-	})
+	exampleTrace := createExampleTrace(current)
 
 	for _, tc := range []struct {
 		desc          string
@@ -136,6 +63,7 @@ func TestTracingExporter_Handle(t *testing.T) {
 					Tags: map[string]string{
 						"childID": "",
 						"thread":  "main",
+						"exe":     "2.42.0",
 					},
 				},
 				{
@@ -153,8 +81,9 @@ func TestTracingExporter_Handle(t *testing.T) {
 					StartTime: current.Add(2 * time.Second),
 					Duration:  1 * time.Second,
 					Tags: map[string]string{
-						"childID": "",
-						"thread":  "main",
+						"childID":  "",
+						"thread":   "main",
+						"worktree": "/Users/userx123/Documents/gitlab-development-kit",
 					},
 				},
 				{
@@ -226,11 +155,4 @@ func TestTracingExporter_Handle(t *testing.T) {
 			require.Equal(t, tc.expectedSpans, spans)
 		})
 	}
-}
-
-func connectChildren(trace *trace2.Trace) *trace2.Trace {
-	for _, t := range trace.Children {
-		t.Parent = trace
-	}
-	return trace
 }
