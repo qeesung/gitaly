@@ -1,2 +1,3 @@
 Dangerfile gitlab-language=ruby
+*.pb.go gitlab-generated
 *.proto linguist-detectable=true
