@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -113,8 +114,29 @@ func (s *server) rewriteHistory(
 		return fmt.Errorf("setting up staging repo: %w", err)
 	}
 
+	// Check state of source repository prior to running filter-repo.
+	initialChecksum, err := checksumRepo(ctx, s.gitCmdFactory, repo)
+	if err != nil {
+		return fmt.Errorf("calculate initial checksum: %w", err)
+	}
+
 	if err := s.runFilterRepo(ctx, repo, stagingRepo, blobsToRemove, redactions); err != nil {
 		return fmt.Errorf("rewriting repository history: %w", err)
+	}
+
+	// Recheck repository state to confirm no changes occurred while filter-repo ran. The
+	// repository may not be fully rewritten if it was modified after git-fast-export(1)
+	// completed.
+	validationChecksum, err := checksumRepo(ctx, s.gitCmdFactory, repo)
+	if err != nil {
+		return fmt.Errorf("recalculate checksum: %w", err)
+	}
+
+	if initialChecksum != validationChecksum {
+		return structerr.NewAborted("source repository checksum altered").WithMetadataItems(
+			structerr.MetadataItem{Key: "initial checksum", Value: initialChecksum},
+			structerr.MetadataItem{Key: "validation checksum", Value: validationChecksum},
+		)
 	}
 
 	var stderr strings.Builder
@@ -299,4 +321,38 @@ func writeArgFile(name string, dir string, input []byte) (string, error) {
 	}
 
 	return path, nil
+}
+
+func checksumRepo(ctx context.Context, cmdFactory git.CommandFactory, repo *localrepo.Repo) (string, error) {
+	var stderr strings.Builder
+	cmd, err := cmdFactory.New(ctx, repo, git.Command{
+		Name: "show-ref",
+		Flags: []git.Option{
+			git.Flag{Name: "--head"},
+		},
+	}, git.WithSetupStdout(), git.WithStderr(&stderr))
+	if err != nil {
+		return "", fmt.Errorf("spawning git-show-ref: %w", err)
+	}
+
+	var checksum git.Checksum
+
+	scanner := bufio.NewScanner(cmd)
+	for scanner.Scan() {
+		checksum.AddBytes(scanner.Bytes())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return "", structerr.New("git-show-ref failed with exit code %d", exitErr.ExitCode()).WithMetadata("stderr", stderr.String())
+		}
+		return "", fmt.Errorf("running git-show-ref: %w", err)
+	}
+
+	return checksum.String(), nil
 }
