@@ -73,6 +73,9 @@ type jsonEvent struct {
 	ChildID        int      `json:"child_id"`
 	Msg            string   `json:"msg"`
 	Code           int      `json:"code"`
+	Exe            string   `json:"exe"`
+	Evt            string   `json:"evt"`
+	Worktree       string   `json:"worktree"`
 }
 
 var ignoredEvents = map[string]struct{}{
@@ -137,11 +140,11 @@ func (p *parser) parseEvent(event *jsonEvent) error {
 	switch event.Name {
 	case "atexit":
 		p.currentNode.FinishTime = eventTime
-		p.currentNode.setMetadata("code", fmt.Sprintf("%d", event.Code))
+		p.currentNode.SetMetadata("code", fmt.Sprintf("%d", event.Code))
 		return nil
 	case "child_exit":
 		p.currentNode.FinishTime = eventTime
-		p.currentNode.setMetadata("code", fmt.Sprintf("%d", event.Code))
+		p.currentNode.SetMetadata("code", fmt.Sprintf("%d", event.Code))
 		p.currentNode = p.currentNode.Parent
 		return nil
 	case "region_leave":
@@ -159,17 +162,24 @@ func (p *parser) parseEvent(event *jsonEvent) error {
 		Depth:      p.currentNode.Depth + 1,
 	}
 	if event.Msg != "" {
-		trace.setMetadata("msg", event.Msg)
+		trace.SetMetadata("msg", event.Msg)
 	}
 	p.currentNode.Children = append(p.currentNode.Children, trace)
 
 	switch event.Name {
+	case "version":
+		trace.setName([]string{event.Name, event.Category, event.Label})
+		trace.SetMetadata("exe", event.Exe)
+		trace.SetMetadata("evt", event.Evt)
+	case "def_repo":
+		trace.setName([]string{event.Name, event.Category, event.Label})
+		trace.SetMetadata("worktree", event.Worktree)
 	case "start":
 		trace.setName([]string{event.Name, event.Category, event.Label})
-		trace.setMetadata("argv", strings.Join(event.Argv, " "))
+		trace.SetMetadata("argv", strings.Join(event.Argv, " "))
 	case "child_start":
 		trace.setName([]string{event.Name, event.Category, event.Label})
-		trace.setMetadata("argv", strings.Join(event.Argv, " "))
+		trace.SetMetadata("argv", strings.Join(event.Argv, " "))
 		trace.ChildID = fmt.Sprintf("%d", event.ChildID)
 		p.currentNode = trace
 	case "region_enter":
@@ -185,12 +195,12 @@ func (p *parser) parseEvent(event *jsonEvent) error {
 			if err != nil {
 				return fmt.Errorf("mismatched data value: %w", err)
 			}
-			trace.setMetadata("data", data)
+			trace.SetMetadata("data", data)
 		}
 	case "data_json":
 		trace.setName([]string{event.Name, event.Category, event.Label, event.DataKey})
 		if event.DataValue != nil {
-			trace.setMetadata("data", string(*event.DataValue))
+			trace.SetMetadata("data", string(*event.DataValue))
 		}
 	default:
 		trace.setName([]string{event.Name, event.Category, event.Label})

@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2"
@@ -26,6 +27,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
+	"golang.org/x/time/rate"
 )
 
 func TestGitCommandProxy(t *testing.T) {
@@ -1061,13 +1063,30 @@ func TestDefaultTrace2HooksFor(t *testing.T) {
 				return ctx, hooks
 			},
 		},
+		{
+			desc:   "subcmd is pack-objects, active span is sampled and feature flag LogGitTraces enabled",
+			subCmd: "pack-objects",
+			setup: func(t *testing.T) (context.Context, []trace2.Hook) {
+				ctx := testhelper.Context(t)
+				ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.LogGitTraces, true)
+				_, ctx = tracing.StartSpan(ctx, "root", nil)
+
+				hooks := []trace2.Hook{
+					trace2hooks.NewTracingExporter(),
+					trace2hooks.NewPackObjectsMetrics(),
+					trace2hooks.NewLogExporter(rate.NewLimiter(1, 1), testhelper.SharedLogger(t)),
+				}
+
+				return ctx, hooks
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			_, cleanup := testhelper.StubTracingReporter(t, tc.tracerOptions...)
 			defer cleanup()
 
 			ctx, expectedHooks := tc.setup(t)
-			hooks := git.DefaultTrace2HooksFor(ctx, tc.subCmd)
+			hooks := git.DefaultTrace2HooksFor(ctx, tc.subCmd, testhelper.SharedLogger(t), rate.NewLimiter(1, 1))
 
 			require.Equal(t, hookNames(expectedHooks), hookNames(hooks))
 		})

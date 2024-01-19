@@ -358,6 +358,9 @@ We must also add the hook to the
 [default list of Trace2 hooks](https://gitlab.com/gitlab-org/gitaly/-/blob/d15b9c84faee3eb178e7c7d9360832f26d4107a2/internal/git/command_factory.go#L90-99)
 to make it effective.
 
+There is an additional hook in the default list of Trace2 hooks called `LogExporter` which is enabled by turning on the feature flag `log_git_traces`. This hook will log the trace2 events to Gitaly logs. 
+Follow [Configure Gitaly](https://docs.gitlab.com/ee/administration/gitaly/configure_gitaly.html) to setup the feature flag.
+
 ## Custom Trace2 instrumentation
 
 Although Trace comes bundled with numerous events and data, they may not be

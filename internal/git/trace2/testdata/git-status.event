@@ -1,6 +1,6 @@
 {"event":"version","sid":"1234/20230221T081010.667656Z-Ha0f0bee5-P000006c8","thread":"main","time":"2023-02-21T08:10:10.668546Z","evt":"3","exe":"2.39.1"}
 {"event":"start","sid":"1234/20230221T081010.667656Z-Ha0f0bee5-P000006c8","thread":"main","t_abs":0.086062,"argv":["git","status"]}
-{"event":"def_repo","sid":"1234/20230221T081010.667656Z-Ha0f0bee5-P000006c8","thread":"main","repo":1,"worktree":"/Users/qmnguyen/www/gitlab-development-kit/gitaly"}
+{"event":"def_repo","sid":"1234/20230221T081010.667656Z-Ha0f0bee5-P000006c8","thread":"main","repo":1,"worktree":"/Users/userx/www/gitlab-development-kit/gitaly"}
 {"event":"cmd_name","sid":"1234/20230221T081010.667656Z-Ha0f0bee5-P000006c8","thread":"main","name":"status","hierarchy":"status"}
 {"event":"region_enter","sid":"1234/20230221T081010.667656Z-Ha0f0bee5-P000006c8","thread":"main","repo":1,"nesting":1,"category":"index","label":"do_read_index","msg":".git/index"}
 {"event":"region_enter","sid":"1234/20230221T081010.667656Z-Ha0f0bee5-P000006c8","thread":"main","repo":1,"nesting":2,"category":"cache_tree","label":"read"}

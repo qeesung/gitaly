@@ -13,27 +13,28 @@ import (
 type Trace struct {
 	// Thread is the name of the thread of the corresponding event. The default thread name is
 	// "main". A new thread is assigned with a new name.
-	Thread string
+	Thread string `json:"thread"`
 	// Name denotes the name of the trace. The node name depends on the event types. Data-type
 	// trace name is the most significant. It can be used to access the accurate data trace node
 	// For example: data:index:refresh/sum_scan
-	Name string
+	Name string `json:"name"`
 	// StartTime is the starting time of the trace
-	StartTime time.Time
-	// FinishTime is the starting time of the trace
-	FinishTime time.Time
+	StartTime time.Time `json:"start_time"`
+	// FinishTime is the finishing time of the trace
+	FinishTime time.Time `json:"finish_time"`
 	// Metadata is a map of metadata and data extracted from the event. A data-type trace always
 	// stores its data under "data" key of this map
-	Metadata map[string]string
+	Metadata map[string]string `json:"metadata"`
 	// ChildID is the unique ID assigned by the parent process when it spawns a sub-process
 	// The ID of root process is empty.
-	ChildID string
-	// Parent points to the parent node of the current trace. The root node's parent is nil
-	Parent *Trace
+	ChildID string `json:"child_id,omitempty"`
+	// Parent points to the parent node of the current trace. The root node's parent is nil.
+	// Ignore this field when unmarshalling as it causes cyclic errors
+	Parent *Trace `json:"-"`
 	// Children stores the list of order-significant traces belong to the current trace
-	Children []*Trace
+	Children []*Trace `json:"children,omitempty"`
 	// Depth indicates the depth of the trace node
-	Depth int
+	Depth int `json:"depth"`
 }
 
 // IsRoot returns true if the current trace is the root of the tree
@@ -90,7 +91,8 @@ func (trace *Trace) setName(hints []string) {
 	trace.Name = strings.Join(parts, ":")
 }
 
-func (trace *Trace) setMetadata(key, value string) {
+// SetMetadata sets the metadata for the trace.
+func (trace *Trace) SetMetadata(key, value string) {
 	if trace.Metadata == nil {
 		trace.Metadata = map[string]string{}
 	}
