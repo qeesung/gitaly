@@ -559,6 +559,7 @@ build-package-and-qa:
   stage: qa
   trigger:
     project: gitlab-org/build/omnibus-gitlab-mirror
+    branch: 'fix-git-filter-repo-dependency-order'
     strategy: depend
   variables:
     ALTERNATIVE_SOURCES: "true"
