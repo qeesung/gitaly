@@ -319,6 +319,7 @@ test:fips:
     CACHE_PREFIX: ubi-${UBI_VERSION}
   before_script:
     - *test_before_script
+    - dnf install -y python3
     - test "$(cat /proc/sys/crypto/fips_enabled)" = "1" || (echo "System is not running in FIPS mode" && exit 1)
   parallel:
     matrix:

@@ -44,6 +44,7 @@ func transactionsDisabled(context.Context) bool { return false }
 // behaviour. If none is given, it's always enabled.
 var transactionRPCs = map[string]transactionsCondition{
 	"/gitaly.CleanupService/ApplyBfgObjectMapStream":         transactionsEnabled,
+	"/gitaly.CleanupService/RewriteHistory":                  transactionsEnabled,
 	"/gitaly.ConflictsService/ResolveConflicts":              transactionsEnabled,
 	"/gitaly.ObjectPoolService/DisconnectGitAlternates":      transactionsEnabled,
 	"/gitaly.ObjectPoolService/FetchIntoObjectPool":          transactionsEnabled,

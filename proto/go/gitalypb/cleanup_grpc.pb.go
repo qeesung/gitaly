@@ -24,6 +24,21 @@ const _ = grpc.SupportPackageIsVersion7
 type CleanupServiceClient interface {
 	// ApplyBfgObjectMapStream ...
 	ApplyBfgObjectMapStream(ctx context.Context, opts ...grpc.CallOption) (CleanupService_ApplyBfgObjectMapStreamClient, error)
+	// RewriteHistory redacts targeted strings and deletes requested blobs in a
+	// repository and updates all references to point to the rewritten commit
+	// history. This is useful for removing inadvertently pushed secrets from your
+	// repository and purging large blobs. This is a dangerous operation.
+	//
+	// The following known error conditions may happen:
+	//
+	// - `InvalidArgument` in the following situations:
+	//   - The provided repository can't be validated.
+	//   - The repository field is set on any request other than the initial one.
+	//   - Any request, including the initial one, does not contain either blobs to
+	//     remove or redaction patterns to redact.
+	//   - A blob object ID is invalid.
+	//   - A redaction pattern contains a newline character.
+	RewriteHistory(ctx context.Context, opts ...grpc.CallOption) (CleanupService_RewriteHistoryClient, error)
 }
 
 type cleanupServiceClient struct {
@@ -65,12 +80,61 @@ func (x *cleanupServiceApplyBfgObjectMapStreamClient) Recv() (*ApplyBfgObjectMap
 	return m, nil
 }
 
+func (c *cleanupServiceClient) RewriteHistory(ctx context.Context, opts ...grpc.CallOption) (CleanupService_RewriteHistoryClient, error) {
+	stream, err := c.cc.NewStream(ctx, &CleanupService_ServiceDesc.Streams[1], "/gitaly.CleanupService/RewriteHistory", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &cleanupServiceRewriteHistoryClient{stream}
+	return x, nil
+}
+
+type CleanupService_RewriteHistoryClient interface {
+	Send(*RewriteHistoryRequest) error
+	CloseAndRecv() (*RewriteHistoryResponse, error)
+	grpc.ClientStream
+}
+
+type cleanupServiceRewriteHistoryClient struct {
+	grpc.ClientStream
+}
+
+func (x *cleanupServiceRewriteHistoryClient) Send(m *RewriteHistoryRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *cleanupServiceRewriteHistoryClient) CloseAndRecv() (*RewriteHistoryResponse, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(RewriteHistoryResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // CleanupServiceServer is the server API for CleanupService service.
 // All implementations must embed UnimplementedCleanupServiceServer
 // for forward compatibility
 type CleanupServiceServer interface {
 	// ApplyBfgObjectMapStream ...
 	ApplyBfgObjectMapStream(CleanupService_ApplyBfgObjectMapStreamServer) error
+	// RewriteHistory redacts targeted strings and deletes requested blobs in a
+	// repository and updates all references to point to the rewritten commit
+	// history. This is useful for removing inadvertently pushed secrets from your
+	// repository and purging large blobs. This is a dangerous operation.
+	//
+	// The following known error conditions may happen:
+	//
+	// - `InvalidArgument` in the following situations:
+	//   - The provided repository can't be validated.
+	//   - The repository field is set on any request other than the initial one.
+	//   - Any request, including the initial one, does not contain either blobs to
+	//     remove or redaction patterns to redact.
+	//   - A blob object ID is invalid.
+	//   - A redaction pattern contains a newline character.
+	RewriteHistory(CleanupService_RewriteHistoryServer) error
 	mustEmbedUnimplementedCleanupServiceServer()
 }
 
@@ -80,6 +144,9 @@ type UnimplementedCleanupServiceServer struct {
 
 func (UnimplementedCleanupServiceServer) ApplyBfgObjectMapStream(CleanupService_ApplyBfgObjectMapStreamServer) error {
 	return status.Errorf(codes.Unimplemented, "method ApplyBfgObjectMapStream not implemented")
+}
+func (UnimplementedCleanupServiceServer) RewriteHistory(CleanupService_RewriteHistoryServer) error {
+	return status.Errorf(codes.Unimplemented, "method RewriteHistory not implemented")
 }
 func (UnimplementedCleanupServiceServer) mustEmbedUnimplementedCleanupServiceServer() {}
 
@@ -120,6 +187,32 @@ func (x *cleanupServiceApplyBfgObjectMapStreamServer) Recv() (*ApplyBfgObjectMap
 	return m, nil
 }
 
+func _CleanupService_RewriteHistory_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(CleanupServiceServer).RewriteHistory(&cleanupServiceRewriteHistoryServer{stream})
+}
+
+type CleanupService_RewriteHistoryServer interface {
+	SendAndClose(*RewriteHistoryResponse) error
+	Recv() (*RewriteHistoryRequest, error)
+	grpc.ServerStream
+}
+
+type cleanupServiceRewriteHistoryServer struct {
+	grpc.ServerStream
+}
+
+func (x *cleanupServiceRewriteHistoryServer) SendAndClose(m *RewriteHistoryResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *cleanupServiceRewriteHistoryServer) Recv() (*RewriteHistoryRequest, error) {
+	m := new(RewriteHistoryRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // CleanupService_ServiceDesc is the grpc.ServiceDesc for CleanupService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -132,6 +225,11 @@ var CleanupService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "ApplyBfgObjectMapStream",
 			Handler:       _CleanupService_ApplyBfgObjectMapStream_Handler,
 			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "RewriteHistory",
+			Handler:       _CleanupService_RewriteHistory_Handler,
 			ClientStreams: true,
 		},
 	},
