@@ -275,6 +275,15 @@ test:pgbouncer:
     # can reach Postgres.
     TEST_TARGET: "test-with-praefect"
 
+test:reftable:
+  <<: *test_definition
+  allow_failure: true
+  variables:
+    <<: *test_variables
+    SKIP_OVERRIDING_GIT_VERSION: "YesPlease"
+    GIT_VERSION: "pks-reftables-initial-baseline"
+    TEST_TARGET: test-with-reftable
+
 test:nightly:
   <<: *test_definition
   variables:

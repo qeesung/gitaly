@@ -370,6 +370,11 @@ bench: override TEST_OPTIONS := -bench=. -run=^$ ${TEST_OPTIONS}
 bench: ${BENCHMARK_REPO} prepare-tests
 	${Q}$(call run_go_tests)
 
+.PHONY: test-with-reftable
+## Run Go tests with git's reftable backend.
+test-with-reftable: export GIT_DEFAULT_REF_FORMAT = reftable
+test-with-reftable: test-go
+
 .PHONY: test-with-praefect
 ## Run Go tests with Praefect.
 test-with-praefect: export GITALY_TEST_WITH_PRAEFECT = YesPlease

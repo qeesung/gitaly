@@ -33,6 +33,12 @@ const (
 	DefaultStorageName = "default"
 )
 
+// IsReftableEnabled returns whether the git reftable is enabled
+func IsReftableEnabled() bool {
+	_, ok := os.LookupEnv("GIT_DEFAULT_REF_FORMAT")
+	return ok
+}
+
 // IsWALEnabled returns whether write-ahead logging is enabled in this testing run.
 func IsWALEnabled() bool {
 	_, ok := os.LookupEnv("GITALY_TEST_WAL")
