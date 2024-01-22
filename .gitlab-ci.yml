@@ -55,6 +55,8 @@ variables:
   # users.
   TEST_UID: 9999
   RAILS_BRANCH_FOR_JOB: "gitaly-ci-jobs-$CI_PIPELINE_IID"
+  PROJECT_ID: $([ $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/security/gitaly' ] && echo 15685912 || echo 278964)
+  GITLAB_PROJECT: $([ $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/security/gitaly' ] && echo 'gitlab-org/security/gitlab' || echo 'gitlab-org/gitlab')
 
 include:
   - template: Security/License-Scanning.gitlab-ci.yml
@@ -492,15 +494,18 @@ start-rails-specs:
   needs: []
   stage: qa
   script:
+    - echo CI_MERGE_REQUEST_PROJECT_PATH "$CI_MERGE_REQUEST_PROJECT_PATH"
+    - GITLAB_PROJECT_ID="$([ $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/security/gitaly' ] && echo 15642544 || echo 278964)"
+    - echo GITLAB_PROJECT_ID "$GITLAB_PROJECT_ID"
     - |
       curl --fail --request POST --header "PRIVATE-TOKEN: $GITLAB_PROJECT_TOKEN" \
-      "https://gitlab.com/api/v4/projects/278964/repository/branches?ref=master&branch=$RAILS_BRANCH_FOR_JOB"
+      "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/repository/branches?ref=master&branch=$RAILS_BRANCH_FOR_JOB"
     - |
       curl --fail --request PUT --header "PRIVATE-TOKEN: $GITLAB_PROJECT_TOKEN" \
       --data "branch=$RAILS_BRANCH_FOR_JOB" \
       --data "content=$CI_COMMIT_SHA" \
       --data "commit_message=Updating GITALY_SERVER_VERSION to $CI_COMMIT_SHA" \
-      "https://gitlab.com/api/v4/projects/278964/repository/files/GITALY_SERVER_VERSION"
+      "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/repository/files/GITALY_SERVER_VERSION"
   environment:
     name: merge-requests/$RAILS_BRANCH_FOR_JOB
     on_stop: rails-specs-cleanup
@@ -513,7 +518,7 @@ rails-specs:
   needs: ["start-rails-specs"]
   stage: qa
   trigger:
-    project: gitlab-org/gitlab
+    project: 'gitlab-org/gitlab'
     branch: "gitaly-ci-jobs-$CI_PIPELINE_IID" # Using $RAILS_BRANCH_FOR_JOB directly fails
     strategy: depend
   inherit:
@@ -525,20 +530,41 @@ rails-specs:
     ENABLE_RSPEC_INTEGRATION: "true"
     ENABLE_RSPEC_SYSTEM: "true"
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
+    - if: $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/gitaly' && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
+
+rails-specs-security:
+  needs: ["start-rails-specs"]
+  stage: qa
+  trigger:
+    project: 'gitlab-org/security/gitlab'
+    branch: "gitaly-ci-jobs-$CI_PIPELINE_IID" # Using $RAILS_BRANCH_FOR_JOB directly fails
+    strategy: depend
+  inherit:
+    variables: false  # Otherwise variables will be messed up
+  variables:
+    GITALY_TEST: "true"
+    ENABLE_RSPEC: "true"
+    ENABLE_RSPEC_UNIT: "true"
+    ENABLE_RSPEC_INTEGRATION: "true"
+    ENABLE_RSPEC_SYSTEM: "true"
+  rules:
+    - if: $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/security/gitaly' && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
 
 rails-specs-cleanup:
   stage: qa
   needs: ["rails-specs"]
   script:
+    - GITLAB_PROJECT_ID="$([ $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/security/gitaly' ] && echo 15685912 || echo 2009901)"
     - |
       curl --fail --request DELETE --header "PRIVATE-TOKEN: $GITLAB_PROJECT_TOKEN" \
-      "https://gitlab.com/api/v4/projects/278964/repository/branches/$RAILS_BRANCH_FOR_JOB"
+      "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/repository/branches/$RAILS_BRANCH_FOR_JOB"
   environment:
     name: merge-requests/$RAILS_BRANCH_FOR_JOB
     action: stop
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
+    - if: $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/security/gitaly' && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
+      when: manual
+    - if: $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/gitaly' && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
       when: manual
 
 cleanup-rails-spec-test-env:
@@ -552,7 +578,8 @@ cleanup-rails-spec-test-env:
        ENV_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: $GITALY_PROJECT_TOKEN" "https://gitlab.com/api/v4/projects/2009901/environments" --data-urlencode "name=merge-requests/$RAILS_BRANCH_FOR_JOB" | jq '.[0].id')
        curl --fail -s --request DELETE --header "PRIVATE-TOKEN: $GITALY_PROJECT_TOKEN" "https://gitlab.com/api/v4/projects/2009901/environments/$ENV_ID"
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
+    - if: $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/security/gitaly' && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
+    - if: $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/gitaly' && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
 
 build-package-and-qa:
   needs: []
