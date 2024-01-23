@@ -619,7 +619,6 @@ func TestManager_Restore_latest(t *testing.T) {
 
 			for _, tc := range []struct {
 				desc          string
-				locators      []string
 				setup         func(tb testing.TB) (*gitalypb.Repository, *git.Checksum)
 				alwaysCreate  bool
 				expectExists  bool
@@ -627,8 +626,7 @@ func TestManager_Restore_latest(t *testing.T) {
 				expectedErrAs error
 			}{
 				{
-					desc:     "existing repo, without hooks",
-					locators: []string{"legacy", "pointer"},
+					desc: "existing repo, without hooks",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
@@ -651,8 +649,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 					expectExists: true,
 				},
 				{
-					desc:     "existing repo, with hooks",
-					locators: []string{"legacy", "pointer"},
+					desc: "existing repo, with hooks",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
@@ -684,8 +681,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 					expectExists: true,
 				},
 				{
-					desc:     "missing backup",
-					locators: []string{"legacy", "pointer"},
+					desc: "missing backup",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						repo, _ := gittest.CreateRepository(t, ctx, cfg)
 						return repo, nil
@@ -693,8 +689,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 					expectedErrAs: backup.ErrSkipped,
 				},
 				{
-					desc:     "missing backup, always create",
-					locators: []string{"legacy", "pointer"},
+					desc: "missing backup, always create",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						repo, _ := gittest.CreateRepository(t, ctx, cfg)
 						return repo, new(git.Checksum)
@@ -703,8 +698,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 					expectExists: true,
 				},
 				{
-					desc:     "empty backup",
-					locators: []string{"legacy", "pointer"},
+					desc: "empty backup",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
@@ -725,8 +719,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 					expectExists: true,
 				},
 				{
-					desc:     "empty backup, always create",
-					locators: []string{"legacy", "pointer"},
+					desc: "empty backup, always create",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
@@ -748,8 +741,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 					expectExists: true,
 				},
 				{
-					desc:     "nonexistent repo",
-					locators: []string{"legacy", "pointer"},
+					desc: "nonexistent repo",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						repo := &gitalypb.Repository{
 							StorageName:  "default",
@@ -775,8 +767,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 					expectExists: true,
 				},
 				{
-					desc:     "many incrementals",
-					locators: []string{"pointer"},
+					desc: "many incrementals",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						const backupID = "abc123"
 
@@ -848,57 +839,51 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 				},
 			} {
 				t.Run(tc.desc, func(t *testing.T) {
-					require.GreaterOrEqual(t, len(tc.locators), 1, "each test case must specify a locator")
+					repo, expectedChecksum := tc.setup(t)
 
-					for _, locatorName := range tc.locators {
-						t.Run(locatorName, func(t *testing.T) {
-							repo, expectedChecksum := tc.setup(t)
+					sink := backup.NewFilesystemSink(backupRoot)
+					defer testhelper.MustClose(t, sink)
 
-							sink := backup.NewFilesystemSink(backupRoot)
-							defer testhelper.MustClose(t, sink)
+					locator, err := backup.ResolveLocator("pointer", sink)
+					require.NoError(t, err)
 
-							locator, err := backup.ResolveLocator(locatorName, sink)
-							require.NoError(t, err)
+					fsBackup := managerTC.setup(t, sink, locator)
+					err = fsBackup.Restore(ctx, &backup.RestoreRequest{
+						Server:           storage.ServerInfo{Address: cfg.SocketPath, Token: cfg.Auth.Token},
+						Repository:       repo,
+						VanityRepository: repo,
+						AlwaysCreate:     tc.alwaysCreate,
+						BackupID:         "",
+					})
+					if tc.expectedErrAs != nil {
+						require.ErrorAs(t, err, &tc.expectedErrAs)
+					} else {
+						require.NoError(t, err)
+					}
 
-							fsBackup := managerTC.setup(t, sink, locator)
-							err = fsBackup.Restore(ctx, &backup.RestoreRequest{
-								Server:           storage.ServerInfo{Address: cfg.SocketPath, Token: cfg.Auth.Token},
-								Repository:       repo,
-								VanityRepository: repo,
-								AlwaysCreate:     tc.alwaysCreate,
-								BackupID:         "",
-							})
-							if tc.expectedErrAs != nil {
-								require.ErrorAs(t, err, &tc.expectedErrAs)
-							} else {
-								require.NoError(t, err)
-							}
+					exists, err := repoClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
+						Repository: repo,
+					})
+					require.NoError(t, err)
+					require.Equal(t, tc.expectExists, exists.Exists, "repository exists")
 
-							exists, err := repoClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
-								Repository: repo,
-							})
-							require.NoError(t, err)
-							require.Equal(t, tc.expectExists, exists.Exists, "repository exists")
-
-							if expectedChecksum != nil {
-								checksum, err := repoClient.CalculateChecksum(ctx, &gitalypb.CalculateChecksumRequest{
-									Repository: repo,
-								})
-								require.NoError(t, err)
-
-								require.Equal(t, expectedChecksum.String(), checksum.GetChecksum())
-							}
-
-							if len(tc.expectedPaths) > 0 {
-								// Restore has to use the rewritten path as the relative path due to the test creating
-								// the repository through Praefect. In order to get to the correct disk paths, we need
-								// to get the replica path of the rewritten repository.
-								repoPath := filepath.Join(cfg.Storages[0].Path, gittest.GetReplicaPath(t, ctx, cfg, repo))
-								for _, p := range tc.expectedPaths {
-									require.FileExists(t, filepath.Join(repoPath, p))
-								}
-							}
+					if expectedChecksum != nil {
+						checksum, err := repoClient.CalculateChecksum(ctx, &gitalypb.CalculateChecksumRequest{
+							Repository: repo,
 						})
+						require.NoError(t, err)
+
+						require.Equal(t, expectedChecksum.String(), checksum.GetChecksum())
+					}
+
+					if len(tc.expectedPaths) > 0 {
+						// Restore has to use the rewritten path as the relative path due to the test creating
+						// the repository through Praefect. In order to get to the correct disk paths, we need
+						// to get the replica path of the rewritten repository.
+						repoPath := filepath.Join(cfg.Storages[0].Path, gittest.GetReplicaPath(t, ctx, cfg, repo))
+						for _, p := range tc.expectedPaths {
+							require.FileExists(t, filepath.Join(repoPath, p))
+						}
 					}
 				})
 			}
