@@ -636,6 +636,14 @@ func TestManager_Restore_latest(t *testing.T) {
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
+							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+
+[[steps]]
+bundle_path = '%[2]s.bundle'
+ref_path = '%[2]s.refs'
+custom_hooks_path = '%[2]s/custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, relativePath),
 							relativePath + ".bundle": repoBundle,
 							relativePath + ".refs":   repoRefs,
 						})
@@ -653,6 +661,14 @@ func TestManager_Restore_latest(t *testing.T) {
 						relativePath := stripRelativePath(tb, repo)
 						customHooksPath := filepath.Join(backupRoot, relativePath, "custom_hooks.tar")
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
+							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+
+[[steps]]
+bundle_path = '%[2]s.bundle'
+ref_path = '%[2]s.refs'
+custom_hooks_path = '%[2]s/custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, relativePath),
 							relativePath + ".bundle": repoBundle,
 							relativePath + ".refs":   repoRefs,
 						})
@@ -696,6 +712,13 @@ func TestManager_Restore_latest(t *testing.T) {
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
+							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+
+[[steps]]
+ref_path = '%[2]s.refs'
+custom_hooks_path = '%[2]s/custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, relativePath),
 							relativePath + ".refs": "",
 						})
 
@@ -711,6 +734,13 @@ func TestManager_Restore_latest(t *testing.T) {
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
+							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+
+[[steps]]
+ref_path = '%[2]s.refs'
+custom_hooks_path = '%[2]s/custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, relativePath),
 							relativePath + ".refs": "",
 						})
 
@@ -730,48 +760,19 @@ func TestManager_Restore_latest(t *testing.T) {
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
+							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+
+[[steps]]
+bundle_path = '%[2]s.bundle'
+ref_path = '%[2]s.refs'
+custom_hooks_path = '%[2]s/custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, relativePath),
 							relativePath + ".bundle": repoBundle,
 							relativePath + ".refs":   repoRefs,
 						})
 
 						return repo, repoChecksum
-					},
-					expectExists: true,
-				},
-				{
-					desc:     "single incremental",
-					locators: []string{"pointer"},
-					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
-						const backupID = "abc123"
-						repo, _ := gittest.CreateRepository(t, ctx, cfg)
-
-						relativePath := stripRelativePath(tb, repo)
-						testhelper.WriteFiles(tb, backupRoot, map[string]any{
-							filepath.Join(relativePath, "LATEST"):               backupID,
-							filepath.Join(relativePath, backupID, "LATEST"):     "001",
-							filepath.Join(relativePath, backupID, "001.bundle"): repoBundle,
-							filepath.Join(relativePath, backupID, "001.refs"):   repoRefs,
-						})
-
-						return repo, repoChecksum
-					},
-					expectExists: true,
-				},
-				{
-					desc:     "single incremental, empty backup",
-					locators: []string{"pointer"},
-					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
-						const backupID = "abc123"
-						repo, _ := gittest.CreateRepository(t, ctx, cfg)
-
-						relativePath := stripRelativePath(tb, repo)
-						testhelper.WriteFiles(tb, backupRoot, map[string]any{
-							filepath.Join(relativePath, "LATEST"):             backupID,
-							filepath.Join(relativePath, backupID, "LATEST"):   "001",
-							filepath.Join(relativePath, backupID, "001.refs"): "",
-						})
-
-						return repo, new(git.Checksum)
 					},
 					expectExists: true,
 				},
@@ -819,8 +820,19 @@ func TestManager_Restore_latest(t *testing.T) {
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
-							filepath.Join(relativePath, "LATEST"):               backupID,
-							filepath.Join(relativePath, backupID, "LATEST"):     "002",
+							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+
+[[steps]]
+bundle_path = '%[2]s/%[3]s/001.bundle'
+ref_path = '%[2]s/%[3]s/001.refs'
+custom_hooks_path = '%[2]s/%[3]s/001.custom_hooks.tar'
+
+[[steps]]
+bundle_path = '%[2]s/%[3]s/002.bundle'
+ref_path = '%[2]s/%[3]s/002.refs'
+custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, relativePath, backupID),
 							filepath.Join(relativePath, backupID, "001.bundle"): bundle1,
 							filepath.Join(relativePath, backupID, "002.bundle"): bundle2,
 							filepath.Join(relativePath, backupID, "001.refs"):   refs1,
@@ -988,8 +1000,14 @@ func TestManager_Restore_specific(t *testing.T) {
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
-							filepath.Join(relativePath, "LATEST"):               backupID,
-							filepath.Join(relativePath, backupID, "LATEST"):     "001",
+							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), backupID+".toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+
+[[steps]]
+bundle_path = '%[2]s/%[3]s/001.bundle'
+ref_path = '%[2]s/%[3]s/001.refs'
+custom_hooks_path = '%[2]s/%[3]s/001.custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, relativePath, backupID),
 							filepath.Join(relativePath, backupID, "001.bundle"): repoBundle,
 							filepath.Join(relativePath, backupID, "001.refs"):   repoRefs,
 						})
@@ -1041,8 +1059,19 @@ func TestManager_Restore_specific(t *testing.T) {
 
 						relativePath := stripRelativePath(tb, repo)
 						testhelper.WriteFiles(tb, backupRoot, map[string]any{
-							filepath.Join(relativePath, "LATEST"):               backupID,
-							filepath.Join(relativePath, backupID, "LATEST"):     "002",
+							filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), backupID+".toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+
+[[steps]]
+bundle_path = '%[2]s/%[3]s/001.bundle'
+ref_path = '%[2]s/%[3]s/001.refs'
+custom_hooks_path = '%[2]s/%[3]s/001.custom_hooks.tar'
+
+[[steps]]
+bundle_path = '%[2]s/%[3]s/002.bundle'
+ref_path = '%[2]s/%[3]s/002.refs'
+custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, relativePath, backupID),
 							filepath.Join(relativePath, backupID, "001.bundle"): bundle1,
 							filepath.Join(relativePath, backupID, "002.bundle"): bundle2,
 							filepath.Join(relativePath, backupID, "001.refs"):   refs1,
@@ -1059,7 +1088,7 @@ func TestManager_Restore_specific(t *testing.T) {
 					expectExists: true,
 				},
 				{
-					desc: "manifest, empty backup",
+					desc: "empty backup",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						repo, _ := gittest.CreateRepository(tb, ctx, cfg)
 
@@ -1082,7 +1111,7 @@ custom_hooks_path = 'custom_hooks.tar'
 					expectedHeadReference: "refs/heads/banana",
 				},
 				{
-					desc: "manifest",
+					desc: "head reference",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
 						repo, _ := gittest.CreateRepository(tb, ctx, cfg)
 
