@@ -19,6 +19,8 @@ var DefaultObjectHash = func() git.ObjectHash {
 
 // SkipWithSHA256 skips the test in case the default object hash is SHA256.
 func SkipWithSHA256(tb testing.TB) {
+	tb.Helper()
+
 	if DefaultObjectHash.Format == "sha256" {
 		tb.Skip("test is not compatible with SHA256")
 	}
