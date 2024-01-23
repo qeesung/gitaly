@@ -6,8 +6,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 
 	"github.com/urfave/cli/v2"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/signature"
 )
 
@@ -34,7 +36,18 @@ func gpgApp() *cli.App {
 				return fmt.Errorf("reading contents from stdin: %w", err)
 			}
 
-			sig, err := signingKeys.CreateSignature(contents)
+			// Signing a commit can be nondeterministic if not done at the same second
+			// We use `GIT_AUTHOR_DATE` to ensure that the signature is deterministic
+			date := time.Now()
+			authorDate, exists := os.LookupEnv("GIT_AUTHOR_DATE")
+			if exists {
+				date, err = time.ParseInLocation(git.Rfc2822DateFormat, authorDate, time.FixedZone("", 0))
+				if err != nil {
+					return fmt.Errorf("error parsing GIT_AUTHOR_DATE: %w", err)
+				}
+			}
+
+			sig, err := signingKeys.CreateSignature(contents, date)
 			if err != nil {
 				return fmt.Errorf("creating signature: %w", err)
 			}

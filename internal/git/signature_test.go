@@ -114,7 +114,7 @@ func TestFormatTime(t *testing.T) {
 
 				// We use `time.ParseInLocation()` here such that Go won't automatically translate e.g. `+0200`
 				// into "CEST" or `time.Local`.
-				actualParsedTime, err := time.ParseInLocation(rfc2822DateFormat, actualString, time.FixedZone("", 0))
+				actualParsedTime, err := time.ParseInLocation(Rfc2822DateFormat, actualString, time.FixedZone("", 0))
 
 				require.NoError(t, err)
 				require.Equal(t, tc.expectedParsedTime, actualParsedTime)
