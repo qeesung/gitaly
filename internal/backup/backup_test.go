@@ -556,8 +556,6 @@ func TestManager_Create_incremental(t *testing.T) {
 }
 
 func TestManager_Restore_latest(t *testing.T) {
-	gittest.SkipWithSHA256(t)
-
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -994,8 +992,6 @@ func TestManager_Restore_specific(t *testing.T) {
 				{
 					desc: "single incremental",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
-						gittest.SkipWithSHA256(tb) // sha256 only works with manifest files
-
 						repo, _ := gittest.CreateRepository(tb, ctx, cfg)
 
 						relativePath := stripRelativePath(tb, repo)
@@ -1019,8 +1015,6 @@ custom_hooks_path = '%[2]s/%[3]s/001.custom_hooks.tar'
 				{
 					desc: "many incrementals",
 					setup: func(tb testing.TB) (*gitalypb.Repository, *git.Checksum) {
-						gittest.SkipWithSHA256(tb) // sha256 only works with manifest files
-
 						_, expectedRepoPath := gittest.CreateRepository(tb, ctx, cfg)
 
 						repo, _ := gittest.CreateRepository(tb, ctx, cfg)
@@ -1203,8 +1197,6 @@ custom_hooks_path = 'custom_hooks.tar'
 }
 
 func TestManager_CreateRestore_contextServerInfo(t *testing.T) {
-	gittest.SkipWithSHA256(t)
-
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -1242,8 +1234,6 @@ func TestManager_CreateRestore_contextServerInfo(t *testing.T) {
 }
 
 func TestResolveLocator(t *testing.T) {
-	gittest.SkipWithSHA256(t)
-
 	t.Parallel()
 
 	for _, tc := range []struct {

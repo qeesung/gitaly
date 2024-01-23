@@ -16,8 +16,6 @@ import (
 )
 
 func TestRestoreRepository(t *testing.T) {
-	gittest.SkipWithSHA256(t)
-
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
@@ -66,6 +64,8 @@ func TestRestoreRepository(t *testing.T) {
 				require.NoError(t, err)
 				require.NoError(t, w.Close())
 
+				backup.ObjectFormat = gittest.DefaultObjectHash.Format
+
 				require.NoError(t, backupLocator.Commit(ctx, backup))
 
 				return setupData{
@@ -108,6 +108,8 @@ func TestRestoreRepository(t *testing.T) {
 				_, err = w.Write(refs)
 				require.NoError(t, err)
 				require.NoError(t, w.Close())
+
+				backup.ObjectFormat = gittest.DefaultObjectHash.Format
 
 				require.NoError(t, backupLocator.Commit(ctx, backup))
 
