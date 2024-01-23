@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
@@ -24,13 +25,17 @@ func parseGpgSigningKey(key []byte) (*GpgSigningKey, error) {
 }
 
 // CreateSignature creates a gpg signature
-func (sk *GpgSigningKey) CreateSignature(contentToSign []byte) ([]byte, error) {
+func (sk *GpgSigningKey) CreateSignature(contentToSign []byte, date time.Time) ([]byte, error) {
 	var sigBuf strings.Builder
 	if err := openpgp.ArmoredDetachSignText(
 		&sigBuf,
 		sk.Entity,
 		bytes.NewReader(contentToSign),
-		&packet.Config{},
+		&packet.Config{
+			Time: func() time.Time {
+				return date
+			},
+		},
 	); err != nil {
 		return nil, fmt.Errorf("sign commit: %w", err)
 	}

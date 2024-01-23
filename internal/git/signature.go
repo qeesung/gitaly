@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	// rfc2822DateFormat is the date format that Git typically uses for dates.
-	rfc2822DateFormat = "Mon Jan 02 2006 15:04:05 -0700"
+	// Rfc2822DateFormat is the date format that Git typically uses for dates.
+	Rfc2822DateFormat = "Mon Jan 02 2006 15:04:05 -0700"
 )
 
 var signatureSanitizer = strings.NewReplacer("\n", "", "<", "", ">", "")
@@ -47,7 +47,7 @@ func NewSignature(name, email string, when time.Time) Signature {
 // If you need to format a time to be used in signatures directly, e.g. because it is passed to git-hash-object(1), you
 // can use `FormatSignatureTime()` instead.
 func FormatTime(t time.Time) string {
-	return t.Format(rfc2822DateFormat)
+	return t.Format(Rfc2822DateFormat)
 }
 
 // FormatSignatureTime formats a time such that it can be embedded into a tag or commit object directly.

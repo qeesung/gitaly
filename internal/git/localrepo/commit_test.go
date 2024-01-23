@@ -20,6 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestRepo_ReadCommit(t *testing.T) {
@@ -382,14 +383,16 @@ func testWriteCommit(t *testing.T, ctx context.Context) {
 			tb.Skip()
 		}
 
+		commitDate := time.Date(2023, time.November, 10, 23, 0, 0, 0, time.UTC)
+
 		cfg := WriteCommitConfig{
 			TreeID:         treeA.OID,
 			AuthorName:     gittest.DefaultCommitterName,
 			AuthorEmail:    gittest.DefaultCommitterMail,
 			CommitterName:  gittest.DefaultCommitterName,
 			CommitterEmail: gittest.DefaultCommitterMail,
-			AuthorDate:     gittest.DefaultCommitTime,
-			CommitterDate:  gittest.DefaultCommitTime,
+			AuthorDate:     commitDate,
+			CommitterDate:  commitDate,
 			Message:        "my custom message",
 			GitConfig: config.Git{
 				SigningKey: "testdata/signing_gpg_key",
@@ -402,7 +405,12 @@ func testWriteCommit(t *testing.T, ctx context.Context) {
 		commit, err := repo.ReadCommit(ctx, git.Revision(oid))
 		require.NoError(t, err)
 
-		require.Equal(t, gittest.DefaultCommitAuthor, commit.Author)
+		require.Equal(t, &gitalypb.CommitAuthor{
+			Name:     []byte(gittest.DefaultCommitterName),
+			Email:    []byte(gittest.DefaultCommitterMail),
+			Date:     timestamppb.New(commitDate),
+			Timezone: []byte("+0000"),
+		}, commit.Author)
 		require.Equal(t, "my custom message", string(commit.Body))
 
 		data, err := repo.ReadObject(ctx, oid)

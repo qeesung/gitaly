@@ -5,6 +5,7 @@ import (
 	"crypto/sha512"
 	"encoding/pem"
 	"fmt"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -56,7 +57,7 @@ func parseSSHSigningKey(key []byte) (*SSHSigningKey, error) {
 }
 
 // CreateSignature creates an SSH signature
-func (sk *SSHSigningKey) CreateSignature(contentToSign []byte) ([]byte, error) {
+func (sk *SSHSigningKey) CreateSignature(contentToSign []byte, _ time.Time) ([]byte, error) {
 	signer, ok := sk.PrivateKey.(ssh.AlgorithmSigner)
 	if !ok {
 		return nil, fmt.Errorf("wrong type of the private key")

@@ -3,6 +3,7 @@ package signature
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -32,10 +33,24 @@ func TestParseSigningKeys(t *testing.T) {
 	require.NotNil(t, signingKeys.primaryKey)
 	require.Len(t, signingKeys.secondaryKeys, 1)
 
-	signature, err := signingKeys.CreateSignature(commit)
+	signature, err := signingKeys.CreateSignature(commit, time.Now())
 	require.NoError(t, err)
-	require.Equal(t, signature, expectedSSHSignature)
+	require.Equal(t, expectedSSHSignature, signature)
 
 	require.NoError(t, signingKeys.Verify(expectedSSHSignature, commit))
 	require.NoError(t, signingKeys.Verify(expectedGPGSignature, commit))
+}
+
+func TestGPGSignatureDeterministic(t *testing.T) {
+	primaryPath := "testdata/signing_key.gpg"
+	signingKeys, err := ParseSigningKeys(primaryPath)
+	require.NoError(t, err)
+	require.NotNil(t, signingKeys.primaryKey)
+
+	expectedGPGSignature, err := os.ReadFile("testdata/signing_key.gpg.sig")
+	require.NoError(t, err)
+
+	signature, err := signingKeys.CreateSignature(commit, time.Unix(1691162414, 0))
+	require.NoError(t, err)
+	require.Equal(t, expectedGPGSignature, signature)
 }

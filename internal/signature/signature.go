@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"time"
 )
 
 // SigningKey is the common interface of SSH and GPG signing keys
 type SigningKey interface {
-	CreateSignature([]byte) ([]byte, error)
+	CreateSignature([]byte, time.Time) ([]byte, error)
 	Verify([]byte, []byte) error
 }
 
@@ -61,8 +62,8 @@ func parseSigningKey(path string) (SigningKey, error) {
 }
 
 // CreateSignature uses the primary key to create a signature
-func (s *SigningKeys) CreateSignature(contentToSign []byte) ([]byte, error) {
-	return s.primaryKey.CreateSignature(contentToSign)
+func (s *SigningKeys) CreateSignature(contentToSign []byte, date time.Time) ([]byte, error) {
+	return s.primaryKey.CreateSignature(contentToSign, date)
 }
 
 // Verify iterates over all signing keys and returns nil if any
