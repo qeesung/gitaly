@@ -583,6 +583,8 @@ build-package-and-qa:
   trigger:
     project: gitlab-org/build/omnibus-gitlab-mirror
     strategy: depend
+  inherit:
+    variables: false
   variables:
     ALTERNATIVE_SOURCES: "true"
     GITALY_SERVER_VERSION: $CI_COMMIT_SHA
