@@ -1,5 +1,9 @@
 # Gitaly changelog
 
+## 16.8.1 (2024-01-24)
+
+No changes.
+
 ## 16.8.0 (2024-01-17)
 
 ### Fixed (2 changes)
