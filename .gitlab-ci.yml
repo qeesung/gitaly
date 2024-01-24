@@ -12,7 +12,7 @@ default:
   interruptible: true
 
 .versions:
-  debian: "bullseye"
+  debian: "bookworm"
   git_default: "default"
   git_minimum: "v2.42.0"
   gitlab_dangerfiles: "4.5.1"
@@ -23,7 +23,7 @@ default:
   postgres_default: "12-alpine"
   postgres_minimum: "11-alpine"
   ruby: "3.2"
-  rust: "1.65"
+  rust: "1.73"
   ubi: "8.6"
 
 variables:
