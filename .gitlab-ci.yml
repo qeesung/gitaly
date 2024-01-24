@@ -404,6 +404,15 @@ verify:
       - proto/go/gitalypb/*
     when: on_failure
 
+vulnerability:
+  needs: []
+  stage: analyze
+  cache:
+    - *cache_deps_configuration
+    - *cache_go_configuration
+  script:
+    - make govulncheck
+
 dbschema:
   needs: []
   stage: analyze
