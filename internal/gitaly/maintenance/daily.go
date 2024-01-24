@@ -41,10 +41,6 @@ func (dw DailyWorker) nextTime(hour, minute int) time.Time {
 // StartDaily will run the provided job every day at the specified time for the
 // specified duration. Only the specified storages wil be worked on.
 func (dw DailyWorker) StartDaily(ctx context.Context, l log.Logger, schedule config.DailyJob, job StoragesJob) error {
-	if schedule.Duration == 0 || len(schedule.Storages) == 0 || schedule.Disabled {
-		return nil
-	}
-
 	for {
 		nt := dw.nextTime(int(schedule.Hour), int(schedule.Minute))
 		l.WithField("scheduled", nt).Info("maintenance: daily scheduled")

@@ -507,17 +507,21 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	}
 	bootstrapSpan.Finish()
 
-	shutdownWorkers, err := maintenance.StartWorkers(
-		ctx,
-		logger,
-		maintenance.DailyOptimizationWorker(cfg, maintenance.OptimizerFunc(func(ctx context.Context, logger log.Logger, repo storage.Repository) error {
-			return housekeepingManager.OptimizeRepository(ctx, localrepo.New(logger, locator, gitCmdFactory, catfileCache, repo))
-		})),
-	)
-	if err != nil {
-		return fmt.Errorf("initialize auxiliary workers: %w", err)
+	if !cfg.DailyMaintenance.IsDisabled() && cfg.Transactions.Enabled {
+		logger.WarnContext(ctx, "Forcibly disabling daily maintenance worker due to transactions being enabled. Daily maintenance is not supported with transactions.")
+	} else if !cfg.DailyMaintenance.IsDisabled() {
+		shutdownWorkers, err := maintenance.StartWorkers(
+			ctx,
+			logger,
+			maintenance.DailyOptimizationWorker(cfg, maintenance.OptimizerFunc(func(ctx context.Context, logger log.Logger, repo storage.Repository) error {
+				return housekeepingManager.OptimizeRepository(ctx, localrepo.New(logger, locator, gitCmdFactory, catfileCache, repo))
+			})),
+		)
+		if err != nil {
+			return fmt.Errorf("initialize auxiliary workers: %w", err)
+		}
+		defer shutdownWorkers()
 	}
-	defer shutdownWorkers()
 
 	gracefulStopTicker := helper.NewTimerTicker(cfg.GracefulRestartTimeout.Duration())
 	defer gracefulStopTicker.Stop()
