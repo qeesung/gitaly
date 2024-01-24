@@ -146,6 +146,7 @@ workflow:
   artifacts: &test_artifacts
     paths:
       - ${TEST_LOG_DIR}
+      - ${TEST_JSON_REPORT}
     reports:
       junit: ${TEST_JUNIT_REPORT}
       coverage_report:
