@@ -57,6 +57,7 @@ PROTOC_GEN_DOC              := ${TOOLS_DIR}/protoc-gen-doc
 GOTESTSUM                   := ${TOOLS_DIR}/gotestsum
 GOCOVER_COBERTURA           := ${TOOLS_DIR}/gocover-cobertura
 DELVE                       := ${TOOLS_DIR}/dlv
+GOVULNCHECK                 := ${TOOLS_DIR}/govulncheck
 
 # Tool options
 GOLANGCI_LINT_OPTIONS ?=
@@ -485,6 +486,10 @@ build-proto-docs: ${PROTOC} ${PROTOC_GEN_DOC}
 	${Q}rm -rf ${BUILD_DIR}/proto-docs && mkdir -p ${BUILD_DIR}/proto-docs
 	${Q}${PROTOC} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --doc_out=${BUILD_DIR}/proto-docs --doc_opt=html,index.html --plugin=protoc-gen-doc=${PROTOC_GEN_DOC} ${SOURCE_DIR}/proto/*.proto
 
+.PHONY: govulncheck
+govulncheck: ${GOVULNCHECK}
+	${Q}${GOVULNCHECK} ./...
+
 .PHONY: no-changes
 no-changes:
 	${Q}${GIT} diff --exit-code
@@ -661,6 +666,7 @@ ${PROTOC_GEN_GO}:     TOOL_PACKAGE = google.golang.org/protobuf/cmd/protoc-gen-g
 ${PROTOC_GEN_GO_GRPC}:TOOL_PACKAGE = google.golang.org/grpc/cmd/protoc-gen-go-grpc
 ${PROTOC_GEN_DOC}:    TOOL_PACKAGE = github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 ${DELVE}:             TOOL_PACKAGE = github.com/go-delve/delve/cmd/dlv
+${GOVULNCHECK}:       TOOL_PACKAGE = golang.org/x/vuln/cmd/govulncheck
 
 ${BENCHMARK_REPO}:
 	${GIT} clone --mirror ${GIT_QUIET} https://gitlab.com/gitlab-org/gitlab.git $@
