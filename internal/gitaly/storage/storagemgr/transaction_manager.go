@@ -1617,6 +1617,13 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 
 		if transaction.deleteRepository {
 			logEntry.RepositoryDeletion = &gitalypb.LogEntry_RepositoryDeletion{}
+
+			if err := transaction.walEntry.RecordDirectoryRemoval(
+				mgr.storagePath,
+				transaction.relativePath,
+			); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("record repository removal: %w", err)
+			}
 		}
 
 		if transaction.runHousekeeping != nil {
@@ -2453,8 +2460,8 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 		// If the repository is being deleted, just delete it without any other changes given
 		// they'd all be removed anyway. Reapplying the other changes after a crash would also
 		// not work if the repository was successfully deleted before the crash.
-		if err := mgr.applyRepositoryDeletion(ctx, logEntry); err != nil {
-			return fmt.Errorf("apply repository deletion: %w", err)
+		if err := mgr.applyOperations(lsn, logEntry); err != nil {
+			return fmt.Errorf("apply operations: %w", err)
 		}
 	} else {
 		if err := mgr.applyRepositoryCreation(ctx, logEntry); err != nil {
@@ -2765,20 +2772,6 @@ func (mgr *TransactionManager) createRepository(ctx context.Context, repositoryP
 
 	if err := cmd.Wait(); err != nil {
 		return structerr.New("wait git init: %w", err).WithMetadata("stderr", stderr.String())
-	}
-
-	return nil
-}
-
-// applyRepositoryDeletion deletes the repository.
-func (mgr *TransactionManager) applyRepositoryDeletion(ctx context.Context, logEntry *gitalypb.LogEntry) error {
-	repositoryPath := mgr.getAbsolutePath(logEntry.RelativePath)
-	if err := os.RemoveAll(repositoryPath); err != nil {
-		return fmt.Errorf("remove repository: %w", err)
-	}
-
-	if err := safe.NewSyncer().Sync(filepath.Dir(repositoryPath)); err != nil {
-		return fmt.Errorf("sync: %w", err)
 	}
 
 	return nil
