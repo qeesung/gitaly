@@ -34,8 +34,8 @@ type CleanupServiceClient interface {
 	// - `InvalidArgument` in the following situations:
 	//   - The provided repository can't be validated.
 	//   - The repository field is set on any request other than the initial one.
-	//   - Any request, including the initial one, does not contain either blobs to
-	//     remove or redaction patterns to redact.
+	//   - All of the client requests do not contain either blobs to remove or
+	//     redaction patterns to redact.
 	//   - A blob object ID is invalid.
 	//   - A redaction pattern contains a newline character.
 	//
@@ -132,8 +132,8 @@ type CleanupServiceServer interface {
 	// - `InvalidArgument` in the following situations:
 	//   - The provided repository can't be validated.
 	//   - The repository field is set on any request other than the initial one.
-	//   - Any request, including the initial one, does not contain either blobs to
-	//     remove or redaction patterns to redact.
+	//   - All of the client requests do not contain either blobs to remove or
+	//     redaction patterns to redact.
 	//   - A blob object ID is invalid.
 	//   - A redaction pattern contains a newline character.
 	//

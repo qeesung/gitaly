@@ -56,10 +56,6 @@ func (s *server) RewriteHistory(server gitalypb.CleanupService_RewriteHistorySer
 			return structerr.NewInvalidArgument("subsequent requests must not contain repository")
 		}
 
-		if len(request.GetBlobs()) == 0 && len(request.GetRedactions()) == 0 {
-			return structerr.NewInvalidArgument("no object IDs or text replacements specified")
-		}
-
 		for _, oid := range request.GetBlobs() {
 			if err := objectHash.ValidateHex(oid); err != nil {
 				return structerr.NewInvalidArgument("validating object ID: %w", err).WithMetadata("oid", oid)
@@ -84,6 +80,10 @@ func (s *server) RewriteHistory(server gitalypb.CleanupService_RewriteHistorySer
 
 			return fmt.Errorf("receiving next request: %w", err)
 		}
+	}
+
+	if len(blobsToRemove) == 0 && len(redactions) == 0 {
+		return structerr.NewInvalidArgument("no object IDs or text replacements specified")
 	}
 
 	if err := s.rewriteHistory(ctx, repo, repoProto, blobsToRemove, redactions); err != nil {

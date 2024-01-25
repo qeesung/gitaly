@@ -118,7 +118,7 @@ func TestRewriteHistory(t *testing.T) {
 			},
 		},
 		{
-			desc: "empty request",
+			desc: "all requests empty",
 			setup: func(t *testing.T) setupData {
 				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
@@ -127,6 +127,7 @@ func TestRewriteHistory(t *testing.T) {
 						{
 							Repository: repo,
 						},
+						{},
 					},
 					expectedErr: structerr.NewInvalidArgument("no object IDs or text replacements specified"),
 				}
@@ -142,7 +143,9 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
-							Blobs:      []string{"invalid oid"},
+						},
+						{
+							Blobs: []string{"invalid oid"},
 						},
 					},
 					repoPath:     repoPath,
@@ -164,6 +167,8 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
+						},
+						{
 							Redactions: [][]byte{[]byte("hunter\n2")},
 						},
 					},
@@ -183,6 +188,8 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
+						},
+						{
 							Redactions: [][]byte{[]byte("hunter\\n2")},
 						},
 					},
@@ -202,7 +209,9 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
-							Blobs:      []string{strings.Repeat("a", gittest.DefaultObjectHash.EncodedLen())},
+						},
+						{
+							Blobs: []string{strings.Repeat("a", gittest.DefaultObjectHash.EncodedLen())},
 						},
 					},
 					repoPath:         repoPath,
@@ -230,7 +239,9 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
-							Blobs:      []string{blobToRemove.String()},
+						},
+						{
+							Blobs: []string{blobToRemove.String()},
 						},
 					},
 					repoPath: repoPath,
@@ -261,6 +272,8 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
+						},
+						{
 							Redactions: [][]byte{
 								[]byte("hunter2"),
 							},
@@ -296,7 +309,9 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repoProto,
-							Blobs:      []string{blobToRemove.String()},
+						},
+						{
+							Blobs: []string{blobToRemove.String()},
 						},
 						{
 							Redactions: [][]byte{[]byte("hunter2")},
@@ -328,7 +343,9 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
-							Blobs:      []string{blobToRemove.String()},
+						},
+						{
+							Blobs: []string{blobToRemove.String()},
 						},
 					},
 					repoPath:         repoPath,
@@ -358,7 +375,9 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
-							Blobs:      []string{blobToRemove.String()},
+						},
+						{
+							Blobs: []string{blobToRemove.String()},
 						},
 					},
 					repoPath: repoPath,
@@ -390,7 +409,9 @@ func TestRewriteHistory(t *testing.T) {
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
-							Blobs:      []string{blobToRemove.String()},
+						},
+						{
+							Blobs: []string{blobToRemove.String()},
 						},
 					},
 					repoPath:         repoPath,
@@ -446,7 +467,9 @@ Object pools are not yet supported with transaction management.`)
 					requests: []*gitalypb.RewriteHistoryRequest{
 						{
 							Repository: repo,
-							Blobs:      []string{poolBlob.String()},
+						},
+						{
+							Blobs: []string{poolBlob.String()},
 						},
 					},
 					repoPath: repoPath,
