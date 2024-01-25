@@ -252,6 +252,8 @@ func TestRepackIfNeeded(t *testing.T) {
 }
 
 func TestPackRefsIfNeeded(t *testing.T) {
+	testhelper.SkipWithReftable(t, "pack-refs is only required for the files backend")
+
 	t.Parallel()
 
 	type setupData struct {
@@ -501,6 +503,9 @@ func TestOptimizeRepository(t *testing.T) {
 		{
 			desc: "empty repository does nothing",
 			setup: func(t *testing.T, relativePath string) setupData {
+				testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
+and considers the reftable as a loose file and generates a commit graph`)
+
 				repo, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -760,6 +765,9 @@ func TestOptimizeRepository(t *testing.T) {
 		{
 			desc: "loose refs get packed",
 			setup: func(t *testing.T, relativePath string) setupData {
+				testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
+and considers the reftable as a loose file and generates a commit graph`)
+
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -872,6 +880,9 @@ func TestOptimizeRepository(t *testing.T) {
 		{
 			desc: "recently linked repository gets a full repack",
 			setup: func(t *testing.T, relativePath string) setupData {
+				testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
+and considers the reftable as a loose file and generates a commit graph`)
+
 				_, poolPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           gittest.NewObjectPoolName(t),

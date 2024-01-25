@@ -413,7 +413,10 @@ func TestRepositoryManager_CleanStaleData(t *testing.T) {
 }
 
 func TestRepositoryManager_CleanStaleData_references(t *testing.T) {
+	testhelper.SkipWithReftable(t, "writes references directly to filesystem")
+
 	t.Parallel()
+
 	type ref struct {
 		name string
 		age  time.Duration
@@ -879,7 +882,10 @@ func TestRepositoryManager_CleanStaleData_serverInfo(t *testing.T) {
 }
 
 func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
+	testhelper.SkipWithReftable(t, "uses file system based reference locks")
+
 	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
 	for _, tc := range []struct {
@@ -1191,7 +1197,10 @@ func TestRepositoryManager_CleanStaleData_unsetConfiguration(t *testing.T) {
 }
 
 func TestRepositoryManager_CleanStaleData_unsetConfigurationTransactional(t *testing.T) {
+	testhelper.SkipWithReftable(t, "extensions.refstorage is added to config with reftables")
+
 	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)

@@ -155,6 +155,8 @@ func TestCalculateChecksum(t *testing.T) {
 		{
 			desc: "invalid reference",
 			setup: func(t *testing.T) setupData {
+				testhelper.SkipWithReftable(t, "writing an invalid packed-refs has no effect for the refstable backend")
+
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))

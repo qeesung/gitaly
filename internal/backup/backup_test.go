@@ -29,6 +29,8 @@ import (
 )
 
 func TestManager_RemoveRepository(t *testing.T) {
+	testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
+
 	if testhelper.IsPraefectEnabled() {
 		t.Skip("local backup manager expects to operate on the local filesystem so cannot operate through praefect")
 	}
@@ -556,6 +558,8 @@ func TestManager_Create_incremental(t *testing.T) {
 }
 
 func TestManager_Restore_latest(t *testing.T) {
+	testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
+
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
@@ -892,6 +896,8 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 }
 
 func TestManager_Restore_specific(t *testing.T) {
+	testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
+
 	t.Parallel()
 
 	const backupID = "abc123"

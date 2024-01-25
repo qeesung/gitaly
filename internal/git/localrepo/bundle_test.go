@@ -295,6 +295,8 @@ func TestRepo_FetchBundle(t *testing.T) {
 			desc:       "HEAD update",
 			updateHead: true,
 			setup: func(t *testing.T, ctx context.Context, cfg config.Cfg, targetRepoPath string) testSetup {
+				testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
+
 				_, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 				})

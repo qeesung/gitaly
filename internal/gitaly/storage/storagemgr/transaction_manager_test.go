@@ -245,6 +245,8 @@ func setupTest(t *testing.T, ctx context.Context, testPartitionID partitionID, r
 }
 
 func TestTransactionManager(t *testing.T) {
+	testhelper.SkipWithReftable(t, "WAL moves around packed-refs, which is not present with the reftable backend")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

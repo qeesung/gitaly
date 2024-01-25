@@ -85,6 +85,8 @@ func TestUpdater_referenceAlreadyExists(t *testing.T) {
 }
 
 func TestUpdater_nonCommitObject(t *testing.T) {
+	testhelper.SkipWithReftable(t, "nonCommitObjectRegex doesn't match error thrown by reftable backend")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -187,6 +189,8 @@ func TestUpdater_properErrorOnWriteFailure(t *testing.T) {
 }
 
 func TestUpdater_nonExistentObject(t *testing.T) {
+	testhelper.SkipWithReftable(t, "refs are directly modified via the filesystem")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -224,6 +228,8 @@ func TestUpdater_nonExistentObject(t *testing.T) {
 }
 
 func TestUpdater_fileDirectoryConflict(t *testing.T) {
+	testhelper.SkipWithReftable(t, "errors thrown by reftable backend do not match regexs defined in updateref.go")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -509,6 +515,8 @@ func TestUpdater_invalidReferenceName(t *testing.T) {
 }
 
 func TestUpdater_concurrentLocking(t *testing.T) {
+	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -628,6 +636,8 @@ func TestUpdater_contextCancellation(t *testing.T) {
 }
 
 func TestUpdater_cancel(t *testing.T) {
+	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -721,6 +731,8 @@ func TestUpdater_capturesStderr(t *testing.T) {
 }
 
 func TestUpdater_packedRefsLocked(t *testing.T) {
+	testhelper.SkipWithReftable(t, "packed-refs aren't part of the reftable backend")
+
 	t.Parallel()
 
 	for _, tc := range []struct {

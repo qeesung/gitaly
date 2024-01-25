@@ -267,6 +267,8 @@ func TestObjectPool_logStats(t *testing.T) {
 		{
 			desc: "empty object pool",
 			setup: func(t *testing.T, logger log.Logger) *ObjectPool {
+				testhelper.SkipWithReftable(t, "considers the reftable as a loose reference")
+
 				_, pool, _ := setupObjectPool(t, ctx, withLogger(logger))
 				return pool
 			},

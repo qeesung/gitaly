@@ -165,6 +165,8 @@ func TestCreateRepositoryFromBundle(t *testing.T) {
 }
 
 func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
+	testhelper.SkipWithReftable(t, "writes refs by writing to the filesystem directly")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

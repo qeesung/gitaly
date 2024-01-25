@@ -19,6 +19,8 @@ import (
 )
 
 func TestRepositoryInfo(t *testing.T) {
+	testhelper.SkipWithReftable(t, "considers the reftable as a loose reference")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

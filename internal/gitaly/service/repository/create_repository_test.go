@@ -44,6 +44,8 @@ func TestCreateRepository_missingAuth(t *testing.T) {
 }
 
 func TestCreateRepository_successful(t *testing.T) {
+	testhelper.SkipWithReftable(t, "reads HEAD from the filesystem and only verifies refs/ folder permissions")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

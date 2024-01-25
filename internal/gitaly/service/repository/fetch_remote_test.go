@@ -238,6 +238,8 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/3780`)
 		{
 			desc: "D/F conflict causes failure when pruning is disabled",
 			setup: func(t *testing.T, cfg config.Cfg) setupData {
+				testhelper.SkipWithReftable(t, "referenceExistsConflictRegex doesn't match output when using reftables")
+
 				_, remoteRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
@@ -300,6 +302,8 @@ Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/3780`)
 		{
 			desc: "F/D conflict causes failure when pruning is disabled",
 			setup: func(t *testing.T, cfg config.Cfg) setupData {
+				testhelper.SkipWithReftable(t, "referenceExistsConflictRegex doesn't match output when using reftables")
+
 				_, remoteRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
 

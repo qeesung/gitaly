@@ -39,6 +39,13 @@ func IsReftableEnabled() bool {
 	return ok
 }
 
+// SkipWithReftable skips the test when reftable is being used.
+func SkipWithReftable(tb testing.TB, reason string) {
+	if IsReftableEnabled() {
+		tb.Skip(reason)
+	}
+}
+
 // IsWALEnabled returns whether write-ahead logging is enabled in this testing run.
 func IsWALEnabled() bool {
 	_, ok := os.LookupEnv("GITALY_TEST_WAL")

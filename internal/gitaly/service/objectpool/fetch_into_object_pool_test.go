@@ -33,6 +33,8 @@ import (
 )
 
 func TestFetchIntoObjectPool_Success(t *testing.T) {
+	testhelper.SkipWithReftable(t, "reads refs directly from the filesystem")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

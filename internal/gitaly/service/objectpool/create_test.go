@@ -84,6 +84,9 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreate_emptySource(t *testing.T) {
+	testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
+and considers the reftable as a loose file`)
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

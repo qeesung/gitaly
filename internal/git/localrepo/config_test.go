@@ -21,6 +21,10 @@ import (
 )
 
 func TestRepo_SetConfig(t *testing.T) {
+	testhelper.SkipWithReftable(t, "core.repositoryformatversion is set when reftables are used")
+
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
@@ -77,7 +81,11 @@ func TestRepo_SetConfig(t *testing.T) {
 			expectedErr: fmt.Errorf("committing config: %w", fmt.Errorf("locking file: %w", safe.ErrFileAlreadyLocked)),
 		},
 	} {
+		tc := tc
+
 		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
 			repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg,
 				gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
@@ -146,6 +154,10 @@ func TestRepo_SetConfig(t *testing.T) {
 }
 
 func TestRepo_UnsetMatchingConfig(t *testing.T) {
+	testhelper.SkipWithReftable(t, "extensions.refstorage is added to config with reftables")
+
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
@@ -232,7 +244,11 @@ func TestRepo_UnsetMatchingConfig(t *testing.T) {
 			expectedKeys: standardKeys,
 		},
 	} {
+		tc := tc
+
 		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
 			repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 				SkipCreationViaService: true,
 			})

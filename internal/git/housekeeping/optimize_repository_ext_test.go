@@ -20,6 +20,8 @@ import (
 )
 
 func TestPruneIfNeeded(t *testing.T) {
+	testhelper.SkipWithReftable(t, "commit graph is written as the reftable is considered a loose object")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

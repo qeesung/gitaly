@@ -159,6 +159,8 @@ func TestDetectObjectHash(t *testing.T) {
 		{
 			desc: "invalid repository configuration",
 			setup: func(t *testing.T) *gitalypb.Repository {
+				testhelper.SkipWithReftable(t, "creating a repository with reftables sets the core.repositoryformatversion to 1")
+
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					ObjectFormat:           "sha1",
