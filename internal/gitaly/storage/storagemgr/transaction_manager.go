@@ -892,6 +892,10 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 		return fmt.Errorf("preparing housekeeping: %w", err)
 	}
 
+	if err := safe.NewSyncer().SyncRecursive(transaction.walFilesPath()); err != nil {
+		return fmt.Errorf("synchronizing WAL directory: %w", err)
+	}
+
 	select {
 	case mgr.admissionQueue <- transaction:
 		transaction.admitted = true
@@ -1159,13 +1163,6 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 			return structerr.New("unexpected index-pack output").WithMetadata("stdout", stdout.String())
 		}
 
-		// Sync the files and the directory entries so everything is flushed to the disk prior
-		// to moving on to committing the log entry. This way we only have to flush the directory
-		// move when we move the staged files into the log.
-		if err := safe.NewSyncer().SyncRecursive(transaction.walFilesPath()); err != nil {
-			return fmt.Errorf("sync recursive: %w", err)
-		}
-
 		transaction.packPrefix = fmt.Sprintf("pack-%s", matches[1])
 
 		return nil
@@ -1247,9 +1244,6 @@ func (mgr *TransactionManager) preparePackRefs(ctx context.Context, transaction 
 		filepath.Join(transaction.walFilesPath(), "packed-refs"),
 	); err != nil {
 		return fmt.Errorf("copying packed-refs file to WAL directory: %w", err)
-	}
-	if err := safe.NewSyncer().Sync(transaction.walFilesPath()); err != nil {
-		return fmt.Errorf("sync: %w", err)
 	}
 
 	// Second walk and compare with the initial list of loose references. Any disappeared refs are pruned.
@@ -1421,10 +1415,6 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 				}
 			}
 		}
-	}
-
-	if err := safe.NewSyncer().Sync(transaction.walFilesPath()); err != nil {
-		return fmt.Errorf("sync: %w", err)
 	}
 
 	return nil
