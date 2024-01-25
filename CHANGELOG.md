@@ -1,5 +1,9 @@
 # Gitaly changelog
 
+## 16.8.1 (2024-01-24)
+
+No changes.
+
 ## 16.8.0 (2024-01-17)
 
 ### Fixed (2 changes)
@@ -10,6 +14,10 @@
 ### Deprecated (1 change)
 
 - [proto: Deprecate RemoveAll](gitlab-org/gitaly@bead28d4dd8c6fa0166d4490fe479dca78c51bc7) ([merge request](gitlab-org/gitaly!6579))
+
+## 16.7.4 (2024-01-24)
+
+No changes.
 
 ## 16.7.3 (2024-01-13)
 
@@ -43,6 +51,10 @@ No changes.
 
 - [gitaly: Move asynchronous tasks to end of startup](gitlab-org/gitaly@dd4ea4388b4b8e7c49ea423126f8be5e067729cd) ([merge request](gitlab-org/gitaly!6532))
 - [cgroups: Create repository cgroups on-demand](gitlab-org/gitaly@105f6dd81689b7819b844b8be1be844bca6f2a67) ([merge request](gitlab-org/gitaly!6499))
+
+## 16.6.6 (2024-01-24)
+
+No changes.
 
 ## 16.6.5 (2024-01-13)
 
@@ -91,6 +103,10 @@ No changes.
 ### Performance (1 change)
 
 - [backup: Use --all when creating an incremental backup bundle](gitlab-org/gitaly@d874d8c3eb0d0c9b9362b583ba8ccc42221140cd) ([merge request](gitlab-org/gitaly!6421))
+
+## 16.5.8 (2024-01-24)
+
+No changes.
 
 ## 16.5.7 (2024-01-13)
 
