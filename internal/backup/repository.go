@@ -302,6 +302,22 @@ func (rr *remoteRepository) ResetRefs(ctx context.Context, refs []git.Reference)
 	return nil
 }
 
+// SetHeadReference sets the symbolic HEAD reference of the repository.
+func (rr *remoteRepository) SetHeadReference(ctx context.Context, target git.ReferenceName) error {
+	repoClient := rr.newRepoClient()
+
+	_, err := repoClient.WriteRef(ctx, &gitalypb.WriteRefRequest{
+		Repository: rr.repo,
+		Ref:        []byte("HEAD"),
+		Revision:   []byte(target),
+	})
+	if err != nil {
+		return fmt.Errorf("write HEAD ref: %w", err)
+	}
+
+	return nil
+}
+
 // Create creates the repository.
 func (rr *remoteRepository) Create(ctx context.Context, hash git.ObjectHash, defaultBranch string) error {
 	repoClient := rr.newRepoClient()
@@ -611,4 +627,9 @@ func (r *localRepository) ResetRefs(ctx context.Context, refs []git.Reference) (
 	}
 
 	return nil
+}
+
+// SetHeadReference sets the symbolic HEAD reference of the repository.
+func (r *localRepository) SetHeadReference(ctx context.Context, target git.ReferenceName) error {
+	return r.repo.SetDefaultBranch(ctx, r.txManager, target)
 }

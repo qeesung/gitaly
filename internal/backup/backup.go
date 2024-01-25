@@ -136,6 +136,9 @@ type Repository interface {
 	// exists in the repository. The list of refs should not include the symbolic
 	// HEAD reference.
 	ResetRefs(ctx context.Context, refs []git.Reference) error
+	// SetHeadReference sets the symbolic HEAD reference of the repository to the
+	// given target, for example a branch name.
+	SetHeadReference(ctx context.Context, target git.ReferenceName) error
 }
 
 // ResolveLocator returns a locator implementation based on a locator identifier.

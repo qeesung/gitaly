@@ -127,3 +127,89 @@ func TestLocalRepository_ResetRefs(t *testing.T) {
 
 	require.Equal(t, backupRefState, actualRefState)
 }
+
+func TestRemoteRepository_SetHeadReference(t *testing.T) {
+	testhelper.SkipWithReftable(t, "SetHeadReference modifies HEAD through the filesystem directly")
+
+	cfg := testcfg.Build(t)
+	testcfg.BuildGitalyHooks(t, cfg)
+	cfg.SocketPath = testserver.RunGitalyServer(t, cfg, setup.RegisterAll)
+	ctx := testhelper.Context(t)
+
+	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+	pool := client.NewPool()
+	defer testhelper.MustClose(t, pool)
+
+	conn, err := pool.Dial(ctx, cfg.SocketPath, "")
+	require.NoError(t, err)
+
+	rr := backup.NewRemoteRepository(repo, conn)
+
+	c0 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
+	expectedHead, err := rr.HeadReference(ctx)
+	require.NoError(t, err)
+
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(c0), gittest.WithBranch("branch-1"))
+	gittest.Exec(t, cfg, "-C", repoPath, "symbolic-ref", "HEAD", "refs/heads/branch-1")
+
+	newHead, err := rr.HeadReference(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, rr.SetHeadReference(ctx, expectedHead))
+
+	actualHead, err := rr.HeadReference(ctx)
+	require.NoError(t, err)
+
+	require.Equal(t, expectedHead, actualHead)
+	require.NotEqual(t, newHead, actualHead)
+}
+
+func TestLocalRepository_SetHeadReference(t *testing.T) {
+	if testhelper.IsPraefectEnabled() {
+		t.Skip("local backup manager expects to operate on the local filesystem so cannot operate through praefect")
+	}
+
+	testhelper.SkipWithReftable(t, "SetHeadReference modifies HEAD through the filesystem directly")
+
+	cfg := testcfg.Build(t)
+	ctx := testhelper.Context(t)
+
+	repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
+
+	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+	txManager := transaction.NewTrackingManager()
+	repoCounter := counter.NewRepositoryCounter(cfg.Storages)
+	locator := config.NewLocator(cfg)
+	catfileCache := catfile.NewCache(cfg)
+	t.Cleanup(catfileCache.Stop)
+
+	localRepo := backup.NewLocalRepository(
+		testhelper.SharedLogger(t),
+		locator,
+		gitCmdFactory,
+		txManager,
+		repoCounter,
+		localrepo.New(testhelper.SharedLogger(t), locator, gitCmdFactory, catfileCache, repo))
+
+	c0 := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
+
+	expectedHead, err := localRepo.HeadReference(ctx)
+	require.NoError(t, err)
+
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(c0), gittest.WithBranch("branch-1"))
+	gittest.Exec(t, cfg, "-C", repoPath, "symbolic-ref", "HEAD", "refs/heads/branch-1")
+
+	newHead, err := localRepo.HeadReference(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, localRepo.SetHeadReference(ctx, expectedHead))
+
+	actualHead, err := localRepo.HeadReference(ctx)
+	require.NoError(t, err)
+
+	require.Equal(t, expectedHead, actualHead)
+	require.NotEqual(t, newHead, actualHead)
+}
