@@ -178,6 +178,16 @@ func nextPath(reader *bufio.Reader) ([]*gitalypb.ChangedPaths, error) {
 
 	pathStatus := split[len(split)-1]
 
+	// The new blob id of a changed path is the last object ID in the output.
+	// It's applied for a single source:
+	//
+	// :100644 100644 5be4a4a 0000000 M file.c
+	//
+	// And for multiple sources:
+	//
+	// ::100644 100644 100644 fabadb8 cc95eb0 4866510 MM	desc.c
+	newBlobID := string(split[len(split)-2])
+
 	// Sanity check on the number of fields. There should be:
 	// * a mode + hash for each source
 	// * a mode + hash for the destination
@@ -220,10 +230,12 @@ func nextPath(reader *bufio.Reader) ([]*gitalypb.ChangedPaths, error) {
 		}
 
 		changedPaths[i] = &gitalypb.ChangedPaths{
-			Status:  parsedPath,
-			Path:    path,
-			OldMode: int32(oldMode),
-			NewMode: int32(newMode),
+			Status:    parsedPath,
+			Path:      path,
+			OldMode:   int32(oldMode),
+			NewMode:   int32(newMode),
+			OldBlobId: string(split[srcCount+i+1]),
+			NewBlobId: newBlobID,
 		}
 	}
 

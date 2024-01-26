@@ -391,6 +391,10 @@ message ChangedPaths {
   int32 old_mode = 3;
   // new_mode is the mode of the changed path after the change. Please refer to `old_mode` for a list of potential values.
   int32 new_mode = 4;
+  // old_blob_id is the blob oid of the changed path previous to the change.
+  string old_blob_id = 5;
+  // new_blob_id is the blob oid of the changed path after the changed.
+  string new_blob_id = 6;
 }
 
 // GetPatchIDRequest is a request for the GetPatchID RPC.

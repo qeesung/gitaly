@@ -64,16 +64,20 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("added.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100755,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("added.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100755,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("modified.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 				}
 				return setupData{
@@ -122,22 +126,28 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("right.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100755,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("right.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100755,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("left.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100755,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("left.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100755,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("modified.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 				}
 
@@ -179,16 +189,20 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("first.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("first.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("second.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("second.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 				}
 
@@ -224,22 +238,28 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("modified.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_DELETED,
-						Path:    []byte("rename-me.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o000000,
+						Status:    gitalypb.ChangedPaths_DELETED,
+						Path:      []byte("rename-me.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o000000,
+						OldBlobId: renameBlobID.String(),
+						NewBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("rename-you.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("rename-you.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100644,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: renameBlobID.String(),
 					},
 				}
 
@@ -283,22 +303,28 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("added.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("added.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100644,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("left.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("left.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: afterBlobID.String(),
+						NewBlobId: beforeBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("right.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("right.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 				}
 
@@ -330,16 +356,20 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("CONTRIBUTING.md"),
-						OldMode: 0o000000,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("CONTRIBUTING.md"),
+						OldMode:   0o000000,
+						NewMode:   0o100644,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("README.md"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("README.md"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 				}
 				return setupData{
@@ -391,28 +421,36 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("NEW_FILE.md"),
-						OldMode: 0o000000,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("NEW_FILE.md"),
+						OldMode:   0o000000,
+						NewMode:   0o100644,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: leftNewFileOid.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_DELETED,
-						Path:    []byte("CONTRIBUTING.md"),
-						OldMode: 0o100644,
-						NewMode: 0o000000,
+						Status:    gitalypb.ChangedPaths_DELETED,
+						Path:      []byte("CONTRIBUTING.md"),
+						OldMode:   0o100644,
+						NewMode:   0o000000,
+						OldBlobId: leftContributingOid.String(),
+						NewBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("NEW_FILE.md"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("NEW_FILE.md"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: rightNewFileOid.String(),
+						NewBlobId: leftNewFileOid.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("README.md"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("README.md"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: rightReadmeOid.String(),
+						NewBlobId: oldReadmeOid.String(),
 					},
 				}
 
@@ -461,28 +499,36 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("added.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100755,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("added.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100755,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("modified.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("CONTRIBUTING.md"),
-						OldMode: 0o000000,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("CONTRIBUTING.md"),
+						OldMode:   0o000000,
+						NewMode:   0o100644,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: welcomeBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("README.md"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("README.md"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: helloBlobID.String(),
+						NewBlobId: hiBlobID.String(),
 					},
 				}
 				return setupData{
@@ -525,16 +571,20 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("added.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100755,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("added.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100755,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("modified.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 				}
 				return setupData{
@@ -568,16 +618,20 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("added.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100755,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("added.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100755,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("modified.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 				}
 				return setupData{
@@ -627,16 +681,20 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("conflicted.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("conflicted.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: leftBlobID.String(),
+						NewBlobId: leftRightBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("conflicted.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("conflicted.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: rightBlobID.String(),
+						NewBlobId: leftRightBlobID.String(),
 					},
 				}
 
@@ -698,34 +756,44 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("README.md"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("README.md"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: blobID.String(),
+						NewBlobId: mergeBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("README.md"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("README.md"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: blobID1.String(),
+						NewBlobId: mergeBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("README.md"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("README.md"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: blobID2.String(),
+						NewBlobId: mergeBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("README.md"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("README.md"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: blobID3.String(),
+						NewBlobId: mergeBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("README.md"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("README.md"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: blobID4.String(),
+						NewBlobId: mergeBlobID.String(),
 					},
 				}
 
@@ -830,16 +898,20 @@ func TestFindChangedPathsRequest_deprecated(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("added.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100755,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("added.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100755,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("modified.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 				}
 				return setupData{
@@ -888,22 +960,28 @@ func TestFindChangedPathsRequest_deprecated(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("right.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100755,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("right.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100755,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("left.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100755,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("left.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100755,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: newBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("modified.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 				}
 
@@ -939,22 +1017,28 @@ func TestFindChangedPathsRequest_deprecated(t *testing.T) {
 
 				expectedPaths := []*gitalypb.ChangedPaths{
 					{
-						Status:  gitalypb.ChangedPaths_MODIFIED,
-						Path:    []byte("modified.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_DELETED,
-						Path:    []byte("rename-me.txt"),
-						OldMode: 0o100644,
-						NewMode: 0o000000,
+						Status:    gitalypb.ChangedPaths_DELETED,
+						Path:      []byte("rename-me.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o000000,
+						OldBlobId: renameBlobID.String(),
+						NewBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
 					},
 					{
-						Status:  gitalypb.ChangedPaths_ADDED,
-						Path:    []byte("rename-you.txt"),
-						OldMode: 0o000000,
-						NewMode: 0o100644,
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("rename-you.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100644,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: renameBlobID.String(),
 					},
 				}
 
