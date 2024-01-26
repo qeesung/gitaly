@@ -45,16 +45,20 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				newBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("new"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				newCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "added.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "added.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 
@@ -84,31 +88,35 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				newBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("new"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				leftCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "left.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "left.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 				rightCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "right.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "right.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				mergeCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(leftCommit, rightCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "right.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "left.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "right.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "left.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 
@@ -145,24 +153,27 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "first.txt", Mode: "100644", Content: "before"},
-						gittest.TreeEntry{Path: "second.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "first.txt", Mode: "100644", OID: beforeBlobID},
+						gittest.TreeEntry{Path: "second.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				betweenCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "first.txt", Mode: "100644", Content: "after"},
-						gittest.TreeEntry{Path: "second.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "first.txt", Mode: "100644", OID: afterBlobID},
+						gittest.TreeEntry{Path: "second.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				lastCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(betweenCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "first.txt", Mode: "100644", Content: "after"},
-						gittest.TreeEntry{Path: "second.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "first.txt", Mode: "100644", OID: afterBlobID},
+						gittest.TreeEntry{Path: "second.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 
@@ -193,17 +204,21 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				renameBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("hello"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "rename-me.txt", Mode: "100644", Content: "hello"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "rename-me.txt", Mode: "100644", OID: renameBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				newCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "rename-you.txt", Mode: "100644", Content: "hello"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "rename-you.txt", Mode: "100644", OID: renameBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 
@@ -240,25 +255,29 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				newBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("new"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "left.txt", Mode: "100644", Content: "before"},
-						gittest.TreeEntry{Path: "right.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "left.txt", Mode: "100644", OID: beforeBlobID},
+						gittest.TreeEntry{Path: "right.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				leftCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "left.txt", Mode: "100644", Content: "after"},
-						gittest.TreeEntry{Path: "right.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "left.txt", Mode: "100644", OID: afterBlobID},
+						gittest.TreeEntry{Path: "right.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				rightCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "left.txt", Mode: "100644", Content: "before"},
-						gittest.TreeEntry{Path: "right.txt", Mode: "100644", Content: "after"},
-						gittest.TreeEntry{Path: "added.txt", Mode: "100644", Content: "new"},
+						gittest.TreeEntry{Path: "left.txt", Mode: "100644", OID: beforeBlobID},
+						gittest.TreeEntry{Path: "right.txt", Mode: "100644", OID: afterBlobID},
+						gittest.TreeEntry{Path: "added.txt", Mode: "100644", OID: newBlobID},
 					),
 				)
 
@@ -295,14 +314,18 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				newBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("new"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				firstTree := gittest.WriteTree(t, cfg, repoPath,
 					[]gittest.TreeEntry{
-						{Path: "README.md", Mode: "100644", Content: "hello"},
+						{Path: "README.md", Mode: "100644", OID: beforeBlobID},
 					})
 				secondTree := gittest.WriteTree(t, cfg, repoPath,
 					[]gittest.TreeEntry{
-						{Path: "README.md", Mode: "100644", Content: "hi"},
-						{Path: "CONTRIBUTING.md", Mode: "100644", Content: "welcome"},
+						{Path: "README.md", Mode: "100644", OID: afterBlobID},
+						{Path: "CONTRIBUTING.md", Mode: "100644", OID: newBlobID},
 					})
 
 				expectedPaths := []*gitalypb.ChangedPaths{
@@ -331,31 +354,38 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				oldReadmeOid := gittest.WriteBlob(t, cfg, repoPath, []byte("old README.md"))
+				oldContributingOid := gittest.WriteBlob(t, cfg, repoPath, []byte("old CONTRIBUTING.md"))
+				leftContributingOid := gittest.WriteBlob(t, cfg, repoPath, []byte("left CONTRIBUTING.md"))
+				leftNewFileOid := gittest.WriteBlob(t, cfg, repoPath, []byte("left NEW_FILE.md"))
+				rightNewFileOid := gittest.WriteBlob(t, cfg, repoPath, []byte("right NEW_FILE.md"))
+				rightReadmeOid := gittest.WriteBlob(t, cfg, repoPath, []byte("right README.md"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "old README.md"},
-						gittest.TreeEntry{Path: "CONTRIBUTING.md", Mode: "100644", Content: "old CONTRIBUTING.md"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: oldReadmeOid},
+						gittest.TreeEntry{Path: "CONTRIBUTING.md", Mode: "100644", OID: oldContributingOid},
 					),
 				)
 				leftCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "old README.md"},
-						gittest.TreeEntry{Path: "NEW_FILE.md", Mode: "100644", Content: "left NEW_FILE.md"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: oldReadmeOid},
+						gittest.TreeEntry{Path: "NEW_FILE.md", Mode: "100644", OID: leftNewFileOid},
 					),
 				)
 				betweenCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "old README.md"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: oldReadmeOid},
 					),
 				)
 				rightCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(betweenCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "right README.md"},
-						gittest.TreeEntry{Path: "CONTRIBUTING.md", Mode: "100644", Content: "left CONTRIBUTING.md"},
-						gittest.TreeEntry{Path: "NEW_FILE.md", Mode: "100644", Content: "right NEW_FILE.md"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: rightReadmeOid},
+						gittest.TreeEntry{Path: "CONTRIBUTING.md", Mode: "100644", OID: leftContributingOid},
+						gittest.TreeEntry{Path: "NEW_FILE.md", Mode: "100644", OID: rightNewFileOid},
 					),
 				)
 
@@ -399,27 +429,34 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				newBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("new"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+				hiBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("hi"))
+				helloBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("hello"))
+				welcomeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("welcome"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				newCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "added.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "added.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 
 				firstTree := gittest.WriteTree(t, cfg, repoPath,
 					[]gittest.TreeEntry{
-						{Path: "README.md", Mode: "100644", Content: "hello"},
+						{Path: "README.md", Mode: "100644", OID: helloBlobID},
 					})
 				secondTree := gittest.WriteTree(t, cfg, repoPath,
 					[]gittest.TreeEntry{
-						{Path: "README.md", Mode: "100644", Content: "hi"},
-						{Path: "CONTRIBUTING.md", Mode: "100644", Content: "welcome"},
+						{Path: "README.md", Mode: "100644", OID: hiBlobID},
+						{Path: "CONTRIBUTING.md", Mode: "100644", OID: welcomeBlobID},
 					})
 
 				expectedPaths := []*gitalypb.ChangedPaths{
@@ -461,23 +498,27 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				newBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("new"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				betweenCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "added.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "added.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				newCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(betweenCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "added.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "added.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 				gittest.WriteTag(t, cfg, repoPath, "v1.0.0", newCommit.Revision())
@@ -508,16 +549,20 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				newBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("new"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				newCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "added.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "added.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 
@@ -547,30 +592,36 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+				leftBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("left"))
+				rightBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("right"))
+				leftRightBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("left\nright"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "common.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "common.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				leftCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "common.txt", Mode: "100644", Content: "before"},
-						gittest.TreeEntry{Path: "conflicted.txt", Mode: "100644", Content: "left"},
+						gittest.TreeEntry{Path: "common.txt", Mode: "100644", OID: beforeBlobID},
+						gittest.TreeEntry{Path: "conflicted.txt", Mode: "100644", OID: leftBlobID},
 					),
 				)
 				rightCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "common.txt", Mode: "100644", Content: "after"},
-						gittest.TreeEntry{Path: "conflicted.txt", Mode: "100644", Content: "right"},
+						gittest.TreeEntry{Path: "common.txt", Mode: "100644", OID: afterBlobID},
+						gittest.TreeEntry{Path: "conflicted.txt", Mode: "100644", OID: rightBlobID},
 					),
 				)
 				mergeCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(leftCommit, rightCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "common.txt", Mode: "100644", Content: "after"},
-						gittest.TreeEntry{Path: "conflicted.txt", Mode: "100644", Content: "left\nright"},
+						gittest.TreeEntry{Path: "common.txt", Mode: "100644", OID: afterBlobID},
+						gittest.TreeEntry{Path: "conflicted.txt", Mode: "100644", OID: leftRightBlobID},
 					),
 				)
 
@@ -602,39 +653,46 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("# Hello"))
+				blobID1 := gittest.WriteBlob(t, cfg, repoPath, []byte("# Hello\nWelcome"))
+				blobID2 := gittest.WriteBlob(t, cfg, repoPath, []byte("# Hello\nto"))
+				blobID3 := gittest.WriteBlob(t, cfg, repoPath, []byte("# Hello\nthis"))
+				blobID4 := gittest.WriteBlob(t, cfg, repoPath, []byte("# Hello\nproject"))
+				mergeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("# Hello\nWelcome to this project"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "# Hello"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: blobID},
 					),
 				)
 				commit1 := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "# Hello\nWelcome"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: blobID1},
 					),
 				)
 				commit2 := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "# Hello\nto"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: blobID2},
 					),
 				)
 				commit3 := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "# Hello\nthis"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: blobID3},
 					),
 				)
 				commit4 := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "# Hello\nproject"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: blobID4},
 					),
 				)
 				mergeCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit, commit1, commit2, commit3, commit4),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "README.md", Mode: "100644", Content: "# Hello\nWelcome to this project"},
+						gittest.TreeEntry{Path: "README.md", Mode: "100644", OID: mergeBlobID},
 					),
 				)
 
@@ -753,16 +811,20 @@ func TestFindChangedPathsRequest_deprecated(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				newBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("new"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				newCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "added.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "added.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 
@@ -792,31 +854,35 @@ func TestFindChangedPathsRequest_deprecated(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				newBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("new"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				leftCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "left.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "left.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 				rightCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "right.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "right.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				mergeCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(leftCommit, rightCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "right.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "left.txt", Mode: "100755", Content: "new"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "right.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "left.txt", Mode: "100755", OID: newBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 
@@ -853,17 +919,21 @@ func TestFindChangedPathsRequest_deprecated(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
+				renameBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("hello"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
 				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "rename-me.txt", Mode: "100644", Content: "hello"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "before"},
+						gittest.TreeEntry{Path: "rename-me.txt", Mode: "100644", OID: renameBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
 					),
 				)
 				newCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithParents(oldCommit),
 					gittest.WithTreeEntries(
-						gittest.TreeEntry{Path: "rename-you.txt", Mode: "100644", Content: "hello"},
-						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", Content: "after"},
+						gittest.TreeEntry{Path: "rename-you.txt", Mode: "100644", OID: renameBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
 					),
 				)
 
