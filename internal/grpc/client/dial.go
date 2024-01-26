@@ -19,6 +19,7 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type connectionType int
@@ -241,6 +242,27 @@ func defaultServiceConfig() string {
 		LoadBalancingConfig: []*gitalypb.LoadBalancingConfig{{
 			Policy: &gitalypb.LoadBalancingConfig_RoundRobin{},
 		}},
+		MethodConfig: []*gitalypb.MethodConfig{
+			{
+				Name: []*gitalypb.MethodConfig_Name{
+					{Service: "gitaly.SmartHTTPService", Method: "InfoRefsUploadPack"},
+					{Service: "gitaly.SmartHTTPService", Method: "PostUploadPack"},
+					{Service: "gitaly.SmartHTTPService", Method: "PostUploadPackWithSidechannel"},
+					{Service: "gitaly.SSHService", Method: "SSHUploadArchive"},
+					{Service: "gitaly.SSHService", Method: "SSHUploadPack"},
+					{Service: "gitaly.SSHService", Method: "SSHUploadPackWithSidechannel"},
+				},
+				// This should be kept in sync with the RetryPolicy used by rails in the GitLab project
+				// in lib/gitlab/gitaly_client.rb.
+				RetryPolicy: &gitalypb.MethodConfig_RetryPolicy{
+					MaxAttempts:          4,
+					InitialBackoff:       durationpb.New(time.Millisecond * 400),
+					MaxBackoff:           durationpb.New(time.Millisecond * 1400),
+					BackoffMultiplier:    2,
+					RetryableStatusCodes: []string{"UNAVAILABLE"},
+				},
+			},
+		},
 	}
 	configJSON, err := protojson.Marshal(serviceConfig)
 	if err != nil {
