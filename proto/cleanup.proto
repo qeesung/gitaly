@@ -31,6 +31,7 @@ service CleanupService {
   //      remove or redaction patterns to redact.
   //    - A blob object ID is invalid.
   //    - A redaction pattern contains a newline character.
+  // - `Aborted` if the repository is mutated while this RPC is executing.
   rpc RewriteHistory(stream RewriteHistoryRequest) returns (RewriteHistoryResponse) {
     option (op_type) = {
       op : MUTATOR

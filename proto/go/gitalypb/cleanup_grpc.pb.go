@@ -38,6 +38,8 @@ type CleanupServiceClient interface {
 	//     remove or redaction patterns to redact.
 	//   - A blob object ID is invalid.
 	//   - A redaction pattern contains a newline character.
+	//
+	// - `Aborted` if the repository is mutated while this RPC is executing.
 	RewriteHistory(ctx context.Context, opts ...grpc.CallOption) (CleanupService_RewriteHistoryClient, error)
 }
 
@@ -134,6 +136,8 @@ type CleanupServiceServer interface {
 	//     remove or redaction patterns to redact.
 	//   - A blob object ID is invalid.
 	//   - A redaction pattern contains a newline character.
+	//
+	// - `Aborted` if the repository is mutated while this RPC is executing.
 	RewriteHistory(CleanupService_RewriteHistoryServer) error
 	mustEmbedUnimplementedCleanupServiceServer()
 }
