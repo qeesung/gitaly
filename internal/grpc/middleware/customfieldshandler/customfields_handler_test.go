@@ -7,7 +7,6 @@ import (
 	"net"
 	"testing"
 
-	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
@@ -32,14 +31,18 @@ func createNewServer(t *testing.T, cfg config.Cfg, logger log.Logger) *grpc.Serv
 		grpc.ChainStreamInterceptor(
 			StreamInterceptor,
 			logger.StreamServerInterceptor(
-				grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
-				grpcmwlogrus.WithMessageProducer(log.MessageProducer(grpcmwlogrus.DefaultMessageProducer, FieldsProducer))),
+				log.DefaultInterceptorLogger(logger),
+				log.WithTimestampFormat(log.LogTimestampFormat),
+				log.WithFiledProducers(FieldsProducer),
+			),
 		),
 		grpc.ChainUnaryInterceptor(
 			UnaryInterceptor,
 			logger.UnaryServerInterceptor(
-				grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
-				grpcmwlogrus.WithMessageProducer(log.MessageProducer(grpcmwlogrus.DefaultMessageProducer, FieldsProducer))),
+				log.DefaultInterceptorLogger(logger),
+				log.WithTimestampFormat(log.LogTimestampFormat),
+				log.WithFiledProducers(FieldsProducer),
+			),
 		),
 	}
 
@@ -146,10 +149,10 @@ func TestInterceptor(t *testing.T) {
 			tt.performRPC(t, ctx, client)
 
 			logEntries := hook.AllEntries()
-			require.Len(t, logEntries, 1)
+			require.Len(t, logEntries, 2) // 1 for the starting RPC call, 1 for finishing it
 			for expectedLogKey, expectedLogValue := range tt.expectedLogData {
-				require.Contains(t, logEntries[0].Data, expectedLogKey)
-				require.Equal(t, logEntries[0].Data[expectedLogKey], expectedLogValue)
+				require.Contains(t, logEntries[1].Data, expectedLogKey)
+				require.Equal(t, logEntries[1].Data[expectedLogKey], expectedLogValue)
 			}
 		})
 	}

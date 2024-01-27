@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
@@ -197,18 +196,10 @@ func (i *RequestInfo) extractRequestInfo(request any) {
 }
 
 func (i *RequestInfo) injectTags(ctx context.Context) context.Context {
-	tags := grpcmwtags.NewTags()
-
 	for key, value := range i.Tags() {
 		ctx = logging.InjectLogField(ctx, key, value)
-		tags.Set(key, value)
+		// tags.Set(key, value)
 	}
-
-	// This maintains backward compatibility for tags in the v1 grpc-go-middleware.
-	// This can be removed when the v1 interceptors are removed:
-	// https://gitlab.com/gitlab-org/gitaly/-/work_items/5661
-	ctx = grpcmwtags.SetInContext(ctx, tags)
-
 	return ctx
 }
 

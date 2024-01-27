@@ -5,87 +5,36 @@ import (
 	"testing"
 
 	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	grpcmwloggingv2 "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/stats"
 )
-
-func TestMessageProducer(t *testing.T) {
-	triggered := false
-
-	attachedFields := Fields{"e": "stub"}
-	msgProducer := MessageProducer(func(c context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
-		require.Equal(t, createContext(), c)
-		require.Equal(t, "format-stub", format)
-		require.Equal(t, logrus.DebugLevel, level)
-		require.Equal(t, codes.OutOfRange, code)
-		require.Equal(t, assert.AnError, err)
-		require.Equal(t, attachedFields, fields)
-		triggered = true
-	})
-	msgProducer(createContext(), "format-stub", logrus.DebugLevel, codes.OutOfRange, assert.AnError, attachedFields)
-
-	require.True(t, triggered)
-}
-
-func TestMessageProducerWithFieldsProducers(t *testing.T) {
-	triggered := false
-
-	var infoFromCtx struct{}
-	ctx := createContext()
-	ctx = context.WithValue(ctx, infoFromCtx, "world")
-
-	fieldsProducer1 := func(context.Context, error) Fields {
-		return Fields{"a": 1}
-	}
-	fieldsProducer2 := func(context.Context, error) Fields {
-		return Fields{"b": "test"}
-	}
-	fieldsProducer3 := func(ctx context.Context, err error) Fields {
-		return Fields{"c": err.Error()}
-	}
-	fieldsProducer4 := func(ctx context.Context, err error) Fields {
-		return Fields{"d": ctx.Value(infoFromCtx)}
-	}
-	attachedFields := Fields{"e": "stub"}
-
-	msgProducer := MessageProducer(func(c context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
-		require.Equal(t, Fields{"a": 1, "b": "test", "c": err.Error(), "d": "world", "e": "stub"}, fields)
-		triggered = true
-	}, fieldsProducer1, fieldsProducer2, fieldsProducer3, fieldsProducer4)
-	msgProducer(ctx, "format-stub", logrus.InfoLevel, codes.OK, assert.AnError, attachedFields)
-
-	require.True(t, triggered)
-}
 
 func TestPropagationMessageProducer(t *testing.T) {
 	t.Run("empty context", func(t *testing.T) {
 		ctx := createContext()
-		mp := PropagationMessageProducer(func(context.Context, string, logrus.Level, codes.Code, error, Fields) {})
-		mp(ctx, "", logrus.DebugLevel, codes.OK, nil, nil)
+		mp := PropagationMessageProducer(func(context.Context, grpcmwloggingv2.Level, string, ...any) {})
+		mp(ctx, grpcmwloggingv2.LevelDebug, "", nil, nil)
 	})
 
 	t.Run("context with holder", func(t *testing.T) {
 		holder := new(messageProducerHolder)
 		ctx := context.WithValue(createContext(), messageProducerHolderKey{}, holder)
 		triggered := false
-		mp := PropagationMessageProducer(func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
+		mp := PropagationMessageProducer(func(context.Context, grpcmwloggingv2.Level, string, ...any) {
 			triggered = true
 		})
-		mp(ctx, "format-stub", logrus.DebugLevel, codes.OutOfRange, assert.AnError, Fields{"a": 1})
-		require.Equal(t, "format-stub", holder.format)
-		require.Equal(t, logrus.DebugLevel, holder.level)
-		require.Equal(t, codes.OutOfRange, holder.code)
-		require.Equal(t, assert.AnError, holder.err)
-		require.Equal(t, Fields{"a": 1}, holder.fields)
-		holder.actual(ctx, "", logrus.DebugLevel, codes.OK, nil, nil)
+		mp(ctx, grpcmwloggingv2.LevelDebug, "format-stub", grpcmwloggingv2.Fields{"a", 1}...)
+		require.Equal(t, "format-stub", holder.msg)
+		require.Equal(t, grpcmwloggingv2.LevelDebug, holder.level)
+		require.Equal(t, grpcmwloggingv2.Fields{"a", 1}, holder.fields)
+		holder.actual(ctx, grpcmwloggingv2.LevelDebug, "", nil, nil)
 		require.True(t, triggered)
 	})
 }
@@ -98,7 +47,6 @@ func TestPerRPCLogHandler(t *testing.T) {
 		FieldProducers: []FieldsProducer{
 			func(ctx context.Context, err error) Fields { return Fields{"a": 1} },
 			func(ctx context.Context, err error) Fields { return Fields{"b": "2"} },
-			func(ctx context.Context, err error) Fields { return Fields{"c": err.Error()} },
 		},
 	}
 
@@ -127,16 +75,12 @@ func TestPerRPCLogHandler(t *testing.T) {
 		ctx := ctxlogrus.ToContext(createContext(), logrus.NewEntry(newLogger()))
 		ctx = lh.TagRPC(ctx, &stats.RPCTagInfo{})
 		mpp := ctx.Value(messageProducerHolderKey{}).(*messageProducerHolder)
-		mpp.format = "message"
-		mpp.level = logrus.InfoLevel
-		mpp.code = codes.InvalidArgument
-		mpp.err = assert.AnError
-		mpp.actual = func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
-			assert.Equal(t, "message", format)
-			assert.Equal(t, logrus.InfoLevel, level)
-			assert.Equal(t, codes.InvalidArgument, code)
-			assert.Equal(t, assert.AnError, err)
-			assert.Equal(t, Fields{"a": 1, "b": "2", "c": mpp.err.Error()}, mpp.fields)
+		mpp.msg = "message"
+		mpp.level = grpcmwloggingv2.LevelInfo
+		mpp.actual = func(ctx context.Context, level grpcmwloggingv2.Level, msg string, fields ...any) {
+			assert.Equal(t, "message", msg)
+			assert.Equal(t, grpcmwloggingv2.LevelInfo, level)
+			assert.Equal(t, grpcmwloggingv2.Fields{"a", 1, "b", "2"}, mpp.fields)
 		}
 		lh.HandleRPC(ctx, &stats.End{})
 	})
@@ -194,7 +138,7 @@ func TestUnaryLogDataCatcherServerInterceptor(t *testing.T) {
 		ctx = ctxlogrus.ToContext(ctx, newLogger().WithField("a", 1))
 		interceptor := UnaryLogDataCatcherServerInterceptor()
 		_, _ = interceptor(ctx, nil, nil, handlerStub)
-		assert.Equal(t, Fields{"a": 1}, mpp.fields)
+		assert.Equal(t, grpcmwloggingv2.Fields{"a", 1}, mpp.fields)
 	})
 }
 
@@ -226,7 +170,7 @@ func TestStreamLogDataCatcherServerInterceptor(t *testing.T) {
 		interceptor := StreamLogDataCatcherServerInterceptor()
 		ss := &grpcmw.WrappedServerStream{WrappedContext: ctx}
 		_ = interceptor(nil, ss, nil, func(interface{}, grpc.ServerStream) error { return nil })
-		assert.Equal(t, Fields{"a": 1}, mpp.fields)
+		assert.Equal(t, grpcmwloggingv2.Fields{"a", 1}, mpp.fields)
 	})
 }
 
@@ -285,7 +229,10 @@ func TestLogDeciderOption_logByRegexpMatch(t *testing.T) {
 			t.Setenv("GITALY_LOG_REQUEST_METHOD_ALLOW_PATTERN", tc.only)
 
 			logger, hook := test.NewNullLogger()
-			interceptor := grpcmwlogrus.UnaryServerInterceptor(logrus.NewEntry(logger), DeciderOption())
+			gitalyLogger := FromLogrusEntry(logrus.NewEntry(logger))
+
+			interceptor := grpcmwloggingv2.UnaryServerInterceptor(DefaultInterceptorLogger(gitalyLogger))
+			interceptor = selector.UnaryServerInterceptor(interceptor, *DeciderMatcher())
 
 			ctx := createContext()
 			for _, methodName := range methodNames {
@@ -301,9 +248,15 @@ func TestLogDeciderOption_logByRegexpMatch(t *testing.T) {
 			}
 
 			entries := hook.AllEntries()
-			require.Len(t, entries, len(tc.shouldLogMethods))
-			for idx, entry := range entries {
-				require.Equal(t, entry.Message, "finished unary call with code OK")
+			finishingCallEntries := make([]*logrus.Entry, 0)
+			for _, entry := range entries {
+				if entry.Message == "finished call" {
+					finishingCallEntries = append(finishingCallEntries, entry)
+				}
+			}
+
+			require.Len(t, finishingCallEntries, len(tc.shouldLogMethods))
+			for idx, entry := range finishingCallEntries {
 				require.Equal(t, entry.Data["grpc.method"], tc.shouldLogMethods[idx])
 			}
 		})

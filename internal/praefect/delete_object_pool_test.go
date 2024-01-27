@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -72,7 +71,8 @@ func TestDeleteObjectPoolHandler(t *testing.T) {
 	logger := testhelper.NewLogger(t)
 	hook := testhelper.AddLoggerHook(logger)
 	praefectSrv := grpc.NewServer(grpc.ChainStreamInterceptor(
-		logger.StreamServerInterceptor(grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat)),
+		logger.StreamServerInterceptor(log.DefaultInterceptorLogger(logger),
+			log.WithTimestampFormat(log.LogTimestampFormat)),
 	))
 	praefectSrv.RegisterService(&grpc.ServiceDesc{
 		ServiceName: "gitaly.ObjectPoolService",
@@ -106,8 +106,8 @@ func TestDeleteObjectPoolHandler(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	require.Len(t, hook.AllEntries(), 2, "expected a log entry for failed deletion")
-	entry := hook.AllEntries()[0]
+	require.Len(t, hook.AllEntries(), 3, "expected a log entry for failed deletion")
+	entry := hook.AllEntries()[1]
 	require.Equal(t, "failed deleting repository", entry.Message)
 	require.Equal(t, repo.StorageName, entry.Data["virtual_storage"])
 	require.Equal(t, repo.RelativePath, entry.Data["relative_path"])

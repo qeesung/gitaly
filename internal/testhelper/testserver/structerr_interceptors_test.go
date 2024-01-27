@@ -7,7 +7,6 @@ import (
 	"net"
 	"testing"
 
-	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
@@ -95,14 +94,7 @@ func TestFieldsProducer(t *testing.T) {
 	service := &mockService{}
 	server := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			logger.UnaryServerInterceptor(
-				grpcmwlogrus.WithMessageProducer(
-					log.MessageProducer(
-						grpcmwlogrus.DefaultMessageProducer,
-						structerr.FieldsProducer,
-					),
-				),
-			),
+			logger.UnaryServerInterceptor(log.DefaultInterceptorLogger(logger), log.WithFiledProducers(structerr.FieldsProducer)),
 		),
 	)
 	grpc_testing.RegisterTestServiceServer(server, service)

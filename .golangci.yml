@@ -3,6 +3,9 @@ run:
   # timeout for analysis, e.g. 30s, 5m, default is 1m
   timeout: 10m
   modules-download-mode: readonly
+  skip-files:
+    # ignore mock_proto_message.pb.go, since it is a generated file for testing
+    - internal/testhelper/testprotomessage/mock_proto_message.pb.go
 
 # list of useful linters could be found at https://github.com/golangci/awesome-go-linters
 linters:

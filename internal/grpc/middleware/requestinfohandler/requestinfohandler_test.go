@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/stretchr/testify/require"
 	gitalylog "gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -283,18 +282,6 @@ func TestGRPCTags(t *testing.T) {
 			"grpc.meta.method_scope":     "repository",
 			"grpc.request.fullMethod":    "/gitaly.RepositoryService/OptimizeRepository",
 		}, gitalylog.ConvertLoggingFields(fields))
-
-		legacyFields := grpcmwtags.Extract(ctx).Values()
-
-		require.Equal(t, map[string]any{
-			"correlation_id":             correlationID,
-			"grpc.meta.client_name":      clientName,
-			"grpc.meta.deadline_type":    "none",
-			"grpc.meta.method_type":      "unary",
-			"grpc.meta.method_operation": "maintenance",
-			"grpc.meta.method_scope":     "repository",
-			"grpc.request.fullMethod":    "/gitaly.RepositoryService/OptimizeRepository",
-		}, legacyFields)
 
 		return nil, nil
 	})

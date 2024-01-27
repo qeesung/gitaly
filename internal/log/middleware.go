@@ -4,13 +4,11 @@ import (
 	"context"
 	"regexp"
 
-	grpcmwlogging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
-	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	grpcmwloggingv2 "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	"github.com/sirupsen/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/env"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/stats"
 )
 
@@ -19,26 +17,21 @@ const (
 	defaultLogRequestMethodDenyPattern  = "^/grpc.health.v1.Health/Check$"
 )
 
-// DeciderOption returns a Option to support log filtering.
+// DeciderMatcher is used as a selector to support log filtering.
 // If "GITALY_LOG_REQUEST_METHOD_DENY_PATTERN" ENV variable is set, logger will filter out the log whose "fullMethodName" matches it;
 // If "GITALY_LOG_REQUEST_METHOD_ALLOW_PATTERN" ENV variable is set, logger will only keep the log whose "fullMethodName" matches it;
 // Under any conditions, the error log will not be filtered out;
 // If the ENV variables are not set, there will be no additional effects.
-func DeciderOption() grpcmwlogrus.Option {
+// Replacing old DeciderOption
+func DeciderMatcher() *selector.Matcher {
 	matcher := methodNameMatcherFromEnv()
-
-	if matcher == nil {
-		return grpcmwlogrus.WithDecider(grpcmwlogging.DefaultDeciderMethod)
-	}
-
-	decider := func(fullMethodName string, err error) bool {
-		if err != nil {
+	matcherFunc := selector.MatchFunc(func(_ context.Context, callMeta interceptors.CallMeta) bool {
+		if matcher == nil {
 			return true
 		}
-		return matcher(fullMethodName)
-	}
-
-	return grpcmwlogrus.WithDecider(decider)
+		return matcher(callMeta.FullMethod())
+	})
+	return &matcherFunc
 }
 
 func methodNameMatcherFromEnv() func(string) bool {
@@ -67,27 +60,12 @@ func methodNameMatcherFromEnv() func(string) bool {
 // the result of RPC handling.
 type FieldsProducer func(context.Context, error) Fields
 
-// MessageProducer returns a wrapper that extends passed mp to accept additional fields generated
-// by each of the fieldsProducers.
-func MessageProducer(mp grpcmwlogrus.MessageProducer, fieldsProducers ...FieldsProducer) grpcmwlogrus.MessageProducer {
-	return func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
-		for _, fieldsProducer := range fieldsProducers {
-			for key, val := range fieldsProducer(ctx, err) {
-				fields[key] = val
-			}
-		}
-		mp(ctx, format, level, code, err, fields)
-	}
-}
-
 type messageProducerHolder struct {
 	logger LogrusLogger
-	actual grpcmwlogrus.MessageProducer
-	format string
-	level  logrus.Level
-	code   codes.Code
-	err    error
-	fields Fields
+	actual grpcmwloggingv2.LoggerFunc
+	msg    string
+	level  grpcmwloggingv2.Level
+	fields grpcmwloggingv2.Fields
 }
 
 type messageProducerHolderKey struct{}
@@ -106,8 +84,8 @@ func messageProducerPropagationFrom(ctx context.Context) *messageProducerHolder 
 // PropagationMessageProducer catches logging information from the context and populates it
 // to the special holder that should be present in the context.
 // Should be used only in combination with PerRPCLogHandler.
-func PropagationMessageProducer(actual grpcmwlogrus.MessageProducer) grpcmwlogrus.MessageProducer {
-	return func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
+func PropagationMessageProducer(actual grpcmwloggingv2.LoggerFunc) grpcmwloggingv2.LoggerFunc {
+	return func(ctx context.Context, level grpcmwloggingv2.Level, msg string, fields ...any) {
 		mpp := messageProducerPropagationFrom(ctx)
 		if mpp == nil {
 			return
@@ -115,10 +93,8 @@ func PropagationMessageProducer(actual grpcmwlogrus.MessageProducer) grpcmwlogru
 		*mpp = messageProducerHolder{
 			logger: fromContext(ctx),
 			actual: actual,
-			format: format,
+			msg:    msg,
 			level:  level,
-			code:   code,
-			err:    err,
 			fields: fields,
 		}
 	}
@@ -159,11 +135,16 @@ func (lh PerRPCLogHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
 		}
 
 		if mpp.fields == nil {
-			mpp.fields = Fields{}
+			mpp.fields = grpcmwloggingv2.Fields{}
 		}
 		for _, fp := range lh.FieldProducers {
-			for k, v := range fp(ctx, mpp.err) {
-				mpp.fields[k] = v
+			for k, v := range fp(ctx, nil) {
+				// The message producers can have fields with updated values, for example
+				// grpc.response.payload_bytes increased from 0 to 100. In this case we need
+				// update the value of the field instead of appending it. The grpc middleware v2 logging
+				// fields don't support update, so we need to delete the field and append it again.
+				mpp.fields.Delete(k)
+				mpp.fields = mpp.fields.AppendUnique(grpcmwloggingv2.Fields{k, v})
 			}
 		}
 		// Once again because all interceptors are finished and context doesn't contain
@@ -171,7 +152,8 @@ func (lh PerRPCLogHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
 		// It's needed because github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus.DefaultMessageProducer
 		// extracts logger from the context and use it to write the logs.
 		ctx = mpp.logger.toContext(ctx)
-		mpp.actual(ctx, mpp.format, mpp.level, mpp.code, mpp.err, mpp.fields)
+		mpp.actual(ctx, mpp.level, mpp.msg, mpp.fields...)
+
 		return
 	}
 }
@@ -191,7 +173,9 @@ func UnaryLogDataCatcherServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		mpp := messageProducerPropagationFrom(ctx)
 		if mpp != nil {
-			mpp.fields = fromContext(ctx).entry.Data
+			for k, v := range fromContext(ctx).entryWrapper.entry.Data {
+				mpp.fields = mpp.fields.AppendUnique(grpcmwloggingv2.Fields{k, v})
+			}
 		}
 		return handler(ctx, req)
 	}
@@ -204,7 +188,9 @@ func StreamLogDataCatcherServerInterceptor() grpc.StreamServerInterceptor {
 		ctx := ss.Context()
 		mpp := messageProducerPropagationFrom(ctx)
 		if mpp != nil {
-			mpp.fields = fromContext(ctx).entry.Data
+			for k, v := range fromContext(ctx).entryWrapper.entry.Data {
+				mpp.fields = mpp.fields.AppendUnique(grpcmwloggingv2.Fields{k, v})
+			}
 		}
 		return handler(srv, ss)
 	}
@@ -222,4 +208,21 @@ func ConvertLoggingFields(fields grpcmwloggingv2.Fields) map[string]any {
 		fieldsMap[k] = v
 	}
 	return fieldsMap
+}
+
+// DefaultInterceptorLogger adapts gitaly's logger interface to grpc middleware logger function.
+func DefaultInterceptorLogger(l Logger) grpcmwloggingv2.LoggerFunc {
+	return func(c context.Context, level grpcmwloggingv2.Level, msg string, fields ...any) {
+		f := ConvertLoggingFields(fields)
+		switch level {
+		case grpcmwloggingv2.LevelDebug:
+			l.ReplaceFields(f).Debug(msg)
+		case grpcmwloggingv2.LevelInfo:
+			l.ReplaceFields(f).Info(msg)
+		case grpcmwloggingv2.LevelWarn:
+			l.ReplaceFields(f).Warn(msg)
+		case grpcmwloggingv2.LevelError:
+			l.ReplaceFields(f).Error(msg)
+		}
+	}
 }

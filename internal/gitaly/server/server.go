@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/server/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
@@ -89,15 +88,7 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 		[]grpc.DialOption{client.UnaryInterceptor()},
 	))
 
-	logMsgProducer := grpcmwlogrus.WithMessageProducer(
-		gitalylog.MessageProducer(
-			gitalylog.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
-			customfieldshandler.FieldsProducer,
-			grpcstats.FieldsProducer,
-			featureflag.FieldsProducer,
-			structerr.FieldsProducer,
-		),
-	)
+	loggerFunc := gitalylog.PropagationMessageProducer(gitalylog.DefaultInterceptorLogger(s.logger))
 
 	streamServerInterceptors := []grpc.StreamServerInterceptor{
 		grpccorrelation.StreamServerCorrelationInterceptor(), // Must be above the metadata handler
@@ -105,9 +96,15 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 		grpcprometheus.StreamServerInterceptor,
 		customfieldshandler.StreamInterceptor,
 		s.logger.WithField("component", "gitaly.StreamServerInterceptor").StreamServerInterceptor(
-			grpcmwlogrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
-			logMsgProducer,
-			gitalylog.DeciderOption(),
+			loggerFunc,
+			gitalylog.WithMatcher(gitalylog.DeciderMatcher()),
+			gitalylog.WithTimestampFormat(gitalylog.LogTimestampFormat),
+			gitalylog.WithFiledProducers(
+				customfieldshandler.FieldsProducer,
+				grpcstats.FieldsProducer,
+				featureflag.FieldsProducer,
+				structerr.FieldsProducer,
+			),
 		),
 		gitalylog.StreamLogDataCatcherServerInterceptor(),
 		sentryhandler.StreamLogHandler(),
@@ -119,10 +116,16 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 		requestinfohandler.UnaryInterceptor,
 		grpcprometheus.UnaryServerInterceptor,
 		customfieldshandler.UnaryInterceptor,
-		s.logger.WithField("component", "gitaly.UnaryServerInterceptor").UnaryServerInterceptor(
-			grpcmwlogrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
-			logMsgProducer,
-			gitalylog.DeciderOption(),
+		s.logger.WithField("component", "gitaly.StreamServerInterceptor").UnaryServerInterceptor(
+			loggerFunc,
+			gitalylog.WithMatcher(gitalylog.DeciderMatcher()),
+			gitalylog.WithTimestampFormat(gitalylog.LogTimestampFormat),
+			gitalylog.WithFiledProducers(
+				customfieldshandler.FieldsProducer,
+				grpcstats.FieldsProducer,
+				featureflag.FieldsProducer,
+				structerr.FieldsProducer,
+			),
 		),
 		gitalylog.UnaryLogDataCatcherServerInterceptor(),
 		sentryhandler.UnaryLogHandler(),

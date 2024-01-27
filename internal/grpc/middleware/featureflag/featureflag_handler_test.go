@@ -5,7 +5,6 @@ import (
 	"net"
 	"testing"
 
-	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -38,15 +37,9 @@ func TestFeatureFlagLogs(t *testing.T) {
 	service := &mockService{}
 	server := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			grpcmwlogrus.UnaryServerInterceptor(
-				logger.LogrusEntry(), //nolint:staticcheck
-				grpcmwlogrus.WithMessageProducer(
-					log.MessageProducer(
-						grpcmwlogrus.DefaultMessageProducer,
-						FieldsProducer,
-					),
-				),
-			),
+			logger.UnaryServerInterceptor(
+				log.DefaultInterceptorLogger(logger),
+				log.WithFiledProducers(FieldsProducer)),
 		),
 	)
 	grpc_testing.RegisterTestServiceServer(server, service)
@@ -126,10 +119,14 @@ func TestFeatureFlagLogs(t *testing.T) {
 			testhelper.RequireGrpcError(t, tc.returnedErr, err)
 
 			for _, logEntry := range loggerHook.AllEntries() {
-				if tc.expectedFields == "" {
-					require.NotContains(t, logEntry.Data, "feature_flags")
-				} else {
-					require.Equal(t, tc.expectedFields, logEntry.Data["feature_flags"])
+				// We will have 2 log entries for each RPC call, one for starting and one for finishing,
+				// and we only want to check the finishing one.
+				if logEntry.Message != "started call" {
+					if tc.expectedFields == "" {
+						require.NotContains(t, logEntry.Data, "feature_flags")
+					} else {
+						require.Equal(t, tc.expectedFields, logEntry.Data["feature_flags"])
+					}
 				}
 			}
 		})

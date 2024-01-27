@@ -7,7 +7,7 @@ package praefect
 import (
 	"time"
 
-	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpcmwloggingv2 "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/server/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
@@ -44,17 +44,14 @@ import (
 // NewBackchannelServerFactory returns a ServerFactory that serves the RefTransactionServer on the backchannel
 // connection.
 func NewBackchannelServerFactory(logger log.Logger, refSvc gitalypb.RefTransactionServer, registry *sidechannel.Registry) backchannel.ServerFactory {
-	logMsgProducer := log.MessageProducer(
-		log.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
-		structerr.FieldsProducer,
-	)
-
 	return func() backchannel.Server {
 		lm := listenmux.New(insecure.NewCredentials())
 		lm.Register(sidechannel.NewServerHandshaker(registry))
 		srv := grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
-				commonUnaryServerInterceptors(logger.WithField("component", "backchannel.PraefectServer"), logMsgProducer)...,
+				commonUnaryServerInterceptors(logger.WithField("component", "backchannel.PraefectServer"),
+					log.PropagationMessageProducer(log.DefaultInterceptorLogger(logger)),
+					structerr.FieldsProducer)...,
 			),
 			grpc.Creds(lm),
 		)
@@ -64,15 +61,16 @@ func NewBackchannelServerFactory(logger log.Logger, refSvc gitalypb.RefTransacti
 	}
 }
 
-func commonUnaryServerInterceptors(logger log.Logger, messageProducer grpcmwlogrus.MessageProducer) []grpc.UnaryServerInterceptor {
+func commonUnaryServerInterceptors(logger log.Logger, loggerFunc grpcmwloggingv2.Logger, producers ...log.FieldsProducer) []grpc.UnaryServerInterceptor {
 	return []grpc.UnaryServerInterceptor{
 		grpccorrelation.UnaryServerCorrelationInterceptor(), // Must be above the metadata handler
 		requestinfohandler.UnaryInterceptor,
 		grpcprometheus.UnaryServerInterceptor,
 		logger.UnaryServerInterceptor(
-			grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
-			grpcmwlogrus.WithMessageProducer(messageProducer),
-			log.DeciderOption(),
+			loggerFunc,
+			log.WithMatcher(log.DeciderMatcher()),
+			log.WithTimestampFormat(log.LogTimestampFormat),
+			log.WithFiledProducers(producers...),
 		),
 		sentryhandler.UnaryLogHandler(),
 		statushandler.Unary, // Should be below LogHandler
@@ -117,13 +115,12 @@ func NewGRPCServer(
 		opt(&serverCfg)
 	}
 
-	logMsgProducer := log.MessageProducer(
-		log.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
-		structerr.FieldsProducer,
-	)
-
 	unaryInterceptors := append(
-		commonUnaryServerInterceptors(deps.Logger.WithField("component", "praefect.UnaryServerInterceptor"), logMsgProducer),
+		commonUnaryServerInterceptors(
+			deps.Logger.WithField("component", "praefect.UnaryServerInterceptor"),
+			log.PropagationMessageProducer(log.DefaultInterceptorLogger(deps.Logger)),
+			structerr.FieldsProducer,
+		),
 		middleware.MethodTypeUnaryInterceptor(deps.Registry, deps.Logger),
 		auth.UnaryServerInterceptor(deps.Config.Auth),
 	)
@@ -135,9 +132,9 @@ func NewGRPCServer(
 		requestinfohandler.StreamInterceptor,
 		grpcprometheus.StreamServerInterceptor,
 		deps.Logger.WithField("component", "praefect.StreamServerInterceptor").StreamServerInterceptor(
-			grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
-			grpcmwlogrus.WithMessageProducer(logMsgProducer),
-			log.DeciderOption(),
+			log.DefaultInterceptorLogger(deps.Logger),
+			log.WithMatcher(log.DeciderMatcher()),
+			log.WithFiledProducers(structerr.FieldsProducer),
 		),
 		sentryhandler.StreamLogHandler(),
 		statushandler.Stream, // Should be below LogHandler
