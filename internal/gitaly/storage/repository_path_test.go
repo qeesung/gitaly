@@ -19,6 +19,11 @@ func TestDerivePoolPath(t *testing.T) {
 	require.Equal(t, "@cluster/pools/d4/73/2", storage.DerivePoolPath(2))
 }
 
+func TestDeriveBlobOffloadPath(t *testing.T) {
+	require.Equal(t, "@cluster/blob_offloads/6b/86/1", storage.DeriveBlobOffloadPath(1))
+	require.Equal(t, "@cluster/blob_offloads/d4/73/2", storage.DeriveBlobOffloadPath(2))
+}
+
 func TestIsPoolRepository(t *testing.T) {
 	t.Parallel()
 
@@ -110,6 +115,61 @@ func TestIsPoolRepository(t *testing.T) {
 			t.Run("generic", func(t *testing.T) {
 				require.Equal(t, tc.isRailsPoolPath || tc.isPraefectPoolPath, storage.IsPoolRepository(tc.repo))
 			})
+		})
+	}
+}
+
+func TestBlobOffloadPath(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		desc               string
+		repo               *gitalypb.Repository
+		blobOffloadPath    string
+	} {
+		{
+			desc:               "missing repository",
+			blobOffloadPath: "",
+		},
+		{
+			desc: "empty string list",
+			repo: &gitalypb.Repository{
+				GitAlternateObjectDirectories: []string{ },
+			},
+			blobOffloadPath: "",
+		},
+		{
+			desc: "list with empty string",
+			repo: &gitalypb.Repository{
+				GitAlternateObjectDirectories: []string{ "" },
+			},
+			blobOffloadPath: "",
+		},
+		{
+			desc: "blob offload path",
+			repo: &gitalypb.Repository{
+				GitAlternateObjectDirectories: []string{ storage.DeriveBlobOffloadPath(1) },
+			},
+			blobOffloadPath: storage.DeriveBlobOffloadPath(1),
+		},
+		{
+			desc: "invalid blob offload path",
+			repo: &gitalypb.Repository{
+				GitAlternateObjectDirectories: []string{ storage.DerivePoolPath(1) },
+			},
+			blobOffloadPath: "",
+		},
+		{
+			desc: "mixed valid and invalid blob offload path",
+			repo: &gitalypb.Repository{
+				GitAlternateObjectDirectories: []string{ storage.DerivePoolPath(1), "",
+					storage.DeriveBlobOffloadPath(2), "" },
+			},
+			blobOffloadPath: storage.DeriveBlobOffloadPath(2),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			require.Equal(t, tc.blobOffloadPath, storage.BlobOffloadPath(tc.repo))
 		})
 	}
 }

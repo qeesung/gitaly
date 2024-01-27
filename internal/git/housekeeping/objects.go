@@ -51,6 +51,23 @@ const (
 	RepackObjectsStrategyGeometric = RepackObjectsStrategy("geometric")
 )
 
+// FilterBlobAction defines what we want to do regarding blob offloading.
+type FilterBlobAction string
+
+const (
+	// FilterBlobActionNoChange means that we should filter blobs only if such filtering is already
+	// setup, and we shouldn't change the blob filtering setup.
+	FilterBlobActionNoChange = FilterBlobAction("no_change")
+	// FilterBlobActionStartFilteringAll means that we should setup filtering all blobs and perform
+	// such filtering. If blob filtering is already setup, this should be the same as
+	// FilterBlobActionNoChange.
+	FilterBlobActionStartFilteringAll = FilterBlobAction("start_filtering_all_blobs")
+	// FilterBlobActionStopFilteringAny means that we should remove any setup for filtering all blobs,
+	// stop performing such filtering and repack all the blobs with the other Git objects. If blob
+	// filtering is not already setup, this should be the same as FilterBlobActionNoChange.
+	FilterBlobActionStopFilteringAny = FilterBlobAction("stop_filtering_any_blob")
+)
+
 // RepackObjectsConfig is configuration for RepackObjects.
 type RepackObjectsConfig struct {
 	// Strategy determines the strategy with which to repack objects.
@@ -61,6 +78,9 @@ type RepackObjectsConfig struct {
 	WriteBitmap bool
 	// WriteMultiPackIndex determines whether a multi-pack index should be written or not.
 	WriteMultiPackIndex bool
+	// FilterBlobs determines if we want to start or stop filtering out blobs into a separate
+	// packfile, or if we want to continue doing what we already do regarding blob filtering.
+	FilterBlobs FilterBlobAction
 	// CruftExpireBefore determines the cutoff date before which unreachable cruft objects shall
 	// be expired and thus deleted.
 	CruftExpireBefore time.Time
@@ -255,9 +275,46 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 	}
 }
 
+func appendBlobFilterOptions(opts []git.Option, blobOffloadPath string) []git.Option {
+	opts = append(opts, git.ValueFlag{Name: "--filter", Value: "blob:none"})
+	opts = append(opts, git.ValueFlag{Name: "--filter-to", Value: blobOffloadPath })
+	return opts
+}
+
 func performRepack(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig, opts ...git.Option) error {
 	if cfg.WriteMultiPackIndex {
 		opts = append(opts, git.Flag{Name: "--write-midx"})
+	}
+
+	// Blob filtering
+
+	blobOffloadPath := storage.BlobOffloadPath(repo)
+
+	switch cfg.FilterBlobs {
+	case FilterBlobActionStartFilteringAll:
+		if blobOffloadPath == "" {
+			// TODO setup blob filtering, especially the alternates for it.
+			// storage.DeriveBlobOffloadPath(repo.ID) should likely be added to
+			// repo.GetGitAlternateObjectDirectories()
+			// We then need to append the proper options for filtering:
+			// opts = appendBlobFilterOptions(opts, storage.DeriveBlobOffloadPath(repo.ID))
+		} else {
+			// We are already filtering, just add the options
+			opts = appendBlobFilterOptions(opts, blobOffloadPath)
+		}
+	case FilterBlobActionStopFilteringAny:
+		if blobOffloadPath != "" {
+			// TODO remove blob filtering setup.
+			// blobOffloadPath should likely be removed from
+			// repo.GetGitAlternateObjectDirectories()
+			// Also the blobOffloadPath directory should perhaps be removed from disk.
+		}
+	case FilterBlobActionNoChange:
+		if blobOffloadPath != "" {
+			opts = appendBlobFilterOptions(opts, blobOffloadPath)
+		}
+	default:
+		return structerr.NewInvalidArgument("invalid filter blob action: %q", cfg.FilterBlobs)
 	}
 
 	var stderr strings.Builder
