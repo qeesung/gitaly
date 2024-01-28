@@ -1303,6 +1303,7 @@ func TestResolveLocator(t *testing.T) {
 	}{
 		{layout: "legacy"},
 		{layout: "pointer"},
+		{layout: "manifest"},
 		{
 			layout:      "unknown",
 			expectedErr: "unknown layout: \"unknown\"",

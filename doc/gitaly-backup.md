@@ -56,7 +56,7 @@ Gitaly and Gitaly Cluster.
    |  `-parallel`          |  integer  |  no      |  Maximum number of parallel backups. |
    |  `-parallel-storage`  |  integer  |  no      |  Maximum number of parallel backups per storage. |
    |  `-id`                |  string   |  no      |  Used to determine a unique path for the backup when a full backup is created. |
-   |  `-layout`            |  string   |  no      |  How backup files are located. Either `pointer` (default) or `legacy`. |
+   |  `-layout`            |  string   |  no      |  How backup files are located. One of `manifest` (default), `pointer`, or `legacy`. |
    |  `-incremental`       |  bool     |  no      |  Indicates whether to create an incremental backup. |
    |  `-server-side`       |  bool     |  no      |  Indicates whether to use server-side backups. Note: The feature is not ready for production use. |
 
@@ -115,7 +115,7 @@ Gitaly and Gitaly Cluster.
    |  `-parallel`                |  integer               |  no      |  Maximum number of parallel restores. |
    |  `-parallel-storage`        |  integer               |  no      |  Maximum number of parallel restores per storage. |
    |  `-id`                      |  string                |  no      |  ID of full backup to restore. If not specified, the latest backup is restored (default). |
-   |  `-layout`                  |  string                |  no      |  How backup files are located. Either `pointer` (default) or `legacy`. |
+   |  `-layout`                  |  string                |  no      |  How backup files are located. One of `manifest` (default), `pointer`, or `legacy`. |
    |  `-remove-all-repositories` |  comma-separated list  |  no      |  List of storage names to have all repositories removed from before restoring. You must specify `GITALY_SERVERS` for the listed storage names. |
    |  `-server-side`             |  bool                  |  no      |  Indicates whether to use server-side backups. Note: The feature is not ready for production use. |
 
@@ -243,6 +243,71 @@ $BACKUP_DESTINATION_PATH/
    Negating the object IDs from the previous increment ensures that we stop
    traversing commits when we reach the HEAD of the branch at the time of the
    last incremental backup.
+
+### Manifest layout
+
+This layout uses manifest files to describe where each file exists in a backup
+to restore the files from the backup:
+
+- The latest backup has two manifests, one named `+latest.toml` and another named after
+  its backup ID. `+latest.toml` is overwritten by newer backups.
+- Every other backup has one manifest named after the backup ID.
+
+For example, the following structure is created for a repository with the:
+
+- Storage name of `default`.
+- Relative path of `@hashed/4e/c9/4ec9599fc203d176a301536c2e091a19bc852759b255bd6818810a42c5fed14a.git`.
+- Backup ID of `20210930065413`.
+
+```plaintext
+$BACKUP_DESTINATION_PATH/
+  manifests/
+    default/
+      @hashed/
+        4e/
+          c9/
+            4ec9599fc203d176a301536c2e091a19bc852759b255bd6818810a42c5fed14a.git/
+              20210930065413.toml
+              +latest.toml
+  default/
+    @hashed/
+      4e/
+        c9/
+          4ec9599fc203d176a301536c2e091a19bc852759b255bd6818810a42c5fed14a.git/
+            20210930065413/
+              001.bundle
+              001.refs
+```
+
+If an incremental backup was then created with a backup ID of `20211001065419`,
+`gitaly-backup` would create the following structure:
+
+```plaintext
+$BACKUP_DESTINATION_PATH/
+  manifests/
+    default/
+      @hashed/
+        4e/
+          c9/
+            4ec9599fc203d176a301536c2e091a19bc852759b255bd6818810a42c5fed14a.git/
+              20210930065413.toml
+              20211001065419.toml
+              +latest.toml
+  default/
+    @hashed/
+      4e/
+        c9/
+          4ec9599fc203d176a301536c2e091a19bc852759b255bd6818810a42c5fed14a.git/
+            20210930065413/
+              001.bundle
+              001.refs
+            20211001065419/
+              002.bundle
+              002.refs
+```
+
+In this case, the manifest file `20211001065419.toml` would reference all the
+bundle files required to restore the repository.
 
 ## Server-side backups
 

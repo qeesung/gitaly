@@ -153,6 +153,8 @@ func ResolveLocator(layout string, sink Sink) (Locator, error) {
 			Sink:     sink,
 			Fallback: locator,
 		}
+	case "manifest":
+		locator = nil
 	default:
 		return nil, fmt.Errorf("unknown layout: %q", layout)
 	}

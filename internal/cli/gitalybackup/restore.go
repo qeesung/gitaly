@@ -59,8 +59,8 @@ func restoreFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:  "layout",
-			Usage: "how backup files are located. Either pointer or legacy.",
-			Value: "pointer",
+			Usage: "how backup files are located. One of manifest, pointer, or legacy.",
+			Value: "manifest",
 		},
 		&cli.StringSliceFlag{
 			Name:  "remove-all-repositories",
