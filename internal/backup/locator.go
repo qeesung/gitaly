@@ -280,20 +280,76 @@ type ManifestLocator struct {
 	Fallback Locator
 }
 
-// BeginFull passes through to Fallback
+// BeginFull returns a tentative first step needed to create a new full backup.
+// The logic will be overridden by the fallback locator, if configured.
 func (l ManifestLocator) BeginFull(ctx context.Context, repo storage.Repository, backupID string) *Backup {
-	return l.Fallback.BeginFull(ctx, repo, backupID)
+	if l.Fallback != nil {
+		return l.Fallback.BeginFull(ctx, repo, backupID)
+	}
+
+	storageName := repo.GetStorageName()
+	relativePath := repo.GetRelativePath()
+
+	return &Backup{
+		ID:         backupID,
+		Repository: repo,
+		Steps: []Step{
+			{
+				BundlePath:      filepath.Join(storageName, relativePath, backupID, "001.bundle"),
+				RefPath:         filepath.Join(storageName, relativePath, backupID, "001.refs"),
+				CustomHooksPath: filepath.Join(storageName, relativePath, backupID, "001.custom_hooks.tar"),
+			},
+		},
+	}
 }
 
-// BeginIncremental passes through to Fallback
+// BeginIncremental returns a tentative step needed to create a new incremental
+// backup. The incremental backup is always based off of the latest backup. If
+// there is no latest backup, a new full backup step is returned using
+// backupID. The logic will be overridden by the fallback locator, if
+// configured.
 func (l ManifestLocator) BeginIncremental(ctx context.Context, repo storage.Repository, backupID string) (*Backup, error) {
-	return l.Fallback.BeginIncremental(ctx, repo, backupID)
+	if l.Fallback != nil {
+		return l.Fallback.BeginIncremental(ctx, repo, backupID)
+	}
+
+	backup, err := l.readManifest(ctx, repo, latestManifestName)
+	switch {
+	case errors.Is(err, ErrDoesntExist):
+		return l.BeginFull(ctx, repo, backupID), nil
+	case err != nil:
+		return nil, fmt.Errorf("manifest: begin incremental: %w", err)
+	}
+
+	storageName := repo.GetStorageName()
+	relativePath := repo.GetRelativePath()
+	n := len(backup.Steps) + 1
+
+	// This is a convenience that could be calculated but it is cheap enough to
+	// generate here. It means that the increment generating code only needs to
+	// refer to a single step.
+	var previousRefPath string
+	if len(backup.Steps) > 0 {
+		previousRefPath = backup.Steps[len(backup.Steps)-1].RefPath
+	}
+
+	backup.ID = backupID
+	backup.Steps = append(backup.Steps, Step{
+		BundlePath:      filepath.Join(storageName, relativePath, backupID, fmt.Sprintf("%03d.bundle", n)),
+		RefPath:         filepath.Join(storageName, relativePath, backupID, fmt.Sprintf("%03d.refs", n)),
+		PreviousRefPath: previousRefPath,
+		CustomHooksPath: filepath.Join(storageName, relativePath, backupID, fmt.Sprintf("%03d.custom_hooks.tar", n)),
+	})
+
+	return backup, nil
 }
 
 // Commit passes through to Fallback, then writes a manifest file for the backup.
-func (l ManifestLocator) Commit(ctx context.Context, backup *Backup) (returnErr error) {
-	if err := l.Fallback.Commit(ctx, backup); err != nil {
-		return err
+func (l ManifestLocator) Commit(ctx context.Context, backup *Backup) error {
+	if l.Fallback != nil {
+		if err := l.Fallback.Commit(ctx, backup); err != nil {
+			return err
+		}
 	}
 
 	if err := l.writeManifest(ctx, backup, backup.ID); err != nil {
@@ -311,7 +367,7 @@ func (l ManifestLocator) Commit(ctx context.Context, backup *Backup) (returnErr 
 func (l ManifestLocator) FindLatest(ctx context.Context, repo storage.Repository) (*Backup, error) {
 	backup, err := l.readManifest(ctx, repo, latestManifestName)
 	switch {
-	case errors.Is(err, ErrDoesntExist):
+	case l.Fallback != nil && errors.Is(err, ErrDoesntExist):
 		return l.Fallback.FindLatest(ctx, repo)
 	case err != nil:
 		return nil, fmt.Errorf("manifest: find latest: %w", err)
@@ -325,7 +381,7 @@ func (l ManifestLocator) FindLatest(ctx context.Context, repo storage.Repository
 func (l ManifestLocator) Find(ctx context.Context, repo storage.Repository, backupID string) (*Backup, error) {
 	backup, err := l.readManifest(ctx, repo, backupID)
 	switch {
-	case errors.Is(err, ErrDoesntExist):
+	case l.Fallback != nil && errors.Is(err, ErrDoesntExist):
 		return l.Fallback.Find(ctx, repo, backupID)
 	case err != nil:
 		return nil, fmt.Errorf("manifest: find: %w", err)
