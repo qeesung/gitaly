@@ -255,10 +255,21 @@ func TestGRPCTags(t *testing.T) {
 	interceptor := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		return handler(ctx, req)
 	}
+
 	_, err := interceptor(ctx, nil, nil, func(ctx context.Context, _ interface{}) (interface{}, error) {
 		info := newRequestInfo(ctx, "/gitaly.RepositoryService/OptimizeRepository", "unary")
 
-		ctx = info.injectTags(ctx)
+		tags := grpcmwtags.NewTags()
+
+		repoInfo := &gitalypb.Repository{
+			StorageName:   "storage",
+			RelativePath:  "path",
+			GlProjectPath: "glProject",
+			GlRepository:  "glRepository",
+		}
+		info.Repository = repoInfo
+
+		ctx = info.injectTags(ctx, tags)
 
 		require.Equal(t, &RequestInfo{
 			correlationID:   correlationID,
@@ -270,6 +281,7 @@ func TestGRPCTags(t *testing.T) {
 			deadlineType:    "none",
 			methodOperation: "maintenance",
 			methodScope:     "repository",
+			Repository:      repoInfo,
 		}, info)
 
 		fields := logging.ExtractFields(ctx)
@@ -282,6 +294,10 @@ func TestGRPCTags(t *testing.T) {
 			"grpc.meta.method_operation": "maintenance",
 			"grpc.meta.method_scope":     "repository",
 			"grpc.request.fullMethod":    "/gitaly.RepositoryService/OptimizeRepository",
+			"grpc.request.glProjectPath": "glProject",
+			"grpc.request.glRepository":  "glRepository",
+			"grpc.request.repoPath":      "path",
+			"grpc.request.repoStorage":   "storage",
 		}, gitalylog.ConvertLoggingFields(fields))
 
 		legacyFields := grpcmwtags.Extract(ctx).Values()
@@ -294,6 +310,45 @@ func TestGRPCTags(t *testing.T) {
 			"grpc.meta.method_operation": "maintenance",
 			"grpc.meta.method_scope":     "repository",
 			"grpc.request.fullMethod":    "/gitaly.RepositoryService/OptimizeRepository",
+			"grpc.request.glProjectPath": "glProject",
+			"grpc.request.glRepository":  "glRepository",
+			"grpc.request.repoPath":      "path",
+			"grpc.request.repoStorage":   "storage",
+		}, legacyFields)
+
+		// reject tags again to test no fields is missing
+		// this is to regression test https://gitlab.com/gitlab-org/gitaly/-/issues/5794
+		info.Repository = nil
+		ctx = info.injectTags(ctx, tags)
+		fields = logging.ExtractFields(ctx)
+		require.Equal(t, map[string]any{
+			"correlation_id":             correlationID,
+			"grpc.meta.client_name":      clientName,
+			"grpc.meta.deadline_type":    "none",
+			"grpc.meta.method_type":      "unary",
+			"grpc.meta.method_operation": "maintenance",
+			"grpc.meta.method_scope":     "repository",
+			"grpc.request.fullMethod":    "/gitaly.RepositoryService/OptimizeRepository",
+			"grpc.request.glProjectPath": "glProject",
+			"grpc.request.glRepository":  "glRepository",
+			"grpc.request.repoPath":      "path",
+			"grpc.request.repoStorage":   "storage",
+		}, gitalylog.ConvertLoggingFields(fields))
+
+		legacyFields = grpcmwtags.Extract(ctx).Values()
+
+		require.Equal(t, map[string]any{
+			"correlation_id":             correlationID,
+			"grpc.meta.client_name":      clientName,
+			"grpc.meta.deadline_type":    "none",
+			"grpc.meta.method_type":      "unary",
+			"grpc.meta.method_operation": "maintenance",
+			"grpc.meta.method_scope":     "repository",
+			"grpc.request.fullMethod":    "/gitaly.RepositoryService/OptimizeRepository",
+			"grpc.request.glProjectPath": "glProject",
+			"grpc.request.glRepository":  "glRepository",
+			"grpc.request.repoPath":      "path",
+			"grpc.request.repoStorage":   "storage",
 		}, legacyFields)
 
 		return nil, nil
