@@ -88,6 +88,36 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			},
 		},
 		{
+			desc: "Returns the expected results including the diff for initial commit",
+			setup: func(t *testing.T) setupData {
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				initialBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("initial"))
+
+				initialCommit := gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "initial.txt", Mode: "100644", OID: initialBlobID},
+					),
+				)
+
+				expectedPaths := []*gitalypb.ChangedPaths{
+					{
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("initial.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100644,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: initialBlobID.String(),
+					},
+				}
+				return setupData{
+					repo:          repo,
+					commits:       []commitRequest{{commit: initialCommit.String()}},
+					expectedPaths: expectedPaths,
+				}
+			},
+		},
+		{
 			desc: "Returns the expected results with a merge commit",
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
