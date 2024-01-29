@@ -213,8 +213,8 @@ message AmbiguousReferenceError {
 }
 // BadObjectError is an error returned when git cannot find a valid object based on its id.
 message BadObjectError {
-  // object_id is the object id passed to the git command.
-  bytes object_id = 1;
+  // bad_oid is the bad object id passed to the git command.
+  bytes bad_oid = 1;
 }
 
 // InvalidRevisionRange is an error returned when the range given to the git log command is invalid.
