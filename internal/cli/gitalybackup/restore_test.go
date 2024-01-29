@@ -40,7 +40,7 @@ func TestRestoreSubcommand(t *testing.T) {
 	backupDir := testhelper.TempDir(t)
 	testhelper.WriteFiles(t, backupDir, map[string]any{
 		filepath.Join(existingRepo.RelativePath + ".bundle"): gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", "-", "--all"),
-		filepath.Join(existingRepo.RelativePath + ".refs"):   gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref"),
+		filepath.Join(existingRepo.RelativePath + ".refs"):   gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref", "--head"),
 	})
 
 	// These repos are the ones being restored, and should exist after the restore.
@@ -54,12 +54,13 @@ func TestRestoreSubcommand(t *testing.T) {
 		testhelper.WriteFiles(t, backupDir, map[string]any{
 			filepath.Join("manifests", repo.StorageName, repo.RelativePath, "+latest.toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[3]s'
 
 [[steps]]
 bundle_path = '%[2]s.bundle'
 ref_path = '%[2]s.refs'
 custom_hooks_path = '%[2]s/custom_hooks.tar'
-`, gittest.DefaultObjectHash.Format, existingRepo.RelativePath),
+`, gittest.DefaultObjectHash.Format, existingRepo.RelativePath, git.DefaultRef.String()),
 		})
 
 		repos = append(repos, repo)
@@ -139,7 +140,7 @@ func TestRestoreSubcommand_serverSide(t *testing.T) {
 
 	testhelper.WriteFiles(t, backupDir, map[string]any{
 		filepath.Join(existingRepo.RelativePath + ".bundle"): gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", "-", "--all"),
-		filepath.Join(existingRepo.RelativePath + ".refs"):   gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref"),
+		filepath.Join(existingRepo.RelativePath + ".refs"):   gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref", "--head"),
 	})
 
 	var repos []*gitalypb.Repository
@@ -152,12 +153,13 @@ func TestRestoreSubcommand_serverSide(t *testing.T) {
 		testhelper.WriteFiles(t, backupDir, map[string]any{
 			filepath.Join("manifests", repo.StorageName, repo.RelativePath, "+latest.toml"): fmt.Sprintf(`
 object_format = '%[1]s'
+head_reference = '%[3]s'
 
 [[steps]]
 bundle_path = '%[2]s.bundle'
 ref_path = '%[2]s.refs'
 custom_hooks_path = '%[2]s/custom_hooks.tar'
-`, gittest.DefaultObjectHash.Format, existingRepo.RelativePath),
+`, gittest.DefaultObjectHash.Format, existingRepo.RelativePath, git.DefaultRef.String()),
 		})
 
 		repos = append(repos, repo)
