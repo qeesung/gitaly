@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+	// testing the pipeline
 	if err := cli.NewApp().Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
