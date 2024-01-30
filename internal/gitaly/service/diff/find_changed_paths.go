@@ -59,6 +59,10 @@ func (s *server) FindChangedPaths(in *gitalypb.FindChangedPathsRequest, stream g
 		git.Flag{Name: "-r"},
 		git.Flag{Name: "--no-renames"},
 		git.Flag{Name: "--no-commit-id"},
+		// By default, git-diff-tree(1) does not report changes in the root commit.
+		// By adding below flag we ask Git to behave as when comparing to an empty
+		// tree in that case.
+		git.Flag{Name: "--root"},
 		git.Flag{Name: "--diff-filter=AMDTC"},
 	}
 	switch in.MergeCommitDiffMode {
