@@ -1049,6 +1049,37 @@ func TestFindChangedPathsRequest_deprecated(t *testing.T) {
 				}
 			},
 		},
+		{
+			desc: "Returns the expected results for root commit",
+			setup: func(t *testing.T) setupData {
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("hello"))
+
+				rootCommit := gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "README.txt", Mode: "100644", OID: blobID},
+					),
+				)
+
+				expectedPaths := []*gitalypb.ChangedPaths{
+					{
+						Status:    gitalypb.ChangedPaths_ADDED,
+						Path:      []byte("README.txt"),
+						OldMode:   0o000000,
+						NewMode:   0o100644,
+						OldBlobId: gittest.DefaultObjectHash.ZeroOID.String(),
+						NewBlobId: blobID.String(),
+					},
+				}
+
+				return setupData{
+					repo:          repo,
+					commits:       []string{rootCommit.String()},
+					expectedPaths: expectedPaths,
+				}
+			},
+		},
 	}
 
 	for _, tc := range testCases {
