@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -16,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/setup"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
@@ -24,8 +22,6 @@ import (
 )
 
 func TestRestoreSubcommand(t *testing.T) {
-	gittest.SkipWithSHA256(t)
-
 	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
@@ -42,11 +38,10 @@ func TestRestoreSubcommand(t *testing.T) {
 
 	// The backupDir contains the artifacts that would've been created as part of a backup.
 	backupDir := testhelper.TempDir(t)
-	existingRepoBundlePath := filepath.Join(backupDir, existingRepo.RelativePath+".bundle")
-	existingRepoRefPath := filepath.Join(backupDir, existingRepo.RelativePath+".refs")
-
-	gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", existingRepoBundlePath, "--all")
-	require.NoError(t, os.WriteFile(existingRepoRefPath, gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref"), perm.SharedFile))
+	testhelper.WriteFiles(t, backupDir, map[string]any{
+		filepath.Join(existingRepo.RelativePath + ".bundle"): gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", "-", "--all"),
+		filepath.Join(existingRepo.RelativePath + ".refs"):   gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref", "--head"),
+	})
 
 	// These repos are the ones being restored, and should exist after the restore.
 	var repos []*gitalypb.Repository
@@ -56,10 +51,18 @@ func TestRestoreSubcommand(t *testing.T) {
 			Storage:      cfg.Storages[0],
 		})
 
-		repoBundlePath := filepath.Join(backupDir, repo.RelativePath+".bundle")
-		testhelper.CopyFile(t, existingRepoBundlePath, repoBundlePath)
-		repoRefPath := filepath.Join(backupDir, repo.RelativePath+".refs")
-		testhelper.CopyFile(t, existingRepoRefPath, repoRefPath)
+		testhelper.WriteFiles(t, backupDir, map[string]any{
+			filepath.Join("manifests", repo.StorageName, repo.RelativePath, "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+head_reference = '%[3]s'
+
+[[steps]]
+bundle_path = '%[2]s.bundle'
+ref_path = '%[2]s.refs'
+custom_hooks_path = '%[2]s/custom_hooks.tar'
+`, gittest.DefaultObjectHash.Format, existingRepo.RelativePath, git.DefaultRef.String()),
+		})
+
 		repos = append(repos, repo)
 	}
 
@@ -105,7 +108,7 @@ func TestRestoreSubcommand(t *testing.T) {
 	// Ensure the repos were restored correctly.
 	for _, repo := range repos {
 		repoPath := filepath.Join(cfg.Storages[0].Path, gittest.GetReplicaPath(t, ctx, cfg, repo))
-		bundlePath := filepath.Join(backupDir, repo.RelativePath+".bundle")
+		bundlePath := filepath.Join(backupDir, existingRepo.RelativePath+".bundle")
 
 		output := gittest.Exec(t, cfg, "-C", repoPath, "bundle", "verify", bundlePath)
 		require.Contains(t, string(output), "The bundle records a complete history")
@@ -113,8 +116,6 @@ func TestRestoreSubcommand(t *testing.T) {
 }
 
 func TestRestoreSubcommand_serverSide(t *testing.T) {
-	gittest.SkipWithSHA256(t)
-
 	ctx := testhelper.Context(t)
 
 	backupDir := testhelper.TempDir(t)
@@ -137,11 +138,10 @@ func TestRestoreSubcommand_serverSide(t *testing.T) {
 	})
 	gittest.WriteCommit(t, cfg, existRepoPath, gittest.WithBranch(git.DefaultBranch))
 
-	existingRepoBundlePath := filepath.Join(backupDir, existingRepo.RelativePath+".bundle")
-	existingRepoRefPath := filepath.Join(backupDir, existingRepo.RelativePath+".refs")
-
-	gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", existingRepoBundlePath, "--all")
-	require.NoError(t, os.WriteFile(existingRepoRefPath, gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref"), perm.SharedFile))
+	testhelper.WriteFiles(t, backupDir, map[string]any{
+		filepath.Join(existingRepo.RelativePath + ".bundle"): gittest.Exec(t, cfg, "-C", existRepoPath, "bundle", "create", "-", "--all"),
+		filepath.Join(existingRepo.RelativePath + ".refs"):   gittest.Exec(t, cfg, "-C", existRepoPath, "show-ref", "--head"),
+	})
 
 	var repos []*gitalypb.Repository
 	for i := 0; i < 2; i++ {
@@ -150,10 +150,18 @@ func TestRestoreSubcommand_serverSide(t *testing.T) {
 			Storage:      cfg.Storages[0],
 		})
 
-		repoBundlePath := filepath.Join(backupDir, repo.RelativePath+".bundle")
-		testhelper.CopyFile(t, existingRepoBundlePath, repoBundlePath)
-		repoRefPath := filepath.Join(backupDir, repo.RelativePath+".refs")
-		testhelper.CopyFile(t, existingRepoRefPath, repoRefPath)
+		testhelper.WriteFiles(t, backupDir, map[string]any{
+			filepath.Join("manifests", repo.StorageName, repo.RelativePath, "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
+head_reference = '%[3]s'
+
+[[steps]]
+bundle_path = '%[2]s.bundle'
+ref_path = '%[2]s.refs'
+custom_hooks_path = '%[2]s/custom_hooks.tar'
+`, gittest.DefaultObjectHash.Format, existingRepo.RelativePath, git.DefaultRef.String()),
+		})
+
 		repos = append(repos, repo)
 	}
 
@@ -198,7 +206,7 @@ func TestRestoreSubcommand_serverSide(t *testing.T) {
 
 	for _, repo := range repos {
 		repoPath := filepath.Join(cfg.Storages[0].Path, gittest.GetReplicaPath(t, ctx, cfg, repo))
-		bundlePath := filepath.Join(backupDir, repo.RelativePath+".bundle")
+		bundlePath := filepath.Join(backupDir, existingRepo.RelativePath+".bundle")
 
 		output := gittest.Exec(t, cfg, "-C", repoPath, "bundle", "verify", bundlePath)
 		require.Contains(t, string(output), "The bundle records a complete history")
