@@ -131,7 +131,6 @@ func (x *ApplyBfgObjectMapStreamResponse) GetEntries() []*ApplyBfgObjectMapStrea
 }
 
 // RewriteHistoryRequest is a request for the RewriteHistory RPC.
-// Each request must contain blobs, redactions, or both.
 type RewriteHistoryRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
