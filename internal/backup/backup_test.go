@@ -54,7 +54,7 @@ func TestManager_RemoveRepository(t *testing.T) {
 	sink := backup.NewFilesystemSink(backupRoot)
 	defer testhelper.MustClose(t, sink)
 
-	locator, err := backup.ResolveLocator("pointer", sink)
+	locator, err := backup.ResolveLocator("manifest", sink)
 	require.NoError(t, err)
 
 	fsBackup := backup.NewManager(sink, testhelper.SharedLogger(t), locator, pool)
@@ -145,7 +145,7 @@ func TestManager_ListRepositories(t *testing.T) {
 			sink := backup.NewFilesystemSink(backupRoot)
 			defer testhelper.MustClose(t, sink)
 
-			locator, err := backup.ResolveLocator("pointer", sink)
+			locator, err := backup.ResolveLocator("manifest", sink)
 			require.NoError(t, err)
 
 			fsBackup := backup.NewManager(sink, testhelper.SharedLogger(t), locator, pool)
@@ -342,7 +342,7 @@ func TestManager_Create(t *testing.T) {
 				sink := backup.NewFilesystemSink(backupRoot)
 				defer testhelper.MustClose(t, sink)
 
-				locator, err := backup.ResolveLocator("pointer", sink)
+				locator, err := backup.ResolveLocator("manifest", sink)
 				require.NoError(t, err)
 
 				fsBackup := managerTC.setup(t, sink, locator)
@@ -475,19 +475,18 @@ func TestManager_Create_incremental(t *testing.T) {
 					repo, repoPath := gittest.CreateRepository(tb, ctx, cfg)
 					gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
 
-					backupRepoPath := joinBackupPath(tb, backupRoot, repo)
-					backupPath := filepath.Join(backupRepoPath, backupID)
-					bundlePath := filepath.Join(backupPath, "001.bundle")
-					refsPath := filepath.Join(backupPath, "001.refs")
+					testhelper.WriteFiles(tb, backupRoot, map[string]any{
+						filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
 
-					require.NoError(tb, os.MkdirAll(backupPath, perm.PublicDir))
-					gittest.Exec(tb, cfg, "-C", repoPath, "bundle", "create", bundlePath, "--all")
-
-					refs := gittest.Exec(tb, cfg, "-C", repoPath, "show-ref", "--head")
-					require.NoError(tb, os.WriteFile(refsPath, refs, perm.PublicFile))
-
-					require.NoError(tb, os.WriteFile(filepath.Join(backupRepoPath, "LATEST"), []byte(backupID), perm.PublicFile))
-					require.NoError(tb, os.WriteFile(filepath.Join(backupPath, "LATEST"), []byte("001"), perm.PublicFile))
+[[steps]]
+bundle_path = '%[2]s/001.bundle'
+ref_path = '%[2]s/001.refs'
+custom_hooks_path = '%[2]s/001.custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, repo.GetRelativePath()),
+						filepath.Join(repo.GetRelativePath(), "001.bundle"): gittest.Exec(tb, cfg, "-C", repoPath, "bundle", "create", "-", "--all"),
+						filepath.Join(repo.GetRelativePath(), "001.refs"):   gittest.Exec(tb, cfg, "-C", repoPath, "show-ref", "--head"),
+					})
 
 					return repo, repoPath
 				},
@@ -499,19 +498,18 @@ func TestManager_Create_incremental(t *testing.T) {
 					repo, repoPath := gittest.CreateRepository(tb, ctx, cfg)
 					commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
 
-					backupRepoPath := joinBackupPath(tb, backupRoot, repo)
-					backupPath := filepath.Join(backupRepoPath, backupID)
-					bundlePath := filepath.Join(backupPath, "001.bundle")
-					refsPath := filepath.Join(backupPath, "001.refs")
+					testhelper.WriteFiles(tb, backupRoot, map[string]any{
+						filepath.Join("manifests", repo.GetStorageName(), repo.GetRelativePath(), "+latest.toml"): fmt.Sprintf(`
+object_format = '%[1]s'
 
-					require.NoError(tb, os.MkdirAll(backupPath, perm.PublicDir))
-					gittest.Exec(tb, cfg, "-C", repoPath, "bundle", "create", bundlePath, "--all")
-
-					refs := gittest.Exec(tb, cfg, "-C", repoPath, "show-ref", "--head")
-					require.NoError(tb, os.WriteFile(refsPath, refs, perm.PublicFile))
-
-					require.NoError(tb, os.WriteFile(filepath.Join(backupRepoPath, "LATEST"), []byte(backupID), perm.PublicFile))
-					require.NoError(tb, os.WriteFile(filepath.Join(backupPath, "LATEST"), []byte("001"), perm.PublicFile))
+[[steps]]
+bundle_path = '%[2]s/001.bundle'
+ref_path = '%[2]s/001.refs'
+custom_hooks_path = '%[2]s/001.custom_hooks.tar'
+							`, gittest.DefaultObjectHash.Format, repo.GetRelativePath()),
+						filepath.Join(repo.GetRelativePath(), "001.bundle"): gittest.Exec(tb, cfg, "-C", repoPath, "bundle", "create", "-", "--all"),
+						filepath.Join(repo.GetRelativePath(), "001.refs"):   gittest.Exec(tb, cfg, "-C", repoPath, "show-ref", "--head"),
+					})
 
 					gittest.WriteCommit(tb, cfg, repoPath, gittest.WithBranch(git.DefaultBranch), gittest.WithParents(commitID))
 
@@ -530,7 +528,7 @@ func TestManager_Create_incremental(t *testing.T) {
 				sink := backup.NewFilesystemSink(backupRoot)
 				defer testhelper.MustClose(t, sink)
 
-				locator, err := backup.ResolveLocator("pointer", sink)
+				locator, err := backup.ResolveLocator("manifest", sink)
 				require.NoError(t, err)
 
 				fsBackup := managerTC.setup(t, sink, locator)
@@ -901,7 +899,7 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 					sink := backup.NewFilesystemSink(backupRoot)
 					defer testhelper.MustClose(t, sink)
 
-					locator, err := backup.ResolveLocator("pointer", sink)
+					locator, err := backup.ResolveLocator("manifest", sink)
 					require.NoError(t, err)
 
 					logger := testhelper.NewLogger(t)
@@ -1200,7 +1198,7 @@ custom_hooks_path = 'custom_hooks.tar'
 					sink := backup.NewFilesystemSink(backupRoot)
 					defer testhelper.MustClose(t, sink)
 
-					locator, err := backup.ResolveLocator("pointer", sink)
+					locator, err := backup.ResolveLocator("manifest", sink)
 					require.NoError(t, err)
 
 					logger := testhelper.NewLogger(t)
@@ -1278,7 +1276,7 @@ func TestManager_CreateRestore_contextServerInfo(t *testing.T) {
 	sink := backup.NewFilesystemSink(backupRoot)
 	defer testhelper.MustClose(t, sink)
 
-	locator, err := backup.ResolveLocator("pointer", sink)
+	locator, err := backup.ResolveLocator("manifest", sink)
 	require.NoError(t, err)
 
 	fsBackup := backup.NewManager(sink, testhelper.SharedLogger(t), locator, pool)
@@ -1327,7 +1325,8 @@ func TestResolveLocator(t *testing.T) {
 func joinBackupPath(tb testing.TB, backupRoot string, repo storage.Repository, elements ...string) string {
 	return filepath.Join(append([]string{
 		backupRoot,
-		stripRelativePath(tb, repo),
+		repo.GetStorageName(),
+		repo.GetRelativePath(),
 	}, elements...)...)
 }
 
