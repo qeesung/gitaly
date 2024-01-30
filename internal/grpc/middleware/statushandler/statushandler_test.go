@@ -10,8 +10,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/interop/stress/grpc_testing"
 	"google.golang.org/grpc/status"
-	"google.golang.org/grpc/stress/grpc_testing"
 )
 
 func TestStatushandler(t *testing.T) {
