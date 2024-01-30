@@ -196,9 +196,7 @@ func (i *RequestInfo) extractRequestInfo(request any) {
 	}
 }
 
-func (i *RequestInfo) injectTags(ctx context.Context) context.Context {
-	tags := grpcmwtags.NewTags()
-
+func (i *RequestInfo) injectTags(ctx context.Context, tags grpcmwtags.Tags) context.Context {
 	for key, value := range i.Tags() {
 		ctx = logging.InjectLogField(ctx, key, value)
 		tags.Set(key, value)
@@ -297,12 +295,14 @@ func (i *RequestInfo) ExtractServiceAndMethodName() (string, string) {
 
 // UnaryInterceptor returns a Unary Interceptor
 func UnaryInterceptor(ctx context.Context, req interface{}, serverInfo *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	tags := grpcmwtags.NewTags()
+
 	info := newRequestInfo(ctx, serverInfo.FullMethod, "unary")
 	info.extractRequestInfo(req)
 
 	ctx = context.WithValue(ctx, requestInfoKey{}, info)
 
-	ctx = info.injectTags(ctx)
+	ctx = info.injectTags(ctx, tags)
 	res, err := handler(ctx, req)
 	info.reportPrometheusMetrics(err)
 
@@ -311,6 +311,8 @@ func UnaryInterceptor(ctx context.Context, req interface{}, serverInfo *grpc.Una
 
 // StreamInterceptor returns a Stream Interceptor
 func StreamInterceptor(srv interface{}, stream grpc.ServerStream, serverInfo *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	tags := grpcmwtags.NewTags()
+
 	ctx := stream.Context()
 	info := newRequestInfo(ctx, serverInfo.FullMethod, streamRPCType(serverInfo))
 
@@ -318,11 +320,12 @@ func StreamInterceptor(srv interface{}, stream grpc.ServerStream, serverInfo *gr
 
 	// Even though we don't yet have all information set up we already inject the tags here. This is done such that
 	// log messages will at least have the metadata set up correctly in case there is no first request.
-	ctx = info.injectTags(ctx)
+	ctx = info.injectTags(ctx, tags)
 	err := handler(srv, &wrappedServerStream{
 		ServerStream: stream,
 		ctx:          ctx,
 		info:         info,
+		tags:         tags,
 		initial:      true,
 	})
 	info.reportPrometheusMetrics(err)
@@ -345,6 +348,7 @@ type wrappedServerStream struct {
 	grpc.ServerStream
 	ctx     context.Context
 	info    *RequestInfo
+	tags    grpcmwtags.Tags
 	initial bool
 }
 
@@ -363,7 +367,7 @@ func (w *wrappedServerStream) RecvMsg(req interface{}) error {
 
 		w.info.extractRequestInfo(req)
 		// Re-inject the tags a second time here.
-		w.ctx = w.info.injectTags(w.ctx)
+		w.ctx = w.info.injectTags(w.ctx, w.tags)
 	}
 
 	return err
