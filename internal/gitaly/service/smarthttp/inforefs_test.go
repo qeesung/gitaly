@@ -34,7 +34,6 @@ func TestInfoRefsUploadPack_successful(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsUploadPackSuccessful)
 }
@@ -67,7 +66,6 @@ func TestInfoRefsUploadPack_internalRefs(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsUploadPackInternalRefs)
 }
@@ -145,7 +143,6 @@ func TestInfoRefsUploadPack_validate(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsUploadPackValidate)
 }
@@ -186,7 +183,6 @@ func TestInfoRefsUploadPack_partialClone(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsUploadPackPartialClone)
 }
@@ -217,7 +213,6 @@ func TestInfoRefsUploadPack_gitConfigOptions(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsUploadPackGitConfigOptions)
 }
@@ -248,14 +243,7 @@ func testInfoRefsUploadPackGitConfigOptions(t *testing.T, ctx context.Context) {
 func TestInfoRefsUploadPack_bundleURI(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
-	).Run(t, testInfoRefsUploadPackBundleURI)
-}
-
-func testInfoRefsUploadPackBundleURI(t *testing.T, ctx context.Context) {
-	t.Parallel()
-
+	ctx := testhelper.Context(t)
 	ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.BundleURI, true)
 
 	cfg := testcfg.Build(t)
@@ -281,7 +269,6 @@ func TestInfoRefsUploadPack_gitProtocol(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsUploadPackGitProtocol)
 }
@@ -341,7 +328,6 @@ func TestInfoRefsReceivePack_successful(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsReceivePackSuccessful)
 }
@@ -376,7 +362,6 @@ Object pools are not yet support with WAL. This test is testing with a pooled re
 
 	t.Parallel()
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsReceivePackHiddenRefs)
 }
@@ -409,7 +394,6 @@ func TestInfoRefsReceivePack_validate(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsReceivePackValidate)
 }
@@ -522,7 +506,6 @@ func TestInfoRefsUploadPack_cache(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testInfoRefsUploadPackCache)
 }

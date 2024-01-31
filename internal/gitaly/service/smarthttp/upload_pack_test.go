@@ -60,7 +60,6 @@ func TestServer_PostUploadWithChannel(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testServerPostUploadWithChannel)
 }
@@ -114,7 +113,6 @@ func TestServer_PostUploadPackSidechannel_gitConfigOptions(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testServerPostUploadPackSidechannelGitConfigOptions)
 }
@@ -186,7 +184,6 @@ func TestServer_PostUploadPackWithSidechannel_gitProtocol(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testServerPostUploadPackWithSidechannelGitProtocol)
 }
@@ -232,7 +229,6 @@ func TestServer_PostUploadPackWithSidechannel_suppressDeepenExitError(t *testing
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testServerPostUploadPackWithSidechannelSuppressDeepenExitError)
 }
@@ -265,7 +261,6 @@ func TestServer_PostUploadPackWithSidechannel_usesPackObjectsHook(t *testing.T) 
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testServerPostUploadPackWithSidechannelUsesPackObjectsHook)
 }
@@ -318,7 +313,6 @@ func TestServer_PostUploadPack_validation(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testServerPostUploadPackValidation)
 }
@@ -367,7 +361,6 @@ func TestServer_PostUploadPackSidechannel_validation(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testServerPostUploadPackSidechannelValidation)
 }
@@ -427,13 +420,8 @@ func TestServer_PostUploadPackWithBundleURI(t *testing.T) {
 
 	testhelper.SkipQuarantinedTest(t, "https://gitlab.com/gitlab-org/gitaly/-/issues/5725")
 
-	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
-	).Run(t, testServerPostUploadPackWithBundleURI)
-}
-
-func testServerPostUploadPackWithBundleURI(t *testing.T, ctx context.Context) {
 	cfg := testcfg.Build(t)
+	ctx := testhelper.Context(t)
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.BundleURI, true)
 
 	signedURL := "http://signedurl.com/my-bundle-here"
@@ -574,7 +562,6 @@ func TestServer_PostUploadPackWithSidechannel_partialClone(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testServerPostUploadPackWithSidechannelPartialClone)
 }
@@ -635,7 +622,6 @@ func TestServer_PostUploadPackWithSidechannel_allowAnySHA1InWant(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testServerPostUploadPackWithSidechannelAllowAnySHA1InWant)
 }
