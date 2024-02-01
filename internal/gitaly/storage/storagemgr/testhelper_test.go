@@ -21,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/packfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
@@ -50,6 +51,10 @@ type RepositoryState struct {
 	Alternate string
 	// References is the references that should exist, including ones in the packed-refs file and loose references.
 	References *ReferencesState
+	// Packfiles provides a more detailed object assertion in a repository. It allows us to examine the list of
+	// packfiles, loose objects, invisible objects, index files, etc. Most test cases don't need to be concerned
+	// with Packfile structure, though. So, we keep both, but Packfiles takes higher precedence.
+	Packfiles *PackfilesState
 }
 
 // ReferencesState describes the asserted state of packed-refs and loose references. It's mostly used for verifying
@@ -59,6 +64,37 @@ type ReferencesState struct {
 	PackedReferences map[git.ReferenceName]git.ObjectID
 	// LooseReferences is the exact list of loose references outside packed-refs.
 	LooseReferences map[git.ReferenceName]git.ObjectID
+}
+
+// PackfilesState describes the asserted state of all packfiles and common multi-pack-index.
+type PackfilesState struct {
+	// LooseObjects contain the list of objects outside packfiles. Although the transaction manager cleans them up
+	// eventually, loose objects should be handled during migration.
+	LooseObjects []git.ObjectID
+	// Packfiles is the hash map of name and corresponding packfile state assertion.
+	Packfiles map[string]*PackfileState
+	// PooledObjects contain the list of pooled objects member repositories can see from the pool.
+	PooledObjects []git.ObjectID
+	// HasMultiPackIndex asserts whether there is a multi-pack-index inside the objects/pack directory.
+	HasMultiPackIndex bool
+	// HasCommitGraphs assert whether the repository has valid commit graphs.
+	HasCommitGraphs bool
+}
+
+// PackfileState describes the asserted state of an individual packfile, including its contained objects, index, bitmap.
+type PackfileState struct {
+	// Objects asserts the list of objects this packfile contains.
+	Objects []git.ObjectID
+	// HasBitmap asserts whether the packfile includes a corresponding bitmap index (*.bitmap).
+	HasBitmap bool
+	// HasReverseIndex asserts whether the packfile includes a corresponding reverse index (*.rev).
+	HasReverseIndex bool
+}
+
+func sortObjects(objects []git.ObjectID) {
+	sort.Slice(objects, func(i, j int) bool {
+		return objects[i] < objects[j]
+	})
 }
 
 // RequireRepositoryState asserts the given repository matches the expected state.
@@ -111,39 +147,60 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 		return nil
 	}))
 
+	var actualPackfiles, expectedPackfiles *PackfilesState
+
 	expectedObjects := []git.ObjectID{}
-	if expected.Objects != nil {
+	// If Packfiles assertion exists, we collect all objects from packfiles and loose objects. This list will be
+	// compared with the actual list of objects gathered by `git-cat-file(1)`. This is to ensure on-disk structure
+	// matches Git's perspective.
+	if expected.Packfiles != nil {
+		expectedPackfiles = expected.Packfiles
+
+		for _, packfile := range expected.Packfiles.Packfiles {
+			sortObjects(packfile.Objects)
+			expectedObjects = append(expectedObjects, packfile.Objects...)
+		}
+		sortObjects(expectedPackfiles.LooseObjects)
+		expectedObjects = append(expectedObjects, expectedPackfiles.LooseObjects...)
+
+		sortObjects(expectedPackfiles.PooledObjects)
+		expectedObjects = append(expectedObjects, expectedPackfiles.PooledObjects...)
+		expectedPackfiles.PooledObjects = nil
+
+		objectHash, err := repo.ObjectHash(ctx)
+		require.NoError(tb, err)
+
+		actualPackfiles = collectPackfilesState(tb, repoPath, cfg, objectHash)
+		sortObjects(actualPackfiles.LooseObjects)
+		for _, packfile := range actualPackfiles.Packfiles {
+			sortObjects(packfile.Objects)
+		}
+	} else if expected.Objects != nil {
 		expectedObjects = expected.Objects
 	}
+	sortObjects(expectedObjects)
 
 	actualObjects := gittest.ListObjects(tb, cfg, repoPath)
-
-	sortObjects := func(objects []git.ObjectID) {
-		sort.Slice(objects, func(i, j int) bool {
-			return objects[i] < objects[j]
-		})
-	}
+	sortObjects(actualObjects)
 
 	alternate, err := os.ReadFile(stats.AlternatesFilePath(repoPath))
 	if err != nil {
 		require.ErrorIs(tb, err, fs.ErrNotExist)
 	}
-
-	sortObjects(expectedObjects)
-	sortObjects(actualObjects)
-
 	require.Equal(tb,
 		RepositoryState{
 			DefaultBranch: expected.DefaultBranch,
 			Objects:       expectedObjects,
 			Alternate:     expected.Alternate,
 			References:    expected.References,
+			Packfiles:     expectedPackfiles,
 		},
 		RepositoryState{
 			DefaultBranch: headReference,
 			Objects:       actualObjects,
 			Alternate:     string(alternate),
 			References:    actualReferencesState,
+			Packfiles:     actualPackfiles,
 		},
 	)
 	testhelper.RequireDirectoryState(tb, filepath.Join(repoPath, repoutil.CustomHooksDir), "", expected.CustomHooks)
@@ -211,6 +268,83 @@ func collectReferencesState(tb testing.TB, expected RepositoryState, repoPath st
 		PackedReferences: packedReferences,
 		LooseReferences:  looseReferences,
 	}, nil
+}
+
+func collectPackfilesState(tb testing.TB, repoPath string, cfg config.Cfg, objectHash git.ObjectHash) *PackfilesState {
+	state := &PackfilesState{}
+
+	objectsDir := filepath.Join(repoPath, "objects")
+
+	looseObjects, err := filepath.Glob(filepath.Join(objectsDir, "??/*"))
+	require.NoError(tb, err)
+	for _, obj := range looseObjects {
+		relPath, err := filepath.Rel(objectsDir, obj)
+		require.NoError(tb, err)
+
+		parts := strings.Split(relPath, "/")
+		require.Equalf(tb, 2, len(parts), "invalid loose object path %q", relPath)
+
+		state.LooseObjects = append(state.LooseObjects, git.ObjectID(fmt.Sprintf("%s%s", parts[0], parts[1])))
+	}
+
+	packDir := filepath.Join(objectsDir, "pack")
+	packfiles, err := filepath.Glob(filepath.Join(packDir, "*.idx"))
+	require.NoError(tb, err)
+
+	state.Packfiles = map[string]*PackfileState{}
+	for _, file := range packfiles {
+		indexFile, err := filepath.Rel(packDir, file)
+		require.NoError(tb, err)
+
+		ext := filepath.Ext(indexFile)
+		packName := strings.TrimSuffix(indexFile, ext)
+		state.Packfiles[packName] = &PackfileState{}
+
+		// Run git-verify-pack(1) to ensure the packfil is well functioning.
+		gittest.Exec(tb, cfg, "-C", repoPath, "verify-pack", file)
+
+		// Parse index to collect list of objects.
+		idxContent, err := os.ReadFile(file)
+		require.NoError(tb, err)
+
+		var stdout bytes.Buffer
+		gittest.ExecOpts(tb, cfg, gittest.ExecConfig{
+			Stdin:  strings.NewReader(string(idxContent)),
+			Stdout: &stdout,
+		}, "show-index", "--object-format="+objectHash.Format)
+		require.NoError(tb, packfile.ParseIndex(&stdout, func(obj *packfile.Object) {
+			state.Packfiles[packName].Objects = append(state.Packfiles[packName].Objects, git.ObjectID(obj.OID))
+		}))
+
+		// Check other index files exist.
+		if _, err := os.Stat(filepath.Join(packDir, packName+".bitmap")); err == nil {
+			state.Packfiles[packName].HasBitmap = true
+		} else if !errors.Is(err, os.ErrNotExist) {
+			require.NoError(tb, err)
+		}
+
+		if _, err := os.Stat(filepath.Join(packDir, packName+".rev")); err == nil {
+			state.Packfiles[packName].HasReverseIndex = true
+		} else if !errors.Is(err, os.ErrNotExist) {
+			require.NoError(tb, err)
+		}
+	}
+	midxPath := filepath.Join(packDir, "multi-pack-index")
+	if _, err := os.Stat(midxPath); err == nil {
+		state.HasMultiPackIndex = true
+		_, err := stats.MultiPackIndexInfoForPath(midxPath)
+		require.NoError(tb, err)
+
+		gittest.Exec(tb, cfg, "-C", repoPath, "multi-pack-index", "verify")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		require.NoError(tb, err)
+	}
+
+	info, err := stats.CommitGraphInfoForRepository(repoPath)
+	require.NoError(tb, err)
+	state.HasCommitGraphs = info.Exists
+
+	return state
 }
 
 type repositoryBuilder func(relativePath string) *localrepo.Repo
@@ -328,10 +462,12 @@ type testTransactionTag struct {
 }
 
 type testTransactionCommits struct {
-	First     testTransactionCommit
-	Second    testTransactionCommit
-	Third     testTransactionCommit
-	Diverging testTransactionCommit
+	First       testTransactionCommit
+	Second      testTransactionCommit
+	Third       testTransactionCommit
+	Diverging   testTransactionCommit
+	Orphan      testTransactionCommit
+	Unreachable testTransactionCommit
 }
 
 type testTransactionSetup struct {
@@ -429,6 +565,14 @@ type CreateRepository struct {
 type RunPackRefs struct {
 	// TransactionID is the transaction for which the pack-refs task runs.
 	TransactionID int
+}
+
+// RunRepack calls repack housekeeping task on a transaction.
+type RunRepack struct {
+	// TransactionID is the transaction for which the repack task runs.
+	TransactionID int
+	// Config is the desired repacking config for the task.
+	Config housekeeping.RepackObjectsConfig
 }
 
 // Commit calls Commit on a transaction.
@@ -651,7 +795,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			transaction, err := transactionManager.Begin(beginCtx, step.RelativePath, step.SnapshottedRelativePaths, step.ReadOnly)
 			require.ErrorIs(t, err, step.ExpectedError)
 			if err == nil {
-				require.Equal(t, step.ExpectedSnapshotLSN, transaction.SnapshotLSN())
+				require.Equalf(t, step.ExpectedSnapshotLSN, transaction.SnapshotLSN(), "mismatched ExpectedSnapshotLSN")
 			}
 
 			if step.ReadOnly {
@@ -810,6 +954,11 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 			transaction := openTransactions[step.TransactionID]
 			transaction.PackRefs()
+		case RunRepack:
+			require.Contains(t, openTransactions, step.TransactionID, "test error: repack housekeeping task aborted on committed before beginning it")
+
+			transaction := openTransactions[step.TransactionID]
+			transaction.Repack(step.Config)
 		case RepositoryAssertion:
 			require.Contains(t, openTransactions, step.TransactionID, "test error: transaction's snapshot asserted before beginning it")
 			transaction := openTransactions[step.TransactionID]
