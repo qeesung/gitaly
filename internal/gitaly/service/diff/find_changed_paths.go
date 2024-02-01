@@ -57,6 +57,7 @@ func (s *server) FindChangedPaths(in *gitalypb.FindChangedPathsRequest, stream g
 		git.Flag{Name: "-z"},
 		git.Flag{Name: "--stdin"},
 		git.Flag{Name: "-r"},
+		git.Flag{Name: "--root"},
 		git.Flag{Name: "--no-renames"},
 		git.Flag{Name: "--no-commit-id"},
 		// By default, git-diff-tree(1) does not report changes in the root commit.
