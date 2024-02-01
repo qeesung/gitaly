@@ -37,7 +37,6 @@ import (
 
 func runTestWithAndWithoutConfigOptions(t *testing.T, tf func(t *testing.T, ctx context.Context, opts ...testcfg.Option), opts ...testcfg.Option) {
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, func(t *testing.T, ctx context.Context) {
 		t.Run("no config options", func(t *testing.T) { tf(t, ctx) })
@@ -164,7 +163,6 @@ func TestUploadPackWithSidechannel_client(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testUploadPackWithSidechannelClient)
 }
@@ -482,7 +480,6 @@ func TestUploadPack_validation(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testUploadPackValidation)
 }
@@ -787,7 +784,6 @@ func TestUploadPack_invalidStorage(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testUploadPackInvalidStorage)
 }
@@ -819,7 +815,6 @@ func TestUploadPack_gitFailure(t *testing.T) {
 	t.Parallel()
 
 	testhelper.NewFeatureSets(
-		featureflag.UploadPackBoundaryBitmapTraversal,
 		featureflag.BundleURI,
 	).Run(t, testUploadPackGitFailure)
 }

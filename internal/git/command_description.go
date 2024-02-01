@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strings"
 
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 )
 
@@ -347,18 +346,12 @@ var commandDescriptions = map[string]commandDescription{
 	"upload-pack": {
 		flags: scNoRefUpdates,
 		opts: func(ctx context.Context) []GlobalOption {
-			opts := append(append([]GlobalOption{
+			return append(append([]GlobalOption{
 				ConfigPair{Key: "uploadpack.allowFilter", Value: "true"},
 				// Enables the capability to request individual SHA1's from the
 				// remote repo.
 				ConfigPair{Key: "uploadpack.allowAnySHA1InWant", Value: "true"},
 			}, hiddenUploadPackRefPrefixes(ctx)...), packConfiguration(ctx)...)
-
-			if featureflag.UploadPackBoundaryBitmapTraversal.IsEnabled(ctx) {
-				opts = append(opts, ConfigPair{Key: "pack.useBitmapBoundaryTraversal", Value: "true"})
-			}
-
-			return opts
 		},
 	},
 	"version": {
