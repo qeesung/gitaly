@@ -235,6 +235,8 @@ func TestWriteRef(t *testing.T) {
 		{
 			desc: "update default branch",
 			setup: func(t *testing.T) setupData {
+				testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
+
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 				defaultCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
@@ -374,6 +376,8 @@ func TestWriteRef(t *testing.T) {
 }
 
 func TestWriteRef_locked(t *testing.T) {
+	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

@@ -26,6 +26,8 @@ import (
 )
 
 func TestInfoService_RepositoryReplicas(t *testing.T) {
+	testhelper.SkipWithReftable(t, "voting doesn't work since the reftable is a binary format and its name and contents aren't deterministic")
+
 	t.Parallel()
 
 	var cfgs []gconfig.Cfg

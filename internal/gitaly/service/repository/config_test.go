@@ -47,6 +47,8 @@ func TestGetConfig(t *testing.T) {
 	}
 
 	t.Run("normal repo", func(t *testing.T) {
+		testhelper.SkipWithReftable(t, "core.repositoryformatversion is set when reftables are used")
+
 		repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 		config, err := getConfig(t, client, repo)

@@ -183,6 +183,8 @@ func TestDeleteRefs_invalidRefFormat(t *testing.T) {
 }
 
 func TestDeleteRefs_refLocked(t *testing.T) {
+	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match the error thrown when using reftables")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

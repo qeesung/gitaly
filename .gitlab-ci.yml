@@ -146,6 +146,7 @@ workflow:
   artifacts: &test_artifacts
     paths:
       - ${TEST_LOG_DIR}
+      - ${TEST_JSON_REPORT}
     reports:
       junit: ${TEST_JUNIT_REPORT}
       coverage_report:
@@ -274,6 +275,14 @@ test:pgbouncer:
     # We need to enable per-build networking such that the PgBouncer service
     # can reach Postgres.
     TEST_TARGET: "test-with-praefect"
+
+test:reftable:
+  <<: *test_definition
+  variables:
+    <<: *test_variables
+    SKIP_OVERRIDING_GIT_VERSION: "YesPlease"
+    GIT_VERSION: "pks-reftables-initial-baseline"
+    TEST_TARGET: test-with-reftable
 
 test:nightly:
   <<: *test_definition

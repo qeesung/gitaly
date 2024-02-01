@@ -660,6 +660,8 @@ func testReplicateRepository(t *testing.T, ctx context.Context) {
 }
 
 func TestReplicateRepository_transactional(t *testing.T) {
+	testhelper.SkipWithReftable(t, "voting doesn't work since the reftable is a binary format and its name and contents aren't deterministic")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

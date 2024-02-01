@@ -88,6 +88,9 @@ var (
 		// rely on a complete Git installation in that case.
 		"GIT_EXEC_PATH",
 
+		// GIT_DEFAULT_REF_FORMAT ...
+		"GIT_DEFAULT_REF_FORMAT",
+
 		// Git HTTP proxy settings:
 		// https://git-scm.com/docs/git-config#git-config-httpproxy
 		"all_proxy",

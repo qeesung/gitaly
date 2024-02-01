@@ -348,6 +348,8 @@ func TestUserDeleteBranch_allowed(t *testing.T) {
 }
 
 func TestUserDeleteBranch_concurrentUpdate(t *testing.T) {
+	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

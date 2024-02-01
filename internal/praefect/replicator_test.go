@@ -39,7 +39,10 @@ import (
 )
 
 func TestReplMgr_ProcessBacklog(t *testing.T) {
+	testhelper.SkipWithReftable(t, "fetch on replication job fails")
+
 	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
 	primaryCfg := testcfg.Build(t, testcfg.WithStorages("primary"))
@@ -550,7 +553,10 @@ func getChecksumFunc(ctx context.Context, client gitalypb.RepositoryServiceClien
 }
 
 func TestProcessBacklog_FailedJobs(t *testing.T) {
+	testhelper.SkipWithReftable(t, "voting doesn't work since the reftable is a binary format and its name and contents aren't deterministic")
+
 	t.Parallel()
+
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
 	primaryCfg := testcfg.Build(t, testcfg.WithStorages("default"))
@@ -656,7 +662,10 @@ func TestProcessBacklog_FailedJobs(t *testing.T) {
 }
 
 func TestProcessBacklog_Success(t *testing.T) {
+	testhelper.SkipWithReftable(t, "voting doesn't work since the reftable is a binary format and its name and contents aren't deterministic")
+
 	t.Parallel()
+
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
 	primaryCfg := testcfg.Build(t, testcfg.WithStorages("primary"))

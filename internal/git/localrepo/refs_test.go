@@ -591,6 +591,8 @@ func TestRepo_UpdateRef(t *testing.T) {
 }
 
 func TestRepo_SetDefaultBranch(t *testing.T) {
+	testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
+
 	t.Parallel()
 
 	testCases := []struct {
@@ -654,6 +656,8 @@ func TestRepo_SetDefaultBranch(t *testing.T) {
 }
 
 func TestRepo_HeadReference(t *testing.T) {
+	testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -726,6 +730,8 @@ func TestRepo_SetDefaultBranch_errors(t *testing.T) {
 	})
 
 	t.Run("HEAD is locked by SetDefaultBranch", func(t *testing.T) {
+		testhelper.SkipWithReftable(t, "reftable doesn't add HEAD.lock")
+
 		t.Parallel()
 
 		ctx, err := txinfo.InjectTransaction(

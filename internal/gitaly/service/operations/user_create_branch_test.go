@@ -420,6 +420,10 @@ func TestUserCreateBranch_failure(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.desc, func(t *testing.T) {
+			if t.Name() == "TestUserCreateBranch_failure/conflicting_with_refs/heads/improve/awesome" {
+				testhelper.SkipWithReftable(t, "referenceExistsConflictRegex doesn't match output when using reftables")
+			}
+
 			t.Parallel()
 
 			request := &gitalypb.UserCreateBranchRequest{

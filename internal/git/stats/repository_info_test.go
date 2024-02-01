@@ -98,6 +98,8 @@ func TestLogObjectInfo(t *testing.T) {
 	}
 
 	t.Run("shared repo with multiple alternates", func(t *testing.T) {
+		testhelper.SkipWithReftable(t, "checks for packed-refs directly on filesystem")
+
 		t.Parallel()
 
 		logger := testhelper.NewLogger(t)
@@ -173,6 +175,9 @@ func TestLogObjectInfo(t *testing.T) {
 }
 
 func TestRepositoryInfoForRepository(t *testing.T) {
+	testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
+and considers the reftable as a loose file`)
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -820,6 +825,8 @@ func TestReadAlternatesFile(t *testing.T) {
 }
 
 func TestReferencesInfoForRepository(t *testing.T) {
+	testhelper.SkipWithReftable(t, "tests are specific to files backend")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

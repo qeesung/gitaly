@@ -22,6 +22,8 @@ import (
 )
 
 func TestGetSnapshot(t *testing.T) {
+	testhelper.SkipWithReftable(t, "snapshots are taken by directly parsing the repositories filesystem")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
