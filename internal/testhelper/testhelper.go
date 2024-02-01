@@ -258,8 +258,6 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.MailmapOptions, rand.Int()%2 == 0)
 	// Randomly enable limiter.resizableSemaphore
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseResizableSemaphoreInConcurrencyLimiter, rand.Int()%2 == 0)
-	// Randomly enable ExecCommandDirectlyInCgroup.
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.ExecCommandDirectlyInCgroup, rand.Int()%2 == 0)
 	// Disable LogGitTraces
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.LogGitTraces, false)
 
