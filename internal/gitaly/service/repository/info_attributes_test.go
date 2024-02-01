@@ -33,6 +33,13 @@ func TestGetInfoAttributesExisting(t *testing.T) {
 	err := os.WriteFile(attrsPath, data, perm.SharedFile)
 	require.NoError(t, err)
 
+	gitattributesContent := "*.go diff=go text\n*.md text\n*.jpg -text"
+	gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithBranch("main"),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Path: ".gitattributes", Mode: "100644", Content: gitattributesContent},
+		))
+
 	request := &gitalypb.GetInfoAttributesRequest{Repository: repo}
 
 	//nolint:staticcheck
@@ -45,7 +52,15 @@ func TestGetInfoAttributesExisting(t *testing.T) {
 	}))
 
 	require.NoError(t, err)
-	require.Equal(t, data, receivedData)
+	require.Equal(t, gitattributesContent, string(receivedData))
+
+	if !testhelper.IsWALEnabled() {
+		// Supporting info/attributes file is deprecating,
+		// so we don't need to support committing them through the WAL.
+		// Skip asserting the info/attributes file is removed.
+		// And this test should be removed, once all info/attributes files clean up.
+		require.NoFileExists(t, attrsPath)
+	}
 }
 
 func TestGetInfoAttributesNonExisting(t *testing.T) {

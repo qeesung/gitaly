@@ -24,6 +24,7 @@ import (
 
 func TestApplyGitattributes_successful(t *testing.T) {
 	t.Parallel()
+	t.Skip("skipping test: ApplyGitattributes is deprecated in git 2.43.0+")
 
 	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryService(t)
@@ -90,6 +91,7 @@ func (s *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalyp
 
 func TestApplyGitattributes_transactional(t *testing.T) {
 	t.Parallel()
+	t.Skip("skipping test: ApplyGitattributes is deprecated in git 2.43.0+")
 
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
@@ -220,9 +222,11 @@ func TestApplyGitattributes_transactional(t *testing.T) {
 
 func TestApplyGitattributes_failure(t *testing.T) {
 	t.Parallel()
+	t.Skip("skipping test: ApplyGitattributes is deprecated in git 2.43.0+")
 
 	ctx := testhelper.Context(t)
 	cfg, client := setupRepositoryService(t)
+
 	repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 	for _, tc := range []struct {
