@@ -1214,11 +1214,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								setup.Commits.Orphan.OID,
 								setup.Commits.Unreachable.OID,
 							},
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-5f624d294fda1b8df86f1c286c6a66757b44126e",
-									"pack-c57ed22f16c0a35f04febe26eac0fe8974b2b4ab3469d1ece0bc2983588ad44e",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       true,
 									HasReverseIndex: true,
@@ -1272,11 +1269,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						Packfiles: &PackfilesState{
 							// Unreachable objects are packed.
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-689b1fa746246c50a8b0f3469a06c7ae68af9926",
-									"pack-3506da99c69e8bbb4e3122636a486ffcc3506f08d24426823a2a394a7fb16b94",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: append(defaultReachableObjects,
 										setup.Commits.Orphan.OID,
 										setup.Commits.Unreachable.OID,
@@ -1340,11 +1334,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								setup.Commits.Orphan.OID,
 								setup.Commits.Unreachable.OID,
 							},
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-a81cd79eb9f32ce0afbdc15dec51c7141029e54c",
-									"pack-ce649b013f4191c500c7c4de5fe407120314c83354944e5639bf1a33a2c94110",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       false,
 									HasReverseIndex: true,
@@ -1401,11 +1392,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-e1b234fb89567714fc382281c7f89a363f4ac115",
-									"pack-d7214dae50142c99e75bf21d679b8cc14bc5d82cdb84dc23f39120101a6ed5e9",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: append(defaultReachableObjects,
 										setup.Commits.Orphan.OID,
 										setup.Commits.Unreachable.OID,
@@ -1474,12 +1462,9 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
+							Packfiles: []*PackfileState{
 								// Initial packfile.
-								hash(t,
-									"pack-5f624d294fda1b8df86f1c286c6a66757b44126e",
-									"pack-c57ed22f16c0a35f04febe26eac0fe8974b2b4ab3469d1ece0bc2983588ad44e",
-								): {
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       false,
 									HasReverseIndex: true,
@@ -1487,10 +1472,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								// New packfile that contains unreachable objects. This
 								// is a co-incident, it follows the geometric
 								// progression.
-								hash(t,
-									"pack-f20a6e68adae9088db85f994838091d53fbaf608",
-									"pack-aa6d40f5f019492a7cc11291ab68666ae7ac2a23e66762905581c44523bb12bd",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Orphan.OID,
 										setup.Commits.Unreachable.OID,
@@ -1558,11 +1540,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								setup.Commits.Orphan.OID,
 								setup.Commits.Unreachable.OID,
 							},
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-a81cd79eb9f32ce0afbdc15dec51c7141029e54c",
-									"pack-ce649b013f4191c500c7c4de5fe407120314c83354944e5639bf1a33a2c94110",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       false,
 									HasReverseIndex: true,
@@ -1630,11 +1609,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						Packfiles: &PackfilesState{
 							// Unreachable objects are pruned.
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-a81cd79eb9f32ce0afbdc15dec51c7141029e54c",
-									"pack-ce649b013f4191c500c7c4de5fe407120314c83354944e5639bf1a33a2c94110",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       false,
 									HasReverseIndex: true,
@@ -1704,11 +1680,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								setup.Commits.Orphan.OID,
 								setup.Commits.Unreachable.OID,
 							},
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-a81cd79eb9f32ce0afbdc15dec51c7141029e54c",
-									"pack-ce649b013f4191c500c7c4de5fe407120314c83354944e5639bf1a33a2c94110",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       false,
 									HasReverseIndex: true,
@@ -1774,19 +1747,13 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-5f624d294fda1b8df86f1c286c6a66757b44126e",
-									"pack-c57ed22f16c0a35f04febe26eac0fe8974b2b4ab3469d1ece0bc2983588ad44e",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       false,
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-f20a6e68adae9088db85f994838091d53fbaf608",
-									"pack-aa6d40f5f019492a7cc11291ab68666ae7ac2a23e66762905581c44523bb12bd",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Orphan.OID,
 										setup.Commits.Unreachable.OID,
@@ -1850,19 +1817,13 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-5f624d294fda1b8df86f1c286c6a66757b44126e",
-									"pack-c57ed22f16c0a35f04febe26eac0fe8974b2b4ab3469d1ece0bc2983588ad44e",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       false,
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-f20a6e68adae9088db85f994838091d53fbaf608",
-									"pack-aa6d40f5f019492a7cc11291ab68666ae7ac2a23e66762905581c44523bb12bd",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Orphan.OID,
 										setup.Commits.Unreachable.OID,
@@ -1926,11 +1887,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-689b1fa746246c50a8b0f3469a06c7ae68af9926",
-									"pack-3506da99c69e8bbb4e3122636a486ffcc3506f08d24426823a2a394a7fb16b94",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: append(defaultReachableObjects,
 										setup.Commits.Orphan.OID,
 										setup.Commits.Unreachable.OID,
@@ -1996,11 +1954,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								setup.Commits.Orphan.OID,
 								setup.Commits.Unreachable.OID,
 							},
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-a81cd79eb9f32ce0afbdc15dec51c7141029e54c",
-									"pack-ce649b013f4191c500c7c4de5fe407120314c83354944e5639bf1a33a2c94110",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       false,
 									HasReverseIndex: true,
@@ -2065,19 +2020,13 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-5f624d294fda1b8df86f1c286c6a66757b44126e",
-									"pack-c57ed22f16c0a35f04febe26eac0fe8974b2b4ab3469d1ece0bc2983588ad44e",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects:         defaultReachableObjects,
 									HasBitmap:       false,
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-f20a6e68adae9088db85f994838091d53fbaf608",
-									"pack-aa6d40f5f019492a7cc11291ab68666ae7ac2a23e66762905581c44523bb12bd",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Orphan.OID,
 										setup.Commits.Unreachable.OID,
@@ -2154,11 +2103,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-689b1fa746246c50a8b0f3469a06c7ae68af9926",
-									"pack-3506da99c69e8bbb4e3122636a486ffcc3506f08d24426823a2a394a7fb16b94",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: append(defaultReachableObjects,
 										setup.Commits.Orphan.OID,
 										setup.Commits.Unreachable.OID,
@@ -2223,7 +2169,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
 							LooseObjects:      append(defaultReachableObjects, setup.Commits.Unreachable.OID, setup.Commits.Orphan.OID),
-							Packfiles:         map[string]*PackfileState{},
+							Packfiles:         []*PackfileState{},
 							HasMultiPackIndex: false,
 							HasCommitGraphs:   false,
 						},
@@ -2275,7 +2221,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							LooseReferences: map[git.ReferenceName]git.ObjectID{},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles:       map[string]*PackfileState{},
+							Packfiles:       []*PackfileState{},
 							HasCommitGraphs: false,
 						},
 					},
@@ -2353,11 +2299,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-98be7bb46e97ddbe7e3093e0cc5bca60f37f9b09",
-									"pack-53630df54431a48f6d87f1bbe0d054327f8eb1964f813de1821d15bc5dcb1621",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									// Diverging commit is gone.
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,
@@ -2464,25 +2407,19 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-98be7bb46e97ddbe7e3093e0cc5bca60f37f9b09",
-									"pack-53630df54431a48f6d87f1bbe0d054327f8eb1964f813de1821d15bc5dcb1621",
-								): {
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.Commits.Third.OID,
+									},
+									HasReverseIndex: true,
+								},
+								{
 									// Diverging commit is gone.
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
 										setup.Commits.Second.OID,
-									},
-									HasReverseIndex: true,
-								},
-								hash(t,
-									"pack-529ec37accbc126425efe69abdf91153411532a6",
-									"pack-895b4eade6c459f47a382a0d637ef1ce34a661c76f003c7d7a38a7420e3afc69",
-								): {
-									Objects: []git.ObjectID{
-										setup.Commits.Third.OID,
 									},
 									HasReverseIndex: true,
 								},
@@ -2584,11 +2521,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-98be7bb46e97ddbe7e3093e0cc5bca60f37f9b09",
-									"pack-53630df54431a48f6d87f1bbe0d054327f8eb1964f813de1821d15bc5dcb1621",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
@@ -2596,10 +2530,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 									},
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-529ec37accbc126425efe69abdf91153411532a6",
-									"pack-895b4eade6c459f47a382a0d637ef1ce34a661c76f003c7d7a38a7420e3afc69",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Third.OID,
 									},
@@ -2694,11 +2625,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-98be7bb46e97ddbe7e3093e0cc5bca60f37f9b09",
-									"pack-53630df54431a48f6d87f1bbe0d054327f8eb1964f813de1821d15bc5dcb1621",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
@@ -2831,39 +2759,27 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-452292f7e0c6bcca1b42c53aaac4537416b5dbb9",
-									"pack-735ad245db57a16c41525c9101c42594d090c7021b51aa12d9104a4eea4223c5",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
 									},
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-407172c9edc9b3cef89f8fb341262155b6b401ae",
-									"pack-8c9a31ee3c6493a1883f96fe629925b6f94c00d810eb6c80d5e2502fba646d3a",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Diverging.OID,
 									},
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-529ec37accbc126425efe69abdf91153411532a6",
-									"pack-895b4eade6c459f47a382a0d637ef1ce34a661c76f003c7d7a38a7420e3afc69",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Third.OID,
 									},
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-5a422f6c469963ffa026bf15cfd151751fba6e5f",
-									"pack-3ed0b733b17d82f87a350b856f7fd6d6a781d85c5d8d36fad64b459124444f11",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Second.OID,
 									},
@@ -2962,11 +2878,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-df5e3e230b167b4ce31a30f389e0f1908ae40f2b",
-									"pack-6a4d9d6b54438754effb555adec435cd9031a01cba7515bdf8b73a0e2714c6ff",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
@@ -3065,11 +2978,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-4274682fcb6a4dbb1a59ba7dd8577402e61ccbd2",
-									"pack-8ebabff3c37210ed37c4343255992f62a2ce113f7fb11f757de3bca157379d40",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
@@ -3165,11 +3075,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-4274682fcb6a4dbb1a59ba7dd8577402e61ccbd2",
-									"pack-8ebabff3c37210ed37c4343255992f62a2ce113f7fb11f757de3bca157379d40",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
@@ -3277,21 +3184,15 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
 							// First commit and its tree object.
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-452292f7e0c6bcca1b42c53aaac4537416b5dbb9",
-									"pack-735ad245db57a16c41525c9101c42594d090c7021b51aa12d9104a4eea4223c5",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
 									},
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-5a422f6c469963ffa026bf15cfd151751fba6e5f",
-									"pack-3ed0b733b17d82f87a350b856f7fd6d6a781d85c5d8d36fad64b459124444f11",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Second.OID,
 									},
@@ -3311,14 +3212,11 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					"member": {
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
+							Packfiles: []*PackfileState{
 								// Packfile containing second commit (reachable) and
 								// third commit (unreachable). Redundant objects in
 								// quarantined packs are removed.
-								hash(t,
-									"pack-529ec37accbc126425efe69abdf91153411532a6",
-									"pack-895b4eade6c459f47a382a0d637ef1ce34a661c76f003c7d7a38a7420e3afc69",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Third.OID,
 									},
@@ -3457,11 +3355,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					"pool": {
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-144f9890c312a4cf5e66895bf721606d0f691083",
-									"pack-1d8b96ae9cc5301db6024e5d87974c960da6c017a9cf1bbed52bf8fe51e085de",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
@@ -3485,7 +3380,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					"member": {
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles:    make(map[string]*PackfileState),
+							Packfiles:    []*PackfileState{},
 							// All objects are accessible in member.
 							PooledObjects: []git.ObjectID{
 								setup.ObjectHash.EmptyTreeOID,
@@ -3619,21 +3514,15 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					"pool": {
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-452292f7e0c6bcca1b42c53aaac4537416b5dbb9",
-									"pack-735ad245db57a16c41525c9101c42594d090c7021b51aa12d9104a4eea4223c5",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
 									},
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-5a422f6c469963ffa026bf15cfd151751fba6e5f",
-									"pack-3ed0b733b17d82f87a350b856f7fd6d6a781d85c5d8d36fad64b459124444f11",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Second.OID,
 									},
@@ -3653,14 +3542,11 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					"member": {
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
-							Packfiles: map[string]*PackfileState{
+							Packfiles: []*PackfileState{
 								// This packfile matches the quarantined pack of
 								// transaction 3. Geometric repacking does not
 								// deduplicate second commit.
-								hash(t,
-									"pack-4274682fcb6a4dbb1a59ba7dd8577402e61ccbd2",
-									"pack-8ebabff3c37210ed37c4343255992f62a2ce113f7fb11f757de3bca157379d40",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
@@ -3670,10 +3556,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 								// This packfile matches the quarantined pack of
 								// transaction 4.
-								hash(t,
-									"pack-529ec37accbc126425efe69abdf91153411532a6",
-									"pack-895b4eade6c459f47a382a0d637ef1ce34a661c76f003c7d7a38a7420e3afc69",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Third.OID,
 									},
@@ -3809,21 +3692,15 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Repositories: RepositoryStates{
 					"pool": {
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-452292f7e0c6bcca1b42c53aaac4537416b5dbb9",
-									"pack-735ad245db57a16c41525c9101c42594d090c7021b51aa12d9104a4eea4223c5",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
 									},
 									HasReverseIndex: true,
 								},
-								hash(t,
-									"pack-5a422f6c469963ffa026bf15cfd151751fba6e5f",
-									"pack-3ed0b733b17d82f87a350b856f7fd6d6a781d85c5d8d36fad64b459124444f11",
-								): {
+								{
 									Objects: []git.ObjectID{
 										setup.Commits.Second.OID,
 									},
@@ -3842,11 +3719,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					},
 					"member": {
 						Packfiles: &PackfilesState{
-							Packfiles: map[string]*PackfileState{
-								hash(t,
-									"pack-529ec37accbc126425efe69abdf91153411532a6",
-									"pack-895b4eade6c459f47a382a0d637ef1ce34a661c76f003c7d7a38a7420e3afc69",
-								): {
+							Packfiles: []*PackfileState{
+								{
 									Objects: []git.ObjectID{
 										// Diverging commit is pruned.
 										setup.Commits.Third.OID,
@@ -3963,7 +3837,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								setup.Commits.Third.OID,
 								setup.Commits.Diverging.OID,
 							},
-							Packfiles: map[string]*PackfileState{},
+							Packfiles: []*PackfileState{},
 						},
 					},
 				},
@@ -4024,7 +3898,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								setup.Commits.Third.OID,
 								setup.Commits.Diverging.OID,
 							},
-							Packfiles: map[string]*PackfileState{},
+							Packfiles: []*PackfileState{},
 						},
 					},
 				},
