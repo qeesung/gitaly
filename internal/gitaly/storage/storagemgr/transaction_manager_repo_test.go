@@ -96,21 +96,6 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/branch",
@@ -224,31 +209,6 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/3":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/3/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/3/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					),
-					"/wal/3/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/other",
@@ -347,20 +307,6 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			expectedState: StateAssertion{
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -480,32 +426,6 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							setup.Commits.Third.OID,
 						},
 					},
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/2":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/2/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-							setup.Commits.Third.OID,
-						},
-					),
-					"/wal/2/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 				},
 			},
 		},
@@ -791,10 +711,6 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
-				},
 				Repositories: RepositoryStates{},
 			},
 		},
@@ -940,20 +856,6 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-				},
 				Repositories: RepositoryStates{},
 			},
 		},
@@ -1011,20 +913,6 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			expectedState: StateAssertion{
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/2/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/2/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {

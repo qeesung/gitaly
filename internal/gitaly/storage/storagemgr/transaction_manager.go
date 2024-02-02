@@ -3011,9 +3011,24 @@ func isDirEmpty(dir string) (bool, error) {
 	return false, err
 }
 
-// deleteLogEntry deletes the log entry at the given LSN from the log.
+// deleteLogEntry deletes the log entry at the given LSN from the log. It first removes the log entry
+// and then the files. This upholds the invariant that each log entry in the database always has its
+// files in place.
 func (mgr *TransactionManager) deleteLogEntry(lsn LSN) error {
-	return mgr.deleteKey(keyLogEntry(mgr.partitionID, lsn))
+	if err := mgr.deleteKey(keyLogEntry(mgr.partitionID, lsn)); err != nil {
+		return fmt.Errorf("remove log entry: %w", err)
+	}
+
+	walFilesPath := walFilesPathForLSN(mgr.stateDirectory, lsn)
+	if err := os.RemoveAll(walFilesPath); err != nil {
+		return fmt.Errorf("remove files: %w", err)
+	}
+
+	if err := safe.NewSyncer().SyncParent(walFilesPath); err != nil {
+		return fmt.Errorf("sync file deletion: %w", err)
+	}
+
+	return nil
 }
 
 // readLogEntry returns the log entry from the given position in the log.

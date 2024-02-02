@@ -2,8 +2,6 @@ package storagemgr
 
 import (
 	"context"
-	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,7 +12,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
 
 func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) []transactionTestCase {
@@ -38,16 +35,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 	setup := customSetup(t, ctx, testPartitionID, relativePath)
 	lightweightTag := setup.Commits.Diverging.OID
 	annotatedTag := setup.AnnotatedTags[0]
-
-	directoryStateWithReferences := func(lsn LSN) testhelper.DirectoryState {
-		return testhelper.DirectoryState{
-			"/":    {Mode: fs.ModeDir | perm.PrivateDir},
-			"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
-			// LSN is when a log entry is appended, it's different from transaction ID.
-			fmt.Sprintf("/wal/%d", lsn):             {Mode: fs.ModeDir | perm.PrivateDir},
-			fmt.Sprintf("/wal/%s/packed-refs", lsn): anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
-		}
-	}
 
 	defaultReferences := map[git.ReferenceName]git.ObjectID{
 		"refs/heads/branch-1": setup.Commits.Second.OID,
@@ -89,7 +76,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: directoryStateWithReferences(1),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -163,7 +149,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: directoryStateWithReferences(2),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -215,7 +200,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: directoryStateWithReferences(2),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -267,7 +251,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: directoryStateWithReferences(2),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -322,7 +305,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: directoryStateWithReferences(1),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -378,7 +360,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: directoryStateWithReferences(2),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -435,7 +416,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: directoryStateWithReferences(1),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -653,22 +633,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 						Alternate: "../../pool/objects",
 					},
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/5":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/5/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
-				},
 			},
 		},
 		{
@@ -702,7 +666,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: directoryStateWithReferences(1),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -771,12 +734,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			expectedState: StateAssertion{
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 				},
 				Repositories: RepositoryStates{
 					relativePath: {
@@ -874,7 +831,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
 				},
-				Directory: directoryStateWithReferences(1),
 				Repositories: RepositoryStates{
 					relativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -966,24 +922,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 						Alternate: "../../pool/objects",
 					},
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/3":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/3/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
-					"/wal/4":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/4/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
-				},
 			},
 		},
 		{
@@ -1016,14 +954,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			expectedState: StateAssertion{
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
-					"/wal/2":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 				},
 				Repositories: RepositoryStates{
 					relativePath: {
@@ -1076,10 +1006,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
-				},
 				Repositories: RepositoryStates{
 					relativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -1092,47 +1018,6 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 	}
-}
-
-type walDirectoryState struct {
-	lsn                 LSN
-	includePackfiles    bool
-	includeMultiIndexes bool
-	includeCommitGraphs bool
-	includeObjects      []git.ObjectID
-}
-
-func generateDirectoryState(cfg config.Cfg, stats []*walDirectoryState) testhelper.DirectoryState {
-	state := testhelper.DirectoryState{}
-	if len(stats) == 0 {
-		return state
-	}
-	state["/"] = testhelper.DirectoryEntry{Mode: fs.ModeDir | perm.PrivateDir}
-	state["/wal"] = testhelper.DirectoryEntry{Mode: fs.ModeDir | perm.PrivateDir}
-	for _, stat := range stats {
-		walDir := fmt.Sprintf("/wal/%d", stat.lsn)
-		state[walDir] = testhelper.DirectoryEntry{Mode: fs.ModeDir | perm.PrivateDir}
-		if stat.includePackfiles {
-			state[filepath.Join(walDir, "pack-*.pack")] = anyDirectoryEntry(cfg)
-			state[filepath.Join(walDir, "pack-*.idx")] = anyDirectoryEntry(cfg)
-			state[filepath.Join(walDir, "pack-*.rev")] = anyDirectoryEntry(cfg)
-		}
-		if stat.includeMultiIndexes {
-			state[filepath.Join(walDir, "multi-pack-index")] = anyDirectoryEntryWithPerm(cfg, perm.SharedFile)
-			state[filepath.Join(walDir, "multi-pack-index-*.bitmap")] = anyDirectoryEntry(cfg)
-		}
-		if stat.includeCommitGraphs {
-			state[filepath.Join(walDir, "commit-graphs")] = testhelper.DirectoryEntry{Mode: fs.ModeDir | perm.PrivateDir}
-			state[filepath.Join(walDir, "commit-graphs", "commit-graph-chain")] = anyDirectoryEntry(cfg)
-			state[filepath.Join(walDir, "commit-graphs", "graph-*.graph")] = anyDirectoryEntry(cfg)
-		}
-		if len(stat.includeObjects) != 0 {
-			state[filepath.Join(walDir, "objects.idx")] = indexFileDirectoryEntry(cfg)
-			state[filepath.Join(walDir, "objects.rev")] = reverseIndexFileDirectoryEntry(cfg)
-			state[filepath.Join(walDir, "objects.pack")] = packFileDirectoryEntry(cfg, stat.includeObjects)
-		}
-	}
-	return state
 }
 
 // generateHousekeepingRepackingStrategyTests returns a set of tests which run repacking with different strategies and
@@ -1213,10 +1098,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: testhelper.DirectoryState{
-					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
-				},
 			},
 		},
 		{
@@ -1271,13 +1152,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeMultiIndexes: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1327,13 +1201,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeMultiIndexes: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1382,14 +1249,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeMultiIndexes: true,
-						includeCommitGraphs: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1452,14 +1311,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeMultiIndexes: true,
-						includeCommitGraphs: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1509,14 +1360,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeMultiIndexes: true,
-						includeCommitGraphs: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1569,14 +1412,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeMultiIndexes: true,
-						includeCommitGraphs: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1631,14 +1466,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeMultiIndexes: true,
-						includeCommitGraphs: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1697,13 +1524,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeCommitGraphs: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1761,13 +1581,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeCommitGraphs: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1820,12 +1633,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:              1,
-						includePackfiles: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1881,14 +1688,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeMultiIndexes: true,
-						includeCommitGraphs: true,
-					},
-				}),
 			},
 		},
 		{
@@ -1946,12 +1745,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:              1,
-						includePackfiles: true,
-					},
-				}),
 			},
 		},
 		{
@@ -2021,16 +1814,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn:                 1,
-						includePackfiles:    true,
-						includeMultiIndexes: true,
-					},
-					{
-						lsn: 2,
-					},
-				}),
 			},
 		},
 		{
@@ -2072,10 +1855,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						},
 					},
 				},
-				Directory: testhelper.DirectoryState{
-					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
-				},
 			},
 		},
 	}
@@ -2108,9 +1887,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{lsn: 1},
-				}),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -2165,22 +1941,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-							setup.Commits.Diverging.OID,
-						},
-					},
-					{
-						lsn:                 2,
-						includePackfiles:    true,
-						includeCommitGraphs: true,
-					},
-				}),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -2261,28 +2021,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-							setup.Commits.Diverging.OID,
-						},
-					},
-					{
-						lsn:                 2,
-						includePackfiles:    true,
-						includeCommitGraphs: true,
-					},
-					{
-						lsn: 3,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Third.OID,
-						},
-					},
-				}),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -2369,28 +2107,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-							setup.Commits.Diverging.OID,
-						},
-					},
-					{
-						lsn: 2,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Third.OID,
-						},
-					},
-					{
-						lsn:                 3,
-						includePackfiles:    true,
-						includeCommitGraphs: true,
-					},
-				}),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -2473,22 +2189,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-							setup.Commits.Diverging.OID,
-						},
-					},
-					{
-						lsn:                 3,
-						includePackfiles:    true,
-						includeCommitGraphs: true,
-					},
-				}),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -2593,36 +2293,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(5).toProto(),
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					},
-					{
-						lsn: 2,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Second.OID,
-						},
-					},
-					{
-						lsn: 3,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Third.OID,
-						},
-					},
-					{
-						lsn: 4,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Diverging.OID,
-						},
-					},
-					{
-						lsn: 5,
-					},
-				}),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -2725,20 +2395,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					},
-					{
-						lsn:              4,
-						includePackfiles: true,
-					},
-				}),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -2825,20 +2481,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					},
-					{
-						// No new packfiles
-						lsn: 4,
-					},
-				}),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -2926,16 +2568,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					},
-				}),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -3112,34 +2744,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 						Alternate: "../../pool/objects",
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					},
-					{
-						lsn: 3,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-							setup.Commits.Third.OID,
-						},
-					},
-					{
-						lsn: 5,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Second.OID,
-						},
-					},
-					{
-						lsn:              6,
-						includePackfiles: true,
-					},
-				}),
 			},
 		},
 		{
@@ -3262,26 +2866,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 						Alternate:  "../../pool/objects",
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					},
-					{
-						lsn: 3,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Second.OID,
-							setup.Commits.Third.OID,
-						},
-					},
-					{
-						lsn:              5,
-						includePackfiles: true,
-					},
-				}),
 			},
 		},
 		{
@@ -3438,39 +3022,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 						Alternate: "../../pool/objects",
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					},
-					{
-						lsn: 3,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					},
-					{
-						lsn: 4,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Third.OID,
-						},
-					},
-					{
-						lsn: 5,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Second.OID,
-						},
-					},
-					{
-						// As they form geometric progression, the repacking task keeps them intact.
-						lsn: 6,
-					},
-				}),
 			},
 		},
 		{
@@ -3610,36 +3161,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 						Alternate: "../../pool/objects",
 					},
 				},
-				Directory: generateDirectoryState(setup.Config, []*walDirectoryState{
-					{
-						lsn: 1,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					},
-					{
-						lsn: 3,
-						includeObjects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-							setup.Commits.Third.OID,
-							setup.Commits.Diverging.OID,
-						},
-					},
-					{
-						lsn: 4,
-						includeObjects: []git.ObjectID{
-							setup.Commits.Second.OID,
-						},
-					},
-					{
-						lsn:                 5,
-						includePackfiles:    true,
-						includeCommitGraphs: true,
-					},
-				}),
 			},
 		},
 		{
@@ -3699,11 +3220,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 						},
 					},
 				},
-				Directory: testhelper.DirectoryState{
-					"/":      {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":   {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1": {Mode: fs.ModeDir | perm.PrivateDir},
-				},
 			},
 		},
 		{
@@ -3759,12 +3275,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							Packfiles: []*PackfileState{},
 						},
 					},
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/packed-refs": anyDirectoryEntryWithPerm(setup.Config, perm.SharedFile),
 				},
 			},
 		},
