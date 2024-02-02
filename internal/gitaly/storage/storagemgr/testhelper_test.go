@@ -522,6 +522,8 @@ type testTransactionHooks struct {
 	BeforeAppendLogEntry hookFunc
 	// BeforeDeleteLogEntry is called before a log entry is deleted.
 	BeforeDeleteLogEntry hookFunc
+	// AfterDeleteLogEntry is called after a log entry is deleted.
+	AfterDeleteLogEntry hookFunc
 	// BeforeReadAppliedLSN is invoked before the applied LSN is read.
 	BeforeReadAppliedLSN hookFunc
 	// BeforeStoreAppliedLSN is invoked before the applied LSN is stored.
@@ -790,6 +792,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 					}
 				},
 				beforeDeleteLogEntry:  step.Hooks.BeforeDeleteLogEntry,
+				afterDeleteLogEntry:   step.Hooks.AfterDeleteLogEntry,
 				beforeReadAppliedLSN:  step.Hooks.BeforeReadAppliedLSN,
 				beforeStoreAppliedLSN: step.Hooks.BeforeStoreAppliedLSN,
 			})
