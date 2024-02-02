@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2"
@@ -131,6 +132,7 @@ func TestLogExporter_Handle(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx, trace := tc.setup(t)
 			logger := testhelper.NewLogger(t)
+			logger.LogrusEntry().Logger.SetFormatter(&logrus.JSONFormatter{}) //nolint:staticcheck
 			hook := testhelper.AddLoggerHook(logger)
 			exporter := NewLogExporter(rate.NewLimiter(1, 1), logger)
 			// execute and assertions
@@ -144,7 +146,9 @@ func TestLogExporter_Handle(t *testing.T) {
 			assert.Equal(t, tc.expectedTrace.StartTime, logEntry.Data["start_time"])
 			assert.Equal(t, tc.expectedTrace.FinishTime, logEntry.Data["finish_time"])
 			var children []*trace2.Trace
-			childErr := json.Unmarshal(logEntry.Data["children"].(json.RawMessage), &children)
+			childrenBytes, childrenBytesErr := JSONMessage.MarshalJSON(logEntry.Data["children"].(JSONMessage))
+			require.NoError(t, childrenBytesErr)
+			childErr := json.Unmarshal(childrenBytes, &children)
 			require.NoError(t, childErr)
 			assert.Equal(t, tc.expectedTrace.Children, children)
 		})
