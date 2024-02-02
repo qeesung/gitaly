@@ -3,7 +3,6 @@ package praefect
 import (
 	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/proxy"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -14,11 +13,6 @@ import (
 func ReplicateRepositoryHandler(coordinator *Coordinator) grpc.StreamHandler {
 	return func(srv interface{}, stream grpc.ServerStream) error {
 		ctx := stream.Context()
-
-		if featureflag.InterceptReplicateRepository.IsDisabled(ctx) {
-			// Fallback to the default transparent handler to proxy the RPC.
-			return proxy.TransparentHandler(coordinator.StreamDirector)(srv, stream)
-		}
 
 		// Peek the stream to get first request.
 		var req gitalypb.ReplicateRepositoryRequest

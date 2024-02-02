@@ -14,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -48,10 +47,9 @@ support this as the separate attributes file is going to be replaced with readin
 attributes from HEAD.`)
 
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.InterceptReplicateRepository).Run(t, testReplicateRepository)
-}
 
-func testReplicateRepository(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
+
 	type setupData struct {
 		source              *gitalypb.Repository
 		target              *gitalypb.Repository
