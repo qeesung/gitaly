@@ -65,13 +65,20 @@ func RequireDirectoryState(tb testing.TB, rootDirectory, relativeDirectory strin
 			require.NoError(tb, err)
 
 			actualEntry.Content = content
-			if expectedEntry, ok := expected[trimmedPath]; ok && expectedEntry.ParseContent != nil {
-				actualEntry.Content = expectedEntry.ParseContent(tb, path, content)
+			// Find prefect match or glob matching (/wal/1/pack*.pack, for example).
+			for pattern, expectedEntry := range expected {
+				matched, err := filepath.Match(pattern, trimmedPath)
+				if err == nil && matched {
+					if expectedEntry.ParseContent != nil {
+						actualEntry.Content = expectedEntry.ParseContent(tb, path, content)
+					}
+					actual[pattern] = actualEntry
+					return nil
+				}
 			}
 		}
 
 		actual[trimmedPath] = actualEntry
-
 		return nil
 	}))
 
