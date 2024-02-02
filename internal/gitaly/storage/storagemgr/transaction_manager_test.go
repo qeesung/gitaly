@@ -986,7 +986,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 		},
 		{
-			desc: "pack files without log entries are cleaned up after a crash",
+			desc: "files of interrupted log commits are cleaned up after a crash",
 			steps: steps{
 				StartManager{
 					// The manager cleans up pack files if a committing fails. Since we can't
@@ -1002,6 +1002,55 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							[]byte("invalid pack"),
 							perm.PrivateDir,
 						))
+					},
+				},
+			},
+		},
+		{
+			desc: "files of interrupted log pruning are cleaned up after a crash",
+			steps: steps{
+				Prune{},
+				StartManager{
+					Hooks: testTransactionHooks{
+						AfterDeleteLogEntry: func(hookContext) {
+							// Crash the manager after the log entry's protobuf message has been
+							// deleted from the database but before the files could be deleted from
+							// the disk.
+							panic(errSimulatedCrash)
+						},
+					},
+					ExpectedError: errSimulatedCrash,
+				},
+				Begin{
+					RelativePath: setup.RelativePath,
+				},
+				Commit{
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
+				},
+				AssertManager{
+					ExpectedError: errSimulatedCrash,
+				},
+				StartManager{},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
+						Objects: []git.ObjectID{
+							setup.ObjectHash.EmptyTreeOID,
+							setup.Commits.First.OID,
+						},
+						// There are no files in the WAL directory.
 					},
 				},
 			},
