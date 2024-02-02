@@ -34,6 +34,19 @@ func (t *LogExporter) Name() string {
 	return "log_exporter"
 }
 
+// JSONMessage is a wrapper type around json.RawMessage. It is a string so
+// logrus.TextMarshaler prints it out as a string. It implements the MarshalJSON
+// method
+type JSONMessage string
+
+// MarshalJSON is a method that overrides the default JSON marshaling behavior
+// for the JSONMessage struct. It converts the JSONMessage struct into a byte
+// slice by marshaling it as a RawMessage.This allows for preserving the original
+// JSON structure without further modification.
+func (m JSONMessage) MarshalJSON() ([]byte, error) {
+	return json.Marshal(json.RawMessage(m))
+}
+
 // Handle will log the trace in a readable json format in Gitaly's logs. Metadata is also collected
 // and additional information is added to the log. It is also rate limited to protect it from overload
 // when there are a lot of trace2 events triggered from git operations.
@@ -62,7 +75,7 @@ func (t *LogExporter) Handle(rootCtx context.Context, trace *trace2.Trace) error
 		"start_time":  trace.StartTime,
 		"finish_time": trace.FinishTime,
 		"metadata":    trace.Metadata,
-		"children":    escapedChildren,
+		"children":    JSONMessage(escapedChildren),
 	}).Info("Git Trace2 API")
 	return nil
 }
