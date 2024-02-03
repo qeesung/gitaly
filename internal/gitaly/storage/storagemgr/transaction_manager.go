@@ -1567,22 +1567,17 @@ func (mgr *TransactionManager) Run() (returnedErr error) {
 // processTransaction waits for a transaction and processes it by verifying and
 // logging it.
 func (mgr *TransactionManager) processTransaction() (returnedErr error) {
-	var cleanUps []func() error
-	defer func() {
-		for _, cleanUp := range cleanUps {
-			if err := cleanUp(); err != nil && returnedErr == nil {
-				returnedErr = fmt.Errorf("clean up: %w", err)
-			}
-		}
-	}()
-
 	var transaction *Transaction
 	select {
 	case transaction = <-mgr.admissionQueue:
 		// The Transaction does not finish itself anymore once it has been admitted for
 		// processing. This avoids the Transaction concurrently removing the staged state
 		// while the manager is still operating on it. We thus need to defer its finishing.
-		cleanUps = append(cleanUps, transaction.finish)
+		defer func() {
+			if err := transaction.finish(); err != nil && returnedErr == nil {
+				returnedErr = fmt.Errorf("finish transaction: %w", err)
+			}
+		}()
 	case <-mgr.completedQueue:
 		return nil
 	case <-mgr.ctx.Done():
