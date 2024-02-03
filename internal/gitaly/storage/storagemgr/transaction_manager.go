@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -122,9 +122,26 @@ func (lsn LSN) toProto() *gitalypb.LSN {
 	return &gitalypb.LSN{Value: uint64(lsn)}
 }
 
+// lsnFormatBase is the base used when formatting an LSN as a string.
+const lsnFormatBase = 10
+
+// lsnFormat is used as formatting string when printing out LSN values. LSNs are formatted in a fully
+// padded form to keep their string representation lexicograpically ordered.
+var lsnFormat = "%0" + strconv.FormatUint(uint64(len(strconv.FormatUint(math.MaxUint64, lsnFormatBase))), 10) + "s"
+
 // String returns a string representation of the LSN.
 func (lsn LSN) String() string {
-	return strconv.FormatUint(uint64(lsn), 10)
+	return fmt.Sprintf(lsnFormat, strconv.FormatUint(uint64(lsn), lsnFormatBase))
+}
+
+// parseLSN parses a string representation of an LSN.
+func parseLSN(lsn string) (LSN, error) {
+	parsedValue, err := strconv.ParseUint(lsn, lsnFormatBase, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse uint: %w", err)
+	}
+
+	return LSN(parsedValue), nil
 }
 
 // ReferenceUpdate describes the state of a reference's old and new tip in an update.
@@ -1692,24 +1709,6 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 		return fmt.Errorf("create state directory: %w", err)
 	}
 
-	logEntries, err := os.ReadDir(walFilesPath(mgr.stateDirectory))
-	if err != nil {
-		return fmt.Errorf("read wal directory: %w", err)
-	}
-
-	sortedLSNs := make([]LSN, len(logEntries))
-	for i := range logEntries {
-		var err error
-		parsed, err := strconv.ParseUint(logEntries[i].Name(), 10, 64)
-		if err != nil {
-			return fmt.Errorf("parse LSN: %w", err)
-		}
-
-		sortedLSNs[i] = LSN(parsed)
-	}
-
-	slices.Sort(sortedLSNs)
-
 	// The LSN of the last appended log entry is determined from the LSN of the latest entry in the log and
 	// the latest applied log entry. The manager also keeps track of committed entries and reserves them until there
 	// is no transaction refers them. It's possible there are some left-over entries in the database because a
@@ -1729,9 +1728,15 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	// below to match.
 	mgr.appendedLSN = mgr.appliedLSN
 
-	if len(sortedLSNs) > 0 {
-		mgr.oldestLSN = sortedLSNs[0]
-		mgr.appendedLSN = sortedLSNs[len(sortedLSNs)-1]
+	if logEntries, err := os.ReadDir(walFilesPath(mgr.stateDirectory)); err != nil {
+		return fmt.Errorf("read wal directory: %w", err)
+	} else if len(logEntries) > 0 {
+		if mgr.oldestLSN, err = parseLSN(logEntries[0].Name()); err != nil {
+			return fmt.Errorf("parse oldest LSN: %w", err)
+		}
+		if mgr.appendedLSN, err = parseLSN(logEntries[len(logEntries)-1].Name()); err != nil {
+			return fmt.Errorf("parse appended LSN: %w", err)
+		}
 	}
 
 	// Create a snapshot lock for the applied LSN as it is used for synchronizing
