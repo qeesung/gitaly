@@ -833,6 +833,19 @@ type TransactionManager struct {
 	// still kept around even after they are applied. They are removed when there are no active readers accessing
 	// the corresponding snapshots.
 	committedEntries *list.List
+
+	// testHooks are used in the tests to trigger logic at certain points in the execution.
+	// They are used to synchronize more complex test scenarios. Not used in production.
+	testHooks testHooks
+}
+
+type testHooks struct {
+	beforeInitialization      func()
+	beforeAppendLogEntry      func()
+	beforeApplyLogEntry       func()
+	beforeStoreAppliedLSN     func()
+	beforeDeleteLogEntryFiles func()
+	beforeRunExiting          func()
 }
 
 // NewTransactionManager returns a new TransactionManager for the given repository.
@@ -868,6 +881,15 @@ func NewTransactionManager(
 		housekeepingManager:  housekeepingManager,
 		awaitingTransactions: make(map[LSN]resultChannel),
 		committedEntries:     list.New(),
+
+		testHooks: testHooks{
+			beforeInitialization:      func() {},
+			beforeAppendLogEntry:      func() {},
+			beforeApplyLogEntry:       func() {},
+			beforeStoreAppliedLSN:     func() {},
+			beforeDeleteLogEntryFiles: func() {},
+			beforeRunExiting:          func() {},
+		},
 	}
 }
 
@@ -1503,6 +1525,7 @@ func (mgr *TransactionManager) Run() (returnedErr error) {
 	// Defer the Stop in order to release all on-going Commit calls in case of error.
 	defer close(mgr.closed)
 	defer mgr.Close()
+	defer mgr.testHooks.beforeRunExiting()
 
 	if err := mgr.initialize(mgr.ctx); err != nil {
 		return fmt.Errorf("initialize: %w", err)
@@ -1755,6 +1778,7 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 		return fmt.Errorf("remove stale packs: %w", err)
 	}
 
+	mgr.testHooks.beforeInitialization()
 	mgr.initializationSuccessful = true
 
 	return nil
@@ -2437,6 +2461,7 @@ func (mgr *TransactionManager) prepareReferenceTransaction(ctx context.Context, 
 // appendLogEntry appends the transaction to the write-ahead log. References that failed verification are skipped and thus not
 // logged nor applied later.
 func (mgr *TransactionManager) appendLogEntry(nextLSN LSN, logEntry *gitalypb.LogEntry) error {
+	mgr.testHooks.beforeAppendLogEntry()
 	if err := mgr.storeLogEntry(nextLSN, logEntry); err != nil {
 		return fmt.Errorf("set log entry: %w", err)
 	}
@@ -2467,6 +2492,8 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 	mgr.mutex.Lock()
 	delete(mgr.snapshotLocks, previousLSN)
 	mgr.mutex.Unlock()
+
+	mgr.testHooks.beforeApplyLogEntry()
 
 	if logEntry.RepositoryDeletion != nil {
 		// If the repository is being deleted, just delete it without any other changes given
@@ -2507,6 +2534,7 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 		}
 	}
 
+	mgr.testHooks.beforeStoreAppliedLSN()
 	if err := mgr.storeAppliedLSN(lsn); err != nil {
 		return fmt.Errorf("set applied LSN: %w", err)
 	}
@@ -3038,6 +3066,8 @@ func (mgr *TransactionManager) deleteLogEntry(lsn LSN) error {
 	if err := mgr.deleteKey(keyLogEntry(mgr.partitionID, lsn)); err != nil {
 		return fmt.Errorf("remove log entry: %w", err)
 	}
+
+	mgr.testHooks.beforeDeleteLogEntryFiles()
 
 	walFilesPath := walFilesPathForLSN(mgr.stateDirectory, lsn)
 	if err := os.RemoveAll(walFilesPath); err != nil {

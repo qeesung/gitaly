@@ -1099,10 +1099,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 					ExpectedError: errSimulatedCrash,
 				},
 			},
-			expectedState: StateAssertion{
-				// The test case fails before the partition's state directory is created.
-				Directory: testhelper.DirectoryState{},
-			},
 		},
 		{
 			desc: "transaction rollbacked after already being rollbacked",
