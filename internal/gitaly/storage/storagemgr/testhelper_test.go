@@ -72,7 +72,7 @@ type PackfilesState struct {
 	// eventually, loose objects should be handled during migration.
 	LooseObjects []git.ObjectID
 	// Packfiles is the hash map of name and corresponding packfile state assertion.
-	Packfiles map[string]*PackfileState
+	Packfiles []*PackfileState
 	// PooledObjects contain the list of pooled objects member repositories can see from the pool.
 	PooledObjects []git.ObjectID
 	// HasMultiPackIndex asserts whether there is a multi-pack-index inside the objects/pack directory.
@@ -91,9 +91,33 @@ type PackfileState struct {
 	HasReverseIndex bool
 }
 
+// sortObjects sorts objects lexically by their oid.
 func sortObjects(objects []git.ObjectID) {
 	sort.Slice(objects, func(i, j int) bool {
 		return objects[i] < objects[j]
+	})
+}
+
+// sortPackfiles sorts the list of packfiles by their contained objects. Each packfile has a static hash. This hash is
+// different between object formats and subject to change in the future. So, to make the test deterministic, we sort
+// packfile states by their contained objects. This function is called before asserting packfile structures. It should
+// be fine as soon as the set of objects the object distribution in packfiles are the same. Of course, we'll need to
+// verify midx, which depends on packfile names, in another assertion.
+func sortPackfilesState(packfilesState *PackfilesState) {
+	if packfilesState == nil || len(packfilesState.Packfiles) <= 1 {
+		return
+	}
+	// The sort key is re-compute in each sort loop. For testing purpose, which involves a handufl of objects and
+	// packfiles, it's still efficient enough.
+	concatObjects := func(oids []git.ObjectID) string {
+		var result strings.Builder
+		for _, oid := range oids {
+			result.Write([]byte(oid))
+		}
+		return result.String()
+	}
+	sort.Slice(packfilesState.Packfiles, func(i, j int) bool {
+		return concatObjects(packfilesState.Packfiles[i].Objects) < concatObjects(packfilesState.Packfiles[j].Objects)
 	})
 }
 
@@ -187,6 +211,10 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 	if err != nil {
 		require.ErrorIs(tb, err, fs.ErrNotExist)
 	}
+
+	sortPackfilesState(expectedPackfiles)
+	sortPackfilesState(actualPackfiles)
+
 	require.Equal(tb,
 		RepositoryState{
 			DefaultBranch: expected.DefaultBranch,
@@ -288,23 +316,25 @@ func collectPackfilesState(tb testing.TB, repoPath string, cfg config.Cfg, objec
 	}
 
 	packDir := filepath.Join(objectsDir, "pack")
-	packfiles, err := filepath.Glob(filepath.Join(packDir, "*.idx"))
+
+	entries, err := os.ReadDir(filepath.Join(packDir))
 	require.NoError(tb, err)
 
-	state.Packfiles = map[string]*PackfileState{}
-	for _, file := range packfiles {
-		indexFile, err := filepath.Rel(packDir, file)
-		require.NoError(tb, err)
-
-		ext := filepath.Ext(indexFile)
-		packName := strings.TrimSuffix(indexFile, ext)
-		state.Packfiles[packName] = &PackfileState{}
+	state.Packfiles = []*PackfileState{}
+	for _, file := range entries {
+		indexPath := filepath.Join(objectsDir, "pack", file.Name())
+		ext := filepath.Ext(file.Name())
+		if ext != ".idx" {
+			continue
+		}
+		packName := strings.TrimSuffix(file.Name(), ext)
+		packfileState := &PackfileState{}
 
 		// Run git-verify-pack(1) to ensure the packfil is well functioning.
-		gittest.Exec(tb, cfg, "-C", repoPath, "verify-pack", file)
+		gittest.Exec(tb, cfg, "-C", repoPath, "verify-pack", indexPath)
 
 		// Parse index to collect list of objects.
-		idxContent, err := os.ReadFile(file)
+		idxContent, err := os.ReadFile(indexPath)
 		require.NoError(tb, err)
 
 		var stdout bytes.Buffer
@@ -313,21 +343,22 @@ func collectPackfilesState(tb testing.TB, repoPath string, cfg config.Cfg, objec
 			Stdout: &stdout,
 		}, "show-index", "--object-format="+objectHash.Format)
 		require.NoError(tb, packfile.ParseIndex(&stdout, func(obj *packfile.Object) {
-			state.Packfiles[packName].Objects = append(state.Packfiles[packName].Objects, git.ObjectID(obj.OID))
+			packfileState.Objects = append(packfileState.Objects, git.ObjectID(obj.OID))
 		}))
 
 		// Check other index files exist.
 		if _, err := os.Stat(filepath.Join(packDir, packName+".bitmap")); err == nil {
-			state.Packfiles[packName].HasBitmap = true
+			packfileState.HasBitmap = true
 		} else if !errors.Is(err, os.ErrNotExist) {
 			require.NoError(tb, err)
 		}
 
 		if _, err := os.Stat(filepath.Join(packDir, packName+".rev")); err == nil {
-			state.Packfiles[packName].HasReverseIndex = true
+			packfileState.HasReverseIndex = true
 		} else if !errors.Is(err, os.ErrNotExist) {
 			require.NoError(tb, err)
 		}
+		state.Packfiles = append(state.Packfiles, packfileState)
 	}
 	midxPath := filepath.Join(packDir, "multi-pack-index")
 	if _, err := os.Stat(midxPath); err == nil {
