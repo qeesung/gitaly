@@ -425,12 +425,12 @@ lint-fix: ${GOLANGCI_LINT} ${GITALY_PACKED_EXECUTABLES} ${TOOLS_DIR}/gitaly-lint
 .PHONY: lint-docs
 ## Run markdownlint-cli2-config to lint the documentation.
 lint-docs:
-	${Q}markdownlint-cli2-config .markdownlint.yml README.md REVIEWING.md STYLE.md doc/**.md
+	${Q}markdownlint-cli2 README.md REVIEWING.md STYLE.md doc/**.md
 
 .PHONY: lint-docs-fix
 ## Run markdownlint-cli2-config to lint and fix the documentation.
 lint-docs-fix:
-	${Q}markdownlint-cli2-config .markdownlint.yml README.md REVIEWING.md STYLE.md doc/**.md --fix
+	${Q}markdownlint-cli2 README.md REVIEWING.md STYLE.md doc/**.md --fix
 
 .PHONY: lint-gitaly-linters
 ## Test Go tests in tools/golangci-lint/gitaly folder

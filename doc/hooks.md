@@ -55,10 +55,10 @@ through Gitaly.
 
 | subcommand     | purpose  | arguments | stdin  |
 |----------------|----------|-----------|--------|
-| `pre-receive`  | used as the Git `pre-receive` hook  none | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
-| `update`       | used as the Git `update` hook | `<ref-name>` `<old-object>` `<new-object>` | none
+| `pre-receive`  | used as the Git `pre-receive` hook | none | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
+| `update`       | used as the Git `update` hook | `<ref-name>` `<old-object>` `<new-object>` | none |
 | `post-receive` | used as the Git `post-receive` hook | none | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
-| `reference-transaction` | used as the Git `reference-transaction` hook | `prepared|committed|aborted` | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
+| `reference-transaction` | used as the Git `reference-transaction` hook | `prepared`, `committed`, or `aborted` | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
 | `git`          | used as the Git `pack-objects` hook | `pack-objects` `[--stdout]` `[--shallow-file]` | `<object-list>` |
 
 ## Hook-specific logic
