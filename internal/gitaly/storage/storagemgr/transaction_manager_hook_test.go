@@ -39,6 +39,8 @@ type hooks struct {
 	beforeDeferredClose hookFunc
 	// beforeDeleteLogEntry is invoked before a log entry is deleted from the database.
 	beforeDeleteLogEntry hookFunc
+	// beforeDeleteLogEntry is invoked after a log entry is deleted from the database.
+	afterDeleteLogEntry hookFunc
 	// beforeReadAppliedLSN is invoked before the applied LSN is read from the database.
 	beforeReadAppliedLSN hookFunc
 	// beforeStoreAppliedLSN is invoked before a the applied LSN is stored.
@@ -80,7 +82,7 @@ type databaseHook struct {
 
 func (hook databaseHook) View(handler func(DatabaseTransaction) error) error {
 	return hook.Database.View(func(transaction DatabaseTransaction) error {
-		return handler(databaseTransactionHook{
+		return handler(&databaseTransactionHook{
 			databaseTransaction: transaction,
 			hookContext:         hook.hookContext,
 			hooks:               hook.hooks,
@@ -89,12 +91,22 @@ func (hook databaseHook) View(handler func(DatabaseTransaction) error) error {
 }
 
 func (hook databaseHook) Update(handler func(DatabaseTransaction) error) error {
+	logEntryWasDeleted := false
+	defer func() {
+		if logEntryWasDeleted && hook.afterDeleteLogEntry != nil {
+			hook.afterDeleteLogEntry(hook.hookContext)
+		}
+	}()
+
 	return hook.Database.Update(func(transaction DatabaseTransaction) error {
-		return handler(databaseTransactionHook{
+		txHook := &databaseTransactionHook{
 			databaseTransaction: transaction,
 			hookContext:         hook.hookContext,
 			hooks:               hook.hooks,
-		})
+		}
+		defer func() { logEntryWasDeleted = txHook.logEntryWasDeleted }()
+
+		return handler(txHook)
 	})
 }
 
@@ -110,6 +122,10 @@ type databaseTransactionHook struct {
 	databaseTransaction DatabaseTransaction
 	hookContext
 	hooks
+	// logEntryWasDeleted records if a log entry is deleted during the database
+	// transaction. This is used to trigger the afterLogEntryDeleted hook only
+	// after the transaction has committed, and the deletion is effective.
+	logEntryWasDeleted bool
 }
 
 var (
@@ -135,12 +151,20 @@ func (hook databaseTransactionHook) NewIterator(options badger.IteratorOptions) 
 	return hook.databaseTransaction.NewIterator(options)
 }
 
-func (hook databaseTransactionHook) Delete(key []byte) error {
+func (hook *databaseTransactionHook) Delete(key []byte) error {
 	if regexLogEntry.Match(key) && hook.beforeDeleteLogEntry != nil {
 		hook.beforeDeleteLogEntry(hook.hookContext)
 	}
 
-	return hook.databaseTransaction.Delete(key)
+	if err := hook.databaseTransaction.Delete(key); err != nil {
+		return err
+	}
+
+	if regexLogEntry.Match(key) {
+		hook.logEntryWasDeleted = true
+	}
+
+	return nil
 }
 
 type writeBatchHook struct {

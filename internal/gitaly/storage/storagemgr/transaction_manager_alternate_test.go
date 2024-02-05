@@ -74,20 +74,6 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						Alternate: "../../pool/objects",
 					},
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-				},
 			},
 		},
 		{
@@ -153,20 +139,6 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						},
 						Alternate: "../../pool/objects",
 					},
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 				},
 			},
 		},
@@ -249,20 +221,6 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 							setup.Commits.Second.OID,
 						},
 					},
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 				},
 			},
 		},
@@ -808,20 +766,6 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						Alternate: "../../pool/objects",
 					},
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-				},
 			},
 		},
 		{
@@ -897,35 +841,6 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						},
 						Alternate: "../../pool/objects",
 					},
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/3":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/3/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/3/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							// The pack should only contain the new object 'second' as the
-							// rest of the objects exist in the alternate. We're still including
-							// all unreachable objects in the logged pack until we can compute
-							// the pack files dependencies.
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					),
-					"/wal/3/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 				},
 			},
 		},
@@ -1017,20 +932,6 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						},
 						Alternate: "../../pool/objects",
 					},
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 				},
 			},
 		},
@@ -1213,32 +1114,6 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						Objects: []git.ObjectID{},
 					},
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/2":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/2/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-							setup.Commits.Third.OID,
-						},
-					),
-					"/wal/2/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-				},
 			},
 		},
 		{
@@ -1354,31 +1229,6 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						Alternate: "../../pool/objects",
 					},
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/2":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/2/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					),
-					"/wal/2/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-				},
 			},
 		},
 		{
@@ -1493,31 +1343,6 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						},
 						Alternate: "../../pool/objects",
 					},
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/2":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/2/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/2/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					),
-					"/wal/2/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
 				},
 			},
 		},

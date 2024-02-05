@@ -71,102 +71,6 @@ func validCustomHooks(tb testing.TB) []byte {
 	return hooks.Bytes()
 }
 
-// writePack writes a pack file and its index into the destination.
-func writePack(tb testing.TB, cfg config.Cfg, packFile []byte, destinationPack string) {
-	tb.Helper()
-
-	require.NoError(tb, os.WriteFile(destinationPack, packFile, fs.ModePerm))
-	gittest.ExecOpts(tb, cfg,
-		gittest.ExecConfig{Stdin: bytes.NewReader(packFile)},
-		"index-pack", "--object-format="+gittest.DefaultObjectHash.Format, destinationPack,
-	)
-}
-
-// anyDirectoryEntry returns a DirectoryEntry that checks for the existence of a file. The content will be asserted in
-// the later state.
-func anyDirectoryEntry(cfg config.Cfg) testhelper.DirectoryEntry {
-	return testhelper.DirectoryEntry{
-		Mode:         perm.SharedReadOnlyFile,
-		Content:      "",
-		ParseContent: func(testing.TB, string, []byte) any { return "" },
-	}
-}
-
-// anyDirectoryEntryWithPerm returns a DirectoryEntry that checks for the existence of a file having a particular perm.
-// The content will be asserted in the later state.
-func anyDirectoryEntryWithPerm(cfg config.Cfg, perm os.FileMode) testhelper.DirectoryEntry {
-	return testhelper.DirectoryEntry{
-		Mode:         perm,
-		Content:      "",
-		ParseContent: func(testing.TB, string, []byte) any { return "" },
-	}
-}
-
-// packFileDirectoryEntry returns a DirectoryEntry that parses content as a pack file and asserts that the
-// set of objects in the pack file matches the expected objects.
-func packFileDirectoryEntry(cfg config.Cfg, expectedObjects []git.ObjectID) testhelper.DirectoryEntry {
-	sortObjects(expectedObjects)
-
-	return testhelper.DirectoryEntry{
-		Mode:    perm.SharedReadOnlyFile,
-		Content: expectedObjects,
-		ParseContent: func(tb testing.TB, path string, content []byte) any {
-			tb.Helper()
-
-			tempDir := tb.TempDir()
-			// Initialize a temporary repository where to write the pack. The cat file invocation for listing
-			// the objects needs to run within a repository, and it would otherwise use the developer's repository.
-			// If the object format doesn't match with the pack files in the test, things fail.
-			gittest.Exec(tb, cfg, "init", "--object-format="+gittest.DefaultObjectHash.Format, "--bare", tempDir)
-			writePack(tb, cfg, content, filepath.Join(tempDir, "objects", "pack", "content.pack"))
-
-			actualObjects := gittest.ListObjects(tb, cfg, tempDir)
-			sortObjects(actualObjects)
-
-			return actualObjects
-		},
-	}
-}
-
-// indexFileDirectoryEntry returns a DirectoryEntry that asserts the given pack file index is valid.
-func indexFileDirectoryEntry(cfg config.Cfg) testhelper.DirectoryEntry {
-	return testhelper.DirectoryEntry{
-		Mode: perm.SharedReadOnlyFile,
-		ParseContent: func(tb testing.TB, path string, content []byte) any {
-			tb.Helper()
-
-			// Verify the index is valid.
-			gittest.Exec(tb, cfg, "verify-pack", "--object-format="+gittest.DefaultObjectHash.Format, "-v", path)
-			// As we already verified the index is valid, we don't care about the actual contents.
-			return nil
-		},
-	}
-}
-
-// reverseIndexFileDirectoryEntry returns a DirectoryEntry that asserts the given pack file reverse index is valid.
-func reverseIndexFileDirectoryEntry(cfg config.Cfg) testhelper.DirectoryEntry {
-	return testhelper.DirectoryEntry{
-		Mode: perm.SharedReadOnlyFile,
-		ParseContent: func(tb testing.TB, path string, content []byte) any {
-			tb.Helper()
-
-			// We cannot run git-verify-pack(1) directly against a reverse index file, so we validate the
-			// header to fail fast when possible. If this passes but the '.rev' file is invalid, the
-			// '.idx' check will fail.
-			buf := make([]byte, 4)
-			f, err := os.Open(path)
-			require.NoError(tb, err)
-			defer testhelper.MustClose(tb, f)
-
-			_, err = f.Read(buf)
-			require.NoError(tb, err)
-			require.Equal(tb, []byte{'R', 'I', 'D', 'X'}, buf)
-
-			return nil
-		},
-	}
-}
-
 func setupTest(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) testTransactionSetup {
 	t.Helper()
 
@@ -579,10 +483,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
-				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -632,20 +532,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			expectedState: StateAssertion{
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -736,31 +622,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					),
-					"/wal/3":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/3/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/3/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/3/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.Commits.Second.OID,
-							setup.Commits.Third.OID,
-						},
-					),
-				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -811,20 +672,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			expectedState: StateAssertion{
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -902,21 +749,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-				},
-
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
@@ -951,10 +783,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
-				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						Objects: []git.ObjectID{},
@@ -982,21 +810,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			expectedState: StateAssertion{
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-						},
-					),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1029,22 +842,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			expectedState: StateAssertion{
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
-							setup.Commits.Diverging.OID,
-						},
-					),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1117,20 +914,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						Objects: []git.ObjectID{
@@ -1195,20 +978,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
-				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						Objects: []git.ObjectID{},
@@ -1217,7 +986,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 		},
 		{
-			desc: "pack files without log entries are cleaned up after a crash",
+			desc: "files of interrupted log commits are cleaned up after a crash",
 			steps: steps{
 				StartManager{
 					// The manager cleans up pack files if a committing fails. Since we can't
@@ -1233,6 +1002,55 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							[]byte("invalid pack"),
 							perm.PrivateDir,
 						))
+					},
+				},
+			},
+		},
+		{
+			desc: "files of interrupted log pruning are cleaned up after a crash",
+			steps: steps{
+				Prune{},
+				StartManager{
+					Hooks: testTransactionHooks{
+						AfterDeleteLogEntry: func(hookContext) {
+							// Crash the manager after the log entry's protobuf message has been
+							// deleted from the database but before the files could be deleted from
+							// the disk.
+							panic(errSimulatedCrash)
+						},
+					},
+					ExpectedError: errSimulatedCrash,
+				},
+				Begin{
+					RelativePath: setup.RelativePath,
+				},
+				Commit{
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
+				},
+				AssertManager{
+					ExpectedError: errSimulatedCrash,
+				},
+				StartManager{},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
+						Objects: []git.ObjectID{
+							setup.ObjectHash.EmptyTreeOID,
+							setup.Commits.First.OID,
+						},
+						// There are no files in the WAL directory.
 					},
 				},
 			},
@@ -1498,20 +1316,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			expectedState: StateAssertion{
 				Database: DatabaseState{
 					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Directory: testhelper.DirectoryState{
-					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1":             {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/1/objects.idx": indexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.rev": reverseIndexFileDirectoryEntry(setup.Config),
-					"/wal/1/objects.pack": packFileDirectoryEntry(
-						setup.Config,
-						[]git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-					),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {

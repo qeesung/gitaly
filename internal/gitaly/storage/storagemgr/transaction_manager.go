@@ -1751,7 +1751,7 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 		mgr.snapshotLocks[i] = &snapshotLock{applied: make(chan struct{})}
 	}
 
-	if err := mgr.removeStaleWALFiles(mgr.ctx, mgr.appendedLSN); err != nil {
+	if err := mgr.removeStaleWALFiles(mgr.ctx, mgr.oldestLSN, mgr.appendedLSN); err != nil {
 		return fmt.Errorf("remove stale packs: %w", err)
 	}
 
@@ -1831,25 +1831,40 @@ func (mgr *TransactionManager) removePackedRefsLocks(ctx context.Context, reposi
 // removeStaleWALFiles removes files from the log directory that have no associated log entry.
 // Such files can be left around if transaction's files were moved in place successfully
 // but the manager was interrupted before successfully persisting the log entry itself.
-func (mgr *TransactionManager) removeStaleWALFiles(ctx context.Context, appendedLSN LSN) error {
-	// Log entries are appended one by one to the log. If a write is interrupted, the only possible stale
-	// pack would be for the next LSN. Remove the pack if it exists.
-	possibleStaleFilesPath := walFilesPathForLSN(mgr.stateDirectory, appendedLSN+1)
-	if _, err := os.Stat(possibleStaleFilesPath); err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("remove: %w", err)
+// If the manager deletes a log entry successfully from the database but is interrupted before it cleans
+// up the associated files, such a directory can also be left at the head of the log.
+func (mgr *TransactionManager) removeStaleWALFiles(ctx context.Context, oldestLSN, appendedLSN LSN) error {
+	needsFsync := false
+	for _, possibleStaleFilesPath := range []string{
+		// Log entries are pruned one by one. If a write is interrupted, the only possible stale files would be
+		// for the log entry preceding the oldest log entry.
+		walFilesPathForLSN(mgr.stateDirectory, oldestLSN-1),
+		// Log entries are appended one by one to the log. If a write is interrupted, the only possible stale
+		// files would be for the next LSN. Remove the files if they exist.
+		walFilesPathForLSN(mgr.stateDirectory, appendedLSN+1),
+	} {
+
+		if _, err := os.Stat(possibleStaleFilesPath); err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("stat: %w", err)
+			}
+
+			// No stale files were present.
+			continue
 		}
 
-		return nil
+		if err := os.RemoveAll(possibleStaleFilesPath); err != nil {
+			return fmt.Errorf("remove all: %w", err)
+		}
+
+		needsFsync = true
 	}
 
-	if err := os.RemoveAll(possibleStaleFilesPath); err != nil {
-		return fmt.Errorf("remove all: %w", err)
-	}
-
-	// Sync the parent directory to flush the file deletion.
-	if err := safe.NewSyncer().SyncParent(possibleStaleFilesPath); err != nil {
-		return fmt.Errorf("sync: %w", err)
+	if needsFsync {
+		// Sync the parent directory to flush the file deletion.
+		if err := safe.NewSyncer().Sync(walFilesPath(mgr.stateDirectory)); err != nil {
+			return fmt.Errorf("sync: %w", err)
+		}
 	}
 
 	return nil
@@ -1885,9 +1900,14 @@ func (mgr *TransactionManager) storeWALFiles(ctx context.Context, lsn LSN, trans
 	return removeFiles, nil
 }
 
+// walFilesPath returns the WAL directory's path.
+func walFilesPath(stateDir string) string {
+	return filepath.Join(stateDir, "wal")
+}
+
 // walFilesPathForLSN returns an absolute path to a given log entry's WAL files.
 func walFilesPathForLSN(stateDir string, lsn LSN) string {
-	return filepath.Join(stateDir, "wal", lsn.String())
+	return filepath.Join(walFilesPath(stateDir), lsn.String())
 }
 
 // packFilePath returns a log entry's pack file's absolute path in the wal files directory.
@@ -3011,9 +3031,24 @@ func isDirEmpty(dir string) (bool, error) {
 	return false, err
 }
 
-// deleteLogEntry deletes the log entry at the given LSN from the log.
+// deleteLogEntry deletes the log entry at the given LSN from the log. It first removes the log entry
+// and then the files. This upholds the invariant that each log entry in the database always has its
+// files in place.
 func (mgr *TransactionManager) deleteLogEntry(lsn LSN) error {
-	return mgr.deleteKey(keyLogEntry(mgr.partitionID, lsn))
+	if err := mgr.deleteKey(keyLogEntry(mgr.partitionID, lsn)); err != nil {
+		return fmt.Errorf("remove log entry: %w", err)
+	}
+
+	walFilesPath := walFilesPathForLSN(mgr.stateDirectory, lsn)
+	if err := os.RemoveAll(walFilesPath); err != nil {
+		return fmt.Errorf("remove files: %w", err)
+	}
+
+	if err := safe.NewSyncer().SyncParent(walFilesPath); err != nil {
+		return fmt.Errorf("sync file deletion: %w", err)
+	}
+
+	return nil
 }
 
 // readLogEntry returns the log entry from the given position in the log.
