@@ -1,11 +1,9 @@
 package praefect
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/praefect/config"
@@ -21,11 +19,9 @@ import (
 
 func TestReplicateRepositoryHandler(t *testing.T) {
 	t.Parallel()
-	testhelper.NewFeatureSets(featureflag.InterceptReplicateRepository).
-		Run(t, testReplicateRepositoryHandler)
-}
 
-func testReplicateRepositoryHandler(t *testing.T, ctx context.Context) {
+	ctx := testhelper.Context(t)
+
 	// Standalone Gitaly node for hosting source repository being replicated from.
 	const sourceStorage = "gitaly-source"
 	sourceCfg := testcfg.Build(t, testcfg.WithStorages(sourceStorage))
@@ -102,27 +98,13 @@ func testReplicateRepositoryHandler(t *testing.T, ctx context.Context) {
 				// Praefect, the ReplicateRepository RPC handler should intercept and disable object
 				// pool replication.
 				sourceProto, _ := gittest.CreateRepository(t, ctx, sourceCfg)
-				poolProto, _ := gittest.CreateObjectPool(t, ctx, sourceCfg, sourceProto, gittest.CreateObjectPoolConfig{
+				gittest.CreateObjectPool(t, ctx, sourceCfg, sourceProto, gittest.CreateObjectPoolConfig{
 					LinkRepositoryToObjectPool: true,
 				})
 
 				target := &gitalypb.Repository{
 					StorageName:  virtualStorage,
 					RelativePath: gittest.NewRepositoryName(t),
-				}
-
-				// If the RPC is not intercepted, the default behavior RPC handler is invoked.
-				if featureflag.InterceptReplicateRepository.IsDisabled(ctx) {
-					return setupData{
-						source: sourceProto,
-						target: target,
-						expectedObjectPool: &gitalypb.ObjectPool{
-							Repository: &gitalypb.Repository{
-								StorageName:  virtualStorage,
-								RelativePath: poolProto.Repository.RelativePath,
-							},
-						},
-					}
 				}
 
 				return setupData{
