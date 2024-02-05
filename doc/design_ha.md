@@ -44,9 +44,8 @@ The following terminology may be used within the context of the Gitaly Cluster p
 
 ## Design
 
-The high level design takes a reverse proxy approach to fanning out write requests to the appropriate nodes:
-
-<img src="https://docs.google.com/drawings/d/e/2PACX-1vRl7WS-6RBOWxyLSBbBBAoV9MupmTh5vTqMOw_AX9axlboqkybTbFqGqExLyyYOilqEW7S9euXdBHzX/pub?w=960&amp;h=720">
+The [high level design](https://docs.google.com/drawings/d/e/2PACX-1vRl7WS-6RBOWxyLSBbBBAoV9MupmTh5vTqMOw_AX9axlboqkybTbFqGqExLyyYOilqEW7S9euXdBHzX/pub?w=960&amp;h=720)
+takes a reverse proxy approach to fanning out write requests to the appropriate nodes.
 
 ## Phases
 

@@ -41,7 +41,7 @@ name = "my_shard"
 | Name                     | Type   | Required  | Notes                                                                                               |
 |:-------------------------|:-------|:----------|:----------------------------------------------------------------------------------------------------|
 | `socket_path`            | string | see notes | A path which Gitaly should open a Unix socket. Required unless listen_addr is set                   |
-| `listen_addr`            | string | see notes | TCP address for Gitaly to listen on (See #GITALY_LISTEN_ADDR). Required unless `socket_path` is set |
+| `listen_addr`            | string | see notes | TCP address for Gitaly to listen on. Required unless `socket_path` is set |
 | `internal_socket_dir`    | string | yes       | Path where Gitaly will create sockets for internal Gitaly calls to connect to                       |
 | `bin_dir`                | string | yes       | Directory containing Gitaly's executables                                                           |
 | `prometheus_listen_addr` | string | no        | TCP listen address for Prometheus metrics. If not set, no Prometheus listener is started            |
