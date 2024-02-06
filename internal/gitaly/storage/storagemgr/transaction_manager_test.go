@@ -335,10 +335,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Directory: testhelper.DirectoryState{
-					"/":                         {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":                      {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/00000000000000000001": {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/00000000000000000001/MANIFEST": manifestDirectoryEntry(&gitalypb.LogEntry{
+					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
+					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
+					"/wal/0000000000001": {Mode: fs.ModeDir | perm.PrivateDir},
+					"/wal/0000000000001/MANIFEST": manifestDirectoryEntry(&gitalypb.LogEntry{
 						RelativePath: setup.RelativePath,
 						ReferenceTransactions: []*gitalypb.LogEntry_ReferenceTransaction{
 							{
@@ -1634,11 +1634,11 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					})
 					// Transaction 2 and 3 are left-over.
 					testhelper.RequireDirectoryState(t, walFilesPath(tm.stateDirectory), "", testhelper.DirectoryState{
-						"/":                              {Mode: fs.ModeDir | perm.PrivateDir},
-						"/00000000000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/00000000000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
-						"/00000000000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/00000000000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
+						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
+						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
 					})
 				}),
 				StartManager{},
@@ -1730,13 +1730,13 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					})
 					// Transaction 2 and 3 are left-over.
 					testhelper.RequireDirectoryState(t, walFilesPath(tm.stateDirectory), "", testhelper.DirectoryState{
-						"/":                              {Mode: fs.ModeDir | perm.PrivateDir},
-						"/00000000000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/00000000000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
-						"/00000000000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/00000000000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
-						"/00000000000000000004":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/00000000000000000004/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID)),
+						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
+						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
+						"/0000000000004":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000004/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID)),
 					})
 				}),
 				StartManager{},

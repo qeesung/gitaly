@@ -9,7 +9,7 @@ import (
 )
 
 // lsnFormatBase is the base used when formatting an LSN as a string.
-const lsnFormatBase = 10
+const lsnFormatBase = 36
 
 // lsnFormat is used as formatting string when printing out LSN values. LSNs are formatted in a fully
 // padded form to keep their string representation lexicograpically ordered.
