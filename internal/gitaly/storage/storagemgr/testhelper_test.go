@@ -846,8 +846,24 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 				transaction.SetDefaultBranch(step.DefaultBranchUpdate.Reference)
 			}
 
+			rewrittenRepo := setup.RepositoryFactory.Build(
+				transaction.RewriteRepository(&gitalypb.Repository{
+					StorageName:  setup.Config.Storages[0].Name,
+					RelativePath: transaction.relativePath,
+				}),
+			)
+
 			if step.CustomHooksUpdate != nil {
 				transaction.SetCustomHooks(step.CustomHooksUpdate.CustomHooksTAR)
+
+				require.NoError(t, repoutil.SetCustomHooks(
+					ctx,
+					logger,
+					config.NewLocator(setup.Config),
+					nil,
+					bytes.NewReader(step.CustomHooksUpdate.CustomHooksTAR),
+					rewrittenRepo,
+				))
 			}
 
 			if step.QuarantinedPacks != nil {
@@ -862,13 +878,6 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 						"%q had %q permission but expected %q", dir, stat.Mode().Perm().String(), expectedPerm,
 					)
 				}
-
-				rewrittenRepo := setup.RepositoryFactory.Build(
-					transaction.RewriteRepository(&gitalypb.Repository{
-						StorageName:  setup.Config.Storages[0].Name,
-						RelativePath: transaction.relativePath,
-					}),
-				)
 
 				for _, pack := range step.QuarantinedPacks {
 					require.NoError(t, rewrittenRepo.UnpackObjects(ctx, bytes.NewReader(pack)))
