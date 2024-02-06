@@ -83,13 +83,6 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
 				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: fs.ModeDir | perm.PrivateDir},
-						},
-					},
-				},
 			},
 		},
 		{
@@ -130,7 +123,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: fs.ModeDir | perm.PrivateDir},
+							"/": {Mode: fs.ModeDir | perm.SharedDir},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
@@ -200,13 +193,6 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Directory: testhelper.DirectoryState{
 					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
-				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: fs.ModeDir | perm.PrivateDir},
-						},
-					},
 				},
 			},
 		},

@@ -111,7 +111,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							setup.Commits.Second.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
@@ -190,7 +190,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+								"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
@@ -317,7 +317,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							},
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
@@ -403,7 +403,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							setup.Commits.First.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
@@ -515,7 +515,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				Commit{
 					TransactionID:     2,
-					CustomHooksUpdate: &CustomHooksUpdate{validCustomHooks(t)},
+					CustomHooksUpdate: &CustomHooksUpdate{CustomHooksTAR: validCustomHooks(t)},
 					ExpectedError:     ErrRepositoryNotFound,
 				},
 			},
@@ -825,7 +825,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+								"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),

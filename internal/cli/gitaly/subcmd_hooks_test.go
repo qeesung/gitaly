@@ -16,7 +16,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/client"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
@@ -47,10 +46,6 @@ func TestSetHooksSubcommand(t *testing.T) {
 	configPath := testcfg.WriteTemporaryGitalyConfigFile(t, cfg)
 
 	expectedMode := umask.Mask(fs.ModePerm)
-	if testhelper.IsWALEnabled() {
-		expectedMode = perm.PrivateDir
-	}
-
 	for _, tc := range []struct {
 		desc          string
 		setup         func() ([]string, *gitalypb.Repository)

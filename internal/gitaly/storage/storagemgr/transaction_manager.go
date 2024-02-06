@@ -25,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/wal"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/safe"
@@ -251,6 +252,8 @@ type Transaction struct {
 	// finished.
 	stagingRepository *localrepo.Repo
 
+	// walEntry is the log entry where the transaction stages its state for committing.
+	walEntry                 *wal.Entry
 	skipVerificationFailures bool
 	initialReferenceValues   map[git.ReferenceName]git.ObjectID
 	referenceUpdates         []ReferenceUpdates
@@ -904,6 +907,8 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 		return fmt.Errorf("create wal files directory: %w", err)
 	}
 
+	transaction.walEntry = wal.NewEntry(transaction.walFilesPath())
+
 	if err := mgr.setupStagingRepository(ctx, transaction); err != nil {
 		return fmt.Errorf("setup staging repository: %w", err)
 	}
@@ -918,6 +923,17 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 
 	if err := mgr.prepareHousekeeping(ctx, transaction); err != nil {
 		return fmt.Errorf("preparing housekeeping: %w", err)
+	}
+
+	// Log the custom hook creation. The deletion of the previous hooks is logged after admission to
+	// ensure we log the latest state for deletion in case someone else modified the hooks.
+	if transaction.customHooksUpdate != nil && transaction.customHooksUpdate.CustomHooksTAR != nil {
+		if err := transaction.walEntry.RecordDirectoryCreation(
+			mgr.getAbsolutePath(transaction.snapshot.prefix),
+			filepath.Join(transaction.relativePath, repoutil.CustomHooksDir),
+		); err != nil {
+			return fmt.Errorf("record custom hook directory: %w", err)
+		}
 	}
 
 	if err := safe.NewSyncer().SyncRecursive(transaction.walFilesPath()); err != nil {
@@ -1619,6 +1635,15 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			logEntry.CustomHooksUpdate = &gitalypb.LogEntry_CustomHooksUpdate{
 				CustomHooksTar: transaction.customHooksUpdate.CustomHooksTAR,
 			}
+
+			// Log a deletion of the existing custom hooks so they are removed before the
+			// new ones are put in place.
+			if err := transaction.walEntry.RecordDirectoryRemoval(
+				mgr.storagePath,
+				filepath.Join(transaction.relativePath, repoutil.CustomHooksDir),
+			); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("record custom hook removal: %w", err)
+			}
 		}
 
 		if transaction.packPrefix != "" {
@@ -1636,6 +1661,8 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			}
 			logEntry.Housekeeping = housekeepingEntry
 		}
+
+		logEntry.Operations = transaction.walEntry.Operations()
 
 		return mgr.appendLogEntry(logEntry, transaction.walFilesPath())
 	}(); err != nil {
@@ -2487,8 +2514,8 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 			return fmt.Errorf("writing default branch: %w", err)
 		}
 
-		if err := mgr.applyCustomHooks(ctx, logEntry); err != nil {
-			return fmt.Errorf("apply custom hooks: %w", err)
+		if err := mgr.applyOperations(lsn, logEntry); err != nil {
+			return fmt.Errorf("apply operations: %w", err)
 		}
 
 		if err := mgr.applyHousekeeping(ctx, lsn, logEntry); err != nil {
@@ -2514,6 +2541,54 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 	// snapshot.
 	close(mgr.snapshotLocks[lsn].applied)
 
+	return nil
+}
+
+// applyOperations applies the operations from the log entry to the storage.
+//
+// ErrExists is ignored when creating directories and hard links. They could have been created
+// during an earlier interrupted attempt to apply the log entry. Similarly ErrNotExist is ignored
+// when removing directory entries. We can be stricter once log entry application becomes atomic
+// through https://gitlab.com/gitlab-org/gitaly/-/issues/5765.
+func (mgr *TransactionManager) applyOperations(lsn LSN, entry *gitalypb.LogEntry) error {
+	for _, wrappedOp := range entry.Operations {
+		switch wrapper := wrappedOp.GetOperation().(type) {
+		case *gitalypb.LogEntry_Operation_CreateHardLink_:
+			op := wrapper.CreateHardLink
+
+			basePath := walFilesPathForLSN(mgr.stateDirectory, lsn)
+			if op.SourceInStorage {
+				basePath = mgr.storagePath
+			}
+
+			if err := os.Link(
+				filepath.Join(basePath, op.SourcePath),
+				mgr.getAbsolutePath(op.DestinationPath),
+			); err != nil && !errors.Is(err, fs.ErrExist) {
+				return fmt.Errorf("link: %w", err)
+			}
+		case *gitalypb.LogEntry_Operation_CreateDirectory_:
+			op := wrapper.CreateDirectory
+
+			if err := os.Mkdir(mgr.getAbsolutePath(op.Path), fs.FileMode(op.Permissions)); err != nil && !errors.Is(err, fs.ErrExist) {
+				return fmt.Errorf("mkdir: %w", err)
+			}
+		case *gitalypb.LogEntry_Operation_RemoveDirectoryEntry_:
+			op := wrapper.RemoveDirectoryEntry
+
+			if err := os.Remove(mgr.getAbsolutePath(op.Path)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("remove: %w", err)
+			}
+		case *gitalypb.LogEntry_Operation_Flush_:
+			op := wrapper.Flush
+
+			if err := safe.NewSyncer().Sync(mgr.getAbsolutePath(op.Path)); err != nil {
+				return fmt.Errorf("sync: %w", err)
+			}
+		default:
+			return fmt.Errorf("unhandled operation type: %T", wrappedOp)
+		}
+	}
 	return nil
 }
 
@@ -2771,41 +2846,6 @@ func (mgr *TransactionManager) applyPackFile(ctx context.Context, lsn LSN, logEn
 	if err := safe.NewSyncer().Sync(packDirectory); err != nil {
 		return fmt.Errorf("sync: %w", err)
 	}
-	return nil
-}
-
-// applyCustomHooks applies the custom hooks to the repository from the log entry. The hooks are extracted at
-// `<repo>/custom_hooks`. The custom hooks are fsynced prior to returning so it is safe to delete the log entry
-// afterwards.
-func (mgr *TransactionManager) applyCustomHooks(ctx context.Context, logEntry *gitalypb.LogEntry) error {
-	if logEntry.CustomHooksUpdate == nil {
-		return nil
-	}
-
-	destinationDir := filepath.Join(mgr.getAbsolutePath(logEntry.RelativePath), repoutil.CustomHooksDir)
-	if err := os.RemoveAll(destinationDir); err != nil {
-		return fmt.Errorf("remove directory: %w", err)
-	}
-
-	if err := os.Mkdir(destinationDir, perm.PrivateDir); err != nil {
-		return fmt.Errorf("create directory: %w", err)
-	}
-
-	if err := repoutil.ExtractHooks(ctx, mgr.logger, bytes.NewReader(logEntry.CustomHooksUpdate.CustomHooksTar), destinationDir, true); err != nil {
-		return fmt.Errorf("extract hooks: %w", err)
-	}
-
-	// TAR doesn't sync the extracted files so do it manually here.
-	syncer := safe.NewSyncer()
-	if err := syncer.SyncRecursive(destinationDir); err != nil {
-		return fmt.Errorf("sync hooks: %w", err)
-	}
-
-	// Sync the parent directory as well.
-	if err := syncer.SyncParent(destinationDir); err != nil {
-		return fmt.Errorf("sync hook directory: %w", err)
-	}
-
 	return nil
 }
 

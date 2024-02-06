@@ -446,7 +446,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								setup.Commits.Diverging.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: fs.ModeDir | perm.PrivateDir},
+								"/": {Mode: fs.ModeDir | perm.SharedDir},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
@@ -506,9 +506,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							LooseReferences: map[git.ReferenceName]git.ObjectID{
 								"refs/heads/main": setup.Commits.Third.OID,
 							},
-						},
-						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: fs.ModeDir | perm.PrivateDir},
 						},
 					},
 				},
@@ -1258,7 +1255,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+								"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
@@ -1293,7 +1290,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							setup.Commits.First.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
