@@ -32,11 +32,24 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
+	"google.golang.org/protobuf/proto"
 )
 
 // errSimulatedCrash is used in the tests to simulate a crash at a certain point during
 // TransactionManager.Run execution.
 var errSimulatedCrash = errors.New("simulated crash")
+
+func manifestDirectoryEntry(expected *gitalypb.LogEntry) testhelper.DirectoryEntry {
+	return testhelper.DirectoryEntry{
+		Mode:    perm.PrivateFile,
+		Content: expected,
+		ParseContent: func(tb testing.TB, path string, content []byte) any {
+			var logEntry gitalypb.LogEntry
+			require.NoError(tb, proto.Unmarshal(content, &logEntry))
+			return &logEntry
+		},
+	}
+}
 
 func validCustomHooks(tb testing.TB) []byte {
 	tb.Helper()
@@ -321,8 +334,11 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				},
 			},
 			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyLogEntry(setup.PartitionID, 1)): &gitalypb.LogEntry{
+				Directory: testhelper.DirectoryState{
+					"/":                  {Mode: fs.ModeDir | perm.PrivateDir},
+					"/wal":               {Mode: fs.ModeDir | perm.PrivateDir},
+					"/wal/0000000000001": {Mode: fs.ModeDir | perm.PrivateDir},
+					"/wal/0000000000001/MANIFEST": manifestDirectoryEntry(&gitalypb.LogEntry{
 						RelativePath: setup.RelativePath,
 						ReferenceTransactions: []*gitalypb.LogEntry_ReferenceTransaction{
 							{
@@ -334,7 +350,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								},
 							},
 						},
-					},
+					}),
 				},
 			},
 		},
@@ -1007,55 +1023,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 		},
 		{
-			desc: "files of interrupted log pruning are cleaned up after a crash",
-			steps: steps{
-				Prune{},
-				StartManager{
-					Hooks: testTransactionHooks{
-						AfterDeleteLogEntry: func(hookContext) {
-							// Crash the manager after the log entry's protobuf message has been
-							// deleted from the database but before the files could be deleted from
-							// the disk.
-							panic(errSimulatedCrash)
-						},
-					},
-					ExpectedError: errSimulatedCrash,
-				},
-				Begin{
-					RelativePath: setup.RelativePath,
-				},
-				Commit{
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-					},
-					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
-				},
-				AssertManager{
-					ExpectedError: errSimulatedCrash,
-				},
-				StartManager{},
-			},
-			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						References: &ReferencesState{
-							LooseReferences: map[git.ReferenceName]git.ObjectID{
-								"refs/heads/main": setup.Commits.First.OID,
-							},
-						},
-						Objects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-						},
-						// There are no files in the WAL directory.
-					},
-				},
-			},
-		},
-		{
 			desc: "non-existent repository is correctly handled",
 			steps: steps{
 				RemoveRepository{},
@@ -1098,10 +1065,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				AssertManager{
 					ExpectedError: errSimulatedCrash,
 				},
-			},
-			expectedState: StateAssertion{
-				// The test case fails before the partition's state directory is created.
-				Directory: testhelper.DirectoryState{},
 			},
 		},
 		{
@@ -1668,9 +1631,14 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
 						string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
-						// Transaction 2 and 3 are left-over.
-						string(keyLogEntry(setup.PartitionID, 2)): refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID),
-						string(keyLogEntry(setup.PartitionID, 3)): refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID),
+					})
+					// Transaction 2 and 3 are left-over.
+					testhelper.RequireDirectoryState(t, walFilesPath(tm.stateDirectory), "", testhelper.DirectoryState{
+						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
+						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
 					})
 				}),
 				StartManager{},
@@ -1753,12 +1721,22 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					// Insert an out-of-band log-entry directly into the database for easier test
 					// setup. It's a bit tricky to simulate committed log entries and un-processed
 					// appended log entries at the same time.
-					require.NoError(t, tm.setKey(keyLogEntry(tm.partitionID, 4), refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID)))
+					logEntryPath := filepath.Join(t.TempDir(), "log_entry")
+					require.NoError(t, os.Mkdir(logEntryPath, perm.PrivateDir))
+					require.NoError(t, tm.appendLogEntry(refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID), logEntryPath))
+
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
-						string(keyAppliedLSN(setup.PartitionID)):  LSN(3).toProto(),
-						string(keyLogEntry(setup.PartitionID, 2)): refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID),
-						string(keyLogEntry(setup.PartitionID, 3)): refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID),
-						string(keyLogEntry(setup.PartitionID, 4)): refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID),
+						string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					})
+					// Transaction 2 and 3 are left-over.
+					testhelper.RequireDirectoryState(t, walFilesPath(tm.stateDirectory), "", testhelper.DirectoryState{
+						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
+						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
+						"/0000000000004":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/0000000000004/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID)),
 					})
 				}),
 				StartManager{},

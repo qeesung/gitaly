@@ -520,8 +520,6 @@ type testTransactionHooks struct {
 	BeforeApplyLogEntry hookFunc
 	// BeforeAppendLogEntry is called before a log entry is appended to the log.
 	BeforeAppendLogEntry hookFunc
-	// BeforeDeleteLogEntry is called before a log entry is deleted.
-	BeforeDeleteLogEntry hookFunc
 	// AfterDeleteLogEntry is called after a log entry is deleted.
 	AfterDeleteLogEntry hookFunc
 	// BeforeReadAppliedLSN is invoked before the applied LSN is read.
@@ -783,19 +781,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.NoError(t, os.Mkdir(stagingDir, perm.PrivateDir))
 
 			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, housekeepingManager, storageScopedFactory)
-			installHooks(t, transactionManager, database, hooks{
-				beforeReadLogEntry:  step.Hooks.BeforeApplyLogEntry,
-				beforeStoreLogEntry: step.Hooks.BeforeAppendLogEntry,
-				beforeDeferredClose: func(hookContext) {
-					if step.Hooks.WaitForTransactionsWhenClosing {
-						inflightTransactions.Wait()
-					}
-				},
-				beforeDeleteLogEntry:  step.Hooks.BeforeDeleteLogEntry,
-				afterDeleteLogEntry:   step.Hooks.AfterDeleteLogEntry,
-				beforeReadAppliedLSN:  step.Hooks.BeforeReadAppliedLSN,
-				beforeStoreAppliedLSN: step.Hooks.BeforeStoreAppliedLSN,
-			})
+			installHooks(transactionManager, &inflightTransactions, step.Hooks)
 
 			go func() {
 				defer func() {

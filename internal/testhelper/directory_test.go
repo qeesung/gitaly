@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,6 +37,10 @@ func (r *tbRecorder) Helper() {
 
 func (r *tbRecorder) FailNow() {
 	r.failNow = true
+}
+
+func (r *tbRecorder) Failed() bool {
+	return r.errorMessage != ""
 }
 
 func TestRequireDirectoryState(t *testing.T) {
@@ -86,14 +91,14 @@ func TestRequireDirectoryState(t *testing.T) {
 			modifyAssertion: func(state DirectoryState) {
 				delete(state, "/assertion-root")
 			},
-			expectedErrorMessage: `+ (string) (len=15) "/assertion-root": (testhelper.DirectoryEntry)`,
+			expectedErrorMessage: `+ 	"/assertion-root":                     {Mode: s"drwxr-xr-x"}`,
 		},
 		{
 			desc: "unexpected file",
 			modifyAssertion: func(state DirectoryState) {
 				delete(state, "/assertion-root/dir-a/unparsed-file")
 			},
-			expectedErrorMessage: `+ (string) (len=35) "/assertion-root/dir-a/unparsed-file": (testhelper.DirectoryEntry)`,
+			expectedErrorMessage: `+ 	"/assertion-root/dir-a/unparsed-file": {Mode: s"-rwxr-xr-x", Content: []uint8("raw content")},`,
 		},
 		{
 			desc: "wrong mode",
@@ -102,7 +107,7 @@ func TestRequireDirectoryState(t *testing.T) {
 				modified.Mode = fs.ModePerm
 				state["/assertion-root/dir-b"] = modified
 			},
-			expectedErrorMessage: `-  Mode: (fs.FileMode)`,
+			expectedErrorMessage: `- 		Mode:         s"-rwxrwxrwx",`,
 		},
 		{
 			desc: "wrong unparsed content",
@@ -111,10 +116,8 @@ func TestRequireDirectoryState(t *testing.T) {
 				modified.Content = "incorrect content"
 				state["/assertion-root/dir-a/unparsed-file"] = modified
 			},
-			expectedErrorMessage: `-  Content: (string) (len=17) "incorrect content",
-	            	+  Content: ([]uint8) (len=11) {
-	            	+   00000000  72 61 77 20 63 6f 6e 74  65 6e 74                 |raw content|
-	            	+  }`,
+			expectedErrorMessage: `- 		Content:      string("incorrect content"),
+	            	+ 		Content:      []uint8("raw content"),`,
 		},
 		{
 			desc: "wrong parsed content",
@@ -123,15 +126,15 @@ func TestRequireDirectoryState(t *testing.T) {
 				modified.Content = "incorrect content"
 				state["/assertion-root/parsed-file"] = modified
 			},
-			expectedErrorMessage: `-  Content: (string) (len=17) "incorrect content",
-	            	+  Content: (string) (len=14) "parsed content"`,
+			expectedErrorMessage: `- 		Content:      string("incorrect content"),
+	            	+ 		Content:      string("parsed content"),`,
 		},
 		{
 			desc: "missing entry",
 			modifyAssertion: func(state DirectoryState) {
 				state["/does/not/exist/on/disk"] = DirectoryEntry{}
 			},
-			expectedErrorMessage: `- (string) (len=23) "/does/not/exist/on/disk": (testhelper.DirectoryEntry)`,
+			expectedErrorMessage: `- 	"/does/not/exist/on/disk":     {}`,
 		},
 	} {
 		tc := tc
@@ -156,8 +159,15 @@ func TestRequireDirectoryState(t *testing.T) {
 
 			recordedTB := &tbRecorder{tb: t}
 			RequireDirectoryState(recordedTB, rootDir, relativePath, expectedState)
+
 			if tc.expectedErrorMessage != "" {
-				require.Contains(t, recordedTB.errorMessage, tc.expectedErrorMessage)
+				require.Contains(t,
+					// The error message contains varying amounts of non-breaking space. Replace them with normal space
+					// so they'll match our assertions.
+					strings.Replace(recordedTB.errorMessage, "\u00a0", " ", -1),
+					tc.expectedErrorMessage,
+				)
+
 				require.True(t, recordedTB.failNow)
 			} else {
 				require.Empty(t, recordedTB.errorMessage)

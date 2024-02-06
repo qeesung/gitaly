@@ -91,7 +91,7 @@ func RequireDirectoryState(tb testing.TB, rootDirectory, relativeDirectory strin
 		expectedCopy[key] = value
 	}
 
-	require.Equal(tb, expectedCopy, actual)
+	ProtoEqual(tb, expectedCopy, actual)
 }
 
 // RequireTarState asserts that the provided tarball contents matches the expected state.
