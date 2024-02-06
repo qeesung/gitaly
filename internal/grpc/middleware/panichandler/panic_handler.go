@@ -2,6 +2,7 @@ package panichandler
 
 import (
 	"context"
+	"runtime/debug"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"google.golang.org/grpc"
@@ -48,8 +49,9 @@ func InstallPanicHandler(handler PanicHandler) {
 func handleCrash(logger log.Logger, grpcMethodName string, handler PanicHandler) {
 	if r := recover(); r != nil {
 		logger.WithFields(log.Fields{
-			"error":  r,
-			"method": grpcMethodName,
+			"error":     r,
+			"method":    grpcMethodName,
+			"backtrace": string(debug.Stack()),
 		}).Error("grpc panic")
 
 		handler(grpcMethodName, r)
