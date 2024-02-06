@@ -75,7 +75,7 @@ When the variable is set, the hook executes these commands instead of the intern
 `execute_commands()` function. This transfers the responsibility of making
 reference updates to the hook. The hook executes once for the receive operation.
 The hook takes no arguments, but uses a _pkt-line format_ protocol to communicate
-with `git-receive-pack(1)` to read commands and push-options and send results.
+with `git-receive-pack(1)` to read commands and push options, and send results.
 
 In Gitaly, we use this mechanism to intercept updates to references made directly
 via Git. This hook allows us to capture any updates to references made and route
