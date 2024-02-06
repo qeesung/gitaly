@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	_ "gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb/testproto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	protoreg "google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
+
+	_ "gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb/testproto"
 )
 
 func TestLintFile(t *testing.T) {
