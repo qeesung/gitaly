@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
@@ -49,10 +51,57 @@ func (e *Entry) stageFile(path string) (string, error) {
 	return fileName, nil
 }
 
+// RecordRepositoryCreation records the creation of the repository itself and the directory
+// hierarchy above it. It logs flush operations for all directories in the hierarchy and stages
+// the files from the repository.
+func (e *Entry) RecordRepositoryCreation(storageRoot, relativePath string) error {
+	parentDir := filepath.Dir(relativePath)
+
+	// If the repository is in the storage root, there are no parent directories to create.
+	// Ignore the "." referring to the storage root.
+	var dirComponents []string
+	if parentDir != "." {
+		dirComponents = strings.Split(parentDir, string(os.PathSeparator))
+	}
+
+	// Flush the storage's root at the end to flush the directory hierarchy creation.
+	defer e.operations.flush(".")
+
+	var previousParentDir string
+	for _, dirComponent := range dirComponents {
+		currentDir := filepath.Join(previousParentDir, dirComponent)
+		e.operations.createDirectory(currentDir, perm.PrivateDir)
+
+		// Flush directories in the parent directory hierarchy in reverse
+		// order after the repository itself has been created.
+		defer e.operations.flush(currentDir)
+
+		previousParentDir = currentDir
+	}
+
+	// Log the repository itself and afterwards run all the deferred
+	// directory flushes.
+	if err := e.recordDirectoryCreation(storageRoot, relativePath); err != nil {
+		return fmt.Errorf("record directory creation: %w", err)
+	}
+
+	return nil
+}
+
 // RecordDirectoryCreation records the operations to create a given directory in the storage and
 // all of its children in to the storage. It logs flush operations for all created directories and
 // the parent of the directory.
 func (e *Entry) RecordDirectoryCreation(storageRoot, directoryRelativePath string) error {
+	if err := e.recordDirectoryCreation(storageRoot, directoryRelativePath); err != nil {
+		return err
+	}
+
+	e.operations.flush(filepath.Dir(directoryRelativePath))
+
+	return nil
+}
+
+func (e *Entry) recordDirectoryCreation(storageRoot, directoryRelativePath string) error {
 	if err := walkDirectory(storageRoot, directoryRelativePath,
 		func(relativePath string, dirEntry fs.DirEntry) error {
 			info, err := dirEntry.Info()
@@ -84,8 +133,6 @@ func (e *Entry) RecordDirectoryCreation(storageRoot, directoryRelativePath strin
 	); err != nil {
 		return fmt.Errorf("walk directory: %w", err)
 	}
-
-	e.operations.flush(filepath.Dir(directoryRelativePath))
 
 	return nil
 }
