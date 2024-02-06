@@ -606,6 +606,14 @@ type RunRepack struct {
 	Config housekeeping.RepackObjectsConfig
 }
 
+// CustomHooksUpdate models an update to the custom hooks.
+type CustomHooksUpdate struct {
+	// CustomHooksTAR contains the custom hooks as a TAR. The TAR contains a `custom_hooks`
+	// directory which contains the hooks. Setting the update with nil `custom_hooks_tar` clears
+	// the hooks from the repository.
+	CustomHooksTAR []byte
+}
+
 // Commit calls Commit on a transaction.
 type Commit struct {
 	// TransactionID identifies the transaction to commit.
@@ -854,16 +862,21 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			)
 
 			if step.CustomHooksUpdate != nil {
-				transaction.SetCustomHooks(step.CustomHooksUpdate.CustomHooksTAR)
-
-				require.NoError(t, repoutil.SetCustomHooks(
-					ctx,
-					logger,
-					config.NewLocator(setup.Config),
-					nil,
-					bytes.NewReader(step.CustomHooksUpdate.CustomHooksTAR),
-					rewrittenRepo,
-				))
+				transaction.MarkCustomHooksUpdated()
+				if step.CustomHooksUpdate.CustomHooksTAR != nil {
+					require.NoError(t, repoutil.SetCustomHooks(
+						ctx,
+						logger,
+						config.NewLocator(setup.Config),
+						nil,
+						bytes.NewReader(step.CustomHooksUpdate.CustomHooksTAR),
+						rewrittenRepo,
+					))
+				} else {
+					rewrittenPath, err := rewrittenRepo.Path()
+					require.NoError(t, err)
+					require.NoError(t, os.RemoveAll(filepath.Join(rewrittenPath, repoutil.CustomHooksDir)))
+				}
 			}
 
 			if step.QuarantinedPacks != nil {

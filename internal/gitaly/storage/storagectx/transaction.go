@@ -12,7 +12,7 @@ import (
 type Transaction interface {
 	SetDefaultBranch(git.ReferenceName)
 	DeleteRepository()
-	SetCustomHooks([]byte)
+	MarkCustomHooksUpdated()
 	IncludeObject(git.ObjectID)
 	OriginalRepository(*gitalypb.Repository) *gitalypb.Repository
 	UpdateAlternate(string)
