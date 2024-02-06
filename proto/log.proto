@@ -114,6 +114,59 @@ message LogEntry {
   AlternateUpdate alternate_update = 8;
   // housekeeping, when set, indicates this log entry contains a housekeeping task.
   Housekeeping housekeeping = 9;
+
+  // Operation models a single operation to be performed.
+  message Operation {
+    // CreateHardLink creates a hard link. The existing inode metadata, including
+    // permissions, will be shared with all of the hard links to the same file.
+    message CreateHardLink {
+      // source_path is the relative path of the file the hard link should point to.
+      string source_path = 1;
+      // source_in_storage is set when the source path is relative to the storage
+      // root instead of the log entry.
+      bool source_in_storage = 2;
+      // destination_path is a relative path from the storage root to where the hard
+      // link should be created at.
+      string destination_path = 3;
+    }
+
+    // RemoveDirectoryEntry removes a directory or a file
+    // from the parent directory. When removing a directory,
+    // it must be empty.
+    message RemoveDirectoryEntry {
+      // path is the relative path of the directory entry to remove in the storage.
+      string path = 1;
+    }
+
+    // CreateDirectory creates a directory at a relative path.
+    message CreateDirectory {
+      // path is a relative path where to create the directory.
+      string path = 1;
+      // permissions are the Unix permision bits to set on the created directory.
+      uint32 permissions = 2;
+    }
+
+    // Flush flushes the entry at the given path to disk.
+    message Flush {
+      // path is relative path in the storage to flush.
+      string path = 1;
+    }
+
+    oneof operation {
+      // create_hard_link creates a hard link in the storage.
+      CreateHardLink       create_hard_link       = 1;
+      // remove_directory_entry removes a directory entry from the storage.
+      RemoveDirectoryEntry remove_directory_entry = 2;
+      // create_directory creates a directory in the storage.
+      CreateDirectory      create_directory       = 3;
+      // flush flushes a given path in the storage to disk.
+      Flush                flush                  = 4;
+    };
+  }
+
+  // operations is an ordered list of operations to run in order to apply
+  // this log entry.
+  repeated Operation operations = 10;
 }
 
 // LSN serializes a log sequence number. It's used for storing a partition's
