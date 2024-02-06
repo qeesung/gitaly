@@ -13,6 +13,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -131,6 +132,14 @@ type Repository interface {
 	ObjectHash(ctx context.Context) (git.ObjectHash, error)
 	// HeadReference fetches the reference pointed to by HEAD.
 	HeadReference(ctx context.Context) (git.ReferenceName, error)
+	// ResetRefs attempts to reset the list of refs in the repository to match the
+	// specified refs slice. This can fail if objects pointed to by a ref no longer
+	// exists in the repository. The list of refs should not include the symbolic
+	// HEAD reference.
+	ResetRefs(ctx context.Context, refs []git.Reference) error
+	// SetHeadReference sets the symbolic HEAD reference of the repository to the
+	// given target, for example a branch name.
+	SetHeadReference(ctx context.Context, target git.ReferenceName) error
 }
 
 // ResolveLocator returns a locator implementation based on a locator identifier.
@@ -161,6 +170,7 @@ type Manager struct {
 	sink    Sink
 	conns   *client.Pool
 	locator Locator
+	logger  log.Logger
 
 	// repositoryFactory returns an abstraction over git repositories in order
 	// to create and restore backups.
@@ -168,7 +178,7 @@ type Manager struct {
 }
 
 // NewManager creates and returns initialized *Manager instance.
-func NewManager(sink Sink, locator Locator, pool *client.Pool) *Manager {
+func NewManager(sink Sink, logger log.Logger, locator Locator, pool *client.Pool) *Manager {
 	return &Manager{
 		sink:    sink,
 		conns:   pool,
@@ -183,8 +193,9 @@ func NewManager(sink Sink, locator Locator, pool *client.Pool) *Manager {
 				return nil, err
 			}
 
-			return newRemoteRepository(repo, conn), nil
+			return NewRemoteRepository(repo, conn), nil
 		},
+		logger: logger,
 	}
 }
 
@@ -206,8 +217,9 @@ func NewManagerLocal(
 		repositoryFactory: func(ctx context.Context, repo *gitalypb.Repository, server storage.ServerInfo) (Repository, error) {
 			localRepo := localrepo.New(logger, storageLocator, gitCmdFactory, catfileCache, repo)
 
-			return newLocalRepository(logger, storageLocator, gitCmdFactory, txManager, repoCounter, localRepo), nil
+			return NewLocalRepository(logger, storageLocator, gitCmdFactory, txManager, repoCounter, localRepo), nil
 		},
+		logger: logger,
 	}
 }
 
@@ -348,19 +360,69 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 		return fmt.Errorf("manager: %w", err)
 	}
 
+	if len(backup.Steps) == 0 {
+		return fmt.Errorf("manager: no backup steps")
+	}
+
+	// Restore Git objects, potentially from increments.
+	if err := mgr.restoreFromRefs(ctx, repo, backup); err != nil {
+		mgr.logger.WithFields(log.Fields{
+			"storage":       req.Repository.GetStorageName(),
+			"relative_path": req.Repository.GetRelativePath(),
+			"backup_id":     backup.ID,
+			logrus.ErrorKey: err,
+		}).Warn("unable to reset refs. Proceeding with a normal restore")
+
+		// If we can't reset the refs, perform a full restore by recreating the repo and cloning from the bundle.
+		if err := mgr.restoreFromBundle(ctx, repo, backup, req.AlwaysCreate); err != nil {
+			return fmt.Errorf("manager: restore from bundle: %w", err)
+		}
+	}
+
+	// Restore custom hooks. Each custom hooks archive contains the entirety of the hooks, so
+	// we can just restore the most recent archive.
+	latestStep := backup.Steps[len(backup.Steps)-1]
+	return mgr.restoreCustomHooks(ctx, repo, latestStep.CustomHooksPath)
+}
+
+func (mgr *Manager) restoreFromRefs(ctx context.Context, repo Repository, backup *Backup) error {
+	latestStep := backup.Steps[len(backup.Steps)-1]
+	refs, err := mgr.readRefs(ctx, latestStep.RefPath)
+	if err != nil {
+		return fmt.Errorf("read refs from backup: %w", err)
+	}
+	if len(refs) == 0 {
+		return errors.New("no refs in backup")
+	}
+
+	// Reset all refs except for HEAD.
+	if err := repo.ResetRefs(ctx, refs); err != nil {
+		return fmt.Errorf("reset refs: %w", err)
+	}
+
+	// Explicitly reset HEAD to the default branch tracked by the manifest if available. In a
+	// bundle restore, this would've been done during repository creation.
+	headRef := git.ReferenceName(backup.HeadReference)
+	if headRef == "" {
+		return errors.New("expected HEAD to be a symbolic reference")
+	}
+
+	return repo.SetHeadReference(ctx, headRef)
+}
+
+func (mgr *Manager) restoreFromBundle(ctx context.Context, repo Repository, backup *Backup, alwaysCreate bool) error {
 	hash, err := git.ObjectHashByFormat(backup.ObjectFormat)
 	if err != nil {
-		return fmt.Errorf("manager: %w", err)
+		return err
 	}
 
 	defaultBranch, defaultBranchKnown := git.ReferenceName(backup.HeadReference).Branch()
 
 	if err := repo.Remove(ctx); err != nil {
-		return fmt.Errorf("manager: %w", err)
+		return err
 	}
-
 	if err := repo.Create(ctx, hash, defaultBranch); err != nil {
-		return fmt.Errorf("manager: %w", err)
+		return err
 	}
 
 	for _, step := range backup.Steps {
@@ -373,30 +435,28 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 			// not know which repository is which type so here we accept a
 			// parameter to tell us to employ this behaviour. Since the
 			// repository has already been created, we simply skip cleaning up.
-			if req.AlwaysCreate {
+			if alwaysCreate {
 				return nil
 			}
 
 			if err := repo.Remove(ctx); err != nil {
-				return fmt.Errorf("manager: remove on skipped: %w", err)
+				return fmt.Errorf("remove on skipped: %w", err)
 			}
 
-			return fmt.Errorf("manager: %w: %s", ErrSkipped, err.Error())
+			return fmt.Errorf("%w: %s", ErrSkipped, err.Error())
 		case err != nil:
-			return fmt.Errorf("manager: %w", err)
+			return fmt.Errorf("read refs: %w", err)
 		}
 
 		// Git bundles can not be created for empty repositories. Since empty
 		// repository backups do not contain a bundle, skip bundle restoration.
 		if len(refs) > 0 {
 			if err := mgr.restoreBundle(ctx, repo, step.BundlePath, !defaultBranchKnown); err != nil {
-				return fmt.Errorf("manager: %w", err)
+				return fmt.Errorf("restore bundle: %w", err)
 			}
 		}
-		if err := mgr.restoreCustomHooks(ctx, repo, step.CustomHooksPath); err != nil {
-			return fmt.Errorf("manager: %w", err)
-		}
 	}
+
 	return nil
 }
 
@@ -510,6 +570,11 @@ func (mgr *Manager) readRefs(ctx context.Context, path string) ([]git.Reference,
 			break
 		} else if err != nil {
 			return refs, fmt.Errorf("read refs: %w", err)
+		}
+
+		// HEAD is tracked as a symbolic reference in the backup manifest and will be restored separately.
+		if ref.Name == "HEAD" {
+			continue
 		}
 
 		refs = append(refs, ref)

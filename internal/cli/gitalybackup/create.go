@@ -140,7 +140,7 @@ func (cmd *createSubcommand) run(ctx context.Context, logger log.Logger, stdin i
 			return fmt.Errorf("create: resolve locator: %w", err)
 		}
 
-		manager = backup.NewManager(sink, locator, pool)
+		manager = backup.NewManager(sink, logger, locator, pool)
 	}
 
 	var opts []backup.PipelineOption

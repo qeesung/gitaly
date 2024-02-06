@@ -10,6 +10,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/counter"
@@ -31,7 +32,9 @@ type remoteRepository struct {
 	conn *grpc.ClientConn
 }
 
-func newRemoteRepository(repo *gitalypb.Repository, conn *grpc.ClientConn) *remoteRepository {
+// NewRemoteRepository returns a repository accessor that operates on a remote
+// repository.
+func NewRemoteRepository(repo *gitalypb.Repository, conn *grpc.ClientConn) *remoteRepository {
 	return &remoteRepository{
 		repo: repo,
 		conn: conn,
@@ -192,6 +195,27 @@ func (s *createBundleFromRefListSender) Send() error {
 	return s.stream.Send(&s.chunk)
 }
 
+// updateRefsSender chunks requests to the UpdateReferences RPC.
+type updateRefsSender struct {
+	refs []*gitalypb.UpdateReferencesRequest_Update
+	send func([]*gitalypb.UpdateReferencesRequest_Update) error
+}
+
+// Reset should create a fresh response message.
+func (s *updateRefsSender) Reset() {
+	s.refs = s.refs[:0]
+}
+
+// Append should append the given item to the slice in the current response message
+func (s *updateRefsSender) Append(msg proto.Message) {
+	s.refs = append(s.refs, msg.(*gitalypb.UpdateReferencesRequest_Update))
+}
+
+// Send should send the current response message
+func (s *updateRefsSender) Send() error {
+	return s.send(s.refs)
+}
+
 // Remove removes the repository. Does not return an error if the repository
 // cannot be found.
 func (rr *remoteRepository) Remove(ctx context.Context) error {
@@ -205,6 +229,92 @@ func (rr *remoteRepository) Remove(ctx context.Context) error {
 	case err != nil:
 		return fmt.Errorf("remote repository: remove: %w", err)
 	}
+	return nil
+}
+
+// ResetRefs attempts to reset the list of refs in the repository to match the
+// specified refs slice. Do not include the symbolic HEAD reference in the list.
+func (rr *remoteRepository) ResetRefs(ctx context.Context, refs []git.Reference) error {
+	if len(refs) == 0 {
+		return errors.New("empty refs list")
+	}
+
+	refClient := rr.newRefClient()
+
+	_, err := refClient.DeleteRefs(ctx,
+		&gitalypb.DeleteRefsRequest{
+			Repository: rr.repo,
+			// While the DeleteRefs RPC doesn't delete HEAD, we add it to the exceptions list as a
+			// workaround to instruct the RPC to delete all references in the repository.
+			// https://gitlab.com/gitlab-org/gitaly/-/issues/5795 tracks the enhancement to the RPC to
+			// eliminate this workaround.
+			ExceptWithPrefix: [][]byte{[]byte("HEAD")},
+		})
+	if err != nil {
+		return fmt.Errorf("delete existing refs: %w", err)
+	}
+
+	stream, err := refClient.UpdateReferences(ctx)
+	if err != nil {
+		return fmt.Errorf("open stream: %w", err)
+	}
+
+	// We need to send the first update without the chunker, because the RPC expects the `Repository` field to be
+	// empty in subsequent messages. We also need to send the first reference because the RPC expects at least one
+	// update.
+	if err := stream.Send(&gitalypb.UpdateReferencesRequest{
+		Repository: rr.repo,
+		Updates: []*gitalypb.UpdateReferencesRequest_Update{
+			{
+				Reference:   []byte(refs[0].Name),
+				NewObjectId: []byte(refs[0].Target),
+			},
+		},
+	}); err != nil {
+		return fmt.Errorf("send initial request: %w", err)
+	}
+
+	chunker := chunk.New(&updateRefsSender{
+		send: func(updates []*gitalypb.UpdateReferencesRequest_Update) error {
+			return stream.Send(&gitalypb.UpdateReferencesRequest{
+				Updates: updates,
+			})
+		},
+	})
+
+	for _, ref := range refs[1:] {
+		if err := chunker.Send(&gitalypb.UpdateReferencesRequest_Update{
+			Reference:   []byte(ref.Name),
+			NewObjectId: []byte(ref.Target),
+		}); err != nil {
+			return fmt.Errorf("send ref update: %w", err)
+		}
+	}
+
+	if err := chunker.Flush(); err != nil {
+		return fmt.Errorf("flush ref update chunker: %w", err)
+	}
+
+	if _, err := stream.CloseAndRecv(); err != nil {
+		return fmt.Errorf("close stream: %w", err)
+	}
+
+	return nil
+}
+
+// SetHeadReference sets the symbolic HEAD reference of the repository.
+func (rr *remoteRepository) SetHeadReference(ctx context.Context, target git.ReferenceName) error {
+	repoClient := rr.newRepoClient()
+
+	_, err := repoClient.WriteRef(ctx, &gitalypb.WriteRefRequest{
+		Repository: rr.repo,
+		Ref:        []byte("HEAD"),
+		Revision:   []byte(target),
+	})
+	if err != nil {
+		return fmt.Errorf("write HEAD ref: %w", err)
+	}
+
 	return nil
 }
 
@@ -325,7 +435,9 @@ type localRepository struct {
 	repo          *localrepo.Repo
 }
 
-func newLocalRepository(
+// NewLocalRepository returns a repository accessor that operates on a local
+// repository.
+func NewLocalRepository(
 	logger log.Logger,
 	locator storage.Locator,
 	gitCmdFactory git.CommandFactory,
@@ -467,4 +579,57 @@ func (r *localRepository) HeadReference(ctx context.Context) (git.ReferenceName,
 	}
 
 	return head, nil
+}
+
+// ResetRefs attempts to reset the list of refs in the repository to match the
+// specified refs slice. Do not include the symbolic HEAD reference in the list.
+func (r *localRepository) ResetRefs(ctx context.Context, refs []git.Reference) (returnedErr error) {
+	u, err := updateref.New(ctx, r.repo)
+	if err != nil {
+		return fmt.Errorf("error when running creating new updater: %w", err)
+	}
+	defer func() {
+		if err := u.Close(); err != nil && returnedErr == nil {
+			returnedErr = fmt.Errorf("close updater: %w", err)
+		}
+	}()
+
+	if err := u.Start(); err != nil {
+		return fmt.Errorf("start delete existing refs transaction: %w", err)
+	}
+
+	existingRefs, err := r.repo.GetReferences(ctx)
+	if err != nil {
+		return fmt.Errorf("get existing refs: %w", err)
+	}
+	for _, ref := range existingRefs {
+		if err := u.Delete(ref.Name); err != nil {
+			return fmt.Errorf("delete existing ref: %w", err)
+		}
+	}
+
+	if err := u.Commit(); err != nil {
+		return fmt.Errorf("commit remove existing refs: %w", err)
+	}
+
+	if err := u.Start(); err != nil {
+		return fmt.Errorf("start reset refs transaction: %w", err)
+	}
+
+	for _, ref := range refs {
+		if err := u.Update(ref.Name, git.ObjectID(ref.Target), ""); err != nil {
+			return fmt.Errorf("reset ref: %w", err)
+		}
+	}
+
+	if err := u.Commit(); err != nil {
+		return fmt.Errorf("commit reset refs: %w", err)
+	}
+
+	return nil
+}
+
+// SetHeadReference sets the symbolic HEAD reference of the repository.
+func (r *localRepository) SetHeadReference(ctx context.Context, target git.ReferenceName) error {
+	return r.repo.SetDefaultBranch(ctx, r.txManager, target)
 }
