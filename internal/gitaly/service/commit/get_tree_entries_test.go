@@ -244,10 +244,57 @@ func testGetTreeEntries(t *testing.T, ctx context.Context) {
 					request: &gitalypb.GetTreeEntriesRequest{
 						Repository: repo,
 						Revision:   []byte(commitID.String()),
-						// When the path points to a blob and not a tree,
-						// we get no results from GetTreeEntries.
-						Path: []byte("README.md"),
+						Path:       []byte("README.md"),
 					},
+					expectedErr: testhelper.EnabledOrDisabledFlag[error](ctx, featureflag.UseUnifiedGetTreeEntries,
+						testhelper.WithInterceptedMetadataItems(
+							structerr.NewInvalidArgument("path not treeish").WithDetail(&gitalypb.GetTreeEntriesError{
+								Error: &gitalypb.GetTreeEntriesError_ResolveTree{
+									ResolveTree: &gitalypb.ResolveRevisionError{
+										Revision: []byte(commitID),
+									},
+								},
+							}),
+							structerr.MetadataItem{Key: "path", Value: "README.md"},
+							structerr.MetadataItem{Key: "revision", Value: commitID},
+						),
+						nil),
+				}
+			},
+		},
+		{
+			desc: "path points to a file plus recursive",
+			setup: func(t *testing.T) setupData {
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				commitID := gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithTreeEntries(gittest.TreeEntry{
+						Mode:    "100644",
+						Path:    "README.md",
+						Content: "something with spaces in between",
+					}),
+				)
+
+				return setupData{
+					request: &gitalypb.GetTreeEntriesRequest{
+						Repository: repo,
+						Revision:   []byte(commitID.String()),
+						Path:       []byte("README.md"),
+						Recursive:  true,
+					},
+					expectedErr: testhelper.EnabledOrDisabledFlag[error](ctx, featureflag.UseUnifiedGetTreeEntries,
+						testhelper.WithInterceptedMetadataItems(
+							structerr.NewInvalidArgument("path not treeish").WithDetail(&gitalypb.GetTreeEntriesError{
+								Error: &gitalypb.GetTreeEntriesError_ResolveTree{
+									ResolveTree: &gitalypb.ResolveRevisionError{
+										Revision: []byte(commitID),
+									},
+								},
+							}),
+							structerr.MetadataItem{Key: "path", Value: "README.md"},
+							structerr.MetadataItem{Key: "revision", Value: commitID},
+						),
+						nil),
 				}
 			},
 		},
