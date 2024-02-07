@@ -60,11 +60,79 @@ through Gitaly.
 | `post-receive` | used as the Git `post-receive` hook | none | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
 | `reference-transaction` | used as the Git `reference-transaction` hook | `prepared`, `committed`, or `aborted` | `<old-value>` SP `<new-value>` SP `<ref-name>` LF |
 | `git`          | used as the Git `pack-objects` hook | `pack-objects` `[--stdout]` `[--shallow-file]` | `<object-list>` |
+| `proc-receive` | used as the Git `proc-receive` hook | none | communication with receive-pack in pkt-line format protocol | 
 
 ## Hook-specific logic
 
 The logic implemented in Gitaly's hook RPC handlers depends on which hook is
 being executed.
+
+### Proc-receive hook
+
+The `git-receive-pack(1)` executes the proc-receive hook for commands that have a
+matching prefix with the multi-valued config variable `receive.procReceiveRefs`.
+When the variable is set, the hook executes these commands instead of the internal
+`execute_commands()` function. This transfers the responsibility of making
+reference updates to the hook. The hook executes once for the receive operation.
+The hook takes no arguments, but uses a _pkt-line format_ protocol to communicate
+with `git-receive-pack(1)` to read commands and push options, and send results.
+
+In Gitaly, we use this mechanism to intercept updates to references made directly
+via Git. This hook allows us to capture any updates to references made and route
+them through the write-ahead log's write queue. This ensures that we account for
+every reference update and log all reference updates.
+
+The write-ahead log eventually will go over the log and commit each transaction where
+it will call `git-update-ref(1)` to do the reference update.
+
+#### Implementation details
+
+The `ReceivePack` RPC executes `git-receive-pack(1)` which executes the `proc-receive`
+hook via the `gitaly-hook` binary. The hook is independent of the main Gitaly service 
+and hence doesn't have access to the WAL.
+
+To overcome this, the `ReceivePack` RPC registers a waiter with the `ProcReceiveRegistry`
+against the request's transaction ID. The `proc-receive` hook, when invoked, streams the 
+data to the `ProcReceiveHook` RPC. The `ProcReceiveHook` RPC then obtains a new
+`ProcReceiveHandler` and transmits the handler to the registry. 
+
+The `ReceivePack` RPC obtains the handler and uses the handler to communicate with the
+`ProcReceiveHook` RPC. It obtains the reference updates requests and tries to commit them
+to the WAL and relays acceptance/rejections to the `ProcReceiveHook` RPC via the handler.
+
+The `ProcReceiveHook` streams all the data concurrently back to the `proc-receive` hook. 
+
+```mermaid
+sequenceDiagram
+    ReceivePack ->>+ ProcReceiveRegistry: register waiter
+    ProcReceiveRegistry ->>- ReceivePack: handler listener
+
+    loop waiting handler
+        activate proc-receive hook
+        ReceivePack ->>+ proc-receive hook: exec "git-receive-pack"
+        proc-receive hook ->> ProcReceiveHook: stream stdin
+
+        activate ProcReceiveHook
+        ProcReceiveHook->>+ ProcReceiveHandler: new handler
+        ProcReceiveHandler ->>- ProcReceiveHook: OK
+        ProcReceiveHook ->>+ ProcReceiveRegistry: transmit handler
+ 
+        deactivate ProcReceiveHook
+    end
+    
+    ProcReceiveHandler ->>+ ReceivePack: receive ref updates
+    activate ProcReceiveHandler
+
+    ReceivePack ->>+ WAL : commit ref updates
+    WAL ->>- ReceivePack: OK
+    ReceivePack ->> ProcReceiveHandler: accept ref updates
+    ProcReceiveHandler ->> proc-receive hook: stream updates
+    ReceivePack ->>- ProcReceiveHandler: close
+    ProcReceiveHandler ->> proc-receive hook: close
+
+    deactivate ProcReceiveHandler
+    deactivate proc-receive hook
+```
 
 ### Reference-transaction hook
 
