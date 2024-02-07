@@ -60,6 +60,10 @@ No changes.
 - [gitaly: Move asynchronous tasks to end of startup](gitlab-org/gitaly@dd4ea4388b4b8e7c49ea423126f8be5e067729cd) ([merge request](gitlab-org/gitaly!6532))
 - [cgroups: Create repository cgroups on-demand](gitlab-org/gitaly@105f6dd81689b7819b844b8be1be844bca6f2a67) ([merge request](gitlab-org/gitaly!6499))
 
+## 16.6.7 (2024-02-07)
+
+No changes.
+
 ## 16.6.6 (2024-01-24)
 
 No changes.
