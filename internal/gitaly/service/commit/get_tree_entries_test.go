@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -23,9 +25,12 @@ import (
 )
 
 func TestGetTreeEntries(t *testing.T) {
+	testhelper.NewFeatureSets(featureflag.UseUnifiedGetTreeEntries).Run(t, testGetTreeEntries)
+}
+
+func testGetTreeEntries(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
 	cfg.SocketPath = startTestServices(t, cfg)
@@ -850,6 +855,10 @@ func TestGetTreeEntries(t *testing.T) {
 					gittest.TreeEntry{OID: folderOID, Mode: "040000", Path: "foo"},
 				))
 
+				errorCode := testhelper.EnabledOrDisabledFlag(ctx, featureflag.UseUnifiedGetTreeEntries,
+					structerr.NewInvalidArgument,
+					structerr.NewNotFound)
+
 				return setupData{
 					request: &gitalypb.GetTreeEntriesRequest{
 						Repository: repo,
@@ -858,7 +867,7 @@ func TestGetTreeEntries(t *testing.T) {
 						Recursive:  true,
 					},
 					expectedErr: testhelper.WithInterceptedMetadataItems(
-						structerr.NewNotFound("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
+						errorCode("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
 							Error: &gitalypb.GetTreeEntriesError_ResolveTree{
 								ResolveTree: &gitalypb.ResolveRevisionError{
 									Revision: []byte(commitID),
@@ -900,7 +909,12 @@ func TestGetTreeEntries(t *testing.T) {
 								},
 							},
 						}),
-						structerr.MetadataItem{Key: "path", Value: ""},
+						structerr.MetadataItem{
+							Key: "path",
+							Value: testhelper.EnabledOrDisabledFlag(ctx, featureflag.UseUnifiedGetTreeEntries,
+								".",
+								""),
+						},
 						structerr.MetadataItem{Key: "revision", Value: "does-not-exist"},
 					),
 				}
@@ -921,6 +935,14 @@ func TestGetTreeEntries(t *testing.T) {
 					gittest.TreeEntry{OID: folderOID, Mode: "040000", Path: "foo"},
 				))
 
+				errorCode := testhelper.EnabledOrDisabledFlag(ctx, featureflag.UseUnifiedGetTreeEntries,
+					structerr.NewInvalidArgument,
+					structerr.NewNotFound)
+
+				errorPath := testhelper.EnabledOrDisabledFlag(ctx, featureflag.UseUnifiedGetTreeEntries,
+					".",
+					"")
+
 				return setupData{
 					request: &gitalypb.GetTreeEntriesRequest{
 						Repository: repo,
@@ -929,14 +951,14 @@ func TestGetTreeEntries(t *testing.T) {
 						Recursive:  true,
 					},
 					expectedErr: testhelper.WithInterceptedMetadataItems(
-						structerr.NewNotFound("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
+						errorCode("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
 							Error: &gitalypb.GetTreeEntriesError_ResolveTree{
 								ResolveTree: &gitalypb.ResolveRevisionError{
 									Revision: []byte("does-not-exist"),
 								},
 							},
 						}),
-						structerr.MetadataItem{Key: "path", Value: ""},
+						structerr.MetadataItem{Key: "path", Value: errorPath},
 						structerr.MetadataItem{Key: "revision", Value: "does-not-exist"},
 					),
 				}

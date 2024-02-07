@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -74,6 +75,8 @@ func populateFlatPath(
 	return nil
 }
 
+// sendTreeEntries is deprecated and should be removed along with the UseUnifiedGetTreeEntries
+// feature flag.
 func (s *server) sendTreeEntries(
 	stream gitalypb.CommitService_GetTreeEntriesServer,
 	repo *localrepo.Repo,
@@ -261,6 +264,148 @@ func (s *server) sendTreeEntries(
 	return sender.Flush()
 }
 
+func (s *server) sendTreeEntriesUnified(
+	stream gitalypb.CommitService_GetTreeEntriesServer,
+	repo *localrepo.Repo,
+	revision, path string,
+	recursive bool,
+	skipFlatPaths bool,
+	sort gitalypb.GetTreeEntriesRequest_SortBy,
+	p *gitalypb.PaginationParameter,
+) error {
+	ctx := stream.Context()
+
+	readTreeOpts := []localrepo.ReadTreeOption{localrepo.WithRelativePath(path)}
+	if recursive {
+		readTreeOpts = append(readTreeOpts, localrepo.WithRecursive())
+	}
+
+	tree, err := repo.ReadTree(
+		ctx,
+		git.Revision(revision),
+		readTreeOpts...,
+	)
+	if err != nil {
+		// Design wart: we do not return an error if the request does not
+		// point to a tree object, but just return nothing.
+		if errors.Is(err, localrepo.ErrNotTreeish) {
+			return nil
+		}
+
+		if errors.Is(err, localrepo.ErrTreeNotExist) {
+			return structerr.NewNotFound("revision doesn't exist").WithDetail(&gitalypb.GetTreeEntriesError{
+				Error: &gitalypb.GetTreeEntriesError_ResolveTree{
+					ResolveTree: &gitalypb.ResolveRevisionError{
+						Revision: []byte(revision),
+					},
+				},
+			}).WithMetadataItems(
+				structerr.MetadataItem{Key: "path", Value: path},
+				structerr.MetadataItem{Key: "revision", Value: revision},
+			)
+		}
+
+		if errors.Is(err, git.ErrReferenceNotFound) {
+			// Since we rely on repo.ResolveRevision, it could either be an invalid revision
+			// or an invalid path.
+			return structerr.NewInvalidArgument("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
+				Error: &gitalypb.GetTreeEntriesError_ResolveTree{
+					ResolveTree: &gitalypb.ResolveRevisionError{
+						Revision: []byte(revision),
+					},
+				},
+			}).WithMetadataItems(
+				structerr.MetadataItem{Key: "path", Value: path},
+				structerr.MetadataItem{Key: "revision", Value: revision},
+			)
+		}
+
+		return fmt.Errorf("reading tree: %w", err)
+	}
+
+	var entries []*gitalypb.TreeEntry
+	if err := tree.Walk(func(dir string, entry *localrepo.TreeEntry) error {
+		if entry.OID == tree.OID {
+			return nil
+		}
+
+		objectID, err := entry.OID.Bytes()
+		if err != nil {
+			return fmt.Errorf("converting tree entry OID: %w", err)
+		}
+
+		newEntry, err := git.NewTreeEntry(
+			revision,
+			path,
+			[]byte(filepath.Join(dir, entry.Path)),
+			objectID,
+			[]byte(entry.Mode),
+		)
+		if err != nil {
+			return fmt.Errorf("converting tree entry: %w", err)
+		}
+
+		entries = append(entries, newEntry)
+
+		return nil
+	}); err != nil {
+		return fmt.Errorf("listing tree entries: %w", err)
+	}
+
+	// We sort before we paginate to ensure consistent results with ListLastCommitsForTree
+	entries, err = sortTrees(entries, sort)
+	if err != nil {
+		return err
+	}
+
+	cursor := ""
+	if p != nil {
+		entries, cursor, err = paginateTreeEntries(ctx, entries, p)
+		if err != nil {
+			return err
+		}
+	}
+
+	treeSender := &treeEntriesSender{stream: stream}
+
+	if cursor != "" {
+		treeSender.SetPaginationCursor(cursor)
+	}
+
+	if !recursive && !skipFlatPaths {
+		// When we're not doing a recursive request, then we need to populate flat
+		// paths. A flat path of a tree entry refers to the first subtree of that
+		// entry which either has at least one blob or more than two subtrees. In
+		// other terms, it refers to the first "non-empty" subtree such that it's
+		// easy to skip navigating the intermediate subtrees which wouldn't carry
+		// any interesting information anyway.
+		//
+		// Unfortunately, computing flat paths is _really_ inefficient: for each
+		// tree entry, we recurse up to 10 levels deep into that subtree. We do so
+		// by requesting the tree entries via a catfile process, which to the best
+		// of my knowledge is as good as we can get. Doing this via git-ls-tree(1)
+		// wouldn't fly: we'd have to spawn a separate process for each of the
+		// subtrees, which is a lot of overhead.
+		objectReader, cancel, err := s.catfileCache.ObjectReader(stream.Context(), repo)
+		if err != nil {
+			return err
+		}
+		defer cancel()
+		if err := populateFlatPath(ctx, objectReader, entries); err != nil {
+			return err
+		}
+	}
+
+	sender := chunk.New(treeSender)
+	for _, e := range entries {
+		if err := sender.Send(e); err != nil {
+			return err
+		}
+	}
+
+	return sender.Flush()
+}
+
 func sortTrees(entries []*gitalypb.TreeEntry, sortBy gitalypb.GetTreeEntriesRequest_SortBy) ([]*gitalypb.TreeEntry, error) {
 	if sortBy == gitalypb.GetTreeEntriesRequest_DEFAULT {
 		return entries, nil
@@ -343,6 +488,11 @@ func (s *server) GetTreeEntries(in *gitalypb.GetTreeEntriesRequest, stream gital
 
 	revision := string(in.GetRevision())
 	path := string(in.GetPath())
+
+	if featureflag.UseUnifiedGetTreeEntries.IsEnabled(ctx) {
+		return s.sendTreeEntriesUnified(stream, repo, revision, path, in.Recursive, in.SkipFlatPaths, in.GetSort(), in.GetPaginationParams())
+	}
+
 	return s.sendTreeEntries(stream, repo, revision, path, in.Recursive, in.SkipFlatPaths, in.GetSort(), in.GetPaginationParams())
 }
 
