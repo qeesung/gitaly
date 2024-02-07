@@ -286,10 +286,17 @@ func (s *server) sendTreeEntriesUnified(
 		readTreeOpts...,
 	)
 	if err != nil {
-		// Design wart: we do not return an error if the request does not
-		// point to a tree object, but just return nothing.
 		if errors.Is(err, localrepo.ErrNotTreeish) {
-			return nil
+			return structerr.NewInvalidArgument("path not treeish").WithDetail(&gitalypb.GetTreeEntriesError{
+				Error: &gitalypb.GetTreeEntriesError_ResolveTree{
+					ResolveTree: &gitalypb.ResolveRevisionError{
+						Revision: []byte(revision),
+					},
+				},
+			}).WithMetadataItems(
+				structerr.MetadataItem{Key: "path", Value: path},
+				structerr.MetadataItem{Key: "revision", Value: revision},
+			)
 		}
 
 		if errors.Is(err, localrepo.ErrTreeNotExist) {
