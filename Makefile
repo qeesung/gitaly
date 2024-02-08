@@ -423,9 +423,11 @@ lint-fix: ${GOLANGCI_LINT} ${GITALY_PACKED_EXECUTABLES} ${TOOLS_DIR}/gitaly-lint
 	${Q}${GOLANGCI_LINT} run --fix --build-tags "${SERVER_BUILD_TAGS}" --out-format tab --config ${GOLANGCI_LINT_CONFIG} ${GOLANGCI_LINT_OPTIONS}
 
 .PHONY: lint-docs
-## Run markdownlint-cli2-config to lint the documentation.
+## Run markdownlint-cli2-config to lint the documentation and lychee to check for broken links.
 lint-docs:
 	${Q}markdownlint-cli2 README.md REVIEWING.md STYLE.md doc/**.md
+	${Q}lychee --version
+	${Q}lychee --offline --include-fragments README.md REVIEWING.md STYLE.md doc/**.md
 
 .PHONY: lint-docs-fix
 ## Run markdownlint-cli2-config to lint and fix the documentation.
