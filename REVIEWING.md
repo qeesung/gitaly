@@ -178,8 +178,7 @@ Think out loud about why you don't understand the thing that gives you
 this feeling.
 
 For example, if you do not understand what an RPC is supposed to do or
-why it exists, ask the reviewer to
-[add comments to the interface](proto/README.md#documentation).
+why it exists, ask the reviewer to [add comments to the interface](doc/protobuf.md).
 
 Maybe now is the time to spend 15-30 minutes brushing up your
 knowledge on this subject. Or to ask a colleague if they know more

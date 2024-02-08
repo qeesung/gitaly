@@ -338,8 +338,8 @@ and `additional_repository` depending on parent message.
 The additional repository is annotated similarly to target repository but
 annotation is named `additional_repository`.
 
-See our examples of [valid](go/internal/cmd/protoc-gen-gitaly-lint/testdata/valid.proto) and
-[invalid](go/internal/cmd/protoc-gen-gitaly-lint/invalid.proto) proto annotations.
+See our examples of [valid](../proto/testproto/valid.proto) and
+[invalid](../proto/testproto/invalid.proto) proto annotations.
 
 ### Transactions and Atomicity
 
