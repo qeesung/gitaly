@@ -8,6 +8,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func init() {
+	encoding.RegisterCodec(NewCodec())
+}
+
 // NewCodec returns a proxying encoding.Codec with the default protobuf codec as parent.
 //
 // See CodecWithParent.

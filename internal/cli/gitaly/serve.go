@@ -51,6 +51,9 @@ import (
 	"gitlab.com/gitlab-org/labkit/monitoring"
 	labkittracing "gitlab.com/gitlab-org/labkit/tracing"
 	"google.golang.org/grpc"
+
+	// Import to register the proxy codec with gRPC.
+	_ "gitlab.com/gitlab-org/gitaly/v16/internal/grpc/proxy"
 )
 
 func newServeCommand() *cli.Command {
