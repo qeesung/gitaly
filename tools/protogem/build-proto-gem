@@ -113,14 +113,15 @@ def build_gem(options, output_dir, output_path)
       spec.email         = ["engineering@gitlab.com"]
 
       spec.summary       = %q{Auto-generated gRPC client for gitaly}
-      spec.description   = %q{Auto-generated gRPC client for gitaly.}
+      spec.description   = %q{Auto-generated gRPC client for gitaly.\nTo publish new versions see https://gitlab.com/gitlab-org/gitaly/-/blob/master/doc/PROCESS.md#publishing-the-ruby-gem.}
       spec.homepage      = "https://gitlab.com/gitlab-org/gitaly"
       spec.license       = "MIT"
 
       spec.metadata = {
-        "homepage_uri"    => "https://gitlab.com/gitlab-org/gitaly",
-        "bug_tracker_uri" => "https://gitlab.com/gitlab-org/gitaly/-/issues",
-        "source_code_uri" => "https://gitlab.com/gitlab-org/gitaly/-/tree/master/proto",
+        "homepage_uri"      => "https://gitlab.com/gitlab-org/gitaly",
+        "bug_tracker_uri"   => "https://gitlab.com/gitlab-org/gitaly/-/issues",
+        "source_code_uri"   => "https://gitlab.com/gitlab-org/gitaly/-/tree/master/proto",
+        "documentation_uri" => "https://gitlab-org.gitlab.io/gitaly",
       }
 
       spec.files         = Dir['**/*.rb']
