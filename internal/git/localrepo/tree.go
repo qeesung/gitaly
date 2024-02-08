@@ -234,7 +234,7 @@ Loop:
 			Path: firstComponent,
 		})
 
-		// Empty out the OID because we've madified this tree, and will
+		// Empty out the OID because we've modified this tree, and will
 		// need to write a new one. Write() will write a new tree object
 		// if it sees that the OID is empty.
 		currentTree.OID = ""

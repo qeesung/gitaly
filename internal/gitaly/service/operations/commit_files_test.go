@@ -249,6 +249,22 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 			},
 		},
 		{
+			desc: "create file in directory",
+			steps: []step{
+				{
+					actions: []*gitalypb.UserCommitFilesRequest{
+						createFileHeaderRequest("folder-1/filename/folder-1/filename"),
+						actionContentRequest("content-1"),
+					},
+					repoCreated:   true,
+					branchCreated: true,
+					treeEntries: []gittest.TreeEntry{
+						{Mode: DefaultMode, Path: "folder-1/filename/folder-1/filename", Content: "content-1"},
+					},
+				},
+			},
+		},
+		{
 			desc: "create file with unclean path",
 			steps: []step{
 				{
