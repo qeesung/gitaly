@@ -220,12 +220,14 @@ Loop:
 		// If we get here, that means we didn't find any directories to
 		// recurse into, which means we need to create a brand new
 		// tree
-		if firstComponent == filepath.Base(path) {
-			currentTree.OID = ""
-			currentTree.Entries = append(
-				currentTree.Entries,
-				&newEntry,
-			)
+		if secondComponent == "" {
+			if firstComponent == filepath.Base(path) {
+				currentTree.OID = ""
+				currentTree.Entries = append(
+					currentTree.Entries,
+					&newEntry,
+				)
+			}
 
 			return nil
 		}
@@ -238,10 +240,6 @@ Loop:
 
 		currentTree.OID = ""
 		currentTree = currentTree.Entries[len(currentTree.Entries)-1]
-
-		if secondComponent == "" {
-			return nil
-		}
 	}
 }
 
