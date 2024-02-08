@@ -1795,6 +1795,58 @@ func TestTreeEntry_Add(t *testing.T) {
 			},
 			expectedErr: ErrEntryExists,
 		},
+		{
+			desc: "add nested directory with same name",
+			tree: TreeEntry{
+				OID:  "abc",
+				Type: Tree,
+				Mode: "040000",
+			},
+			pathToAdd: "dirA/file1/dirA/file1",
+			entryToAdd: TreeEntry{
+				OID:  "d1",
+				Type: Blob,
+				Mode: "100644",
+				Path: "file1",
+			},
+			expectedTree: TreeEntry{
+				OID:  "",
+				Type: Tree,
+				Mode: "040000",
+				Entries: []*TreeEntry{
+					{
+						OID:  "",
+						Type: Tree,
+						Mode: "040000",
+						Path: "dirA",
+						Entries: []*TreeEntry{
+							{
+								OID:  "",
+								Mode: "040000",
+								Type: Tree,
+								Path: "file1",
+								Entries: []*TreeEntry{
+									{
+										OID:  "",
+										Type: Tree,
+										Mode: "040000",
+										Path: "dirA",
+										Entries: []*TreeEntry{
+											{
+												OID:  "d1",
+												Type: Blob,
+												Mode: "100644",
+												Path: "file1",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
