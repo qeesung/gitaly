@@ -944,6 +944,21 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 			}
 		}
 
+		// If there were objects packed that should be committed, record the packfile's creation.
+		if transaction.packPrefix != "" {
+			packDir := filepath.Join(transaction.relativePath, "objects", "pack")
+			for _, fileExtension := range []string{".pack", ".idx", ".rev"} {
+				if err := transaction.walEntry.RecordFileCreation(
+					filepath.Join(transaction.walFilesPath(), "objects"+fileExtension),
+					filepath.Join(packDir, transaction.packPrefix+fileExtension),
+				); err != nil {
+					return fmt.Errorf("record file creation: %w", err)
+				}
+			}
+
+			transaction.walEntry.RecordFlush(packDir)
+		}
+
 		if transaction.defaultBranchUpdated {
 			if err := transaction.walEntry.RecordFileUpdate(
 				mgr.getAbsolutePath(transaction.snapshot.prefix),
@@ -1683,10 +1698,6 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("record custom hook removal: %w", err)
 			}
-		}
-
-		if transaction.packPrefix != "" {
-			logEntry.PackPrefix = transaction.packPrefix
 		}
 
 		if transaction.deleteRepository {
@@ -2511,12 +2522,6 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 			return fmt.Errorf("apply alternate update: %w", err)
 		}
 
-		if logEntry.PackPrefix != "" {
-			if err := mgr.applyPackFile(ctx, lsn, logEntry); err != nil {
-				return fmt.Errorf("apply pack file: %w", err)
-			}
-		}
-
 		if err := mgr.applyReferenceTransactions(ctx, logEntry); err != nil {
 			return fmt.Errorf("apply reference transactions: %w", err)
 		}
@@ -2776,36 +2781,6 @@ func (mgr *TransactionManager) createRepository(ctx context.Context, repositoryP
 		return structerr.New("wait git init: %w", err).WithMetadata("stderr", stderr.String())
 	}
 
-	return nil
-}
-
-// applyPackFile unpacks the objects from the pack file into the repository if the log entry
-// has an associated pack file. This is done by hard linking the pack and index from the
-// log into the repository's object directory.
-func (mgr *TransactionManager) applyPackFile(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
-	packDirectory := filepath.Join(mgr.getAbsolutePath(logEntry.RelativePath), "objects", "pack")
-	for _, fileExtension := range []string{
-		".pack",
-		".idx",
-		".rev",
-	} {
-		if err := os.Link(
-			filepath.Join(walFilesPathForLSN(mgr.stateDirectory, lsn), "objects"+fileExtension),
-			filepath.Join(packDirectory, logEntry.PackPrefix+fileExtension),
-		); err != nil {
-			if !errors.Is(err, fs.ErrExist) {
-				return fmt.Errorf("link file: %w", err)
-			}
-
-			// The file already existing means that we've already linked it in place or a repack
-			// has resulted in the exact same file. No need to do anything about it.
-		}
-	}
-
-	// Sync the new directory entries created.
-	if err := safe.NewSyncer().Sync(packDirectory); err != nil {
-		return fmt.Errorf("sync: %w", err)
-	}
 	return nil
 }
 

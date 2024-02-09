@@ -75,9 +75,6 @@ message LogEntry {
   // through verification and are applied without any further checks.
   // The reference transactions are applied in order.
   repeated ReferenceTransaction reference_transactions = 2;
-  // pack_prefix contains the prefix (`pack-<digest>`) of the pack and its index.
-  // If pack_prefix is empty, the log entry has no associated pack.
-  string pack_prefix = 5;
   // repository_deletion, when set, indicates this log entry deletes the repository.
   RepositoryDeletion repository_deletion = 6;
   // alternate_update records a change to the repository's 'objects/info/alternates' file.
