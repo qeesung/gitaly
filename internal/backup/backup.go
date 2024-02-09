@@ -362,7 +362,7 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 		backup, err = mgr.locator.Find(ctx, req.VanityRepository, req.BackupID)
 		switch {
 		case errors.Is(err, ErrDoesntExist):
-			return fmt.Errorf("manager: %w: %s", ErrSkipped, err.Error())
+			return fmt.Errorf("manager: %w: %w", ErrSkipped, err)
 		case err != nil:
 			return fmt.Errorf("manager: %w", err)
 		}
@@ -469,7 +469,7 @@ func repositorySkipped(ctx context.Context, repo Repository, alwaysCreate bool, 
 		return fmt.Errorf("manager: remove on skipped: %w", err)
 	}
 
-	return fmt.Errorf("%w: %s", ErrSkipped, cause.Error())
+	return fmt.Errorf("%w: %w", ErrSkipped, cause)
 }
 
 // setContextServerInfo overwrites server with gitaly connection info from ctx metadata when server is zero.
