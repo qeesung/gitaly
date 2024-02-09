@@ -164,13 +164,6 @@ type runRepack struct {
 // is the expected old tip and the desired new tip.
 type ReferenceUpdates map[git.ReferenceName]ReferenceUpdate
 
-// alternateUpdate models an update to the repository's alternates file.
-type alternateUpdate struct {
-	// relativePath is the relative path of the repository to link the transasction's target repository to.
-	// If not set, the transaction's target repository is disconnected from its current alternate.
-	relativePath string
-}
-
 type transactionState int
 
 const (
@@ -248,7 +241,7 @@ type Transaction struct {
 	repositoryCreation       *repositoryCreation
 	deleteRepository         bool
 	includedObjects          map[git.ObjectID]struct{}
-	alternateUpdate          *alternateUpdate
+	alternateUpdated         bool
 	runHousekeeping          *runHousekeeping
 }
 
@@ -659,11 +652,10 @@ func (txn *Transaction) IncludeObject(oid git.ObjectID) {
 	txn.includedObjects[oid] = struct{}{}
 }
 
-// UpdateAlternate stages an update for the transaction's target repository's 'objects/info/alternates' file.
-// If a relative path is provided, the target repository is linked to the given repository when the
-// transaction commits. If the relative path is an empty string, the target is unlinked from the current alternate.
-func (txn *Transaction) UpdateAlternate(relativePath string) {
-	txn.alternateUpdate = &alternateUpdate{relativePath}
+// MarkAlternateUpdated hints to the transaction manager that  'objects/info/alternates' file has been updated or
+// removed. The file's modification will then be included in the transaction.
+func (txn *Transaction) MarkAlternateUpdated() {
+	txn.alternateUpdated = true
 }
 
 // walFilesPath returns the path to the directory where this transaction is staging the files that will
@@ -1039,7 +1031,7 @@ func (mgr *TransactionManager) replaceObjectDirectory(tx *Transaction) (returned
 
 	// If there was an alternate link set by the transaction, place it also in the replacement
 	// object directory.
-	if tx.alternateUpdate != nil {
+	if tx.alternateUpdated {
 		if err := os.Link(
 			filepath.Join(objectsDir, "info", "alternates"),
 			filepath.Join(newObjectsDir, "info", "alternates"),
@@ -1098,24 +1090,14 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 		transaction.MarkCustomHooksUpdated()
 	}
 
-	if alternate, err := readAlternatesFile(mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())); err != nil {
+	if _, err := readAlternatesFile(mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())); err != nil {
 		if !errors.Is(err, errNoAlternate) {
 			return fmt.Errorf("read alternates file: %w", err)
 		}
 
 		// Repository had no alternate.
 	} else {
-		alternateObjectsDir, err := filepath.Rel(
-			mgr.getAbsolutePath(transaction.snapshot.prefix),
-			mgr.getAbsolutePath(
-				filepath.Join(transaction.snapshot.prefix, transaction.relativePath, "objects", alternate),
-			),
-		)
-		if err != nil {
-			return fmt.Errorf("rel alternate relative path: %w", err)
-		}
-
-		transaction.UpdateAlternate(filepath.Dir(alternateObjectsDir))
+		transaction.MarkAlternateUpdated()
 	}
 
 	return nil
@@ -1944,41 +1926,55 @@ func packFilePath(walFiles string) string {
 
 // verifyAlternateUpdate verifies the staged alternate update.
 func (mgr *TransactionManager) verifyAlternateUpdate(transaction *Transaction) (*gitalypb.LogEntry_AlternateUpdate, error) {
-	if transaction.alternateUpdate == nil {
+	if !transaction.alternateUpdated {
 		return nil, nil
 	}
 
 	repositoryPath := mgr.getAbsolutePath(transaction.relativePath)
-	alternates, err := stats.ReadAlternatesFile(repositoryPath)
-	if err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("read alternates file: %w", err)
-		}
-
-		// No alternates file existed.
+	existingAlternate, err := readAlternatesFile(repositoryPath)
+	if err != nil && !errors.Is(err, errNoAlternate) {
+		return nil, fmt.Errorf("read existing alternates file: %w", err)
 	}
 
-	if transaction.alternateUpdate.relativePath == "" {
-		if len(alternates) == 0 {
+	snapshotRepoPath, err := transaction.snapshotRepository.Path()
+	if err != nil {
+		return nil, fmt.Errorf("snapshot repo path: %w", err)
+	}
+
+	stagedAlternate, err := readAlternatesFile(snapshotRepoPath)
+	if err != nil && !errors.Is(err, errNoAlternate) {
+		return nil, fmt.Errorf("read staged alternates file: %w", err)
+	}
+
+	if stagedAlternate == "" {
+		if existingAlternate == "" {
+			// Transaction attempted to remove an alternate from the repository
+			// even if it didn't have one.
 			return nil, errNoAlternate
 		}
 
 		return &gitalypb.LogEntry_AlternateUpdate{}, nil
 	}
 
-	if len(alternates) > 0 {
+	if existingAlternate != "" {
 		return nil, errAlternateAlreadyLinked
 	}
 
-	alternateRelativePath, err := storage.ValidateRelativePath(mgr.storagePath, transaction.alternateUpdate.relativePath)
+	alternateObjectsDir, err := storage.ValidateRelativePath(
+		mgr.storagePath,
+		filepath.Join(transaction.relativePath, "objects", stagedAlternate),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("validate relative path: %w", err)
 	}
 
+	alternateRelativePath := filepath.Dir(alternateObjectsDir)
 	if alternateRelativePath == transaction.relativePath {
 		return nil, errAlternatePointsToSelf
 	}
 
+	// Check that the alternate repository exists. This works as a basic conflict check
+	// to prevent linking a repository that was deleted concurrently.
 	alternateRepositoryPath := mgr.getAbsolutePath(alternateRelativePath)
 	if err := storage.ValidateGitDirectory(alternateRepositoryPath); err != nil {
 		return nil, fmt.Errorf("validate git directory: %w", err)
@@ -1986,22 +1982,15 @@ func (mgr *TransactionManager) verifyAlternateUpdate(transaction *Transaction) (
 
 	if _, err := readAlternatesFile(alternateRepositoryPath); !errors.Is(err, errNoAlternate) {
 		if err == nil {
+			// We don't support chaining alternates like repo-1 > repo-2 > repo-3.
 			return nil, errAlternateHasAlternate
 		}
 
 		return nil, fmt.Errorf("read alternates file: %w", err)
 	}
 
-	alternatePath, err := filepath.Rel(
-		filepath.Join(transaction.relativePath, "objects"),
-		filepath.Join(alternateRelativePath, "objects"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("rel: %w", err)
-	}
-
 	return &gitalypb.LogEntry_AlternateUpdate{
-		Path: alternatePath,
+		Path: stagedAlternate,
 	}, nil
 }
 

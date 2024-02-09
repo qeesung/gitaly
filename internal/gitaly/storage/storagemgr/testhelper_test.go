@@ -620,6 +620,13 @@ type DefaultBranchUpdate struct {
 	Reference git.ReferenceName
 }
 
+// alternateUpdate models an update to the repository's alternates file.
+type alternateUpdate struct {
+	// content is the content to write in the 'objects/info/alternates' file. If empty, the file
+	// is removed instead.
+	content string
+}
+
 // Commit calls Commit on a transaction.
 type Commit struct {
 	// TransactionID identifies the transaction to commit.
@@ -848,20 +855,33 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 				transaction.SkipVerificationFailures()
 			}
 
-			if step.UpdateAlternate != nil {
-				transaction.UpdateAlternate(step.UpdateAlternate.relativePath)
-			}
-
-			if step.ReferenceUpdates != nil {
-				transaction.UpdateReferences(step.ReferenceUpdates)
-			}
-
 			rewrittenRepo := setup.RepositoryFactory.Build(
 				transaction.RewriteRepository(&gitalypb.Repository{
 					StorageName:  setup.Config.Storages[0].Name,
 					RelativePath: transaction.relativePath,
 				}),
 			)
+
+			if step.UpdateAlternate != nil {
+				transaction.MarkAlternateUpdated()
+
+				repoPath, err := rewrittenRepo.Path()
+				require.NoError(t, err)
+
+				if step.UpdateAlternate.content != "" {
+					require.NoError(t, os.WriteFile(stats.AlternatesFilePath(repoPath), []byte(step.UpdateAlternate.content), fs.ModePerm))
+				} else {
+					// Ignore not exists errors as there are test cases testing removing alternate
+					// when one is not set.
+					if err := os.Remove(stats.AlternatesFilePath(repoPath)); !errors.Is(err, fs.ErrNotExist) {
+						require.NoError(t, err)
+					}
+				}
+			}
+
+			if step.ReferenceUpdates != nil {
+				transaction.UpdateReferences(step.ReferenceUpdates)
+			}
 
 			if step.DefaultBranchUpdate != nil {
 				transaction.MarkDefaultBranchUpdated()
