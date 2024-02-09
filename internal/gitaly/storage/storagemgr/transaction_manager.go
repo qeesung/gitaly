@@ -1974,6 +1974,10 @@ func (mgr *TransactionManager) verifyAlternateUpdate(transaction *Transaction) (
 			return nil, errNoAlternate
 		}
 
+		if err := transaction.walEntry.RecordAlternateUnlink(mgr.storagePath, transaction.relativePath, existingAlternate); err != nil {
+			return nil, fmt.Errorf("record alternate unlink: %w", err)
+		}
+
 		return &gitalypb.LogEntry_AlternateUpdate{}, nil
 	}
 
@@ -2528,10 +2532,6 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 	// they'd all be removed anyway. Reapplying the other changes after a crash would also
 	// not work if the repository was successfully deleted before the crash.
 	if logEntry.RepositoryDeletion == nil {
-		if err := mgr.applyAlternateUpdate(logEntry); err != nil {
-			return fmt.Errorf("apply alternate update: %w", err)
-		}
-
 		if err := mgr.applyReferenceTransactions(ctx, logEntry); err != nil {
 			return fmt.Errorf("apply reference transactions: %w", err)
 		}
@@ -2607,103 +2607,6 @@ func (mgr *TransactionManager) applyOperations(lsn LSN, entry *gitalypb.LogEntry
 			return fmt.Errorf("unhandled operation type: %T", wrappedOp)
 		}
 	}
-	return nil
-}
-
-// applyAlternateUpdate applies the logged update to the 'objects/info/alternates' file.
-func (mgr *TransactionManager) applyAlternateUpdate(entry *gitalypb.LogEntry) error {
-	switch {
-	case entry.AlternateUpdate == nil:
-		return nil
-	case entry.AlternateUpdate.Path == "":
-		return mgr.applyAlternateUnlink(entry)
-	}
-
-	return nil
-}
-
-// applyAlternateUnlink unlinks a repository from its alternate. Prior to doing so, it links
-// object and pack files from the alternate into the repository.
-func (mgr *TransactionManager) applyAlternateUnlink(entry *gitalypb.LogEntry) error {
-	repositoryPath := mgr.getAbsolutePath(entry.RelativePath)
-	alternatePath, err := readAlternatesFile(repositoryPath)
-	if err != nil {
-		if errors.Is(err, errNoAlternate) {
-			// Partial application of this log entry has already deleted the alternate link.
-			return nil
-		}
-
-		return fmt.Errorf("read alternates file: %w", err)
-	}
-
-	repositoryObjectsDir := filepath.Join(repositoryPath, "objects")
-	alternateObjectsDir := filepath.Join(repositoryObjectsDir, alternatePath)
-
-	entries, err := os.ReadDir(alternateObjectsDir)
-	if err != nil {
-		return fmt.Errorf("read alternate objects dir: %w", err)
-	}
-
-	syncer := safe.NewSyncer()
-	for _, subDir := range entries {
-		if !subDir.IsDir() || !(len(subDir.Name()) == 2 || subDir.Name() == "pack") {
-			// Only look in objects/<xx> and objects/pack for files.
-			continue
-		}
-
-		sourceDir := filepath.Join(alternateObjectsDir, subDir.Name())
-		objects, err := os.ReadDir(sourceDir)
-		if err != nil {
-			return fmt.Errorf("read subdirectory: %w", err)
-		}
-
-		if len(objects) == 0 {
-			// Don't create empty directories
-			continue
-		}
-
-		destinationDir := filepath.Join(repositoryObjectsDir, subDir.Name())
-
-		info, err := subDir.Info()
-		if err != nil {
-			return fmt.Errorf("subdirectory info: %w", err)
-		}
-
-		if err := os.Mkdir(destinationDir, info.Mode().Perm()); err != nil && !errors.Is(err, fs.ErrExist) {
-			return fmt.Errorf("create subdirectory: %w", err)
-		}
-
-		for _, objectFile := range objects {
-			if !objectFile.Type().IsRegular() {
-				continue
-			}
-
-			if err := os.Link(
-				filepath.Join(sourceDir, objectFile.Name()),
-				filepath.Join(destinationDir, objectFile.Name()),
-			); err != nil && !errors.Is(err, fs.ErrExist) {
-				return fmt.Errorf("link object: %w", err)
-			}
-		}
-
-		if err := syncer.Sync(destinationDir); err != nil {
-			return fmt.Errorf("sync subdirectory: %w", err)
-		}
-	}
-
-	if err := syncer.Sync(repositoryObjectsDir); err != nil {
-		return fmt.Errorf("sync object directory: %w", err)
-	}
-
-	alternatesFilePath := stats.AlternatesFilePath(repositoryPath)
-	if err := os.Remove(alternatesFilePath); err != nil {
-		return fmt.Errorf("remove: %w", err)
-	}
-
-	if err := syncer.SyncParent(alternatesFilePath); err != nil {
-		return fmt.Errorf("sync parent: %w", err)
-	}
-
 	return nil
 }
 
