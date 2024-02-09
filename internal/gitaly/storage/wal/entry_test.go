@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
@@ -220,6 +221,106 @@ func TestEntry(t *testing.T) {
 
 			testhelper.ProtoEqual(t, tc.expectedOperations, entry.operations)
 			testhelper.RequireDirectoryState(t, stateDir, "", tc.expectedFiles)
+		})
+	}
+}
+
+func TestRecordAlternateUnlink(t *testing.T) {
+	t.Parallel()
+
+	createSourceHierarchy := func(tb testing.TB, path string) {
+		testhelper.CreateFS(tb, path, fstest.MapFS{
+			".":                      {Mode: fs.ModeDir | perm.PrivateDir},
+			"objects":                {Mode: fs.ModeDir | perm.PrivateDir},
+			"objects/info":           {Mode: fs.ModeDir | perm.PrivateDir},
+			"objects/3f":             {Mode: fs.ModeDir | perm.PrivateDir},
+			"objects/3f/1":           {Mode: perm.PrivateFile},
+			"objects/3f/2":           {Mode: perm.SharedFile},
+			"objects/4f":             {Mode: fs.ModeDir | perm.SharedDir},
+			"objects/4f/3":           {Mode: perm.SharedFile},
+			"objects/pack":           {Mode: fs.ModeDir | perm.PrivateDir},
+			"objects/pack/pack.pack": {Mode: perm.PrivateFile},
+			"objects/pack/pack.idx":  {Mode: perm.SharedFile},
+		})
+	}
+
+	for _, tc := range []struct {
+		desc               string
+		createTarget       func(tb testing.TB, path string)
+		expectedOperations operations
+	}{
+		{
+			desc: "empty target",
+			createTarget: func(tb testing.TB, path string) {
+				require.NoError(tb, os.Mkdir(path, perm.PrivateDir))
+				require.NoError(tb, os.Mkdir(filepath.Join(path, "objects"), perm.PrivateDir))
+				require.NoError(tb, os.Mkdir(filepath.Join(path, "objects/pack"), perm.PrivateDir))
+			},
+			expectedOperations: func() operations {
+				var ops operations
+				ops.createDirectory("target/objects/3f", perm.PrivateDir)
+				ops.createHardLink("source/objects/3f/1", "target/objects/3f/1", true)
+				ops.createHardLink("source/objects/3f/2", "target/objects/3f/2", true)
+				ops.flush("target/objects/3f")
+				ops.createDirectory("target/objects/4f", perm.SharedDir)
+				ops.createHardLink("source/objects/4f/3", "target/objects/4f/3", true)
+				ops.flush("target/objects/4f")
+				ops.createHardLink("source/objects/pack/pack.idx", "target/objects/pack/pack.idx", true)
+				ops.createHardLink("source/objects/pack/pack.pack", "target/objects/pack/pack.pack", true)
+				ops.flush("target/objects/pack")
+				ops.flush("target/objects")
+				ops.removeDirectoryEntry("target/objects/info/alternates")
+				ops.flush("target/objects/info")
+				return ops
+			}(),
+		},
+		{
+			desc: "target with some existing state",
+			createTarget: func(tb testing.TB, path string) {
+				testhelper.CreateFS(tb, path, fstest.MapFS{
+					".":                     {Mode: fs.ModeDir | perm.PrivateDir},
+					"objects":               {Mode: fs.ModeDir | perm.PrivateDir},
+					"objects/3f":            {Mode: fs.ModeDir | perm.PrivateDir},
+					"objects/3f/1":          {Mode: perm.PrivateFile},
+					"objects/4f":            {Mode: fs.ModeDir | perm.SharedDir},
+					"objects/4f/3":          {Mode: perm.SharedFile},
+					"objects/pack":          {Mode: fs.ModeDir | perm.PrivateDir},
+					"objects/pack/pack.idx": {Mode: perm.SharedFile},
+				})
+			},
+			expectedOperations: func() operations {
+				var ops operations
+				ops.createHardLink("source/objects/3f/2", "target/objects/3f/2", true)
+				ops.flush("target/objects/3f")
+				ops.createHardLink("source/objects/pack/pack.pack", "target/objects/pack/pack.pack", true)
+				ops.flush("target/objects/pack")
+				ops.removeDirectoryEntry("target/objects/info/alternates")
+				ops.flush("target/objects/info")
+				return ops
+			}(),
+		},
+		{
+			desc:         "target with fully matching object state",
+			createTarget: createSourceHierarchy,
+			expectedOperations: func() operations {
+				var ops operations
+				ops.removeDirectoryEntry("target/objects/info/alternates")
+				ops.flush("target/objects/info")
+				return ops
+			}(),
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			storageRoot := t.TempDir()
+			createSourceHierarchy(t, filepath.Join(storageRoot, "source"))
+
+			tc.createTarget(t, filepath.Join(storageRoot, "target"))
+
+			stateDirectory := t.TempDir()
+			entry := NewEntry(stateDirectory)
+			require.NoError(t, entry.RecordAlternateUnlink(storageRoot, "target", "../../source/objects"))
+
+			testhelper.ProtoEqual(t, tc.expectedOperations, entry.operations)
 		})
 	}
 }
