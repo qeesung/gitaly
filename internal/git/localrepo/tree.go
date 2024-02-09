@@ -217,16 +217,14 @@ Loop:
 			continue Loop
 		}
 
-		// If we get here, that means we didn't find any directories to
-		// recurse into, which means we need to create a brand new
-		// tree
-		if firstComponent == filepath.Base(path) {
+		// If secondComponent is empty, the end of the specified path has been reached.
+		// The new entry is added to the current tree and the operation completes.
+		if secondComponent == "" {
 			currentTree.OID = ""
 			currentTree.Entries = append(
 				currentTree.Entries,
 				&newEntry,
 			)
-
 			return nil
 		}
 
@@ -236,12 +234,11 @@ Loop:
 			Path: firstComponent,
 		})
 
+		// Empty out the OID because we've modified this tree, and will
+		// need to write a new one. Write() will write a new tree object
+		// if it sees that the OID is empty.
 		currentTree.OID = ""
 		currentTree = currentTree.Entries[len(currentTree.Entries)-1]
-
-		if secondComponent == "" {
-			return nil
-		}
 	}
 }
 
