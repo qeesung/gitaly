@@ -616,13 +616,12 @@ func TestManager_Restore_latest(t *testing.T) {
 			backupRoot := testhelper.TempDir(t)
 
 			for _, tc := range []struct {
-				desc                           string
-				setup                          func(tb testing.TB) (*gitalypb.Repository, *git.Checksum)
-				alwaysCreate                   bool
-				expectExists                   bool
-				expectedPaths                  []string
-				expectedErrAs                  error
-				shouldUseResetRefsOptimisation bool
+				desc          string
+				setup         func(tb testing.TB) (*gitalypb.Repository, *git.Checksum)
+				alwaysCreate  bool
+				expectExists  bool
+				expectedPaths []string
+				expectedErrAs error
 			}{
 				{
 					desc: "non-optimised",
@@ -678,8 +677,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 
 						return repo, repoChecksum
 					},
-					expectExists:                   true,
-					shouldUseResetRefsOptimisation: true,
+					expectExists: true,
 				},
 				{
 					desc: "existing repo, with hooks",
@@ -714,8 +712,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 						"custom_hooks/prepare-commit-msg.sample",
 						"custom_hooks/pre-push.sample",
 					},
-					expectExists:                   true,
-					shouldUseResetRefsOptimisation: true,
+					expectExists: true,
 				},
 				{
 					desc: "missing backup",
@@ -896,7 +893,6 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 						"custom_hooks/another-hook-1.sample",
 						"custom_hooks/another-hook-2.sample",
 					},
-					shouldUseResetRefsOptimisation: true,
 				},
 			} {
 				t.Run(tc.desc, func(t *testing.T) {
@@ -909,7 +905,6 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 					require.NoError(t, err)
 
 					logger := testhelper.NewLogger(t)
-					hook := testhelper.AddLoggerHook(logger)
 
 					fsBackup := managerTC.setup(t, sink, locator, logger)
 					err = fsBackup.Restore(ctx, &backup.RestoreRequest{
@@ -948,13 +943,6 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 						for _, p := range tc.expectedPaths {
 							require.FileExists(t, filepath.Join(repoPath, p))
 						}
-					}
-
-					if tc.shouldUseResetRefsOptimisation {
-						require.Nil(t, hook.LastEntry())
-					} else if tc.expectedErrAs == nil {
-						// If we're not expecting an error, then we should've proceeded with a bundle restore.
-						require.Equal(t, hook.LastEntry().Message, "unable to reset refs. Proceeding with a normal restore")
 					}
 				})
 			}
@@ -1022,14 +1010,13 @@ func TestManager_Restore_specific(t *testing.T) {
 			backupRoot := testhelper.TempDir(t)
 
 			for _, tc := range []struct {
-				desc                           string
-				setup                          func(tb testing.TB) (*gitalypb.Repository, *git.Checksum)
-				alwaysCreate                   bool
-				expectExists                   bool
-				expectedPaths                  []string
-				expectedErrAs                  error
-				expectedHeadReference          git.ReferenceName
-				shouldUseResetRefsOptimisation bool
+				desc                  string
+				setup                 func(tb testing.TB) (*gitalypb.Repository, *git.Checksum)
+				alwaysCreate          bool
+				expectExists          bool
+				expectedPaths         []string
+				expectedErrAs         error
+				expectedHeadReference git.ReferenceName
 			}{
 				{
 					desc: "missing backup",
@@ -1064,8 +1051,7 @@ custom_hooks_path = '%[2]s/%[3]s/001.custom_hooks.tar'
 
 						return repo, repoChecksum
 					},
-					expectExists:                   true,
-					shouldUseResetRefsOptimisation: true,
+					expectExists: true,
 				},
 				{
 					desc: "many incrementals",
@@ -1152,7 +1138,6 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 						"custom_hooks/another-hook-1.sample",
 						"custom_hooks/another-hook-2.sample",
 					},
-					shouldUseResetRefsOptimisation: true,
 				},
 				{
 					desc: "empty backup",
@@ -1205,9 +1190,8 @@ custom_hooks_path = 'custom_hooks.tar'
 
 						return repo, checksum
 					},
-					expectExists:                   true,
-					expectedHeadReference:          "refs/heads/banana",
-					shouldUseResetRefsOptimisation: true,
+					expectExists:          true,
+					expectedHeadReference: "refs/heads/banana",
 				},
 			} {
 				t.Run(tc.desc, func(t *testing.T) {
@@ -1220,7 +1204,6 @@ custom_hooks_path = 'custom_hooks.tar'
 					require.NoError(t, err)
 
 					logger := testhelper.NewLogger(t)
-					hook := testhelper.AddLoggerHook(logger)
 
 					fsBackup := managerTC.setup(t, sink, locator, logger)
 					err = fsBackup.Restore(ctx, &backup.RestoreRequest{
@@ -1267,13 +1250,6 @@ custom_hooks_path = 'custom_hooks.tar'
 
 						ref := gittest.GetSymbolicRef(t, cfg, repoPath, "HEAD")
 						require.Equal(t, tc.expectedHeadReference, git.ReferenceName(ref.Target))
-					}
-
-					if tc.shouldUseResetRefsOptimisation {
-						require.Nil(t, hook.LastEntry())
-					} else if tc.expectedErrAs == nil {
-						// If we're not expecting an error, then we should've proceeded with a bundle restore.
-						require.Equal(t, hook.LastEntry().Message, "unable to reset refs. Proceeding with a normal restore")
 					}
 				})
 			}
