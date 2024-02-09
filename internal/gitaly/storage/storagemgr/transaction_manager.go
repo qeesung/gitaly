@@ -936,17 +936,28 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 		); err != nil {
 			return fmt.Errorf("record repository creation: %w", err)
 		}
-	} else if transaction.customHooksUpdated {
-		// Log the custom hook creation. The deletion of the previous hooks is logged after admission to
-		// ensure we log the latest state for deletion in case someone else modified the hooks.
-		//
-		// If the transaction removed the custom hooks, we won't have anything to log. We'll ignore the
-		// ErrNotExist and stage the deletion later.
-		if err := transaction.walEntry.RecordDirectoryCreation(
-			mgr.getAbsolutePath(transaction.snapshot.prefix),
-			filepath.Join(transaction.relativePath, repoutil.CustomHooksDir),
-		); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("record custom hook directory: %w", err)
+	} else {
+		if transaction.customHooksUpdated {
+			// Log the custom hook creation. The deletion of the previous hooks is logged after admission to
+			// ensure we log the latest state for deletion in case someone else modified the hooks.
+			//
+			// If the transaction removed the custom hooks, we won't have anything to log. We'll ignore the
+			// ErrNotExist and stage the deletion later.
+			if err := transaction.walEntry.RecordDirectoryCreation(
+				mgr.getAbsolutePath(transaction.snapshot.prefix),
+				filepath.Join(transaction.relativePath, repoutil.CustomHooksDir),
+			); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("record custom hook directory: %w", err)
+			}
+		}
+
+		if transaction.defaultBranchUpdate != nil {
+			if err := transaction.walEntry.RecordFileUpdate(
+				mgr.getAbsolutePath(transaction.snapshot.prefix),
+				filepath.Join(transaction.relativePath, "HEAD"),
+			); err != nil {
+				return fmt.Errorf("record HEAD update: %w", err)
+			}
 		}
 	}
 
@@ -1677,16 +1688,6 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			return fmt.Errorf("verify references: %w", err)
 		}
 
-		if transaction.defaultBranchUpdate != nil {
-			if err := mgr.verifyDefaultBranchUpdate(mgr.ctx, transaction); err != nil {
-				return fmt.Errorf("verify default branch update: %w", err)
-			}
-
-			logEntry.DefaultBranchUpdate = &gitalypb.LogEntry_DefaultBranchUpdate{
-				ReferenceName: []byte(transaction.defaultBranchUpdate.Reference),
-			}
-		}
-
 		if transaction.customHooksUpdated {
 			// Log a deletion of the existing custom hooks so they are removed before the
 			// new ones are put in place.
@@ -2115,20 +2116,6 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 	return nil
 }
 
-// verifyDefaultBranchUpdate verifies the default branch reference update. This is done by first checking if it is one of
-// the references in the current transaction which is not scheduled to be deleted. If not, we check if its a valid reference
-// name in the repository. We don't do reference name validation because any reference going through the transaction manager
-// has name validation and we can rely on that.
-func (mgr *TransactionManager) verifyDefaultBranchUpdate(ctx context.Context, transaction *Transaction) error {
-	referenceName := transaction.defaultBranchUpdate.Reference
-
-	if err := git.ValidateReference(referenceName.String()); err != nil {
-		return InvalidReferenceFormatError{ReferenceName: referenceName}
-	}
-
-	return nil
-}
-
 // verifyHousekeeping verifies if all included housekeeping tasks can be performed. Although it's feasible for multiple
 // housekeeping tasks running at the same time, it's not guaranteed they are conflict-free. So, we need to ensure there
 // is no other concurrent housekeeping task. Each sub-task also needs specific verification.
@@ -2373,23 +2360,6 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 	}, nil
 }
 
-// applyDefaultBranchUpdate applies the default branch update to the repository from the log entry.
-func (mgr *TransactionManager) applyDefaultBranchUpdate(ctx context.Context, logEntry *gitalypb.LogEntry) error {
-	if logEntry.DefaultBranchUpdate == nil {
-		return nil
-	}
-
-	var stderr bytes.Buffer
-	if err := mgr.repositoryFactory.Build(logEntry.RelativePath).ExecAndWait(ctx, git.Command{
-		Name: "symbolic-ref",
-		Args: []string{"HEAD", string(logEntry.DefaultBranchUpdate.ReferenceName)},
-	}, git.WithStderr(&stderr), git.WithDisabledHooks()); err != nil {
-		return structerr.New("exec symbolic-ref: %w", err).WithMetadata("stderr", stderr.String())
-	}
-
-	return nil
-}
-
 // prepareReferenceTransaction prepares a reference transaction with `git update-ref`. It leaves committing
 // or aborting up to the caller. Either should be called to clean up the process. The process is cleaned up
 // if an error is returned.
@@ -2563,10 +2533,6 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 
 		if err := mgr.applyReferenceTransactions(ctx, logEntry); err != nil {
 			return fmt.Errorf("apply reference transactions: %w", err)
-		}
-
-		if err := mgr.applyDefaultBranchUpdate(ctx, logEntry); err != nil {
-			return fmt.Errorf("writing default branch: %w", err)
 		}
 
 		if err := mgr.applyHousekeeping(ctx, lsn, logEntry); err != nil {

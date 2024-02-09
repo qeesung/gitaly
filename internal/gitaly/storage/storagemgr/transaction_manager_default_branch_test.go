@@ -100,26 +100,6 @@ func generateDefaultBranchTests(t *testing.T, setup testTransactionSetup) []tran
 			},
 		},
 		{
-			desc: "update default branch with invalid reference name",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-				},
-				Commit{
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-					},
-					DefaultBranchUpdate: &DefaultBranchUpdate{
-						Reference: "refs/heads/../main",
-					},
-					ExpectedError: InvalidReferenceFormatError{
-						ReferenceName: "refs/heads/../main",
-					},
-				},
-			},
-		},
-		{
 			desc: "update default branch to point to a non-existent reference name",
 			steps: steps{
 				StartManager{},
@@ -148,21 +128,6 @@ func generateDefaultBranchTests(t *testing.T, setup testTransactionSetup) []tran
 							},
 						},
 					},
-				},
-			},
-		},
-		{
-			desc: "update default branch to point non-refs prefixed reference",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-				},
-				Commit{
-					DefaultBranchUpdate: &DefaultBranchUpdate{
-						Reference: "other/non-existent",
-					},
-					ExpectedError: InvalidReferenceFormatError{ReferenceName: "other/non-existent"},
 				},
 			},
 		},
