@@ -51,17 +51,30 @@ func (e *Entry) stageFile(path string) (string, error) {
 	return fileName, nil
 }
 
-// RecordFileUpdate records a file being updated. It stages operations to remove the old file,
-// to place the new file in its place and to finally flush the modification.
-func (e *Entry) RecordFileUpdate(storageRoot, relativePath string) error {
-	e.operations.removeDirectoryEntry(relativePath)
-
-	stagedFile, err := e.stageFile(filepath.Join(storageRoot, relativePath))
+// RecordFileCreation stages the file at the source and adds an operation to link it
+// to the given destination relative path in the storage. It does not implicitly flush the
+// parent directory so multiple file creations can be staged in the same parent directory
+// without redundant flush operations appended. The parent directory must be flushed
+// explicitly.
+func (e *Entry) RecordFileCreation(sourceAbsolutePath string, relativePath string) error {
+	stagedFile, err := e.stageFile(sourceAbsolutePath)
 	if err != nil {
 		return fmt.Errorf("stage file: %w", err)
 	}
 
 	e.operations.createHardLink(stagedFile, relativePath, false)
+	return nil
+}
+
+// RecordFileUpdate records a file being updated. It stages operations to remove the old file,
+// to place the new file in its place and to finally flush the modification.
+func (e *Entry) RecordFileUpdate(storageRoot, relativePath string) error {
+	e.operations.removeDirectoryEntry(relativePath)
+
+	if err := e.RecordFileCreation(filepath.Join(storageRoot, relativePath), relativePath); err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+
 	e.operations.flush(filepath.Dir(relativePath))
 
 	return nil
@@ -131,14 +144,11 @@ func (e *Entry) recordDirectoryCreation(storageRoot, directoryRelativePath strin
 			return nil
 		},
 		func(relativePath string, dirEntry fs.DirEntry) error {
-			stagedPath, err := e.stageFile(filepath.Join(storageRoot, relativePath))
-			if err != nil {
-				return fmt.Errorf("stage file: %w", err)
-			}
-
 			// The parent directory has already been created so we can immediately create
 			// the file.
-			e.operations.createHardLink(stagedPath, relativePath, false)
+			if err := e.RecordFileCreation(filepath.Join(storageRoot, relativePath), relativePath); err != nil {
+				return fmt.Errorf("create file: %w", err)
+			}
 			return nil
 		},
 		func(relativePath string, dirEntry fs.DirEntry) error {

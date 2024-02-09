@@ -40,6 +40,25 @@ func TestEntry(t *testing.T) {
 		expectedFiles      testhelper.DirectoryState
 	}{
 		{
+			desc: "RecordFileCreation",
+			run: func(t *testing.T, entry *Entry) {
+				require.NoError(t, entry.RecordFileCreation(
+					filepath.Join(storageRoot, "root-file"),
+					"test-dir/file-1",
+				))
+			},
+			expectedOperations: func() operations {
+				var ops operations
+				ops.flush("sentinel-op")
+				ops.createHardLink("1", "test-dir/file-1", false)
+				return ops
+			}(),
+			expectedFiles: testhelper.DirectoryState{
+				"/":  {Mode: fs.ModeDir | perm.SharedDir},
+				"/1": {Mode: perm.PrivateFile, Content: []byte("root file")},
+			},
+		},
+		{
 			desc: "RecordFileUpdate on root level file",
 			run: func(t *testing.T, entry *Entry) {
 				require.NoError(t, entry.RecordFileUpdate(storageRoot, "root-file"))
