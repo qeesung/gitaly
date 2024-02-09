@@ -29,6 +29,7 @@ func TestEntry(t *testing.T) {
 
 	firstLevelDir := "test-dir"
 	secondLevelDir := "second-level/test-dir"
+	require.NoError(t, os.WriteFile(filepath.Join(storageRoot, "root-file"), []byte("root file"), perm.PrivateFile))
 	setupTestDirectory(t, filepath.Join(storageRoot, firstLevelDir))
 	setupTestDirectory(t, filepath.Join(storageRoot, secondLevelDir))
 
@@ -38,6 +39,42 @@ func TestEntry(t *testing.T) {
 		expectedOperations operations
 		expectedFiles      testhelper.DirectoryState
 	}{
+		{
+			desc: "RecordFileUpdate on root level file",
+			run: func(t *testing.T, entry *Entry) {
+				require.NoError(t, entry.RecordFileUpdate(storageRoot, "root-file"))
+			},
+			expectedOperations: func() operations {
+				var ops operations
+				ops.flush("sentinel-op")
+				ops.removeDirectoryEntry("root-file")
+				ops.createHardLink("1", "root-file", false)
+				ops.flush(".")
+				return ops
+			}(),
+			expectedFiles: testhelper.DirectoryState{
+				"/":  {Mode: fs.ModeDir | perm.SharedDir},
+				"/1": {Mode: perm.PrivateFile, Content: []byte("root file")},
+			},
+		},
+		{
+			desc: "RecordFileUpdate on first level file",
+			run: func(t *testing.T, entry *Entry) {
+				require.NoError(t, entry.RecordFileUpdate(storageRoot, filepath.Join(firstLevelDir, "file-1")))
+			},
+			expectedOperations: func() operations {
+				var ops operations
+				ops.flush("sentinel-op")
+				ops.removeDirectoryEntry("test-dir/file-1")
+				ops.createHardLink("1", "test-dir/file-1", false)
+				ops.flush("test-dir")
+				return ops
+			}(),
+			expectedFiles: testhelper.DirectoryState{
+				"/":  {Mode: fs.ModeDir | perm.SharedDir},
+				"/1": {Mode: perm.PrivateExecutable, Content: []byte("file-1")},
+			},
+		},
 		{
 			desc: "RecordDirectoryCreation on first level directory",
 			run: func(t *testing.T, entry *Entry) {

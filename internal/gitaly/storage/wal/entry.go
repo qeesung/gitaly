@@ -51,6 +51,22 @@ func (e *Entry) stageFile(path string) (string, error) {
 	return fileName, nil
 }
 
+// RecordFileUpdate records a file being updated. It stages operations to remove the old file,
+// to place the new file in its place and to finally flush the modification.
+func (e *Entry) RecordFileUpdate(storageRoot, relativePath string) error {
+	e.operations.removeDirectoryEntry(relativePath)
+
+	stagedFile, err := e.stageFile(filepath.Join(storageRoot, relativePath))
+	if err != nil {
+		return fmt.Errorf("stage file: %w", err)
+	}
+
+	e.operations.createHardLink(stagedFile, relativePath, false)
+	e.operations.flush(filepath.Dir(relativePath))
+
+	return nil
+}
+
 // RecordRepositoryCreation records the creation of the repository itself and the directory
 // hierarchy above it. It logs flush operations for all directories in the hierarchy and stages
 // the files from the repository.
