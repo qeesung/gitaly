@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v16/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cache"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -308,68 +309,69 @@ func TestStreamingNoAuth(t *testing.T) {
 }
 
 func TestAuthBeforeLimit(t *testing.T) {
-	ctx := testhelper.Context(t)
-	cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{
-		Auth: auth.Config{Token: "abc123"},
-		Concurrency: []config.Concurrency{{
-			RPC:        "/gitaly.OperationService/UserCreateTag",
-			MaxPerRepo: 1,
-		}},
-	},
-	))
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter, featureflag.UseResizableSemaphoreLifoStrategy).Run(t, func(t *testing.T, ctx netctx.Context) {
+		cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{
+			Auth: auth.Config{Token: "abc123"},
+			Concurrency: []config.Concurrency{{
+				RPC:        "/gitaly.OperationService/UserCreateTag",
+				MaxPerRepo: 1,
+			}},
+		},
+		))
 
-	repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
-		SkipCreationViaService: true,
-	})
-	commitID := gittest.WriteCommit(t, cfg, repoPath)
+		repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
+		commitID := gittest.WriteCommit(t, cfg, repoPath)
 
-	gitlabURL, cleanup := gitlab.SetupAndStartGitlabServer(t, cfg.GitlabShell.Dir, &gitlab.TestServerOptions{
-		SecretToken:                 "secretToken",
-		GLID:                        gittest.GlID,
-		GLRepository:                repo.GetGlRepository(),
-		PostReceiveCounterDecreased: true,
-		Protocol:                    "web",
-	})
-	t.Cleanup(cleanup)
-	cfg.Gitlab.URL = gitlabURL
+		gitlabURL, cleanup := gitlab.SetupAndStartGitlabServer(t, cfg.GitlabShell.Dir, &gitlab.TestServerOptions{
+			SecretToken:                 "secretToken",
+			GLID:                        gittest.GlID,
+			GLRepository:                repo.GetGlRepository(),
+			PostReceiveCounterDecreased: true,
+			Protocol:                    "web",
+		})
+		t.Cleanup(cleanup)
+		cfg.Gitlab.URL = gitlabURL
 
-	serverSocketPath := runServer(t, cfg)
-	client, conn := newOperationClient(t, cfg.Auth.Token, serverSocketPath)
-	t.Cleanup(func() { conn.Close() })
+		serverSocketPath := runServer(t, cfg)
+		client, conn := newOperationClient(t, cfg.Auth.Token, serverSocketPath)
+		t.Cleanup(func() { conn.Close() })
 
-	defer func(d time.Duration) {
-		gitalyauth.SetTokenValidityDuration(d)
-	}(gitalyauth.TokenValidityDuration())
-	gitalyauth.SetTokenValidityDuration(5 * time.Second)
+		defer func(d time.Duration) {
+			gitalyauth.SetTokenValidityDuration(d)
+		}(gitalyauth.TokenValidityDuration())
+		gitalyauth.SetTokenValidityDuration(5 * time.Second)
 
-	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(fmt.Sprintf(`#!/usr/bin/env bash
+		gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(fmt.Sprintf(`#!/usr/bin/env bash
 sleep %v
 `, gitalyauth.TokenValidityDuration().Seconds())))
 
-	errChan := make(chan error)
+		errChan := make(chan error)
 
-	for i := 0; i < 2; i++ {
-		i := i
-		go func() {
-			_, err := client.UserCreateTag(ctx, &gitalypb.UserCreateTagRequest{
-				Repository:     repo,
-				TagName:        []byte(fmt.Sprintf("tag-name-%d", i)),
-				TargetRevision: []byte(commitID),
-				User:           gittest.TestUser,
-				Message:        []byte("a new tag!"),
-			})
-			errChan <- err
-		}()
-	}
-
-	timer := time.NewTimer(1 * time.Minute)
-
-	for i := 0; i < 2; i++ {
-		select {
-		case <-timer.C:
-			require.Fail(t, "time limit reached waiting for calls to finish")
-		case err := <-errChan:
-			require.NoError(t, err)
+		for i := 0; i < 2; i++ {
+			i := i
+			go func() {
+				_, err := client.UserCreateTag(ctx, &gitalypb.UserCreateTagRequest{
+					Repository:     repo,
+					TagName:        []byte(fmt.Sprintf("tag-name-%d", i)),
+					TargetRevision: []byte(commitID),
+					User:           gittest.TestUser,
+					Message:        []byte("a new tag!"),
+				})
+				errChan <- err
+			}()
 		}
-	}
+
+		timer := time.NewTimer(1 * time.Minute)
+
+		for i := 0; i < 2; i++ {
+			select {
+			case <-timer.C:
+				require.Fail(t, "time limit reached waiting for calls to finish")
+			case err := <-errChan:
+				require.NoError(t, err)
+			}
+		}
+	})
 }
