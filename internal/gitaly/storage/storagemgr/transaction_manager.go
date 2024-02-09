@@ -922,6 +922,27 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 			return fmt.Errorf("record repository creation: %w", err)
 		}
 	} else {
+		if transaction.alternateUpdated {
+			stagedAlternatesRelativePath := stats.AlternatesFilePath(transaction.relativePath)
+			stagedAlternatesAbsolutePath := mgr.getAbsolutePath(transaction.snapshot.relativePath(stagedAlternatesRelativePath))
+			if _, err := os.Stat(stagedAlternatesAbsolutePath); err != nil {
+				if !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("check alternates existence: %w", err)
+				}
+
+				// Alternates file did not exist, nothing to stage. This was an unlink operation.
+			} else {
+				if err := transaction.walEntry.RecordFileCreation(
+					stagedAlternatesAbsolutePath,
+					stagedAlternatesRelativePath,
+				); err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("record alternates update: %w", err)
+				}
+
+				transaction.walEntry.RecordFlush(filepath.Dir(stagedAlternatesRelativePath))
+			}
+		}
+
 		if transaction.customHooksUpdated {
 			// Log the custom hook creation. The deletion of the previous hooks is logged after admission to
 			// ensure we log the latest state for deletion in case someone else modified the hooks.
@@ -2596,9 +2617,9 @@ func (mgr *TransactionManager) applyAlternateUpdate(entry *gitalypb.LogEntry) er
 		return nil
 	case entry.AlternateUpdate.Path == "":
 		return mgr.applyAlternateUnlink(entry)
-	default:
-		return mgr.applyAlternateLink(entry)
 	}
+
+	return nil
 }
 
 // applyAlternateUnlink unlinks a repository from its alternate. Prior to doing so, it links
@@ -2677,42 +2698,6 @@ func (mgr *TransactionManager) applyAlternateUnlink(entry *gitalypb.LogEntry) er
 	alternatesFilePath := stats.AlternatesFilePath(repositoryPath)
 	if err := os.Remove(alternatesFilePath); err != nil {
 		return fmt.Errorf("remove: %w", err)
-	}
-
-	if err := syncer.SyncParent(alternatesFilePath); err != nil {
-		return fmt.Errorf("sync parent: %w", err)
-	}
-
-	return nil
-}
-
-func (mgr *TransactionManager) applyAlternateLink(entry *gitalypb.LogEntry) error {
-	alternatesFilePath := stats.AlternatesFilePath(mgr.getAbsolutePath(entry.RelativePath))
-
-	// When we apply the log entry here, we'd create the file. If we then crash before explicitly
-	// syncing the file or the directory, it could be that the directory entry was synced to the
-	// disk but not the contents of the file. This could lead to the file existing after a crash
-	// with invalid contents. Reapplying the log entry could then fail as the the file already exists.
-	// Remove the possible file before proceeding.
-	if err := os.Remove(alternatesFilePath); err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("remove: %w", err)
-		}
-
-		// The alternates file did not exist.
-	}
-
-	if err := os.WriteFile(
-		alternatesFilePath,
-		[]byte(entry.AlternateUpdate.Path),
-		perm.PrivateFile,
-	); err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-
-	syncer := safe.NewSyncer()
-	if err := syncer.Sync(alternatesFilePath); err != nil {
-		return fmt.Errorf("sync: %w", err)
 	}
 
 	if err := syncer.SyncParent(alternatesFilePath); err != nil {
