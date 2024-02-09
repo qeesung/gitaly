@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/pktline"
@@ -716,306 +717,305 @@ func setupSidechannel(t *testing.T, ctx context.Context, oid string) (context.Co
 
 func TestPackObjects_concurrencyLimit(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter, featureflag.UseResizableSemaphoreLifoStrategy).Run(t, func(t *testing.T, ctx context.Context) {
+		args := []string{"pack-objects", "--revs", "--thin", "--stdout", "--progress", "--delta-base-offset"}
 
-	ctx := testhelper.Context(t)
+		for _, tc := range []struct {
+			desc        string
+			setup       func(*testing.T, config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest
+			shouldLimit bool
+		}{
+			{
+				desc: "never reach limit",
+				setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
+					repoA, _ := gittest.CreateRepository(t, ctx, cfg)
+					repoB, _ := gittest.CreateRepository(t, ctx, cfg)
 
-	args := []string{"pack-objects", "--revs", "--thin", "--stdout", "--progress", "--delta-base-offset"}
-
-	for _, tc := range []struct {
-		desc        string
-		setup       func(*testing.T, config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest
-		shouldLimit bool
-	}{
-		{
-			desc: "never reach limit",
-			setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
-				repoA, _ := gittest.CreateRepository(t, ctx, cfg)
-				repoB, _ := gittest.CreateRepository(t, ctx, cfg)
-
-				return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
-					{
-						GlId:       "user-123",
-						RemoteIp:   "1.2.3.4",
-						Repository: repoA,
-						Args:       args,
-					},
-					{
-						GlId:       "user-456",
-						RemoteIp:   "1.2.3.5",
-						Repository: repoB,
-						Args:       args,
-					},
-				}
-			},
-			shouldLimit: false,
-		},
-		{
-			desc: "normal IP address",
-			setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
-				repo, _ := gittest.CreateRepository(t, ctx, cfg)
-
-				return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
-					{
-						GlId:       "user-123",
-						RemoteIp:   "1.2.3.4",
-						Repository: repo,
-						Args:       args,
-					},
-					{
-						GlId:       "user-123",
-						RemoteIp:   "1.2.3.4",
-						Repository: repo,
-						Args:       args,
-					},
-				}
-			},
-			shouldLimit: true,
-		},
-		{
-			desc: "IP addresses including source port",
-			setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
-				repo, _ := gittest.CreateRepository(t, ctx, cfg)
-
-				return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
-					{
-						GlId:       "user-123",
-						RemoteIp:   "1.2.3.4:47293",
-						Repository: repo,
-						Args:       args,
-					},
-					{
-						GlId:       "user-123",
-						RemoteIp:   "1.2.3.4:51010",
-						Repository: repo,
-						Args:       args,
-					},
-				}
-			},
-			shouldLimit: true,
-		},
-		{
-			desc: "IPv4 loopback addresses",
-			setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
-				repo, _ := gittest.CreateRepository(t, ctx, cfg)
-
-				return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
-					{
-						GlId:       "user-123",
-						RemoteIp:   "127.0.0.1",
-						Repository: repo,
-						Args:       args,
-					},
-					{
-						GlId:       "user-123",
-						RemoteIp:   "127.0.0.1",
-						Repository: repo,
-						Args:       args,
-					},
-				}
-			},
-			shouldLimit: false,
-		},
-		{
-			desc: "IPv6 loopback addresses",
-			setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
-				repo, _ := gittest.CreateRepository(t, ctx, cfg)
-
-				return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
-					{
-						GlId:       "user-123",
-						RemoteIp:   net.IPv6loopback.String(),
-						Repository: repo,
-						Args:       args,
-					},
-					{
-						GlId:       "user-123",
-						RemoteIp:   net.IPv6loopback.String(),
-						Repository: repo,
-						Args:       args,
-					},
-				}
-			},
-			shouldLimit: false,
-		},
-		{
-			desc: "invalid IP addresses",
-			setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
-				repo, _ := gittest.CreateRepository(t, ctx, cfg)
-
-				return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
-					{
-						GlId:       "user-123",
-						RemoteIp:   "hello-world",
-						Repository: repo,
-						Args:       args,
-					},
-					{
-						GlId:       "user-123",
-						RemoteIp:   "hello-world",
-						Repository: repo,
-						Args:       args,
-					},
-				}
-			},
-			shouldLimit: false,
-		},
-		{
-			desc: "empty IP addresses",
-			setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
-				repo, _ := gittest.CreateRepository(t, ctx, cfg)
-
-				return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
-					{
-						GlId:       "user-123",
-						RemoteIp:   "",
-						Repository: repo,
-						Args:       args,
-					},
-					{
-						GlId:       "user-123",
-						RemoteIp:   "",
-						Repository: repo,
-						Args:       args,
-					},
-				}
-			},
-			shouldLimit: false,
-		},
-	} {
-		tc := tc
-
-		t.Run(tc.desc, func(t *testing.T) {
-			t.Parallel()
-
-			cfg := cfgWithCache(t, 0)
-
-			limiterCtx, cancel, simulateTimeout := testhelper.ContextWithSimulatedTimeout(ctx)
-			defer cancel()
-
-			monitor := limiter.NewPackObjectsConcurrencyMonitor(
-				cfg.Prometheus.GRPCLatencyBuckets,
-			)
-			limiter := limiter.NewConcurrencyLimiter(
-				limiter.NewAdaptiveLimit("staticLimit", limiter.AdaptiveSetting{Initial: 1}),
-				0,
-				1*time.Millisecond,
-				monitor,
-			)
-			limiter.SetWaitTimeoutContext = func() context.Context { return limiterCtx }
-
-			registry := prometheus.NewRegistry()
-			registry.MustRegister(monitor)
-
-			receivedCh, blockCh := make(chan struct{}), make(chan struct{})
-			cfg.SocketPath = runHooksServer(t, cfg, []serverOption{
-				withRunPackObjectsFn(func(
-					context.Context,
-					git.CommandFactory,
-					io.Writer,
-					*gitalypb.PackObjectsHookWithSidechannelRequest,
-					*packObjectsArgs,
-					io.Reader,
-					string,
-				) error {
-					receivedCh <- struct{}{}
-					<-blockCh
-					return nil
-				}),
-			},
-				testserver.WithPackObjectsLimiter(limiter),
-			)
-
-			requests := tc.setup(t, cfg)
-
-			ctx1, wt1, err := setupSidechannel(t, ctx, "1dd08961455abf80ef9115f4afdc1c6f968b503c")
-			require.NoError(t, err)
-
-			ctx2, wt2, err := setupSidechannel(t, ctx, "2dd08961455abf80ef9115f4afdc1c6f968b503")
-			require.NoError(t, err)
-
-			client, conn := newHooksClient(t, cfg.SocketPath)
-			defer testhelper.MustClose(t, conn)
-
-			var wg sync.WaitGroup
-			wg.Add(2)
-
-			errChan := make(chan error)
-
-			// We fire off two requests. Since the concurrency limit is set at 1,
-			// the first request will make it through the concurrency limiter and
-			// get blocked in the function provide to withRunPackObjectsFn() above.
-			// The second request will get concurrency limited and will be waiting
-			// in the queue.
-			// When we call Tick() on the max queue wait ticker, the second request
-			// will return with an error.
-
-			type call struct {
-				ctx context.Context
-				req *gitalypb.PackObjectsHookWithSidechannelRequest
-			}
-
-			for _, c := range []call{
-				{ctx: ctx1, req: requests[0]},
-				{ctx: ctx2, req: requests[1]},
-			} {
-				go func(c call) {
-					defer wg.Done()
-					_, err := client.PackObjectsHookWithSidechannel(c.ctx, c.req)
-					if err != nil {
-						errChan <- err
+					return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
+						{
+							GlId:       "user-123",
+							RemoteIp:   "1.2.3.4",
+							Repository: repoA,
+							Args:       args,
+						},
+						{
+							GlId:       "user-456",
+							RemoteIp:   "1.2.3.5",
+							Repository: repoB,
+							Args:       args,
+						},
 					}
-				}(c)
-			}
+				},
+				shouldLimit: false,
+			},
+			{
+				desc: "normal IP address",
+				setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
+					repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
-			if tc.shouldLimit {
-				<-receivedCh
+					return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
+						{
+							GlId:       "user-123",
+							RemoteIp:   "1.2.3.4",
+							Repository: repo,
+							Args:       args,
+						},
+						{
+							GlId:       "user-123",
+							RemoteIp:   "1.2.3.4",
+							Repository: repo,
+							Args:       args,
+						},
+					}
+				},
+				shouldLimit: true,
+			},
+			{
+				desc: "IP addresses including source port",
+				setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
+					repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
-				require.NoError(t,
-					testutil.GatherAndCompare(registry,
-						bytes.NewBufferString(`# HELP gitaly_pack_objects_in_progress Gauge of number of concurrent in-progress calls
-# TYPE gitaly_pack_objects_in_progress gauge
-gitaly_pack_objects_in_progress 1
-`), "gitaly_pack_objects_in_progress"))
+					return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
+						{
+							GlId:       "user-123",
+							RemoteIp:   "1.2.3.4:47293",
+							Repository: repo,
+							Args:       args,
+						},
+						{
+							GlId:       "user-123",
+							RemoteIp:   "1.2.3.4:51010",
+							Repository: repo,
+							Args:       args,
+						},
+					}
+				},
+				shouldLimit: true,
+			},
+			{
+				desc: "IPv4 loopback addresses",
+				setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
+					repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
-				simulateTimeout()
+					return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
+						{
+							GlId:       "user-123",
+							RemoteIp:   "127.0.0.1",
+							Repository: repo,
+							Args:       args,
+						},
+						{
+							GlId:       "user-123",
+							RemoteIp:   "127.0.0.1",
+							Repository: repo,
+							Args:       args,
+						},
+					}
+				},
+				shouldLimit: false,
+			},
+			{
+				desc: "IPv6 loopback addresses",
+				setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
+					repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
-				err := <-errChan
-				testhelper.RequireGrpcCode(
-					t,
-					err,
-					codes.ResourceExhausted,
+					return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
+						{
+							GlId:       "user-123",
+							RemoteIp:   net.IPv6loopback.String(),
+							Repository: repo,
+							Args:       args,
+						},
+						{
+							GlId:       "user-123",
+							RemoteIp:   net.IPv6loopback.String(),
+							Repository: repo,
+							Args:       args,
+						},
+					}
+				},
+				shouldLimit: false,
+			},
+			{
+				desc: "invalid IP addresses",
+				setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
+					repo, _ := gittest.CreateRepository(t, ctx, cfg)
+
+					return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
+						{
+							GlId:       "user-123",
+							RemoteIp:   "hello-world",
+							Repository: repo,
+							Args:       args,
+						},
+						{
+							GlId:       "user-123",
+							RemoteIp:   "hello-world",
+							Repository: repo,
+							Args:       args,
+						},
+					}
+				},
+				shouldLimit: false,
+			},
+			{
+				desc: "empty IP addresses",
+				setup: func(t *testing.T, cfg config.Cfg) [2]*gitalypb.PackObjectsHookWithSidechannelRequest {
+					repo, _ := gittest.CreateRepository(t, ctx, cfg)
+
+					return [2]*gitalypb.PackObjectsHookWithSidechannelRequest{
+						{
+							GlId:       "user-123",
+							RemoteIp:   "",
+							Repository: repo,
+							Args:       args,
+						},
+						{
+							GlId:       "user-123",
+							RemoteIp:   "",
+							Repository: repo,
+							Args:       args,
+						},
+					}
+				},
+				shouldLimit: false,
+			},
+		} {
+			tc := tc
+
+			t.Run(tc.desc, func(t *testing.T) {
+				t.Parallel()
+
+				cfg := cfgWithCache(t, 0)
+
+				limiterCtx, cancel, simulateTimeout := testhelper.ContextWithSimulatedTimeout(ctx)
+				defer cancel()
+
+				monitor := limiter.NewPackObjectsConcurrencyMonitor(
+					cfg.Prometheus.GRPCLatencyBuckets,
+				)
+				limiter := limiter.NewConcurrencyLimiter(
+					limiter.NewAdaptiveLimit("staticLimit", limiter.AdaptiveSetting{Initial: 1}),
+					0,
+					1*time.Millisecond,
+					monitor,
+				)
+				limiter.SetWaitTimeoutContext = func() context.Context { return limiterCtx }
+
+				registry := prometheus.NewRegistry()
+				registry.MustRegister(monitor)
+
+				receivedCh, blockCh := make(chan struct{}), make(chan struct{})
+				cfg.SocketPath = runHooksServer(t, cfg, []serverOption{
+					withRunPackObjectsFn(func(
+						context.Context,
+						git.CommandFactory,
+						io.Writer,
+						*gitalypb.PackObjectsHookWithSidechannelRequest,
+						*packObjectsArgs,
+						io.Reader,
+						string,
+					) error {
+						receivedCh <- struct{}{}
+						<-blockCh
+						return nil
+					}),
+				},
+					testserver.WithPackObjectsLimiter(limiter),
 				)
 
-				close(blockCh)
+				requests := tc.setup(t, cfg)
 
-				expectedMetrics := bytes.NewBufferString(`# HELP gitaly_pack_objects_dropped_total Number of requests dropped from the queue
-# TYPE gitaly_pack_objects_dropped_total counter
-gitaly_pack_objects_dropped_total{reason="max_time"} 1
-# HELP gitaly_pack_objects_queued Gauge of number of queued calls
-# TYPE gitaly_pack_objects_queued gauge
-gitaly_pack_objects_queued 0
-`)
-
-				require.NoError(t,
-					testutil.GatherAndCompare(registry, expectedMetrics,
-						"gitaly_pack_objects_dropped_total",
-						"gitaly_pack_objects_queued",
-					))
-
-				acquiringSecondsCount, err := testutil.GatherAndCount(registry,
-					"gitaly_pack_objects_acquiring_seconds")
+				ctx1, wt1, err := setupSidechannel(t, ctx, "1dd08961455abf80ef9115f4afdc1c6f968b503c")
 				require.NoError(t, err)
 
-				require.Equal(t, 1, acquiringSecondsCount)
-			} else {
-				close(blockCh)
-				<-receivedCh
-				<-receivedCh
-			}
+				ctx2, wt2, err := setupSidechannel(t, ctx, "2dd08961455abf80ef9115f4afdc1c6f968b503")
+				require.NoError(t, err)
 
-			wg.Wait()
-			require.NoError(t, wt1.Wait())
-			require.NoError(t, wt2.Wait())
-		})
-	}
+				client, conn := newHooksClient(t, cfg.SocketPath)
+				defer testhelper.MustClose(t, conn)
+
+				var wg sync.WaitGroup
+				wg.Add(2)
+
+				errChan := make(chan error)
+
+				// We fire off two requests. Since the concurrency limit is set at 1,
+				// the first request will make it through the concurrency limiter and
+				// get blocked in the function provide to withRunPackObjectsFn() above.
+				// The second request will get concurrency limited and will be waiting
+				// in the queue.
+				// When we call Tick() on the max queue wait ticker, the second request
+				// will return with an error.
+
+				type call struct {
+					ctx context.Context
+					req *gitalypb.PackObjectsHookWithSidechannelRequest
+				}
+
+				for _, c := range []call{
+					{ctx: ctx1, req: requests[0]},
+					{ctx: ctx2, req: requests[1]},
+				} {
+					go func(c call) {
+						defer wg.Done()
+						_, err := client.PackObjectsHookWithSidechannel(c.ctx, c.req)
+						if err != nil {
+							errChan <- err
+						}
+					}(c)
+				}
+
+				if tc.shouldLimit {
+					<-receivedCh
+
+					require.NoError(t,
+						testutil.GatherAndCompare(registry,
+							bytes.NewBufferString(`# HELP gitaly_pack_objects_in_progress Gauge of number of concurrent in-progress calls
+	# TYPE gitaly_pack_objects_in_progress gauge
+	gitaly_pack_objects_in_progress 1
+	`), "gitaly_pack_objects_in_progress"))
+
+					simulateTimeout()
+
+					err := <-errChan
+					testhelper.RequireGrpcCode(
+						t,
+						err,
+						codes.ResourceExhausted,
+					)
+
+					close(blockCh)
+
+					expectedMetrics := bytes.NewBufferString(`# HELP gitaly_pack_objects_dropped_total Number of requests dropped from the queue
+	# TYPE gitaly_pack_objects_dropped_total counter
+	gitaly_pack_objects_dropped_total{reason="max_time"} 1
+	# HELP gitaly_pack_objects_queued Gauge of number of queued calls
+	# TYPE gitaly_pack_objects_queued gauge
+	gitaly_pack_objects_queued 0
+	`)
+
+					require.NoError(t,
+						testutil.GatherAndCompare(registry, expectedMetrics,
+							"gitaly_pack_objects_dropped_total",
+							"gitaly_pack_objects_queued",
+						))
+
+					acquiringSecondsCount, err := testutil.GatherAndCount(registry,
+						"gitaly_pack_objects_acquiring_seconds")
+					require.NoError(t, err)
+
+					require.Equal(t, 1, acquiringSecondsCount)
+				} else {
+					close(blockCh)
+					<-receivedCh
+					<-receivedCh
+				}
+
+				wg.Wait()
+				require.NoError(t, wt1.Wait())
+				require.NoError(t, wt2.Wait())
+			})
+		}
+	})
 }

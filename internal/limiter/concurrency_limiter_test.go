@@ -93,7 +93,7 @@ func TestLimiter_static(t *testing.T) {
 	t.Parallel()
 
 	// Limiter works with static limits regardless of semaphore implementation
-	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter).Run(t, testLimiterStatic)
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter, featureflag.UseResizableSemaphoreLifoStrategy).Run(t, testLimiterStatic)
 }
 
 func testLimiterStatic(t *testing.T, ctx context.Context) {
@@ -239,7 +239,7 @@ func testLimiterStatic(t *testing.T, ctx context.Context) {
 func TestLimiter_dynamic(t *testing.T) {
 	t.Parallel()
 
-	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter).Run(t, func(t *testing.T, ctx context.Context) {
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter, featureflag.UseResizableSemaphoreLifoStrategy).Run(t, func(t *testing.T, ctx context.Context) {
 		if featureflag.UseResizableSemaphoreInConcurrencyLimiter.IsEnabled(ctx) {
 			testLimiterDynamic(t, ctx)
 		} else {
@@ -803,73 +803,74 @@ func (b *blockingQueueCounter) Queued(context.Context, string, int) {
 }
 
 func TestConcurrencyLimiter_queueLimit(t *testing.T) {
-	queueLimit := 10
-	ctx := testhelper.Context(t)
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter, featureflag.UseResizableSemaphoreLifoStrategy).Run(t, func(t *testing.T, ctx context.Context) {
+		queueLimit := 10
 
-	monitorCh := make(chan struct{})
-	monitor := &blockingQueueCounter{queuedCh: monitorCh}
-	ch := make(chan struct{})
-	limiter := NewConcurrencyLimiter(NewAdaptiveLimit("staticLimit", AdaptiveSetting{Initial: 1}), queueLimit, 0, monitor)
+		monitorCh := make(chan struct{})
+		monitor := &blockingQueueCounter{queuedCh: monitorCh}
+		ch := make(chan struct{})
+		limiter := NewConcurrencyLimiter(NewAdaptiveLimit("staticLimit", AdaptiveSetting{Initial: 1}), queueLimit, 0, monitor)
 
-	// occupied with one live request that takes a long time to complete
-	go func() {
-		_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-			ch <- struct{}{}
-			<-ch
-			return nil, nil
-		})
-		require.NoError(t, err)
-	}()
+		// occupied with one live request that takes a long time to complete
+		go func() {
+			_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+				ch <- struct{}{}
+				<-ch
+				return nil, nil
+			})
+			require.NoError(t, err)
+		}()
 
-	<-monitorCh
-	<-ch
+		<-monitorCh
+		<-ch
 
-	var wg sync.WaitGroup
-	// fill up the queue
-	for i := 0; i < queueLimit; i++ {
-		wg.Add(1)
+		var wg sync.WaitGroup
+		// fill up the queue
+		for i := 0; i < queueLimit; i++ {
+			wg.Add(1)
+			go func() {
+				_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+					return nil, nil
+				})
+				require.NoError(t, err)
+				wg.Done()
+			}()
+		}
+
+		var queued int
+		for range monitorCh {
+			queued++
+			if queued == queueLimit {
+				break
+			}
+		}
+
+		errChan := make(chan error, 1)
 		go func() {
 			_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
 				return nil, nil
 			})
-			require.NoError(t, err)
-			wg.Done()
+			errChan <- err
 		}()
-	}
 
-	var queued int
-	for range monitorCh {
-		queued++
-		if queued == queueLimit {
-			break
-		}
-	}
+		err := <-errChan
+		assert.Error(t, err)
 
-	errChan := make(chan error, 1)
-	go func() {
-		_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-			return nil, nil
-		})
-		errChan <- err
-	}()
+		var structErr structerr.Error
+		require.True(t, errors.As(err, &structErr))
+		details := structErr.Details()
+		require.Len(t, details, 1)
 
-	err := <-errChan
-	assert.Error(t, err)
+		limitErr, ok := details[0].(*gitalypb.LimitError)
+		require.True(t, ok)
 
-	var structErr structerr.Error
-	require.True(t, errors.As(err, &structErr))
-	details := structErr.Details()
-	require.Len(t, details, 1)
+		assert.Equal(t, ErrMaxQueueSize.Error(), limitErr.ErrorMessage)
+		assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+		assert.Equal(t, monitor.droppedSize, 1)
 
-	limitErr, ok := details[0].(*gitalypb.LimitError)
-	require.True(t, ok)
-
-	assert.Equal(t, ErrMaxQueueSize.Error(), limitErr.ErrorMessage)
-	assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
-	assert.Equal(t, monitor.droppedSize, 1)
-
-	close(ch)
-	wg.Wait()
+		close(ch)
+		wg.Wait()
+	})
 }
 
 type blockingDequeueCounter struct {
@@ -888,122 +889,123 @@ func (b *blockingDequeueCounter) Dequeued(context.Context) {
 func TestLimitConcurrency_queueWaitTime(t *testing.T) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
-	limiterCtx, cancel, simulateTimeout := testhelper.ContextWithSimulatedTimeout(ctx)
-	defer cancel()
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter, featureflag.UseResizableSemaphoreLifoStrategy).Run(t, func(t *testing.T, ctx context.Context) {
+		limiterCtx, cancel, simulateTimeout := testhelper.ContextWithSimulatedTimeout(ctx)
+		defer cancel()
 
-	dequeuedCh := make(chan struct{})
-	monitor := &blockingDequeueCounter{dequeuedCh: dequeuedCh}
+		dequeuedCh := make(chan struct{})
+		monitor := &blockingDequeueCounter{dequeuedCh: dequeuedCh}
 
-	limiter := NewConcurrencyLimiter(
-		NewAdaptiveLimit("staticLimit", AdaptiveSetting{Initial: 1}),
-		0,
-		1*time.Millisecond,
-		monitor,
-	)
-	limiter.SetWaitTimeoutContext = func() context.Context { return limiterCtx }
+		limiter := NewConcurrencyLimiter(
+			NewAdaptiveLimit("staticLimit", AdaptiveSetting{Initial: 1}),
+			0,
+			1*time.Millisecond,
+			monitor,
+		)
+		limiter.SetWaitTimeoutContext = func() context.Context { return limiterCtx }
 
-	ch := make(chan struct{})
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-			<-ch
-			return nil, nil
-		})
-		require.NoError(t, err)
-		wg.Done()
-	}()
+		ch := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+				<-ch
+				return nil, nil
+			})
+			require.NoError(t, err)
+			wg.Done()
+		}()
 
-	<-dequeuedCh
+		<-dequeuedCh
 
-	simulateTimeout()
+		simulateTimeout()
 
-	errChan := make(chan error)
-	go func() {
-		_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-			return nil, nil
-		})
-		errChan <- err
-	}()
+		errChan := make(chan error)
+		go func() {
+			_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+				return nil, nil
+			})
+			errChan <- err
+		}()
 
-	<-dequeuedCh
-	err := <-errChan
+		<-dequeuedCh
+		err := <-errChan
 
-	var structErr structerr.Error
-	require.True(t, errors.As(err, &structErr))
-	details := structErr.Details()
-	require.Len(t, details, 1)
+		var structErr structerr.Error
+		require.True(t, errors.As(err, &structErr))
+		details := structErr.Details()
+		require.Len(t, details, 1)
 
-	limitErr, ok := details[0].(*gitalypb.LimitError)
-	require.True(t, ok)
+		limitErr, ok := details[0].(*gitalypb.LimitError)
+		require.True(t, ok)
 
-	testhelper.RequireGrpcCode(t, err, codes.ResourceExhausted)
-	assert.Equal(t, ErrMaxQueueTime.Error(), limitErr.ErrorMessage)
-	assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+		testhelper.RequireGrpcCode(t, err, codes.ResourceExhausted)
+		assert.Equal(t, ErrMaxQueueTime.Error(), limitErr.ErrorMessage)
+		assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
 
-	assert.Equal(t, monitor.droppedTime, 1)
-	close(ch)
-	wg.Wait()
+		assert.Equal(t, monitor.droppedTime, 1)
+		close(ch)
+		wg.Wait()
+	})
 }
 
 func TestLimitConcurrency_queueWaitTimeRealTimeout(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter, featureflag.UseResizableSemaphoreLifoStrategy).Run(t, func(t *testing.T, ctx context.Context) {
+		limiter := NewConcurrencyLimiter(
+			NewAdaptiveLimit("staticLimit", AdaptiveSetting{Initial: 1}),
+			0,
+			// This test setups two requests:
+			// - The first one is eligible. It enters the handler and blocks the queue.
+			// - The second request is blocked until timeout.
+			// Both of them share this timeout. Internally, the limiter creates a context
+			// deadline to reject timed-out requests. If it's set too low, there's a tiny
+			// possibility that the context reaches the deadline when the limiter checks the
+			// request. Thus, setting a reasonable timeout here and adding some retry
+			// attempts below make the test stable.
+			100*time.Millisecond,
+			&counter{},
+		)
 
-	ctx := testhelper.Context(t)
-	limiter := NewConcurrencyLimiter(
-		NewAdaptiveLimit("staticLimit", AdaptiveSetting{Initial: 1}),
-		0,
-		// This test setups two requests:
-		// - The first one is eligible. It enters the handler and blocks the queue.
-		// - The second request is blocked until timeout.
-		// Both of them share this timeout. Internally, the limiter creates a context
-		// deadline to reject timed-out requests. If it's set too low, there's a tiny
-		// possibility that the context reaches the deadline when the limiter checks the
-		// request. Thus, setting a reasonable timeout here and adding some retry
-		// attempts below make the test stable.
-		100*time.Millisecond,
-		&counter{},
-	)
+		waitAcquire := make(chan struct{})
+		release := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-	waitAcquire := make(chan struct{})
-	release := make(chan struct{})
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		// Retry a couple of time, just in case the test runs on a very slow machine that invalidates
-		// the test. If the limiter still cannot permit the request after 3 times, something must go
-		// wrong horribly.
-		for i := 0; i < 3; i++ {
-			if _, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-				close(waitAcquire)
-				<-release
-				return nil, nil
-			}); err == nil {
-				return
+			// Retry a couple of time, just in case the test runs on a very slow machine that invalidates
+			// the test. If the limiter still cannot permit the request after 3 times, something must go
+			// wrong horribly.
+			for i := 0; i < 3; i++ {
+				if _, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+					close(waitAcquire)
+					<-release
+					return nil, nil
+				}); err == nil {
+					return
+				}
 			}
-		}
-		require.FailNow(t, "the first request is supposed to enter the test server's handler")
-	}()
+			require.FailNow(t, "the first request is supposed to enter the test server's handler")
+		}()
 
-	<-waitAcquire
-	_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
-		return nil, nil
+		<-waitAcquire
+		_, err := limiter.Limit(ctx, "key", func() (interface{}, error) {
+			return nil, nil
+		})
+
+		var structErr structerr.Error
+		require.True(t, errors.As(err, &structErr))
+		details := structErr.Details()
+		require.Len(t, details, 1)
+
+		limitErr, ok := details[0].(*gitalypb.LimitError)
+		require.True(t, ok)
+
+		testhelper.RequireGrpcCode(t, err, codes.ResourceExhausted)
+		assert.Equal(t, ErrMaxQueueTime.Error(), limitErr.ErrorMessage)
+		assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+
+		close(release)
 	})
-
-	var structErr structerr.Error
-	require.True(t, errors.As(err, &structErr))
-	details := structErr.Details()
-	require.Len(t, details, 1)
-
-	limitErr, ok := details[0].(*gitalypb.LimitError)
-	require.True(t, ok)
-
-	testhelper.RequireGrpcCode(t, err, codes.ResourceExhausted)
-	assert.Equal(t, ErrMaxQueueTime.Error(), limitErr.ErrorMessage)
-	assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
-
-	close(release)
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
 
@@ -25,49 +26,50 @@ func TestResizableSemaphore_New(t *testing.T) {
 // become available.
 func TestResizableSemaphore_ContextCanceled(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter, featureflag.UseResizableSemaphoreLifoStrategy).Run(t, func(t *testing.T, ctx context.Context) {
+		t.Run("context is canceled when the semaphore is empty", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(ctx)
+			cancel()
 
-	t.Run("context is canceled when the semaphore is empty", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(testhelper.Context(t))
-		cancel()
+			semaphore := NewResizableSemaphore(5)
 
-		semaphore := NewResizableSemaphore(5)
+			require.Equal(t, context.Canceled, semaphore.Acquire(ctx))
+			require.Equal(t, 0, semaphore.Count())
+		})
 
-		require.Equal(t, context.Canceled, semaphore.Acquire(ctx))
-		require.Equal(t, 0, semaphore.Count())
-	})
+		t.Run("context is canceled when the semaphore is not full", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(ctx)
+			testResizableSemaphoreCanceledWhenNotFull(t, ctx, cancel, context.Canceled)
+		})
 
-	t.Run("context is canceled when the semaphore is not full", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(testhelper.Context(t))
-		testResizableSemaphoreCanceledWhenNotFull(t, ctx, cancel, context.Canceled)
-	})
+		t.Run("context is canceled when the semaphore is full", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(ctx)
+			testResizableSemaphoreCanceledWhenFull(t, ctx, cancel, context.Canceled)
+		})
 
-	t.Run("context is canceled when the semaphore is full", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(testhelper.Context(t))
-		testResizableSemaphoreCanceledWhenFull(t, ctx, cancel, context.Canceled)
-	})
+		t.Run("context's deadline exceeded when the semaphore is empty", func(t *testing.T) {
+			ctx, cancel := context.WithDeadline(ctx, time.Now().Add(-1*time.Hour))
+			defer cancel()
 
-	t.Run("context's deadline exceeded when the semaphore is empty", func(t *testing.T) {
-		ctx, cancel := context.WithDeadline(testhelper.Context(t), time.Now().Add(-1*time.Hour))
-		defer cancel()
+			semaphore := NewResizableSemaphore(5)
 
-		semaphore := NewResizableSemaphore(5)
+			require.Equal(t, ErrMaxQueueTime, semaphore.Acquire(ctx))
+			require.Equal(t, 0, semaphore.Count())
+		})
 
-		require.Equal(t, ErrMaxQueueTime, semaphore.Acquire(ctx))
-		require.Equal(t, 0, semaphore.Count())
-	})
+		t.Run("context's deadline exceeded when the semaphore is not full", func(t *testing.T) {
+			ctx, cancel, simulateTimeout := testhelper.ContextWithSimulatedTimeout(ctx)
+			defer cancel()
 
-	t.Run("context's deadline exceeded when the semaphore is not full", func(t *testing.T) {
-		ctx, cancel, simulateTimeout := testhelper.ContextWithSimulatedTimeout(testhelper.Context(t))
-		defer cancel()
+			testResizableSemaphoreCanceledWhenNotFull(t, ctx, simulateTimeout, ErrMaxQueueTime)
+		})
 
-		testResizableSemaphoreCanceledWhenNotFull(t, ctx, simulateTimeout, ErrMaxQueueTime)
-	})
+		t.Run("context's deadline exceeded when the semaphore is full", func(t *testing.T) {
+			ctx, cancel, simulateTimeout := testhelper.ContextWithSimulatedTimeout(ctx)
+			defer cancel()
 
-	t.Run("context's deadline exceeded when the semaphore is full", func(t *testing.T) {
-		ctx, cancel, simulateTimeout := testhelper.ContextWithSimulatedTimeout(testhelper.Context(t))
-		defer cancel()
-
-		testResizableSemaphoreCanceledWhenFull(t, ctx, simulateTimeout, ErrMaxQueueTime)
+			testResizableSemaphoreCanceledWhenFull(t, ctx, simulateTimeout, ErrMaxQueueTime)
+		})
 	})
 }
 
@@ -162,321 +164,310 @@ func testResizableSemaphoreCanceledWhenFull(t *testing.T, ctx context.Context, s
 
 func TestResizableSemaphore_Acquire(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.UseResizableSemaphoreInConcurrencyLimiter, featureflag.UseResizableSemaphoreLifoStrategy).Run(t, func(t *testing.T, ctx context.Context) {
+		t.Run("acquire less than the capacity", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(5)
 
-	t.Run("acquire less than the capacity", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(5)
+			waitBeforeRelease, waitRelease := acquireSemaphore(t, ctx, semaphore, 3)
+			require.Equal(t, 3, semaphore.Count())
 
-		waitBeforeRelease, waitRelease := acquireSemaphore(t, ctx, semaphore, 3)
-		require.Equal(t, 3, semaphore.Count())
+			require.Nil(t, semaphore.Acquire(ctx))
+			require.Equal(t, 4, semaphore.Count())
 
-		require.Nil(t, semaphore.Acquire(ctx))
-		require.Equal(t, 4, semaphore.Count())
+			require.Nil(t, semaphore.TryAcquire())
+			require.Equal(t, 5, semaphore.Count())
 
-		require.Nil(t, semaphore.TryAcquire())
-		require.Equal(t, 5, semaphore.Count())
+			close(waitBeforeRelease)
+			waitRelease()
 
-		close(waitBeforeRelease)
-		waitRelease()
-
-		// Still 2 left
-		require.Equal(t, 2, semaphore.Count())
-		semaphore.Release()
-		semaphore.Release()
-
-		require.Equal(t, 0, semaphore.Count())
-	})
-
-	t.Run("acquire more than the capacity", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(5)
-
-		waitBeforeRelease, waitRelease := acquireSemaphore(t, ctx, semaphore, 5)
-		require.Equal(t, 5, semaphore.Count())
-
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
-		require.Equal(t, 5, semaphore.Count())
-
-		close(waitBeforeRelease)
-		waitRelease()
-
-		require.Equal(t, 0, semaphore.Count())
-	})
-
-	t.Run("semaphore is full then available again", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(5)
-		for i := 0; i < 5; i++ {
-			require.NoError(t, semaphore.Acquire(ctx))
-		}
-
-		waitChan := make(chan error)
-		go func() {
-			for i := 0; i < 5; i++ {
-				waitChan <- semaphore.Acquire(ctx)
-			}
-		}()
-
-		// The semaphore is full now
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
-		require.Equal(t, 5, semaphore.Count())
-
-		for i := 0; i < 5; i++ {
-			// Release one token
+			// Still 2 left
+			require.Equal(t, 2, semaphore.Count())
 			semaphore.Release()
-			// The waiting channel is unlocked
-			require.Nil(t, <-waitChan)
-		}
+			semaphore.Release()
 
-		// Release another token
-		semaphore.Release()
-		require.Equal(t, 4, semaphore.Count())
+			require.Equal(t, 0, semaphore.Count())
+		})
 
-		// Now TryAcquire can pull out a token
-		require.Nil(t, semaphore.TryAcquire())
-		require.Equal(t, 5, semaphore.Count())
-	})
+		t.Run("acquire more than the capacity", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(5)
 
-	t.Run("the semaphore is resized up when empty", func(t *testing.T) {
-		ctx := testhelper.Context(t)
+			waitBeforeRelease, waitRelease := acquireSemaphore(t, ctx, semaphore, 5)
+			require.Equal(t, 5, semaphore.Count())
 
-		semaphore := NewResizableSemaphore(5)
-		semaphore.Resize(10)
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			require.Equal(t, 5, semaphore.Count())
 
-		waitBeforeRelease, waitRelease := acquireSemaphore(t, ctx, semaphore, 9)
-		require.Equal(t, 9, semaphore.Count())
+			close(waitBeforeRelease)
+			waitRelease()
 
-		require.Nil(t, semaphore.Acquire(ctx))
-		require.Equal(t, 10, semaphore.Count())
+			require.Equal(t, 0, semaphore.Count())
+		})
 
-		close(waitBeforeRelease)
-		waitRelease()
+		t.Run("semaphore is full then available again", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(5)
+			for i := 0; i < 5; i++ {
+				require.NoError(t, semaphore.Acquire(ctx))
+			}
 
-		// Still 1 left
-		semaphore.Release()
-
-		require.Equal(t, 0, semaphore.Count())
-	})
-
-	t.Run("the semaphore is resized up when not empty", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(7)
-
-		waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 5)
-		require.Equal(t, 5, semaphore.Count())
-
-		semaphore.Resize(15)
-		require.Equal(t, 5, semaphore.Count())
-
-		waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 5)
-		require.Equal(t, 10, semaphore.Count())
-
-		require.Nil(t, semaphore.Acquire(ctx))
-		require.Equal(t, 11, semaphore.Count())
-
-		close(waitBeforeRelease1)
-		close(waitBeforeRelease2)
-		waitRelease1()
-		waitRelease2()
-
-		// Still 1 left
-		semaphore.Release()
-
-		require.Equal(t, 0, semaphore.Count())
-	})
-
-	t.Run("the semaphore is resized up when full", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(5)
-
-		waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 5)
-
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
-		require.Equal(t, 5, semaphore.Count())
-
-		semaphore.Resize(10)
-
-		waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 5)
-		require.Equal(t, 10, semaphore.Count())
-
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
-		require.Equal(t, 10, semaphore.Count())
-
-		var count atomic.Int32
-		for i := 0; i < 10; i++ {
+			waitChan := make(chan error)
 			go func() {
-				require.Nil(t, semaphore.Acquire(ctx))
-				count.Add(1)
+				for i := 0; i < 5; i++ {
+					waitChan <- semaphore.Acquire(ctx)
+				}
 			}()
-		}
 
-		semaphore.Resize(15)
-		// Poll until 5 acquires
-		for count.Load() != 5 {
-			time.Sleep(1 * time.Millisecond)
-		}
-		// Resize to 20 to fit the rest 5
-		semaphore.Resize(20)
-		// Wait for the rest to finish
-		for count.Load() != 10 {
-			time.Sleep(1 * time.Millisecond)
-		}
+			// The semaphore is full now
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			require.Equal(t, 5, semaphore.Count())
 
-		close(waitBeforeRelease1)
-		close(waitBeforeRelease2)
-		waitRelease1()
-		waitRelease2()
+			for i := 0; i < 5; i++ {
+				// Release one token
+				semaphore.Release()
+				// The waiting channel is unlocked
+				require.Nil(t, <-waitChan)
+			}
 
-		require.Equal(t, 10, semaphore.Count())
-	})
+			// Release another token
+			semaphore.Release()
+			require.Equal(t, 4, semaphore.Count())
 
-	t.Run("the semaphore is resized down when empty", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(10)
-		semaphore.Resize(5)
+			// Now TryAcquire can pull out a token
+			require.Nil(t, semaphore.TryAcquire())
+			require.Equal(t, 5, semaphore.Count())
+		})
 
-		waitBeforeRelease, waitRelease := acquireSemaphore(t, ctx, semaphore, 4)
-		require.Equal(t, 4, semaphore.Count())
+		t.Run("the semaphore is resized up when empty", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(5)
+			semaphore.Resize(10)
 
-		require.Nil(t, semaphore.Acquire(ctx))
-		require.Equal(t, 5, semaphore.Count())
+			waitBeforeRelease, waitRelease := acquireSemaphore(t, ctx, semaphore, 9)
+			require.Equal(t, 9, semaphore.Count())
 
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
-		require.Equal(t, 5, semaphore.Count())
+			require.Nil(t, semaphore.Acquire(ctx))
+			require.Equal(t, 10, semaphore.Count())
 
-		close(waitBeforeRelease)
-		waitRelease()
+			close(waitBeforeRelease)
+			waitRelease()
 
-		// Still 1 left
-		semaphore.Release()
+			// Still 1 left
+			semaphore.Release()
 
-		require.Equal(t, 0, semaphore.Count())
-	})
+			require.Equal(t, 0, semaphore.Count())
+		})
 
-	t.Run("the semaphore is resized down when not empty", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(20)
+		t.Run("the semaphore is resized up when not empty", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(7)
 
-		waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 5)
-		require.Equal(t, 5, semaphore.Count())
+			waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 5)
+			require.Equal(t, 5, semaphore.Count())
 
-		semaphore.Resize(15)
-		waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 5)
-		require.Equal(t, 10, semaphore.Count())
+			semaphore.Resize(15)
+			require.Equal(t, 5, semaphore.Count())
 
-		require.Nil(t, semaphore.Acquire(ctx))
-		require.Equal(t, 11, semaphore.Count())
+			waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 5)
+			require.Equal(t, 10, semaphore.Count())
 
-		close(waitBeforeRelease1)
-		close(waitBeforeRelease2)
-		waitRelease1()
-		waitRelease2()
+			require.Nil(t, semaphore.Acquire(ctx))
+			require.Equal(t, 11, semaphore.Count())
 
-		// Still 1 left
-		semaphore.Release()
+			close(waitBeforeRelease1)
+			close(waitBeforeRelease2)
+			waitRelease1()
+			waitRelease2()
 
-		require.Equal(t, 0, semaphore.Count())
-	})
+			// Still 1 left
+			semaphore.Release()
 
-	t.Run("the semaphore is resized down lower than the current length", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(10)
+			require.Equal(t, 0, semaphore.Count())
+		})
 
-		waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 5)
-		require.Equal(t, 5, semaphore.Count())
+		t.Run("the semaphore is resized up when full", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(5)
 
-		semaphore.Resize(3)
-		require.Equal(t, 5, semaphore.Count())
+			waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 5)
 
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			require.Equal(t, 5, semaphore.Count())
 
-		close(waitBeforeRelease1)
-		waitRelease1()
-		require.Equal(t, 0, semaphore.Count())
+			semaphore.Resize(10)
 
-		waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 3)
-		require.Equal(t, 3, semaphore.Count())
+			waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 5)
+			require.Equal(t, 10, semaphore.Count())
 
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
-		require.Equal(t, 3, semaphore.Count())
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			require.Equal(t, 10, semaphore.Count())
 
-		close(waitBeforeRelease2)
-		waitRelease2()
+			var count atomic.Int32
+			for i := 0; i < 10; i++ {
+				go func() {
+					require.Nil(t, semaphore.Acquire(ctx))
+					count.Add(1)
+				}()
+			}
 
-		require.Equal(t, 0, semaphore.Count())
-	})
+			semaphore.Resize(15)
+			// Poll until 5 acquires
+			for count.Load() != 5 {
+				time.Sleep(1 * time.Millisecond)
+			}
+			// Resize to 20 to fit the rest 5
+			semaphore.Resize(20)
+			// Wait for the rest to finish
+			for count.Load() != 10 {
+				time.Sleep(1 * time.Millisecond)
+			}
 
-	t.Run("the semaphore is resized down when full", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(10)
+			close(waitBeforeRelease1)
+			close(waitBeforeRelease2)
+			waitRelease1()
+			waitRelease2()
 
-		waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 10)
-		require.Equal(t, 10, semaphore.Count())
+			require.Equal(t, 10, semaphore.Count())
+		})
 
-		semaphore.Resize(5)
-		require.Equal(t, 10, semaphore.Count())
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+		t.Run("the semaphore is resized down when empty", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(10)
+			semaphore.Resize(5)
 
-		close(waitBeforeRelease1)
-		waitRelease1()
+			waitBeforeRelease, waitRelease := acquireSemaphore(t, ctx, semaphore, 4)
+			require.Equal(t, 4, semaphore.Count())
 
-		require.Equal(t, 0, semaphore.Count())
+			require.Nil(t, semaphore.Acquire(ctx))
+			require.Equal(t, 5, semaphore.Count())
 
-		waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 5)
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			require.Equal(t, 5, semaphore.Count())
 
-		require.Equal(t, 5, semaphore.Count())
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			close(waitBeforeRelease)
+			waitRelease()
 
-		close(waitBeforeRelease2)
-		waitRelease2()
+			// Still 1 left
+			semaphore.Release()
 
-		require.Equal(t, 0, semaphore.Count())
-	})
+			require.Equal(t, 0, semaphore.Count())
+		})
 
-	t.Run("the semaphore is resized up and down consecutively", func(t *testing.T) {
-		ctx := testhelper.Context(t)
-		semaphore := NewResizableSemaphore(10)
+		t.Run("the semaphore is resized down when not empty", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(20)
 
-		for i := 0; i < 5; i++ {
+			waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 5)
+			require.Equal(t, 5, semaphore.Count())
+
+			semaphore.Resize(15)
+			waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 5)
+			require.Equal(t, 10, semaphore.Count())
+
+			require.Nil(t, semaphore.Acquire(ctx))
+			require.Equal(t, 11, semaphore.Count())
+
+			close(waitBeforeRelease1)
+			close(waitBeforeRelease2)
+			waitRelease1()
+			waitRelease2()
+
+			// Still 1 left
+			semaphore.Release()
+
+			require.Equal(t, 0, semaphore.Count())
+		})
+
+		t.Run("the semaphore is resized down lower than the current length", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(10)
+
+			waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 5)
+			require.Equal(t, 5, semaphore.Count())
+
+			semaphore.Resize(3)
+			require.Equal(t, 5, semaphore.Count())
+
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+
+			close(waitBeforeRelease1)
+			waitRelease1()
+			require.Equal(t, 0, semaphore.Count())
+
+			waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 3)
+			require.Equal(t, 3, semaphore.Count())
+
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			require.Equal(t, 3, semaphore.Count())
+
+			close(waitBeforeRelease2)
+			waitRelease2()
+
+			require.Equal(t, 0, semaphore.Count())
+		})
+
+		t.Run("the semaphore is resized down when full", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(10)
+
+			waitBeforeRelease1, waitRelease1 := acquireSemaphore(t, ctx, semaphore, 10)
+			require.Equal(t, 10, semaphore.Count())
+
+			semaphore.Resize(5)
+			require.Equal(t, 10, semaphore.Count())
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+
+			close(waitBeforeRelease1)
+			waitRelease1()
+
+			require.Equal(t, 0, semaphore.Count())
+
+			waitBeforeRelease2, waitRelease2 := acquireSemaphore(t, ctx, semaphore, 5)
+
+			require.Equal(t, 5, semaphore.Count())
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+
+			close(waitBeforeRelease2)
+			waitRelease2()
+
+			require.Equal(t, 0, semaphore.Count())
+		})
+
+		t.Run("the semaphore is resized up and down consecutively", func(t *testing.T) {
+			semaphore := NewResizableSemaphore(10)
+
+			for i := 0; i < 5; i++ {
+				require.NoError(t, semaphore.Acquire(ctx))
+			}
+			require.Equal(t, 5, semaphore.Count())
+
+			semaphore.Resize(7)
+			require.Equal(t, 5, semaphore.Count())
+
 			require.NoError(t, semaphore.Acquire(ctx))
-		}
-		require.Equal(t, 5, semaphore.Count())
+			require.Equal(t, 6, semaphore.Count())
 
-		semaphore.Resize(7)
-		require.Equal(t, 5, semaphore.Count())
+			// Resize down to 3, current = 3, leftover = 3
+			semaphore.Resize(3)
+			require.Equal(t, 6, semaphore.Count())
 
-		require.NoError(t, semaphore.Acquire(ctx))
-		require.Equal(t, 6, semaphore.Count())
+			// Cannot acquire
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			semaphore.Release()
+			require.Equal(t, 5, semaphore.Count())
+			semaphore.Release()
+			require.Equal(t, 4, semaphore.Count())
 
-		// Resize down to 3, current = 3, leftover = 3
-		semaphore.Resize(3)
-		require.Equal(t, 6, semaphore.Count())
+			// Resize down again. Current = 2, leftover = 2
+			semaphore.Resize(2)
+			require.Equal(t, 4, semaphore.Count())
 
-		// Cannot acquire
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
-		semaphore.Release()
-		require.Equal(t, 5, semaphore.Count())
-		semaphore.Release()
-		require.Equal(t, 4, semaphore.Count())
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
+			semaphore.Release()
+			require.Equal(t, 3, semaphore.Count())
+			semaphore.Release()
+			require.Equal(t, 2, semaphore.Count())
 
-		// Resize down again. Current = 2, leftover = 2
-		semaphore.Resize(2)
-		require.Equal(t, 4, semaphore.Count())
+			// Leftover is used up, but still cannot acquire
+			require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
 
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
-		semaphore.Release()
-		require.Equal(t, 3, semaphore.Count())
-		semaphore.Release()
-		require.Equal(t, 2, semaphore.Count())
-
-		// Leftover is used up, but still cannot acquire
-		require.Equal(t, ErrMaxQueueSize, semaphore.TryAcquire())
-
-		// Acquireable now
-		semaphore.Release()
-		require.Equal(t, 1, semaphore.Count())
-		require.NoError(t, semaphore.Acquire(ctx))
-		require.Equal(t, 2, semaphore.Count())
+			// Acquireable now
+			semaphore.Release()
+			require.Equal(t, 1, semaphore.Count())
+			require.NoError(t, semaphore.Acquire(ctx))
+			require.Equal(t, 2, semaphore.Count())
+		})
 	})
 }
 
