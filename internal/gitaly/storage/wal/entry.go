@@ -66,6 +66,11 @@ func (e *Entry) RecordFileCreation(sourceAbsolutePath string, relativePath strin
 	return nil
 }
 
+// RecordFlush records flushing the modifications to relative path to the disk.
+func (e *Entry) RecordFlush(relativePath string) {
+	e.operations.flush(relativePath)
+}
+
 // RecordFileUpdate records a file being updated. It stages operations to remove the old file,
 // to place the new file in its place and to finally flush the modification.
 func (e *Entry) RecordFileUpdate(storageRoot, relativePath string) error {
@@ -75,7 +80,7 @@ func (e *Entry) RecordFileUpdate(storageRoot, relativePath string) error {
 		return fmt.Errorf("create file: %w", err)
 	}
 
-	e.operations.flush(filepath.Dir(relativePath))
+	e.RecordFlush(filepath.Dir(relativePath))
 
 	return nil
 }
@@ -94,7 +99,7 @@ func (e *Entry) RecordRepositoryCreation(storageRoot, relativePath string) error
 	}
 
 	// Flush the storage's root at the end to flush the directory hierarchy creation.
-	defer e.operations.flush(".")
+	defer e.RecordFlush(".")
 
 	var previousParentDir string
 	for _, dirComponent := range dirComponents {
@@ -103,7 +108,7 @@ func (e *Entry) RecordRepositoryCreation(storageRoot, relativePath string) error
 
 		// Flush directories in the parent directory hierarchy in reverse
 		// order after the repository itself has been created.
-		defer e.operations.flush(currentDir)
+		defer e.RecordFlush(currentDir)
 
 		previousParentDir = currentDir
 	}
@@ -125,7 +130,7 @@ func (e *Entry) RecordDirectoryCreation(storageRoot, directoryRelativePath strin
 		return err
 	}
 
-	e.operations.flush(filepath.Dir(directoryRelativePath))
+	e.RecordFlush(filepath.Dir(directoryRelativePath))
 
 	return nil
 }
@@ -153,7 +158,7 @@ func (e *Entry) recordDirectoryCreation(storageRoot, directoryRelativePath strin
 		},
 		func(relativePath string, dirEntry fs.DirEntry) error {
 			// Flush the directory once only after all of its children have been created.
-			e.operations.flush(relativePath)
+			e.RecordFlush(relativePath)
 			return nil
 		},
 	); err != nil {
