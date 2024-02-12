@@ -153,6 +153,8 @@ func ResolveLocator(layout string, sink Sink) (Locator, error) {
 			Sink:     sink,
 			Fallback: locator,
 		}
+	case "manifest":
+		locator = nil
 	default:
 		return nil, fmt.Errorf("unknown layout: %q", layout)
 	}
@@ -350,14 +352,20 @@ func (mgr *Manager) Restore(ctx context.Context, req *RestoreRequest) error {
 	var backup *Backup
 	if req.BackupID == "" {
 		backup, err = mgr.locator.FindLatest(ctx, req.VanityRepository)
+		switch {
+		case errors.Is(err, ErrDoesntExist):
+			return repositorySkipped(ctx, repo, req.AlwaysCreate, err)
+		case err != nil:
+			return fmt.Errorf("manager: %w", err)
+		}
 	} else {
 		backup, err = mgr.locator.Find(ctx, req.VanityRepository, req.BackupID)
-	}
-	switch {
-	case errors.Is(err, ErrDoesntExist):
-		return fmt.Errorf("manager: %w: %s", ErrSkipped, err.Error())
-	case err != nil:
-		return fmt.Errorf("manager: %w", err)
+		switch {
+		case errors.Is(err, ErrDoesntExist):
+			return fmt.Errorf("manager: %w: %w", ErrSkipped, err)
+		case err != nil:
+			return fmt.Errorf("manager: %w", err)
+		}
 	}
 
 	if len(backup.Steps) == 0 {
@@ -429,21 +437,7 @@ func (mgr *Manager) restoreFromBundle(ctx context.Context, repo Repository, back
 		refs, err := mgr.readRefs(ctx, step.RefPath)
 		switch {
 		case errors.Is(err, ErrDoesntExist):
-			// For compatibility with existing backups we need to make sure the
-			// repository exists even if there's no bundle for project
-			// repositories (not wiki or snippet repositories).  Gitaly does
-			// not know which repository is which type so here we accept a
-			// parameter to tell us to employ this behaviour. Since the
-			// repository has already been created, we simply skip cleaning up.
-			if alwaysCreate {
-				return nil
-			}
-
-			if err := repo.Remove(ctx); err != nil {
-				return fmt.Errorf("remove on skipped: %w", err)
-			}
-
-			return fmt.Errorf("%w: %s", ErrSkipped, err.Error())
+			return repositorySkipped(ctx, repo, alwaysCreate, err)
 		case err != nil:
 			return fmt.Errorf("read refs: %w", err)
 		}
@@ -458,6 +452,24 @@ func (mgr *Manager) restoreFromBundle(ctx context.Context, repo Repository, back
 	}
 
 	return nil
+}
+
+func repositorySkipped(ctx context.Context, repo Repository, alwaysCreate bool, cause error) error {
+	// For compatibility with existing backups we need to make sure the
+	// repository exists even if there's no bundle for project
+	// repositories (not wiki or snippet repositories).  Gitaly does
+	// not know which repository is which type so here we accept a
+	// parameter to tell us to employ this behaviour. Since the
+	// repository has already been created, we simply skip cleaning up.
+	if alwaysCreate {
+		return nil
+	}
+
+	if err := repo.Remove(ctx); err != nil {
+		return fmt.Errorf("manager: remove on skipped: %w", err)
+	}
+
+	return fmt.Errorf("%w: %w", ErrSkipped, cause)
 }
 
 // setContextServerInfo overwrites server with gitaly connection info from ctx metadata when server is zero.
