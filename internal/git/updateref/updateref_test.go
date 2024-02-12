@@ -254,8 +254,6 @@ func TestUpdater_fileDirectoryConflict(t *testing.T) {
 			} {
 				t.Run(method.desc, func(t *testing.T) {
 					t.Run("different transaction", func(t *testing.T) {
-						testhelper.SkipWithReftable(t, "errors thrown by reftable backend do not match regexs defined in updateref.go")
-
 						cfg, _, repoPath, updater := setupUpdater(t, ctx)
 
 						expectedErr := FileDirectoryConflictError{

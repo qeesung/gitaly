@@ -26,7 +26,7 @@ var (
 			RefInvalidFormatRegex:        regexp.MustCompile(`^fatal: invalid ref format: (.*)\n$`),
 			RefLockedRegex:               regexp.MustCompile(`^fatal: (prepare|commit): cannot lock references\n`),
 			ReferenceAlreadyExistsRegex:  regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': reference already exists\n$`),
-			ReferenceExistsConflictRegex: regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': '(.*)' exists; cannot create '.*'\n$`),
+			ReferenceExistsConflictRegex: regexp.MustCompile(`^fatal: .*: '(.*)' exists; cannot create '(.*)'\n$`),
 			PackedRefsLockedRegex:        regexp.MustCompile(`(packed-refs\.lock': File exists\.\n)|(packed-refs\.new: File exists\n$)`),
 		},
 	}
@@ -44,7 +44,7 @@ var (
 			RefInvalidFormatRegex:        regexp.MustCompile(`^fatal: invalid ref format: (.*)\n$`),
 			RefLockedRegex:               regexp.MustCompile(`^fatal: (prepare|commit): cannot lock ref '(.+?)': Unable to create '.*': File exists.`),
 			ReferenceAlreadyExistsRegex:  regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': reference already exists\n$`),
-			ReferenceExistsConflictRegex: regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': '(.*)' exists; cannot create '.*'\n$`),
+			ReferenceExistsConflictRegex: regexp.MustCompile(`^fatal: .*: cannot lock ref '.*': '(.*)' exists; cannot create '(.*)'\n$`),
 			PackedRefsLockedRegex:        regexp.MustCompile(`(packed-refs\.lock': File exists\.\n)|(packed-refs\.new: File exists\n$)`),
 		},
 	}

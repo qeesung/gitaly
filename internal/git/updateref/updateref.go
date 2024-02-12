@@ -532,8 +532,8 @@ func (u *Updater) parseStderr() error {
 	matches = u.referenceBackend.ReferenceExistsConflictRegex.FindSubmatch(stderr)
 	if len(matches) > 1 {
 		return FileDirectoryConflictError{
-			ExistingReferenceName:    string(matches[2]),
-			ConflictingReferenceName: string(matches[1]),
+			ExistingReferenceName:    string(matches[1]),
+			ConflictingReferenceName: string(matches[2]),
 		}
 	}
 
