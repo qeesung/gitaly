@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"regexp"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/text"
@@ -16,17 +17,55 @@ var (
 	// See https://www.git-scm.com/docs/reftable for more details.
 	ReferenceBackendReftables = ReferenceBackend{
 		Name: "reftable",
+		updateRefErrorRegexs: updateRefErrorRegexs{
+			InTransactionConflictRegex:   regexp.MustCompile(`^fatal: .*: cannot lock ref '.*': cannot process '(.*)' and '(.*)' at the same time\n$`),
+			MismatchingStateRegex:        regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': is at (.*) but expected (.*)\n$`),
+			MultipleUpdatesRegex:         regexp.MustCompile(`^fatal: .*: multiple updates for ref '(.*)' not allowed\n$`),
+			NonCommitObjectRegex:         regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write non-commit object (.*) to branch '(.*)'\n`),
+			NonExistentObjectRegex:       regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write ref '(.*)' with nonexistent object (.*)\n$`),
+			RefInvalidFormatRegex:        regexp.MustCompile(`^fatal: invalid ref format: (.*)\n$`),
+			RefLockedRegex:               regexp.MustCompile(`^fatal: (prepare|commit): cannot lock ref '(.+?)': Unable to create '.*': File exists.`),
+			ReferenceAlreadyExistsRegex:  regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': reference already exists\n$`),
+			ReferenceExistsConflictRegex: regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': '(.*)' exists; cannot create '.*'\n$`),
+			PackedRefsLockedRegex:        regexp.MustCompile(`(packed-refs\.lock': File exists\.\n)|(packed-refs\.new: File exists\n$)`),
+		},
 	}
 
 	// ReferenceBackendFiles denotes the traditional filesystem based
 	// reference backend.
 	ReferenceBackendFiles = ReferenceBackend{
 		Name: "files",
+		updateRefErrorRegexs: updateRefErrorRegexs{
+			InTransactionConflictRegex:   regexp.MustCompile(`^fatal: .*: cannot lock ref '.*': cannot process '(.*)' and '(.*)' at the same time\n$`),
+			MismatchingStateRegex:        regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': is at (.*) but expected (.*)\n$`),
+			MultipleUpdatesRegex:         regexp.MustCompile(`^fatal: .*: multiple updates for ref '(.*)' not allowed\n$`),
+			NonCommitObjectRegex:         regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write non-commit object (.*) to branch '(.*)'\n`),
+			NonExistentObjectRegex:       regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write ref '(.*)' with nonexistent object (.*)\n$`),
+			RefInvalidFormatRegex:        regexp.MustCompile(`^fatal: invalid ref format: (.*)\n$`),
+			RefLockedRegex:               regexp.MustCompile(`^fatal: (prepare|commit): cannot lock ref '(.+?)': Unable to create '.*': File exists.`),
+			ReferenceAlreadyExistsRegex:  regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': reference already exists\n$`),
+			ReferenceExistsConflictRegex: regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': '(.*)' exists; cannot create '.*'\n$`),
+			PackedRefsLockedRegex:        regexp.MustCompile(`(packed-refs\.lock': File exists\.\n)|(packed-refs\.new: File exists\n$)`),
+		},
 	}
 )
 
+type updateRefErrorRegexs struct {
+	InTransactionConflictRegex   *regexp.Regexp
+	MismatchingStateRegex        *regexp.Regexp
+	MultipleUpdatesRegex         *regexp.Regexp
+	NonCommitObjectRegex         *regexp.Regexp
+	NonExistentObjectRegex       *regexp.Regexp
+	RefInvalidFormatRegex        *regexp.Regexp
+	RefLockedRegex               *regexp.Regexp
+	ReferenceAlreadyExistsRegex  *regexp.Regexp
+	ReferenceExistsConflictRegex *regexp.Regexp
+	PackedRefsLockedRegex        *regexp.Regexp
+}
+
 // ReferenceBackend is the specific backend implementation of references.
 type ReferenceBackend struct {
+	updateRefErrorRegexs
 	// Name is the name of the reference backend.
 	Name string
 }

@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -251,12 +250,13 @@ func (err invalidStateTransitionError) Error() string {
 //  7. Close can be called at any time. The active transaction is aborted.
 //  8. Any sort of error causes the updater to close.
 type Updater struct {
-	repo       git.RepositoryExecutor
-	cmd        *command.Command
-	closeErr   error
-	stdout     *bufio.Reader
-	stderr     *bytes.Buffer
-	objectHash git.ObjectHash
+	repo             git.RepositoryExecutor
+	cmd              *command.Command
+	closeErr         error
+	stdout           *bufio.Reader
+	stderr           *bytes.Buffer
+	objectHash       git.ObjectHash
+	referenceBackend git.ReferenceBackend
 
 	// state tracks the current state of the updater to ensure correct calling semantics.
 	state state
@@ -328,13 +328,19 @@ func New(ctx context.Context, repo git.RepositoryExecutor, opts ...UpdaterOpt) (
 		return nil, fmt.Errorf("detecting object hash: %w", err)
 	}
 
+	referenceBackend, err := repo.ReferenceBackend(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("detecting reference backend: %w", err)
+	}
+
 	return &Updater{
-		repo:       repo,
-		cmd:        cmd,
-		stderr:     &stderr,
-		stdout:     bufio.NewReader(cmd),
-		objectHash: objectHash,
-		state:      stateIdle,
+		repo:             repo,
+		cmd:              cmd,
+		stderr:           &stderr,
+		stdout:           bufio.NewReader(cmd),
+		objectHash:       objectHash,
+		referenceBackend: referenceBackend,
+		state:            stateIdle,
 	}, nil
 }
 
@@ -479,19 +485,6 @@ func (u *Updater) write(format string, args ...interface{}) error {
 	return nil
 }
 
-var (
-	packedRefsLockedRegex        = regexp.MustCompile(`(packed-refs\.lock': File exists\.\n)|(packed-refs\.new: File exists\n$)`)
-	refLockedRegex               = regexp.MustCompile(`^fatal: (prepare|commit): cannot lock ref '(.+?)': Unable to create '.*': File exists.`)
-	refInvalidFormatRegex        = regexp.MustCompile(`^fatal: invalid ref format: (.*)\n$`)
-	referenceAlreadyExistsRegex  = regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': reference already exists\n$`)
-	referenceExistsConflictRegex = regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': '(.*)' exists; cannot create '.*'\n$`)
-	inTransactionConflictRegex   = regexp.MustCompile(`^fatal: .*: cannot lock ref '.*': cannot process '(.*)' and '(.*)' at the same time\n$`)
-	nonExistentObjectRegex       = regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write ref '(.*)' with nonexistent object (.*)\n$`)
-	nonCommitObjectRegex         = regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write non-commit object (.*) to branch '(.*)'\n`)
-	mismatchingStateRegex        = regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': is at (.*) but expected (.*)\n$`)
-	multipleUpdatesRegex         = regexp.MustCompile(`^fatal: .*: multiple updates for ref '(.*)' not allowed\n$`)
-)
-
 func (u *Updater) setState(state string) error {
 	if err := u.write("%s\x00", state); err != nil {
 		return err
@@ -517,22 +510,22 @@ func (u *Updater) setState(state string) error {
 func (u *Updater) parseStderr() error {
 	stderr := u.stderr.Bytes()
 
-	matches := refLockedRegex.FindSubmatch(stderr)
+	matches := u.referenceBackend.RefLockedRegex.FindSubmatch(stderr)
 	if len(matches) > 2 {
 		return AlreadyLockedError{ReferenceName: string(matches[2])}
 	}
 
-	matches = packedRefsLockedRegex.FindSubmatch(stderr)
+	matches = u.referenceBackend.PackedRefsLockedRegex.FindSubmatch(stderr)
 	if len(matches) > 1 {
 		return ErrPackedRefsLocked
 	}
 
-	matches = refInvalidFormatRegex.FindSubmatch(stderr)
+	matches = u.referenceBackend.RefInvalidFormatRegex.FindSubmatch(stderr)
 	if len(matches) > 1 {
 		return InvalidReferenceFormatError{ReferenceName: string(matches[1])}
 	}
 
-	matches = referenceExistsConflictRegex.FindSubmatch(stderr)
+	matches = u.referenceBackend.ReferenceExistsConflictRegex.FindSubmatch(stderr)
 	if len(matches) > 1 {
 		return FileDirectoryConflictError{
 			ExistingReferenceName:    string(matches[2]),
@@ -540,7 +533,7 @@ func (u *Updater) parseStderr() error {
 		}
 	}
 
-	matches = inTransactionConflictRegex.FindSubmatch(stderr)
+	matches = u.referenceBackend.InTransactionConflictRegex.FindSubmatch(stderr)
 	if len(matches) > 1 {
 		return InTransactionConflictError{
 			FirstReferenceName:  string(matches[1]),
@@ -548,7 +541,7 @@ func (u *Updater) parseStderr() error {
 		}
 	}
 
-	matches = nonExistentObjectRegex.FindSubmatch(stderr)
+	matches = u.referenceBackend.NonExistentObjectRegex.FindSubmatch(stderr)
 	if len(matches) > 1 {
 		return NonExistentObjectError{
 			ReferenceName: string(matches[1]),
@@ -556,7 +549,7 @@ func (u *Updater) parseStderr() error {
 		}
 	}
 
-	matches = nonCommitObjectRegex.FindSubmatch(stderr)
+	matches = u.referenceBackend.NonCommitObjectRegex.FindSubmatch(stderr)
 	if len(matches) > 1 {
 		return NonCommitObjectError{
 			ReferenceName: string(matches[2]),
@@ -564,7 +557,7 @@ func (u *Updater) parseStderr() error {
 		}
 	}
 
-	matches = mismatchingStateRegex.FindSubmatch(stderr)
+	matches = u.referenceBackend.MismatchingStateRegex.FindSubmatch(stderr)
 	if len(matches) > 2 {
 		return MismatchingStateError{
 			ReferenceName:    string(matches[1]),
@@ -573,14 +566,14 @@ func (u *Updater) parseStderr() error {
 		}
 	}
 
-	matches = referenceAlreadyExistsRegex.FindSubmatch(stderr)
+	matches = u.referenceBackend.ReferenceAlreadyExistsRegex.FindSubmatch(stderr)
 	if len(matches) > 1 {
 		return ReferenceAlreadyExistsError{
 			ReferenceName: string(matches[1]),
 		}
 	}
 
-	matches = multipleUpdatesRegex.FindSubmatch(stderr)
+	matches = u.referenceBackend.MultipleUpdatesRegex.FindSubmatch(stderr)
 	if len(matches) > 1 {
 		return MultipleUpdatesError{
 			ReferenceName: string(matches[1]),
