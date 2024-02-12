@@ -183,8 +183,6 @@ func TestDeleteRefs_invalidRefFormat(t *testing.T) {
 }
 
 func TestDeleteRefs_refLocked(t *testing.T) {
-	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match the error thrown when using reftables")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -215,12 +213,19 @@ func TestDeleteRefs_refLocked(t *testing.T) {
 
 	response, err := client.DeleteRefs(ctx, request)
 
+	expectedRefs := []byte("refs/heads/master")
+	// For reftable there is only table level locking and hence no
+	// reference value is provided.
+	if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+		expectedRefs = nil
+	}
+
 	require.Nil(t, response)
 	detailedErr := structerr.NewAborted("cannot lock references").WithDetail(
 		&gitalypb.DeleteRefsError{
 			Error: &gitalypb.DeleteRefsError_ReferencesLocked{
 				ReferencesLocked: &gitalypb.ReferencesLockedError{
-					Refs: [][]byte{[]byte("refs/heads/master")},
+					Refs: [][]byte{expectedRefs},
 				},
 			},
 		},

@@ -24,7 +24,7 @@ var (
 			NonCommitObjectRegex:         regexp.MustCompile(`^fatal: .*: trying to write non-commit object (.*) to branch '(.*)'\n`),
 			NonExistentObjectRegex:       regexp.MustCompile(`^fatal: .*: trying to write ref '(.*)' with nonexistent object (.*)\n$`),
 			RefInvalidFormatRegex:        regexp.MustCompile(`^fatal: invalid ref format: (.*)\n$`),
-			RefLockedRegex:               regexp.MustCompile(`^fatal: (prepare|commit): cannot lock ref '(.+?)': Unable to create '.*': File exists.`),
+			RefLockedRegex:               regexp.MustCompile(`^fatal: (prepare|commit): cannot lock references\n`),
 			ReferenceAlreadyExistsRegex:  regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': reference already exists\n$`),
 			ReferenceExistsConflictRegex: regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': '(.*)' exists; cannot create '.*'\n$`),
 			PackedRefsLockedRegex:        regexp.MustCompile(`(packed-refs\.lock': File exists\.\n)|(packed-refs\.new: File exists\n$)`),

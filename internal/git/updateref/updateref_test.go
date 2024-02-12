@@ -511,8 +511,6 @@ func TestUpdater_invalidReferenceName(t *testing.T) {
 }
 
 func TestUpdater_concurrentLocking(t *testing.T) {
-	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -559,11 +557,17 @@ func TestUpdater_concurrentLocking(t *testing.T) {
 			require.NoError(t, secondUpdater.Start())
 			require.NoError(t, secondUpdater.Update(ref, commitID, ""))
 
-			// Try locking the reference via the second updater. This should fail now because the reference
-			// is locked already.
-			require.Equal(t, AlreadyLockedError{
-				ReferenceName: string(ref),
-			}, tc.lock(secondUpdater))
+			if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+				// Reftable locks are on an entire table instead of per reference, so
+				// git doesn't output the name of the individual ref.
+				require.Equal(t, AlreadyLockedError{}, tc.lock(secondUpdater))
+			} else {
+				// Try locking the reference via the second updater. This should fail now because the reference
+				// is locked already.
+				require.Equal(t, AlreadyLockedError{
+					ReferenceName: string(ref),
+				}, tc.lock(secondUpdater))
+			}
 
 			// Whereas committing the first transaction should succeed.
 			require.NoError(t, firstUpdater.Commit())
@@ -632,8 +636,6 @@ func TestUpdater_contextCancellation(t *testing.T) {
 }
 
 func TestUpdater_cancel(t *testing.T) {
-	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -656,6 +658,13 @@ func TestUpdater_cancel(t *testing.T) {
 	expectedErr := AlreadyLockedError{
 		ReferenceName: "refs/heads/main",
 	}
+
+	// Reftable locks are on an entire table instead of per reference, so
+	// git doesn't output the name of the individual ref.
+	if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+		expectedErr.ReferenceName = ""
+	}
+
 	defer func() { require.Equal(t, expectedErr, failingUpdater.Close()) }()
 
 	require.NoError(t, failingUpdater.Start())

@@ -511,7 +511,11 @@ func (u *Updater) parseStderr() error {
 	stderr := u.stderr.Bytes()
 
 	matches := u.referenceBackend.RefLockedRegex.FindSubmatch(stderr)
-	if len(matches) > 2 {
+	// Reftable locks are on an entire table instead of per reference, so
+	// git doesn't output the name of the individual ref.
+	if u.referenceBackend == git.ReferenceBackendReftables && len(matches) == 2 {
+		return AlreadyLockedError{}
+	} else if len(matches) > 2 {
 		return AlreadyLockedError{ReferenceName: string(matches[2])}
 	}
 
