@@ -1683,7 +1683,7 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			return ErrRepositoryNotFound
 		}
 
-		if logEntry.AlternateUpdate, err = mgr.verifyAlternateUpdate(transaction); err != nil {
+		if err := mgr.verifyAlternateUpdate(transaction); err != nil {
 			return fmt.Errorf("verify alternate update: %w", err)
 		}
 
@@ -1946,43 +1946,43 @@ func packFilePath(walFiles string) string {
 }
 
 // verifyAlternateUpdate verifies the staged alternate update.
-func (mgr *TransactionManager) verifyAlternateUpdate(transaction *Transaction) (*gitalypb.LogEntry_AlternateUpdate, error) {
+func (mgr *TransactionManager) verifyAlternateUpdate(transaction *Transaction) error {
 	if !transaction.alternateUpdated {
-		return nil, nil
+		return nil
 	}
 
 	repositoryPath := mgr.getAbsolutePath(transaction.relativePath)
 	existingAlternate, err := readAlternatesFile(repositoryPath)
 	if err != nil && !errors.Is(err, errNoAlternate) {
-		return nil, fmt.Errorf("read existing alternates file: %w", err)
+		return fmt.Errorf("read existing alternates file: %w", err)
 	}
 
 	snapshotRepoPath, err := transaction.snapshotRepository.Path()
 	if err != nil {
-		return nil, fmt.Errorf("snapshot repo path: %w", err)
+		return fmt.Errorf("snapshot repo path: %w", err)
 	}
 
 	stagedAlternate, err := readAlternatesFile(snapshotRepoPath)
 	if err != nil && !errors.Is(err, errNoAlternate) {
-		return nil, fmt.Errorf("read staged alternates file: %w", err)
+		return fmt.Errorf("read staged alternates file: %w", err)
 	}
 
 	if stagedAlternate == "" {
 		if existingAlternate == "" {
 			// Transaction attempted to remove an alternate from the repository
 			// even if it didn't have one.
-			return nil, errNoAlternate
+			return errNoAlternate
 		}
 
 		if err := transaction.walEntry.RecordAlternateUnlink(mgr.storagePath, transaction.relativePath, existingAlternate); err != nil {
-			return nil, fmt.Errorf("record alternate unlink: %w", err)
+			return fmt.Errorf("record alternate unlink: %w", err)
 		}
 
-		return &gitalypb.LogEntry_AlternateUpdate{}, nil
+		return nil
 	}
 
 	if existingAlternate != "" {
-		return nil, errAlternateAlreadyLinked
+		return errAlternateAlreadyLinked
 	}
 
 	alternateObjectsDir, err := storage.ValidateRelativePath(
@@ -1990,33 +1990,31 @@ func (mgr *TransactionManager) verifyAlternateUpdate(transaction *Transaction) (
 		filepath.Join(transaction.relativePath, "objects", stagedAlternate),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("validate relative path: %w", err)
+		return fmt.Errorf("validate relative path: %w", err)
 	}
 
 	alternateRelativePath := filepath.Dir(alternateObjectsDir)
 	if alternateRelativePath == transaction.relativePath {
-		return nil, errAlternatePointsToSelf
+		return errAlternatePointsToSelf
 	}
 
 	// Check that the alternate repository exists. This works as a basic conflict check
 	// to prevent linking a repository that was deleted concurrently.
 	alternateRepositoryPath := mgr.getAbsolutePath(alternateRelativePath)
 	if err := storage.ValidateGitDirectory(alternateRepositoryPath); err != nil {
-		return nil, fmt.Errorf("validate git directory: %w", err)
+		return fmt.Errorf("validate git directory: %w", err)
 	}
 
 	if _, err := readAlternatesFile(alternateRepositoryPath); !errors.Is(err, errNoAlternate) {
 		if err == nil {
 			// We don't support chaining alternates like repo-1 > repo-2 > repo-3.
-			return nil, errAlternateHasAlternate
+			return errAlternateHasAlternate
 		}
 
-		return nil, fmt.Errorf("read alternates file: %w", err)
+		return fmt.Errorf("read alternates file: %w", err)
 	}
 
-	return &gitalypb.LogEntry_AlternateUpdate{
-		Path: stagedAlternate,
-	}, nil
+	return nil
 }
 
 // verifyReferences verifies that the references in the transaction apply on top of the already accepted
