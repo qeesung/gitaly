@@ -166,3 +166,8 @@ func (e RepositoryPathExecutor) GitVersion(ctx context.Context) (git.Version, er
 func (e RepositoryPathExecutor) ObjectHash(ctx context.Context) (git.ObjectHash, error) {
 	return git.DetectObjectHash(ctx, e.factory, e.Repository)
 }
+
+// ReferenceBackend detects the reference backend used by this repository.
+func (e RepositoryPathExecutor) ReferenceBackend(ctx context.Context) (git.ReferenceBackend, error) {
+	return git.DetectReferenceBackend(ctx, e.factory, e.Repository)
+}

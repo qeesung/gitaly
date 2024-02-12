@@ -62,4 +62,5 @@ type RepositoryExecutor interface {
 	ExecAndWait(ctx context.Context, cmd Command, opts ...CmdOpt) error
 	GitVersion(ctx context.Context) (Version, error)
 	ObjectHash(ctx context.Context) (ObjectHash, error)
+	ReferenceBackend(ctx context.Context) (ReferenceBackend, error)
 }
