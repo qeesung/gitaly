@@ -27,7 +27,9 @@ var (
 			RefLockedRegex:               regexp.MustCompile(`^fatal: (prepare|commit): cannot lock references\n`),
 			ReferenceAlreadyExistsRegex:  regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': reference already exists\n$`),
 			ReferenceExistsConflictRegex: regexp.MustCompile(`^fatal: .*: '(.*)' exists; cannot create '(.*)'\n$`),
-			PackedRefsLockedRegex:        regexp.MustCompile(`(packed-refs\.lock': File exists\.\n)|(packed-refs\.new: File exists\n$)`),
+			// Reftable uses the same error as RefLockedRegex when there is an
+			// existing tables.list.lock present in the repo.
+			PackedRefsLockedRegex: regexp.MustCompile(""),
 		},
 	}
 

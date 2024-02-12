@@ -733,9 +733,7 @@ func TestUpdater_capturesStderr(t *testing.T) {
 	require.Equal(t, expectedErr, updater.Commit())
 }
 
-func TestUpdater_packedRefsLocked(t *testing.T) {
-	testhelper.SkipWithReftable(t, "packed-refs aren't part of the reftable backend")
-
+func TestUpdater_packRefsLocked(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -748,7 +746,16 @@ func TestUpdater_packedRefsLocked(t *testing.T) {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
-			for _, lockFile := range []string{"packed-refs.lock", "packed-refs.new"} {
+
+			files := []string{"packed-refs.lock", "packed-refs.new"}
+			expectedErr := ErrPackedRefsLocked
+
+			if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+				files = []string{"reftable/tables.list.lock"}
+				expectedErr = AlreadyLockedError{}
+			}
+
+			for _, lockFile := range files {
 				lockFile := lockFile
 				t.Run(lockFile, func(t *testing.T) {
 					t.Parallel()
@@ -756,17 +763,20 @@ func TestUpdater_packedRefsLocked(t *testing.T) {
 					ctx := testhelper.Context(t)
 
 					cfg, _, repoPath, updater := setupUpdater(t, ctx)
-					defer func() { require.Equal(t, ErrPackedRefsLocked, updater.Close()) }()
+					defer func() { require.Equal(t, expectedErr, updater.Close()) }()
 
-					// Write a reference an pack it.
+					// Write a reference and pack it. Packing for the reftable backend
+					// means table compaction (which would also run automatically based
+					// on heuristics).
 					gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 					gittest.Exec(t, cfg, "-C", repoPath, "pack-refs", "--all")
+
 					// Write a lock file file so we can assert a lock related error is raised.
 					require.NoError(t, os.WriteFile(filepath.Join(repoPath, lockFile), nil, fs.ModePerm))
 
 					require.NoError(t, updater.Start())
 					require.NoError(t, updater.Delete("refs/heads/main"))
-					require.Equal(t, ErrPackedRefsLocked, updater.Commit())
+					require.Equal(t, expectedErr, updater.Commit())
 				})
 			}
 		})
