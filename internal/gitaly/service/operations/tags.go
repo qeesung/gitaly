@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -69,18 +70,62 @@ func (s *Server) UserDeleteTag(ctx context.Context, req *gitalypb.UserDeleteTagR
 	}
 
 	if err := s.updateReferenceWithHooks(ctx, req.Repository, req.User, nil, referenceName, objectHash.ZeroOID, revision); err != nil {
+		if featureflag.ReturnStructuredErrorsInUserDeleteTag.IsEnabled(ctx) {
+			var notAllowedError hook.NotAllowedError
+			var customHookErr updateref.CustomHookError
+			var updateRefError updateref.Error
+
+			if errors.As(err, &notAllowedError) {
+				return nil, structerr.NewPermissionDenied("deletion denied by access checks: %w", err).WithDetail(
+					&gitalypb.UserDeleteTagError{
+						Error: &gitalypb.UserDeleteTagError_AccessCheck{
+							AccessCheck: &gitalypb.AccessCheckError{
+								ErrorMessage: notAllowedError.Message,
+								UserId:       notAllowedError.UserID,
+								Protocol:     notAllowedError.Protocol,
+								Changes:      notAllowedError.Changes,
+							},
+						},
+					},
+				)
+			} else if errors.As(err, &customHookErr) {
+				return nil, structerr.NewPermissionDenied("deletion denied by custom hooks: %w", err).WithDetail(
+					&gitalypb.UserDeleteTagError{
+						Error: &gitalypb.UserDeleteTagError_CustomHook{
+							CustomHook: customHookErr.Proto(),
+						},
+					},
+				)
+			} else if errors.As(err, &updateRefError) {
+				return nil, structerr.NewFailedPrecondition("reference update failed: %w", updateRefError).WithDetail(
+					&gitalypb.UserDeleteTagError{
+						Error: &gitalypb.UserDeleteTagError_ReferenceUpdate{
+							ReferenceUpdate: &gitalypb.ReferenceUpdateError{
+								ReferenceName: []byte(updateRefError.Reference.String()),
+								OldOid:        updateRefError.OldOID.String(),
+								NewOid:        updateRefError.NewOID.String(),
+							},
+						},
+					},
+				)
+			}
+		}
+
 		var customHookErr updateref.CustomHookError
 		if errors.As(err, &customHookErr) {
-			return &gitalypb.UserDeleteTagResponse{
-				PreReceiveError: customHookErr.Error(),
-			}, nil
+			return nil, structerr.NewPermissionDenied("deletion denied by custom hooks: %w", err).WithDetail(
+				&gitalypb.UserDeleteTagError{
+					Error: &gitalypb.UserDeleteTagError_CustomHook{
+						CustomHook: customHookErr.Proto(),
+					},
+				},
+			)
 		}
 
 		var updateRefError updateref.Error
 		if errors.As(err, &updateRefError) {
 			return nil, structerr.NewFailedPrecondition("%w", err)
 		}
-
 		return nil, structerr.NewInternal("%w", err)
 	}
 

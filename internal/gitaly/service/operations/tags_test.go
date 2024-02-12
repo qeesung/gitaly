@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -21,14 +23,21 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/txinfo"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb/testproto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestUserDeleteTag(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.ReturnStructuredErrorsInUserDeleteTag).Run(t, testUserDeleteTag)
+}
 
-	ctx := testhelper.Context(t)
+func testUserDeleteTag(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	// ctx := testhelper.Context(t)
 	ctx, cfg, client := setupOperationsService(t, ctx)
 
 	type setupData struct {
@@ -257,6 +266,8 @@ func TestUserDeleteTag(t *testing.T) {
 				firstCommit := gittest.WriteCommit(t, cfg, repoPath)
 				secondCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(firstCommit), gittest.WithReference("refs/tags/"+tagName))
 
+				gittest.Exec(t, cfg, "-C", repoPath, "branch", tagName, "ganymede")
+
 				return setupData{
 					repoPath: repoPath,
 					request: &gitalypb.UserDeleteTagRequest{
@@ -265,12 +276,28 @@ func TestUserDeleteTag(t *testing.T) {
 						User:           gittest.TestUser,
 						ExpectedOldOid: firstCommit.String(),
 					},
-					expectedError: testhelper.WithInterceptedMetadataItems(
-						structerr.NewFailedPrecondition("reference update: reference does not point to expected object"),
-						structerr.MetadataItem{Key: "actual_object_id", Value: secondCommit},
-						structerr.MetadataItem{Key: "expected_object_id", Value: firstCommit},
-						structerr.MetadataItem{Key: "reference", Value: "refs/tags/" + tagName},
-					),
+					expectedError: structerr.NewFailedPrecondition("reference update failed: reference update: reference does not point to expected object").
+						WithDetail(&testproto.ErrorMetadata{
+							Key:   []byte("actual_object_id"),
+							Value: []byte(secondCommit),
+						}).
+						WithDetail(&testproto.ErrorMetadata{
+							Key:   []byte("expected_object_id"),
+							Value: []byte(firstCommit),
+						}).
+						WithDetail(&testproto.ErrorMetadata{
+							Key:   []byte("reference"),
+							Value: []byte("refs/tags/" + tagName),
+						}).
+						WithDetail(&gitalypb.UserDeleteTagError{
+							Error: &gitalypb.UserDeleteTagError_ReferenceUpdate{
+								ReferenceUpdate: &gitalypb.ReferenceUpdateError{
+									ReferenceName: []byte("refs/tags/" + tagName),
+									OldOid:        firstCommit.String(),
+									NewOid:        gittest.DefaultObjectHash.ZeroOID.String(),
+								},
+							},
+						}),
 					expectedTags: []string{"ganymede"},
 				}
 			},
@@ -284,7 +311,9 @@ func TestUserDeleteTag(t *testing.T) {
 
 			setup := tc.setup(t)
 			response, err := client.UserDeleteTag(ctx, setup.request)
-			testhelper.RequireGrpcError(t, setup.expectedError, err)
+			if featureflag.ReturnStructuredErrorsInUserDeleteTag.IsEnabled(ctx) {
+				testhelper.RequireGrpcError(t, setup.expectedError, err)
+			}
 			testhelper.ProtoEqual(t, setup.expectedResponse, response)
 
 			tags := text.ChompBytes(gittest.Exec(t, cfg, "-C", setup.repoPath, "tag"))
@@ -1153,8 +1182,13 @@ func TestUserCreateTag_gitHooks(t *testing.T) {
 
 func TestUserDeleteTag_hookFailure(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.ReturnStructuredErrorsInUserDeleteTag).Run(t, testUserDeleteTaghookFailure)
+}
 
-	ctx := testhelper.Context(t)
+func testUserDeleteTaghookFailure(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	// ctx := testhelper.Context(t)
 	ctx, cfg, client := setupOperationsService(t, ctx)
 
 	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
@@ -1163,17 +1197,41 @@ func TestUserDeleteTag_hookFailure(t *testing.T) {
 
 	hookContent := []byte("#!/bin/sh\necho GL_ID=$GL_ID\nexit 1")
 
-	for _, hookName := range gitlabPreHooks {
-		t.Run(hookName, func(t *testing.T) {
-			gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
+	for _, testCase := range []struct {
+		hookName string
+		hookType gitalypb.CustomHookError_HookType
+	}{
+		{
+			hookName: "pre-receive",
+			hookType: gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
+		},
+		{
+			hookName: "update",
+			hookType: gitalypb.CustomHookError_HOOK_TYPE_UPDATE,
+		},
+	} {
+		t.Run(testCase.hookName, func(t *testing.T) {
+			gittest.WriteCustomHook(t, repoPath, testCase.hookName, hookContent)
 
 			response, err := client.UserDeleteTag(ctx, &gitalypb.UserDeleteTagRequest{
 				Repository: repo,
 				TagName:    []byte("to-be-deleted"),
 				User:       gittest.TestUser,
 			})
-			require.NoError(t, err)
-			require.Contains(t, response.PreReceiveError, "GL_ID="+gittest.TestUser.GlId)
+			if featureflag.ReturnStructuredErrorsInUserDeleteTag.IsEnabled(ctx) {
+				testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("deletion denied by custom hooks: running %s hooks: %s\n", testCase.hookName, "GL_ID=user-123").WithDetail(
+					&gitalypb.UserDeleteTagError{
+						Error: &gitalypb.UserDeleteTagError_CustomHook{
+							CustomHook: &gitalypb.CustomHookError{
+								HookType: testCase.hookType,
+								Stdout:   []byte("GL_ID=user-123\n"),
+							},
+						},
+					},
+				), err)
+			}
+
+			require.Nil(t, response)
 
 			tags := gittest.Exec(t, cfg, "-C", repoPath, "tag")
 			require.Contains(t, string(tags), "to-be-deleted", "tag name does not exist in tags list")
@@ -1416,8 +1474,13 @@ func TestUserCreateTag_invalidArgument(t *testing.T) {
 
 func TestTagHookOutput(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.ReturnStructuredErrorsInUserDeleteTag).Run(t, testTagHookOutput)
+}
 
-	ctx := testhelper.Context(t)
+func testTagHookOutput(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	// ctx := testhelper.Context(t)
 	ctx, cfg, client := setupOperationsService(t, ctx)
 
 	for _, tc := range []struct {
@@ -1430,40 +1493,40 @@ func TestTagHookOutput(t *testing.T) {
 		{
 			desc:                "empty stdout and empty stderr",
 			hookContent:         "#!/bin/sh\nexit 1",
-			expectedErrorRegexp: `^executing custom hooks: error executing .+: exit status 1$`,
+			expectedErrorRegexp: `executing custom hooks: error executing .+: exit status 1`,
 		},
 		{
 			desc:                "empty stdout and some stderr",
 			hookContent:         "#!/bin/sh\necho stderr >&2\nexit 1",
 			expectedStderr:      "stderr\n",
-			expectedErrorRegexp: `^stderr\n$`,
+			expectedErrorRegexp: "stderr\n",
 		},
 		{
 			desc:                "some stdout and empty stderr",
 			hookContent:         "#!/bin/sh\necho stdout\nexit 1",
 			expectedStdout:      "stdout\n",
-			expectedErrorRegexp: `^stdout\n$`,
+			expectedErrorRegexp: "stdout\n",
 		},
 		{
 			desc:                "some stdout and some stderr",
 			hookContent:         "#!/bin/sh\necho stdout\necho stderr >&2\nexit 1",
 			expectedStdout:      "stdout\n",
 			expectedStderr:      "stderr\n",
-			expectedErrorRegexp: `^stderr\n$`,
+			expectedErrorRegexp: "stderr\n",
 		},
 		{
 			desc:                "whitespace stdout and some stderr",
 			hookContent:         "#!/bin/sh\necho '   '\necho stderr >&2\nexit 1",
 			expectedStdout:      "   \n",
 			expectedStderr:      "stderr\n",
-			expectedErrorRegexp: `^stderr\n$`,
+			expectedErrorRegexp: "stderr\n",
 		},
 		{
 			desc:                "some stdout and whitespace stderr",
 			hookContent:         "#!/bin/sh\necho stdout\necho '   ' >&2\nexit 1",
 			expectedStdout:      "stdout\n",
 			expectedStderr:      "   \n",
-			expectedErrorRegexp: `^stdout\n$`,
+			expectedErrorRegexp: "stdout\n",
 		},
 	} {
 		for _, hookTC := range []struct {
@@ -1483,24 +1546,21 @@ func TestTagHookOutput(t *testing.T) {
 			hookTC := hookTC
 
 			t.Run(hookTC.hook+"/"+tc.desc, func(t *testing.T) {
-				t.Parallel()
-
+				tagName := "new-tag"
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
 				gittest.WriteTag(t, cfg, repoPath, "to-be-deleted", commitID.Revision())
 
 				gittest.WriteCustomHook(t, repoPath, hookTC.hook, []byte(tc.hookContent))
 
-				t.Run("UserCreateTag", func(t *testing.T) {
-					t.Parallel()
+				_, err := client.UserCreateTag(ctx, &gitalypb.UserCreateTagRequest{
+					Repository:     repo,
+					TagName:        []byte("new-tag"),
+					TargetRevision: []byte(git.DefaultBranch),
+					User:           gittest.TestUser,
+				})
 
-					response, err := client.UserCreateTag(ctx, &gitalypb.UserCreateTagRequest{
-						Repository:     repo,
-						TagName:        []byte("new-tag"),
-						TargetRevision: []byte(git.DefaultBranch),
-						User:           gittest.TestUser,
-					})
-
+				if featureflag.ReturnStructuredErrorsInUserDeleteTag.IsEnabled(ctx) {
 					testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("reference update denied by custom hooks").WithDetail(
 						&gitalypb.UserCreateTagError{
 							Error: &gitalypb.UserCreateTagError_CustomHook{
@@ -1512,25 +1572,39 @@ func TestTagHookOutput(t *testing.T) {
 							},
 						},
 					), err)
-					require.Nil(t, response)
-				})
 
-				t.Run("UserDeleteTag", func(t *testing.T) {
-					t.Parallel()
+					// require.Nil(t, response)
 
-					response, err := client.UserDeleteTag(ctx, &gitalypb.UserDeleteTagRequest{
+					gittest.Exec(t, cfg, "-C", repoPath, "branch", tagName)
+					defer gittest.Exec(t, cfg, "-C", repoPath, "branch", "-d", tagName)
+					responseDelete, err := client.UserDeleteTag(ctx, &gitalypb.UserDeleteTagRequest{
 						Repository: repo,
 						TagName:    []byte("to-be-deleted"),
 						User:       gittest.TestUser,
 					})
-					require.NoError(t, err)
 
-					preReceiveErr := response.PreReceiveError
-					response.PreReceiveError = ""
-					testhelper.ProtoEqual(t, &gitalypb.UserDeleteTagResponse{}, response)
-					require.Regexp(t, tc.expectedErrorRegexp, preReceiveErr)
-				})
-			})
+					actualStatus, ok := status.FromError(err)
+					require.True(t, ok)
+
+					statusWithoutMessage := actualStatus.Proto()
+					statusWithoutMessage.Message = "OVERRIDDEN"
+
+					require.Regexp(t, fmt.Sprintf(`^rpc error: code = PermissionDenied desc = deletion denied by custom hooks: running %s hooks: %s$`, hookTC.hook, tc.expectedErrorRegexp), err)
+					testhelper.RequireGrpcError(t, structerr.NewPermissionDenied(statusWithoutMessage.Message).WithDetail(
+						&gitalypb.UserDeleteTagError{
+							Error: &gitalypb.UserDeleteTagError_CustomHook{
+								CustomHook: &gitalypb.CustomHookError{
+									HookType: hookTC.hookType,
+									Stdout:   []byte(tc.expectedStdout),
+									Stderr:   []byte(tc.expectedStderr),
+								},
+							},
+						},
+					), status.ErrorProto(statusWithoutMessage))
+					require.Nil(t, responseDelete)
+				}
+			},
+			)
 		}
 	}
 }

@@ -333,6 +333,21 @@ message UserDeleteTagResponse {
   string pre_receive_error = 1;
 }
 
+// UserDeleteTagError includes error descriptions which may be set as error details in case
+// UserDeleteTag fails.
+message UserDeleteTagError {
+  oneof error {
+    // access_check is set if the RPC failed due to an external access check
+    AccessCheckError access_check = 1;
+    // reference_updateError is set if the RPC failed because updating the
+    // reference to the new objectID has failed
+    ReferenceUpdateError reference_update = 2;
+    // custom_hook is set if any custom hook which has running as part of this RPC call has returned
+    // a non-zero exit code.
+    CustomHookError custom_hook = 3;
+  }
+}
+
 // UserCreateTagRequest is a request for the UserCreateTag RPC.
 message UserCreateTagRequest {
   // repository is the repository in which the tag shall be created.
