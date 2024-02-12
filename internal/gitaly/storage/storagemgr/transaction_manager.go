@@ -1662,15 +1662,9 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			RelativePath: transaction.relativePath,
 		}
 
-		if transaction.repositoryCreation != nil {
-			if repositoryExists {
-				return ErrRepositoryAlreadyExists
-			}
-
-			logEntry.RepositoryCreation = &gitalypb.LogEntry_RepositoryCreation{
-				ObjectFormat: transaction.repositoryCreation.objectHash.ProtoFormat,
-			}
-		} else if !repositoryExists {
+		if transaction.repositoryCreation != nil && repositoryExists {
+			return ErrRepositoryAlreadyExists
+		} else if transaction.repositoryCreation == nil && !repositoryExists {
 			return ErrRepositoryNotFound
 		}
 
