@@ -18,7 +18,7 @@ var (
 	ReferenceBackendReftables = ReferenceBackend{
 		Name: "reftable",
 		updateRefErrorRegexs: updateRefErrorRegexs{
-			InTransactionConflictRegex:   regexp.MustCompile(`^fatal: .*: cannot lock ref '.*': cannot process '(.*)' and '(.*)' at the same time\n$`),
+			InTransactionConflictRegex:   regexp.MustCompile(`^fatal: .*: cannot process '(.*)' and '(.*)' at the same time\n$`),
 			MismatchingStateRegex:        regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': is at (.*) but expected (.*)\n$`),
 			MultipleUpdatesRegex:         regexp.MustCompile(`^fatal: .*: multiple updates for ref '(.*)' not allowed\n$`),
 			NonCommitObjectRegex:         regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write non-commit object (.*) to branch '(.*)'\n`),

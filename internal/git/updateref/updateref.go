@@ -117,13 +117,13 @@ func (e FileDirectoryConflictError) ErrorMetadata() []structerr.MetadataItem {
 	}
 }
 
-// InTransactionConflictError is returned when attempting to modify two references in the same transaction
-// in a manner that is not allowed. For example, modifying 'refs/heads/parent' and creating
-// 'refs/heads/parent/child' is not allowed.
+// InTransactionConflictError is returned when creating two F/D or D/F conflicting references
+// in the same transaction. For example creation of 'refs/heads/parent' and creation of
+// 'refs/heads/parent/child' is not allowed in the same transaction.
 type InTransactionConflictError struct {
-	// FirstReferenceName is the name of the first reference that was modified.
+	// FirstReferenceName is the name of the first reference that was created.
 	FirstReferenceName string
-	// SecondReferenceName is the name of the second reference that was modified.
+	// SecondReferenceName is the name of the second reference that was created.
 	SecondReferenceName string
 }
 
