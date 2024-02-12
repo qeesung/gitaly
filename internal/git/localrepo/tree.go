@@ -432,14 +432,7 @@ func (repo *Repo) listEntries(
 	}
 
 	if err := cmd.Wait(); err != nil {
-		errorMessage := stderr.String()
-		if strings.HasPrefix(errorMessage, "fatal: not a tree object") {
-			return nil, ErrNotTreeish
-		} else if strings.HasPrefix(errorMessage, "fatal: Not a valid object name") {
-			return nil, ErrTreeNotExist
-		}
-
-		return nil, structerr.New("waiting for git-ls-tree: %w", err).WithMetadata("stderr", errorMessage)
+		return nil, structerr.New("waiting for git-ls-tree: %w", err).WithMetadata("stderr", stderr.String())
 	}
 
 	return entries, nil
@@ -689,9 +682,26 @@ func (repo *Repo) ReadTree(ctx context.Context, treeish git.Revision, options ..
 		c.relativePath = ""
 	}
 
-	treeOID, err := repo.ResolveRevision(ctx, git.Revision(string(treeish)+":"+c.relativePath))
+	rev := git.Revision(string(treeish) + ":" + c.relativePath)
+
+	treeOID, err := repo.ResolveRevision(ctx, rev)
 	if err != nil {
 		return nil, fmt.Errorf("getting revision: %w", err)
+	}
+
+	objectReader, cancel, err := repo.catfileCache.ObjectInfoReader(ctx, repo)
+	if err != nil {
+		return nil, fmt.Errorf("get catfile reader: %w", err)
+	}
+	defer cancel()
+
+	// Perform a preliminary check on the revision to ensure it's treeish.
+	obj, err := objectReader.Info(ctx, treeOID.Revision())
+	if err != nil {
+		return nil, fmt.Errorf("check object type: %w", err)
+	}
+	if obj.Type != "tree" {
+		return nil, ErrNotTreeish
 	}
 
 	rootEntry := &TreeEntry{
