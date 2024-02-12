@@ -975,6 +975,9 @@ message GetSnapshotRequest {
   // repository is the repository to snapshot. The storage_name and relative_path
   // attributes must be provided.
   Repository repository = 1 [(target_repository)=true];
+  // skip_alternates, if set to true, indicates that alternates will not be included with
+  // the snapshot.
+  bool skip_alternates = 2;
 }
 
 // GetSnapshotResponse is a response for the GetSnapshot RPC.

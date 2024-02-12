@@ -55,6 +55,7 @@ func TestGetSnapshot(t *testing.T) {
 
 	type setupData struct {
 		repo            *gitalypb.Repository
+		skipAlternates  bool
 		expectedEntries []string
 		requireError    func(error)
 	}
@@ -420,6 +421,49 @@ doesn't seem to test a realistic scenario.`)
 				}
 			},
 		},
+		{
+			desc: "skipping alternates from snapshot",
+			setup: func(t *testing.T) setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				repo := localrepo.NewTestRepo(t, cfg, repoProto)
+				altFile, err := repo.InfoAlternatesPath()
+				require.NoError(t, err)
+
+				altObjectDir := filepath.Join(cfg.Storages[0].Path, gittest.NewObjectPoolName(t), "objects")
+				treeID := gittest.WriteTree(t, cfg, repoPath, nil)
+				commitID := gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithTree(treeID),
+					gittest.WithAlternateObjectDirectory(altObjectDir),
+				)
+
+				// We haven't yet written the alternates file, and thus we shouldn't be able to find
+				// this commit yet.
+				gittest.RequireObjectNotExists(t, cfg, repoPath, commitID)
+
+				// Write the alternates file and validate that the object is now reachable.
+				relAltObjectDir, err := filepath.Rel(filepath.Join(repoPath, "objects"), altObjectDir)
+				require.NoError(t, err)
+				require.NoError(t, os.WriteFile(
+					altFile,
+					[]byte(fmt.Sprintf("%s\n", relAltObjectDir)),
+					perm.SharedFile,
+				))
+				gittest.RequireObjectExists(t, cfg, repoPath, commitID)
+
+				return setupData{
+					repo:           repoProto,
+					skipAlternates: true,
+					expectedEntries: []string{
+						"HEAD",
+						"refs/",
+						"refs/heads/",
+						"refs/tags/",
+						fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
+					},
+				}
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
@@ -427,7 +471,7 @@ doesn't seem to test a realistic scenario.`)
 
 			setup := tc.setup(t)
 
-			data, err := getSnapshot(t, ctx, client, &gitalypb.GetSnapshotRequest{Repository: setup.repo})
+			data, err := getSnapshot(t, ctx, client, &gitalypb.GetSnapshotRequest{Repository: setup.repo, SkipAlternates: setup.skipAlternates})
 			if setup.requireError != nil {
 				setup.requireError(err)
 				return

@@ -152,16 +152,16 @@ func (s *server) create(ctx context.Context, in *gitalypb.ReplicateRepositoryReq
 		s.logger.WithField("repo_path", repoPath).WarnContext(ctx, "removed invalid repository")
 	}
 
-	if err := s.createFromSnapshot(ctx, in.GetSource(), in.GetRepository()); err != nil {
+	if err := s.createFromSnapshot(ctx, in.GetSource(), in.GetRepository(), in.GetReplicateObjectDeduplicationNetworkMembership()); err != nil {
 		return fmt.Errorf("could not create repository from snapshot: %w", err)
 	}
 
 	return nil
 }
 
-func (s *server) createFromSnapshot(ctx context.Context, source, target *gitalypb.Repository) error {
+func (s *server) createFromSnapshot(ctx context.Context, source, target *gitalypb.Repository, skipAlternates bool) error {
 	if err := repoutil.Create(ctx, s.logger, s.locator, s.gitCmdFactory, s.txManager, s.repositoryCounter, target, func(repo *gitalypb.Repository) error {
-		if err := s.extractSnapshot(ctx, source, repo); err != nil {
+		if err := s.extractSnapshot(ctx, source, repo, skipAlternates); err != nil {
 			return fmt.Errorf("extracting snapshot: %w", err)
 		}
 
@@ -173,13 +173,13 @@ func (s *server) createFromSnapshot(ctx context.Context, source, target *gitalyp
 	return nil
 }
 
-func (s *server) extractSnapshot(ctx context.Context, source, target *gitalypb.Repository) error {
+func (s *server) extractSnapshot(ctx context.Context, source, target *gitalypb.Repository, skipAlternates bool) error {
 	repoClient, err := s.newRepoClient(ctx, source.GetStorageName())
 	if err != nil {
 		return fmt.Errorf("new client: %w", err)
 	}
 
-	stream, err := repoClient.GetSnapshot(ctx, &gitalypb.GetSnapshotRequest{Repository: source})
+	stream, err := repoClient.GetSnapshot(ctx, &gitalypb.GetSnapshotRequest{Repository: source, SkipAlternates: skipAlternates})
 	if err != nil {
 		return fmt.Errorf("get snapshot: %w", err)
 	}
@@ -459,7 +459,7 @@ func (s *server) syncObjectPool(ctx context.Context, sourceRepoProto, targetRepo
 		// does not yet exist on the target storage, the object pool must be replicated as well. To
 		// accomplish this, a snapshot of the source object pool is extracted onto the target
 		// storage.
-		if err := s.createFromSnapshot(ctx, sourcePoolProto.GetRepository(), targetPoolProto.GetRepository()); err != nil {
+		if err := s.createFromSnapshot(ctx, sourcePoolProto.GetRepository(), targetPoolProto.GetRepository(), false); err != nil {
 			return fmt.Errorf("replicate object pool: %w", err)
 		}
 

@@ -73,8 +73,10 @@ func (s *server) GetSnapshot(in *gitalypb.GetSnapshotRequest, stream gitalypb.Re
 	// safe than sorry.
 	_ = builder.FileIfExist("shallow")
 
-	if err := s.addAlternateFiles(stream.Context(), in.GetRepository(), builder); err != nil {
-		return structerr.NewInternal("add alternates: %w", err)
+	if !in.GetSkipAlternates() {
+		if err := s.addAlternateFiles(stream.Context(), in.GetRepository(), builder); err != nil {
+			return structerr.NewInternal("add alternates: %w", err)
+		}
 	}
 
 	if err := builder.Close(); err != nil {
