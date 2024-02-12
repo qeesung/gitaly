@@ -187,8 +187,6 @@ func TestUpdater_properErrorOnWriteFailure(t *testing.T) {
 }
 
 func TestUpdater_nonExistentObject(t *testing.T) {
-	testhelper.SkipWithReftable(t, "refs are directly modified via the filesystem")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)

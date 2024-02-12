@@ -221,8 +221,6 @@ func TestUpdateReferences(t *testing.T) {
 		{
 			desc: "missing object",
 			setup: func(t *testing.T) setupData {
-				testhelper.SkipWithReftable(t, "nonExistentObjectRegex doesn't match error thrown by reftable backend")
-
 				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
