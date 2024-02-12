@@ -21,7 +21,7 @@ var (
 			InTransactionConflictRegex:   regexp.MustCompile(`^fatal: .*: cannot process '(.*)' and '(.*)' at the same time\n$`),
 			MismatchingStateRegex:        regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': is at (.*) but expected (.*)\n$`),
 			MultipleUpdatesRegex:         regexp.MustCompile(`^fatal: .*: multiple updates for ref '(.*)' not allowed\n$`),
-			NonCommitObjectRegex:         regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write non-commit object (.*) to branch '(.*)'\n`),
+			NonCommitObjectRegex:         regexp.MustCompile(`^fatal: .*: trying to write non-commit object (.*) to branch '(.*)'\n`),
 			NonExistentObjectRegex:       regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write ref '(.*)' with nonexistent object (.*)\n$`),
 			RefInvalidFormatRegex:        regexp.MustCompile(`^fatal: invalid ref format: (.*)\n$`),
 			RefLockedRegex:               regexp.MustCompile(`^fatal: (prepare|commit): cannot lock ref '(.+?)': Unable to create '.*': File exists.`),

@@ -85,8 +85,6 @@ func TestUpdater_referenceAlreadyExists(t *testing.T) {
 }
 
 func TestUpdater_nonCommitObject(t *testing.T) {
-	testhelper.SkipWithReftable(t, "nonCommitObjectRegex doesn't match error thrown by reftable backend")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
