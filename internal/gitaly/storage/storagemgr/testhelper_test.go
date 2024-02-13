@@ -23,6 +23,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/packfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
@@ -724,6 +725,19 @@ type transactionTestCase struct {
 	expectedState StateAssertion
 }
 
+func performReferenceUpdates(t *testing.T, ctx context.Context, tx *Transaction, rewrittenRepo git.RepositoryExecutor, updates ReferenceUpdates) {
+	tx.UpdateReferences(updates)
+
+	updater, err := updateref.New(ctx, rewrittenRepo)
+	require.NoError(t, err)
+
+	require.NoError(t, updater.Start())
+	for reference, update := range updates {
+		require.NoError(t, updater.Update(reference, update.NewOID, update.OldOID))
+	}
+	require.NoError(t, updater.Commit())
+}
+
 func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCase, setup testTransactionSetup) {
 	logger := testhelper.NewLogger(t)
 	umask := testhelper.Umask()
@@ -874,8 +888,26 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 				}
 			}
 
+			if step.QuarantinedPacks != nil {
+				for _, dir := range []string{
+					transaction.stagingDirectory,
+					transaction.quarantineDirectory,
+				} {
+					const expectedPerm = perm.PrivateDir
+					stat, err := os.Stat(dir)
+					require.NoError(t, err)
+					require.Equal(t, stat.Mode().Perm(), umask.Mask(expectedPerm),
+						"%q had %q permission but expected %q", dir, stat.Mode().Perm().String(), expectedPerm,
+					)
+				}
+
+				for _, pack := range step.QuarantinedPacks {
+					require.NoError(t, rewrittenRepo.UnpackObjects(ctx, bytes.NewReader(pack)))
+				}
+			}
+
 			if step.ReferenceUpdates != nil {
-				transaction.UpdateReferences(step.ReferenceUpdates)
+				performReferenceUpdates(t, ctx, transaction, rewrittenRepo, step.ReferenceUpdates)
 			}
 
 			if step.DefaultBranchUpdate != nil {
@@ -898,24 +930,6 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 					rewrittenPath, err := rewrittenRepo.Path()
 					require.NoError(t, err)
 					require.NoError(t, os.RemoveAll(filepath.Join(rewrittenPath, repoutil.CustomHooksDir)))
-				}
-			}
-
-			if step.QuarantinedPacks != nil {
-				for _, dir := range []string{
-					transaction.stagingDirectory,
-					transaction.quarantineDirectory,
-				} {
-					const expectedPerm = perm.PrivateDir
-					stat, err := os.Stat(dir)
-					require.NoError(t, err)
-					require.Equal(t, stat.Mode().Perm(), umask.Mask(expectedPerm),
-						"%q had %q permission but expected %q", dir, stat.Mode().Perm().String(), expectedPerm,
-					)
-				}
-
-				for _, pack := range step.QuarantinedPacks {
-					require.NoError(t, rewrittenRepo.UnpackObjects(ctx, bytes.NewReader(pack)))
 				}
 			}
 
@@ -952,7 +966,15 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.Contains(t, openTransactions, step.TransactionID, "test error: reference updates aborted on committed before beginning it")
 
 			transaction := openTransactions[step.TransactionID]
-			transaction.UpdateReferences(step.ReferenceUpdates)
+
+			rewrittenRepo := setup.RepositoryFactory.Build(
+				transaction.RewriteRepository(&gitalypb.Repository{
+					StorageName:  setup.Config.Storages[0].Name,
+					RelativePath: transaction.relativePath,
+				}),
+			)
+
+			performReferenceUpdates(t, ctx, transaction, rewrittenRepo, step.ReferenceUpdates)
 		case Rollback:
 			require.Contains(t, openTransactions, step.TransactionID, "test error: transaction rollbacked before beginning it")
 			require.Equal(t, step.ExpectedError, openTransactions[step.TransactionID].Rollback())
