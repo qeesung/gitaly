@@ -17,11 +17,14 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"golang.org/x/text/encoding/charmap"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -651,6 +654,7 @@ func TestFindCommits_quarantine(t *testing.T) {
 		desc          string
 		altDirs       []string
 		expectedCount int
+		expectedErr   error
 	}{
 		{
 			desc:          "present GIT_ALTERNATE_OBJECT_DIRECTORIES",
@@ -661,6 +665,16 @@ func TestFindCommits_quarantine(t *testing.T) {
 			desc:          "empty GIT_ALTERNATE_OBJECT_DIRECTORIES",
 			altDirs:       []string{},
 			expectedCount: 0,
+			expectedErr: testhelper.ToInterceptedMetadata(
+				structerr.NewNotFound("commits not found").WithMetadata("error", "exit status 128").WithMetadata("stderr",
+					fmt.Sprintf("fatal: bad object %s\n", commitID.String()))).WithDetail(
+				&gitalypb.FindCommitsError{
+					Error: &gitalypb.FindCommitsError_BadObject{
+						BadObject: &gitalypb.BadObjectError{
+							BadOid: []byte(commitID.String()),
+						},
+					},
+				}),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -681,8 +695,144 @@ func TestFindCommits_quarantine(t *testing.T) {
 				Revision:   []byte(commitID.String()),
 				Limit:      1,
 			})
-			require.NoError(t, err)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 			require.Len(t, commits, tc.expectedCount)
+		})
+	}
+}
+
+func TestFindCommits_simulateGitLogWaitError(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	logger := testhelper.NewLogger(t)
+	cfg, client := setupCommitService(t, ctx, testserver.WithLogger(logger))
+
+	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+	// altObjectsDir will be used to trigger a git log wait error by setting it to an empty string.
+	altObjectsDir := "./alt-objects"
+	commitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithAlternateObjectDirectory(filepath.Join(repoPath, altObjectsDir)),
+	)
+
+	for _, tc := range []struct {
+		desc          string
+		altDirs       []string
+		expectedCount int
+		expectedErr   error
+		limit         int32
+	}{
+		{
+			desc:    "git log exit with error, with limit 0",
+			altDirs: []string{},
+			limit:   0,
+		},
+		{
+			desc:          "limit 1, git log exit with error",
+			altDirs:       []string{},
+			limit:         1,
+			expectedCount: 0,
+			expectedErr: testhelper.ToInterceptedMetadata(
+				structerr.NewNotFound("commits not found").WithDetail(
+					&gitalypb.FindCommitsError{
+						Error: &gitalypb.FindCommitsError_BadObject{
+							BadObject: &gitalypb.BadObjectError{
+								BadOid: []byte(commitID.String()),
+							},
+						},
+					}).WithMetadataItems(
+					structerr.MetadataItem{Key: "error", Value: "exit status 128"},
+					structerr.MetadataItem{Key: "stderr", Value: fmt.Sprintf("fatal: bad object %s\n", commitID.String())},
+				)),
+		},
+	} {
+		tc := tc
+		t.Run(tc.desc, func(t *testing.T) {
+			repo.GitAlternateObjectDirectories = tc.altDirs
+			commits, err := getCommits(t, ctx, client, &gitalypb.FindCommitsRequest{
+				Repository: repo,
+				Revision:   []byte(commitID.String()),
+				Limit:      tc.limit,
+			})
+			testhelper.RequireGrpcError(t, tc.expectedErr, err, protocmp.SortRepeatedFields(&spb.Status{}, "details"))
+			require.Len(t, commits, tc.expectedCount)
+		})
+	}
+}
+
+func TestWrapGitLogCmdError(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		desc            string
+		commitCounter   int
+		gitLogCmdArg    string
+		gitLogCmdStdErr string
+		expectedErr     structerr.Error
+	}{
+		{
+			desc:            "no commits found due to ambiguous argument",
+			commitCounter:   0,
+			gitLogCmdArg:    "non-existing-ref",
+			gitLogCmdStdErr: "fatal: ambiguous argument 'non-existing-ref': unknown revision or path not in the working tree.",
+			expectedErr: structerr.NewNotFound("commits not found").WithDetail(
+				&gitalypb.FindCommitsError{
+					Error: &gitalypb.FindCommitsError_AmbiguousRef{
+						AmbiguousRef: &gitalypb.AmbiguousReferenceError{
+							Reference: []byte("non-existing-ref"),
+						},
+					},
+				}),
+		},
+		{
+			desc:            "no commits found due to bad object id",
+			commitCounter:   0,
+			gitLogCmdArg:    "37811987837aacbd3b1d8ceb8de669b33f7c7c0a",
+			gitLogCmdStdErr: "fatal: bad object 37811987837aacbd3b1d8ceb8de669b33f7c7c0a",
+			expectedErr: structerr.NewNotFound("commits not found").WithDetail(
+				&gitalypb.FindCommitsError{
+					Error: &gitalypb.FindCommitsError_BadObject{
+						BadObject: &gitalypb.BadObjectError{
+							BadOid: []byte("37811987837aacbd3b1d8ceb8de669b33f7c7c0a"),
+						},
+					},
+				}),
+		},
+		{
+			desc:            "no commits found due to invalid range",
+			commitCounter:   0,
+			gitLogCmdArg:    "37811987837aacbd3b1d8ceb8de669b33f7c7c0a..37811987837aacbd3b1d8ceb8de669b33f7c7c0b",
+			gitLogCmdStdErr: "fatal: Invalid revision range 37811987837aacbd3b1d8ceb8de669b33f7c7c0a..37811987837aacbd3b1d8ceb8de669b33f7c7c0b\n",
+			expectedErr: structerr.NewNotFound("commits not found").WithDetail(
+				&gitalypb.FindCommitsError{
+					Error: &gitalypb.FindCommitsError_InvalidRange{
+						InvalidRange: &gitalypb.InvalidRevisionRange{
+							Range: []byte("37811987837aacbd3b1d8ceb8de669b33f7c7c0a..37811987837aacbd3b1d8ceb8de669b33f7c7c0b"),
+						},
+					},
+				}),
+		},
+		{
+			desc:            "uncategorized error that causes empty commits",
+			commitCounter:   0,
+			gitLogCmdArg:    "",
+			gitLogCmdStdErr: "fatal: some other cause can't be foreseen right now",
+			expectedErr:     structerr.NewNotFound("commits not found"),
+		},
+		{
+			desc:            "mock terminated by user error",
+			commitCounter:   10,
+			gitLogCmdArg:    "main",
+			gitLogCmdStdErr: "terminated by user",
+			expectedErr:     structerr.NewInternal("listing commits failed"),
+		},
+	} {
+		tc := tc
+		t.Run(tc.desc, func(t *testing.T) {
+			actualErr := wrapGitLogCmdError([]byte(tc.gitLogCmdArg), tc.commitCounter, nil, tc.gitLogCmdStdErr)
+			require.Equal(t, tc.expectedErr.WithMetadataItems(
+				structerr.MetadataItem{Key: "error", Value: nil},
+				structerr.MetadataItem{Key: "stderr", Value: tc.gitLogCmdStdErr},
+			), actualErr)
 		})
 	}
 }
