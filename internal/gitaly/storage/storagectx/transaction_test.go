@@ -22,7 +22,7 @@ func (nilTransaction) DeleteRepository() {}
 
 func (nilTransaction) IncludeObject(git.ObjectID) {}
 
-func (nilTransaction) SetCustomHooks([]byte) {}
+func (nilTransaction) MarkCustomHooksUpdated() {}
 
 func (nilTransaction) OriginalRepository(*gitalypb.Repository) *gitalypb.Repository {
 	panic("unexpected call")

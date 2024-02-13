@@ -1,9 +1,6 @@
 package repository
 
 import (
-	"bytes"
-	"io"
-
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
@@ -27,8 +24,7 @@ func (s *server) SetCustomHooks(stream gitalypb.RepositoryService_SetCustomHooks
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
-	var customHooksTAR bytes.Buffer
-	reader := io.TeeReader(streamio.NewReader(func() ([]byte, error) {
+	reader := streamio.NewReader(func() ([]byte, error) {
 		if firstRequest != nil {
 			data := firstRequest.GetData()
 			firstRequest = nil
@@ -37,14 +33,14 @@ func (s *server) SetCustomHooks(stream gitalypb.RepositoryService_SetCustomHooks
 
 		request, err := stream.Recv()
 		return request.GetData(), err
-	}), &customHooksTAR)
+	})
 
 	if err := repoutil.SetCustomHooks(ctx, s.logger, s.locator, s.txManager, reader, repo); err != nil {
 		return structerr.NewInternal("setting custom hooks: %w", err)
 	}
 
 	storagectx.RunWithTransaction(ctx, func(tx storagectx.Transaction) {
-		tx.SetCustomHooks(customHooksTAR.Bytes())
+		tx.MarkCustomHooksUpdated()
 	})
 
 	return stream.SendAndClose(&gitalypb.SetCustomHooksResponse{})

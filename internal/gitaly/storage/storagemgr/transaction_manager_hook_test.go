@@ -5,7 +5,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
@@ -84,32 +83,6 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
 				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: fs.ModeDir | perm.PrivateDir},
-						},
-					},
-				},
-			},
-		},
-		{
-			desc: "rejects invalid custom hooks",
-			steps: steps{
-				StartManager{},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				Commit{
-					TransactionID: 1,
-					CustomHooksUpdate: &CustomHooksUpdate{
-						CustomHooksTAR: []byte("corrupted tar"),
-					},
-					ExpectedError: func(tb testing.TB, actualErr error) {
-						require.ErrorContains(tb, actualErr, "stage hooks: extract hooks: waiting for tar command completion: exit status")
-					},
-				},
 			},
 		},
 		{
@@ -150,7 +123,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: fs.ModeDir | perm.PrivateDir},
+							"/": {Mode: fs.ModeDir | perm.SharedDir},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
@@ -220,13 +193,6 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Directory: testhelper.DirectoryState{
 					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
-				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: fs.ModeDir | perm.PrivateDir},
-						},
-					},
 				},
 			},
 		},
