@@ -329,16 +329,15 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 1,
 					RelativePath:  setup.RelativePath,
 				},
+				Begin{
+					TransactionID: 2,
+					RelativePath:  setup.RelativePath,
+				},
 				Commit{
 					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/parent": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
-				},
-				Begin{
-					TransactionID:       2,
-					RelativePath:        setup.RelativePath,
-					ExpectedSnapshotLSN: 1,
 				},
 				Commit{
 					TransactionID: 2,
@@ -390,18 +389,43 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			steps: steps{
 				StartManager{},
 				Begin{
-					RelativePath: setup.RelativePath,
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Begin{
+					TransactionID: 2,
+					RelativePath:  setup.RelativePath,
 				},
 				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/parent": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Commit{
+					TransactionID:            1,
 					SkipVerificationFailures: true,
 					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/main":         {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-						"refs/heads/parent":       {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 						"refs/heads/parent/child": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
-					ExpectedError: updateref.InTransactionConflictError{
-						FirstReferenceName:  "refs/heads/parent",
-						SecondReferenceName: "refs/heads/parent/child",
+					ExpectedError: updateref.FileDirectoryConflictError{
+						ExistingReferenceName:    "refs/heads/parent",
+						ConflictingReferenceName: "refs/heads/parent/child",
+					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/parent": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},
@@ -414,16 +438,15 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 1,
 					RelativePath:  setup.RelativePath,
 				},
+				Begin{
+					TransactionID: 2,
+					RelativePath:  setup.RelativePath,
+				},
 				Commit{
 					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/parent/child": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
-				},
-				Begin{
-					TransactionID:       2,
-					RelativePath:        setup.RelativePath,
-					ExpectedSnapshotLSN: 1,
 				},
 				Commit{
 					TransactionID: 2,
@@ -595,7 +618,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Commit{
 					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
 					},
 				},
 				Begin{
@@ -603,18 +626,29 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					RelativePath:        setup.RelativePath,
 					ExpectedSnapshotLSN: 1,
 				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.Second.OID, NewOID: setup.Commits.First.OID},
+					},
+				},
 				Commit{
 					TransactionID:            2,
 					SkipVerificationFailures: true,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+						"refs/heads/main":            {OldOID: setup.Commits.Second.OID, NewOID: setup.Commits.Third.OID},
 						"refs/heads/non-conflicting": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
 					},
 				},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -637,19 +671,18 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 1,
 					RelativePath:  setup.RelativePath,
 				},
+				Begin{
+					TransactionID: 2,
+					RelativePath:  setup.RelativePath,
+				},
 				Commit{
-					TransactionID: 1,
+					TransactionID: 2,
 					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
 				},
-				Begin{
-					TransactionID:       2,
-					RelativePath:        setup.RelativePath,
-					ExpectedSnapshotLSN: 1,
-				},
 				Commit{
-					TransactionID: 2,
+					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
 						"refs/heads/non-conflicting": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
@@ -685,16 +718,15 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID: 1,
 					RelativePath:  setup.RelativePath,
 				},
+				Begin{
+					TransactionID: 2,
+					RelativePath:  setup.RelativePath,
+				},
 				Commit{
 					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
-				},
-				Begin{
-					TransactionID:       2,
-					RelativePath:        setup.RelativePath,
-					ExpectedSnapshotLSN: 1,
 				},
 				Commit{
 					TransactionID: 2,
@@ -777,7 +809,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Commit{
 					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
 						"refs/heads/non-conflicting": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
 				},
@@ -785,6 +817,17 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID:       2,
 					RelativePath:        setup.RelativePath,
 					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.Second.OID, NewOID: setup.Commits.First.OID},
+					},
 				},
 				Commit{
 					TransactionID:            2,
@@ -797,7 +840,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -823,7 +866,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Commit{
 					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
 						"refs/heads/non-conflicting": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
 				},
@@ -831,6 +874,17 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID:       2,
 					RelativePath:        setup.RelativePath,
 					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.Second.OID, NewOID: setup.Commits.First.OID},
+					},
 				},
 				Commit{
 					TransactionID: 2,
@@ -847,7 +901,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -867,17 +921,46 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			steps: steps{
 				StartManager{},
 				Begin{
-					RelativePath: setup.RelativePath,
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
 				},
 				Commit{
+					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.Second.OID, NewOID: setup.Commits.Third.OID},
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Second.OID},
 					},
 					ExpectedError: ReferenceVerificationError{
 						ReferenceName: "refs/heads/main",
-						ExpectedOID:   setup.Commits.Second.OID,
+						ExpectedOID:   setup.Commits.First.OID,
 						ActualOID:     setup.ObjectHash.ZeroOID,
 					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
 			},
 		},
@@ -1091,7 +1174,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Commit{
 					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
 						"refs/heads/non-conflicting": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
 				},
@@ -1099,6 +1182,17 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID:       2,
 					RelativePath:        setup.RelativePath,
 					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.Second.OID, NewOID: setup.Commits.First.OID},
+					},
 				},
 				Commit{
 					TransactionID:            2,
@@ -1111,7 +1205,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1136,7 +1230,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				Commit{
 					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/main":            {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
 						"refs/heads/non-conflicting": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
 				},
@@ -1144,6 +1238,17 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					TransactionID:       2,
 					RelativePath:        setup.RelativePath,
 					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.Second.OID, NewOID: setup.Commits.First.OID},
+					},
 				},
 				Commit{
 					TransactionID: 2,
@@ -1160,7 +1265,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1180,9 +1285,33 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			steps: steps{
 				StartManager{},
 				Begin{
-					RelativePath: setup.RelativePath,
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
 				},
 				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+				Commit{
+					TransactionID: 3,
 					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
 					},
@@ -1191,6 +1320,11 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 						ExpectedOID:   setup.Commits.First.OID,
 						ActualOID:     setup.ObjectHash.ZeroOID,
 					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
 			},
 		},
@@ -1252,14 +1386,27 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			steps: steps{
 				StartManager{},
 				Begin{
-					RelativePath: setup.RelativePath,
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
 				},
-				UpdateReferences{
+				Begin{
+					TransactionID: 2,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 2,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Second.OID},
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
 				},
 				UpdateReferences{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+				},
+				UpdateReferences{
+					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
 						// The old oid should be ignored since there's already a recorded initial value for the
 						// reference.
@@ -1267,10 +1414,25 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				Commit{
+					TransactionID: 1,
 					ExpectedError: ReferenceVerificationError{
 						ReferenceName: "refs/heads/main",
-						ExpectedOID:   setup.Commits.First.OID,
-						ActualOID:     setup.ObjectHash.ZeroOID,
+						ExpectedOID:   setup.ObjectHash.ZeroOID,
+						ActualOID:     setup.Commits.First.OID,
+					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
 					},
 				},
 			},

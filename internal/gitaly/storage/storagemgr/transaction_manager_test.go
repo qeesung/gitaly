@@ -24,7 +24,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
@@ -460,13 +459,18 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Commit{
 					TransactionID: 2,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Second.OID},
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+					ExpectedError: ReferenceVerificationError{
+						ReferenceName: "refs/heads/main",
+						ExpectedOID:   setup.ObjectHash.ZeroOID,
+						ActualOID:     setup.Commits.First.OID,
 					},
 				},
 				Begin{
 					TransactionID:       4,
 					RelativePath:        setup.RelativePath,
-					ExpectedSnapshotLSN: 2,
+					ExpectedSnapshotLSN: 1,
 				},
 				Rollback{
 					TransactionID: 3,
@@ -474,19 +478,19 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				Begin{
 					TransactionID:       5,
 					RelativePath:        setup.RelativePath,
-					ExpectedSnapshotLSN: 2,
+					ExpectedSnapshotLSN: 1,
 				},
 				Commit{
 					TransactionID: 4,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.Second.OID, NewOID: setup.Commits.Third.OID},
+						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Third.OID},
 					},
 					CustomHooksUpdate: &CustomHooksUpdate{},
 				},
 				Begin{
 					TransactionID:       6,
 					RelativePath:        setup.RelativePath,
-					ExpectedSnapshotLSN: 3,
+					ExpectedSnapshotLSN: 2,
 				},
 				Rollback{
 					TransactionID: 5,
@@ -497,7 +501,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -516,20 +520,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			steps: steps{
 				Prune{},
 				StartManager{},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				Commit{
-					TransactionID: 1,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-					},
-					ExpectedError: updateref.NonExistentObjectError{
-						ReferenceName: "refs/heads/main",
-						ObjectID:      setup.Commits.First.OID.String(),
-					},
-				},
 				Begin{
 					TransactionID: 2,
 					RelativePath:  setup.RelativePath,

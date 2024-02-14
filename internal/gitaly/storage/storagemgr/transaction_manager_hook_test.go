@@ -204,17 +204,6 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 					TransactionID: 1,
 					RelativePath:  setup.RelativePath,
 				},
-				Commit{
-					TransactionID: 1,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Second.OID},
-					},
-					ExpectedError: ReferenceVerificationError{
-						ReferenceName: "refs/heads/main",
-						ExpectedOID:   setup.Commits.First.OID,
-						ActualOID:     setup.ObjectHash.ZeroOID,
-					},
-				},
 				Begin{
 					TransactionID: 2,
 					RelativePath:  setup.RelativePath,
@@ -222,20 +211,42 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Commit{
 					TransactionID: 2,
 					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+					ExpectedError: ReferenceVerificationError{
+						ReferenceName: "refs/heads/main",
+						ExpectedOID:   setup.ObjectHash.ZeroOID,
+						ActualOID:     setup.Commits.First.OID,
+					},
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Third.OID},
 					},
 				},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
 						References: &ReferencesState{
 							LooseReferences: map[git.ReferenceName]git.ObjectID{
-								"refs/heads/main": setup.Commits.Second.OID,
+								"refs/heads/main": setup.Commits.Third.OID,
 							},
 						},
 					},
@@ -295,19 +306,6 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 					TransactionID: 1,
 					RelativePath:  setup.RelativePath,
 				},
-				Commit{
-					TransactionID: 1,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Second.OID},
-					},
-					ExpectedError: ReferenceVerificationError{
-						ReferenceName: "refs/heads/main",
-						ExpectedOID:   setup.Commits.First.OID,
-						ActualOID:     setup.ObjectHash.ZeroOID,
-					},
-				},
-				CloseManager{},
-				StartManager{},
 				Begin{
 					TransactionID: 2,
 					RelativePath:  setup.RelativePath,
@@ -315,13 +313,37 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Commit{
 					TransactionID: 2,
 					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+					ExpectedError: ReferenceVerificationError{
+						ReferenceName: "refs/heads/main",
+						ExpectedOID:   setup.ObjectHash.ZeroOID,
+						ActualOID:     setup.Commits.First.OID,
+					},
+				},
+				CloseManager{},
+				StartManager{},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Second.OID},
 					},
 				},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -468,28 +490,39 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 					RelativePath:        setup.RelativePath,
 					ExpectedSnapshotLSN: 1,
 				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Second.OID},
+					},
+				},
 				Commit{
 					TransactionID: 2,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.Second.OID, NewOID: setup.Commits.First.OID},
+						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Third.OID},
 					},
 					ExpectedError: ReferenceVerificationError{
 						ReferenceName: "refs/heads/main",
-						ExpectedOID:   setup.Commits.Second.OID,
-						ActualOID:     setup.Commits.First.OID,
+						ExpectedOID:   setup.Commits.First.OID,
+						ActualOID:     setup.Commits.Second.OID,
 					},
 				},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
 						References: &ReferencesState{
 							LooseReferences: map[git.ReferenceName]git.ObjectID{
-								"refs/heads/main": setup.Commits.First.OID,
+								"refs/heads/main": setup.Commits.Second.OID,
 							},
 						},
 					},
