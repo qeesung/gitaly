@@ -745,6 +745,20 @@ message UserRevertResponse {
   CreateTreeError create_tree_error_code = 5;
 }
 
+// UserRevertError is an error returned by the UserRevert RPC.
+message UserRevertError {
+  oneof error {
+    // merge_conflict is returned if there is a conflict when applying the revert.
+    MergeConflictError merge_conflict = 1;
+    // changes_already_applied is returned if the result after applying the revert is empty.
+    ChangesAlreadyAppliedError changes_already_applied = 2;
+    // custom_hook contains the error message if the pre-receive hook failed.
+    CustomHookError custom_hook = 3;
+    // not_ancestor is returned if the old tip of the target branch is not an ancestor of the new commit.
+    NotAncestorError not_ancestor = 4;
+  }
+}
+
 // UserCommitFilesActionHeader contains the details of the action to be performed.
 message UserCommitFilesActionHeader {
   // ActionType is the type of action to perform.
