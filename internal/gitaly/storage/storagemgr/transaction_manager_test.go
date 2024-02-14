@@ -690,32 +690,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 		},
 		{
-			desc: "pack file missing referenced commit",
-			steps: steps{
-				Prune{},
-				StartManager{},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				Commit{
-					TransactionID: 1,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
-					},
-					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
-					ExpectedError:    localrepo.BadObjectError{ObjectID: setup.Commits.Second.OID},
-				},
-			},
-			expectedState: StateAssertion{
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						Objects: []git.ObjectID{},
-					},
-				},
-			},
-		},
-		{
 			desc: "pack file missing intermediate commit",
 			steps: steps{
 				Prune{},

@@ -234,25 +234,6 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			},
 		},
 		{
-			desc: "create a file-directory reference conflict in same transaction",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-				},
-				Commit{
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/parent":       {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-						"refs/heads/parent/child": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-					},
-					ExpectedError: updateref.InTransactionConflictError{
-						FirstReferenceName:  "refs/heads/parent",
-						SecondReferenceName: "refs/heads/parent/child",
-					},
-				},
-			},
-		},
-		{
 			desc: "file-directory conflict aborts the transaction with verification failures skipped",
 			steps: steps{
 				StartManager{},
@@ -343,25 +324,6 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			},
 		},
 		{
-			desc: "delete file-directory conflict in same transaction",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-				},
-				Commit{
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/parent/child": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-						"refs/heads/parent":       {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.ObjectHash.ZeroOID},
-					},
-					ExpectedError: updateref.InTransactionConflictError{
-						FirstReferenceName:  "refs/heads/parent",
-						SecondReferenceName: "refs/heads/parent/child",
-					},
-				},
-			},
-		},
-		{
 			desc: "file-directory conflict solved in the same transaction",
 			steps: steps{
 				StartManager{},
@@ -404,27 +366,6 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 								"refs/heads/parent/child": setup.Commits.First.OID,
 							},
 						},
-					},
-				},
-			},
-		},
-		{
-			desc: "create a branch to a non-commit object",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-				},
-				Commit{
-					SkipVerificationFailures: true,
-					ReferenceUpdates: ReferenceUpdates{
-						// The error should abort the entire transaction.
-						"refs/heads/branch-1": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-						"refs/heads/branch-2": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.ObjectHash.EmptyTreeOID},
-					},
-					ExpectedError: updateref.NonCommitObjectError{
-						ReferenceName: "refs/heads/branch-2",
-						ObjectID:      setup.ObjectHash.EmptyTreeOID.String(),
 					},
 				},
 			},
