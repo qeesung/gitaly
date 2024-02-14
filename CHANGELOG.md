@@ -1,5 +1,21 @@
 # Gitaly changelog
 
+## 16.9.0 (2024-02-14)
+
+### Added (1 change)
+
+- [cleanup: Add RewriteHistory RPC](gitlab-org/gitaly@7630f4b49669114fa8190e23f39978da902c6192) ([merge request](gitlab-org/gitaly!6615))
+
+### Changed (3 changes)
+
+- [Include --root option to FindChangedPaths RPC](gitlab-org/gitaly@e23a9845040d70b0ee03d5f2345766690c401e86) ([merge request](gitlab-org/gitaly!6648))
+- [Extend FindChangedPaths with blob ids](gitlab-org/gitaly@0ba8f401cea0bbba1306ba684f506d010bb308b9) ([merge request](gitlab-org/gitaly!6640))
+- [backup: Write latest manifest file](gitlab-org/gitaly@c8126c6c41c013fd857b1c9ba36fb837e4b843f3) ([merge request](gitlab-org/gitaly!6613))
+
+### Deprecated (1 change)
+
+- [proto: Deprecate RemoveAll](gitlab-org/gitaly@a9b8db1b0894b1d613c77b2736409563199d5e62) ([merge request](gitlab-org/gitaly!6614))
+
 ## 16.8.2 (2024-02-07)
 
 No changes.
