@@ -53,8 +53,11 @@ func (s *server) lastCommitForPath(ctx context.Context, in *gitalypb.LastCommitF
 	}
 
 	commit, err := log.LastCommitForPath(ctx, s.gitCmdFactory, objectReader, repo, git.Revision(in.GetRevision()), path, options)
-	if errors.As(err, &catfile.NotFoundError{}) {
-		return &gitalypb.LastCommitForPathResponse{}, nil
+	if err != nil {
+		if errors.As(err, &catfile.NotFoundError{}) {
+			return &gitalypb.LastCommitForPathResponse{}, nil
+		}
+		return nil, err
 	}
 
 	return &gitalypb.LastCommitForPathResponse{Commit: commit.GitCommit}, err
