@@ -43,6 +43,7 @@ func (s *server) CommitDiff(in *gitalypb.CommitDiffRequest, stream gitalypb.Diff
 			git.Flag{Name: fmt.Sprintf("--abbrev=%d", objectHash.EncodedLen())},
 			git.Flag{Name: "--full-index"},
 			git.Flag{Name: "--find-renames=30%"},
+			git.Flag{Name: "--root"},
 		},
 		Args: []string{leftSha, rightSha},
 	}
