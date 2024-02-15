@@ -365,6 +365,7 @@ test:macos:
     - sudo spctl --master-disable
     # Create a 2GB RAM disk to speed up our tests.
     - sudo diskutil apfs create $(hdiutil attach -nomount ram://4194304) RAMDisk
+    - brew update
     - brew uninstall go
     - brew install cmake go@${GO_VERSION}
     # Older Go versions may be keg-only and thus aren't linked into `PATH` by
