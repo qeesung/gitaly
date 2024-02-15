@@ -314,9 +314,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				StartManager{
 					Hooks: testTransactionHooks{
 						BeforeApplyLogEntry: func(hookCtx hookContext) {
-							hookCtx.closeManager()
+							panic(errSimulatedCrash)
 						},
 					},
+					ExpectedError: errSimulatedCrash,
 				},
 				Begin{
 					RelativePath: setup.RelativePath,
@@ -326,6 +327,9 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
 					ExpectedError: ErrTransactionProcessingStopped,
+				},
+				AssertManager{
+					ExpectedError: errSimulatedCrash,
 				},
 			},
 			expectedState: StateAssertion{

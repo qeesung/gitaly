@@ -416,10 +416,11 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			steps: steps{
 				StartManager{
 					Hooks: testTransactionHooks{
-						BeforeApplyLogEntry: func(hookCtx hookContext) {
-							hookCtx.closeManager()
+						BeforeApplyLogEntry: func(hookContext) {
+							panic(errSimulatedCrash)
 						},
 					},
+					ExpectedError: errSimulatedCrash,
 				},
 				Begin{
 					TransactionID: 1,
@@ -432,7 +433,9 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 					},
 					ExpectedError: ErrTransactionProcessingStopped,
 				},
-				AssertManager{},
+				AssertManager{
+					ExpectedError: errSimulatedCrash,
+				},
 				StartManager{},
 				Begin{
 					TransactionID:       2,
@@ -468,9 +471,10 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				StartManager{
 					Hooks: testTransactionHooks{
 						BeforeApplyLogEntry: func(hookCtx hookContext) {
-							hookCtx.closeManager()
+							panic(errSimulatedCrash)
 						},
 					},
+					ExpectedError: errSimulatedCrash,
 				},
 				Begin{
 					TransactionID: 1,
@@ -483,7 +487,9 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 					},
 					ExpectedError: ErrTransactionProcessingStopped,
 				},
-				AssertManager{},
+				AssertManager{
+					ExpectedError: errSimulatedCrash,
+				},
 				StartManager{},
 				Begin{
 					TransactionID:       2,
