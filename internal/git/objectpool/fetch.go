@@ -322,7 +322,7 @@ func (o *ObjectPool) logStats(ctx context.Context, when string) error {
 		"when": when,
 	}
 
-	repoInfo, err := stats.RepositoryInfoForRepository(o.Repo)
+	repoInfo, err := stats.RepositoryInfoForRepository(ctx, o.Repo)
 	if err != nil {
 		return fmt.Errorf("deriving repository info: %w", err)
 	}

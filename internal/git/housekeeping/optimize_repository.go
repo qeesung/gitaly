@@ -70,7 +70,7 @@ func (m *RepositoryManager) OptimizeRepository(
 		opt(&cfg)
 	}
 
-	repositoryInfo, err := stats.RepositoryInfoForRepository(repo)
+	repositoryInfo, err := stats.RepositoryInfoForRepository(ctx, repo)
 	if err != nil {
 		return fmt.Errorf("deriving repository info: %w", err)
 	}

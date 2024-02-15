@@ -482,7 +482,7 @@ and considers the reftable as a loose file`)
 
 			setup := tc.setup(t, repoPath)
 
-			repoInfo, err := RepositoryInfoForRepository(repo)
+			repoInfo, err := RepositoryInfoForRepository(ctx, repo)
 			require.Equal(t, setup.expectedError, err)
 			require.Equal(t, setup.expectedInfo, repoInfo)
 		})

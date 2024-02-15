@@ -34,7 +34,7 @@ func (s *server) PruneUnreachableObjects(
 
 	// Verify that the repository is not an object pool. Pruning objects in object pools is not
 	// a safe operation and is likely to cause corruption of object pool members.
-	repoInfo, err := stats.RepositoryInfoForRepository(repo)
+	repoInfo, err := stats.RepositoryInfoForRepository(ctx, repo)
 	if err != nil {
 		return nil, fmt.Errorf("deriving repository info: %w", err)
 	}
