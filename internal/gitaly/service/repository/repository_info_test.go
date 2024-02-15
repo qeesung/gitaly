@@ -19,8 +19,6 @@ import (
 )
 
 func TestRepositoryInfo(t *testing.T) {
-	testhelper.SkipWithReftable(t, "considers the reftable as a loose reference")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -98,6 +96,8 @@ func TestRepositoryInfo(t *testing.T) {
 		{
 			desc: "repository with loose reference",
 			setup: func(t *testing.T) setupData {
+				testhelper.SkipWithReftable(t, "files backend specific test")
+
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 				writeFile(t, 123, repoPath, "refs", "heads", "main")
 
@@ -118,6 +118,8 @@ func TestRepositoryInfo(t *testing.T) {
 		{
 			desc: "repository with packed references",
 			setup: func(t *testing.T) setupData {
+				testhelper.SkipWithReftable(t, "files backend specific test")
+
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 				writeFile(t, 123, repoPath, "packed-refs")
 
