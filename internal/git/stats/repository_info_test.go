@@ -175,9 +175,6 @@ func TestLogObjectInfo(t *testing.T) {
 }
 
 func TestRepositoryInfoForRepository(t *testing.T) {
-	testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
-and considers the reftable as a loose file`)
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -241,7 +238,7 @@ and considers the reftable as a loose file`)
 							},
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 					},
 				}
@@ -273,7 +270,7 @@ and considers the reftable as a loose file`)
 							},
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 					},
 				}
@@ -334,7 +331,7 @@ and considers the reftable as a loose file`)
 							Size:  hashDependentSize(t, 142, 158),
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 						CommitGraph: CommitGraphInfo{
 							Exists: true,
@@ -359,7 +356,7 @@ and considers the reftable as a loose file`)
 							Size:  hashDependentSize(t, 142, 158),
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 						CommitGraph: CommitGraphInfo{
 							Exists:          true,
@@ -389,7 +386,7 @@ and considers the reftable as a loose file`)
 							Size:  hashDependentSize(t, 142, 158),
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 						CommitGraph: CommitGraphInfo{
 							Exists:            true,
@@ -459,7 +456,7 @@ and considers the reftable as a loose file`)
 							},
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 						Alternates: AlternatesInfo{
 							Exists: true,
