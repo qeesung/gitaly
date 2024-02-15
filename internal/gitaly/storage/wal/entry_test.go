@@ -158,4 +158,74 @@ func TestEntry(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("RecordRepositoryCreation", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			desc               string
+			directory          string
+			expectedOperations operations
+		}{
+			{
+				desc:      "first level",
+				directory: firstLevelDir,
+				expectedOperations: func() operations {
+					var ops operations
+					ops.flush("sentinel-op")
+					ops.createDirectory("test-dir", perm.PrivateDir)
+					ops.createHardLink("1", "test-dir/file-1", false)
+					ops.createDirectory("test-dir/subdir-private", perm.PrivateDir)
+					ops.createHardLink("2", "test-dir/subdir-private/file-2", false)
+					ops.flush("test-dir/subdir-private")
+					ops.createDirectory("test-dir/subdir-shared", perm.SharedDir)
+					ops.createHardLink("3", "test-dir/subdir-shared/file-3", false)
+					ops.flush("test-dir/subdir-shared")
+					ops.flush("test-dir")
+					ops.flush(".")
+					return ops
+				}(),
+			},
+			{
+				desc:      "second level",
+				directory: secondLevelDir,
+				expectedOperations: func() operations {
+					var ops operations
+					ops.flush("sentinel-op")
+					ops.createDirectory("second-level", perm.PrivateDir)
+					ops.createDirectory("second-level/test-dir", perm.PrivateDir)
+					ops.createHardLink("1", "second-level/test-dir/file-1", false)
+					ops.createDirectory("second-level/test-dir/subdir-private", perm.PrivateDir)
+					ops.createHardLink("2", "second-level/test-dir/subdir-private/file-2", false)
+					ops.flush("second-level/test-dir/subdir-private")
+					ops.createDirectory("second-level/test-dir/subdir-shared", perm.SharedDir)
+					ops.createHardLink("3", "second-level/test-dir/subdir-shared/file-3", false)
+					ops.flush("second-level/test-dir/subdir-shared")
+					ops.flush("second-level/test-dir")
+					ops.flush("second-level")
+					ops.flush(".")
+					return ops
+				}(),
+			},
+		} {
+			tc := tc
+			t.Run(tc.desc, func(t *testing.T) {
+				t.Parallel()
+
+				stateDir := t.TempDir()
+				entry := NewEntry(stateDir)
+				entry.operations.flush("sentinel-op")
+
+				require.NoError(t, entry.RecordRepositoryCreation(storageRoot, tc.directory))
+
+				testhelper.ProtoEqual(t, tc.expectedOperations, entry.operations)
+				testhelper.RequireDirectoryState(t, stateDir, "", testhelper.DirectoryState{
+					"/":  {Mode: fs.ModeDir | perm.SharedDir},
+					"/1": {Mode: perm.PrivateExecutable, Content: []byte("file-1")},
+					"/2": {Mode: perm.SharedFile, Content: []byte("file-2")},
+					"/3": {Mode: perm.PrivateFile, Content: []byte("file-3")},
+				})
+			})
+		}
+	})
 }

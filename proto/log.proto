@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package gitaly;
 
-import "shared.proto";
-
 option go_package = "gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb";
 
 // LogEntry is a single entry in a partition's write-ahead log.
@@ -33,12 +31,6 @@ message LogEntry {
     // reference_name is the fully qualified name of the reference
     // to update the default branch to.
     bytes reference_name = 1;
-  }
-
-  // RepositoryCreation models a repository creation.
-  message RepositoryCreation {
-    // object_format defines the object format to use for the repository.
-    ObjectFormat object_format = 1;
   }
 
   // RepositoryDeletion models a repository deletion.
@@ -98,8 +90,6 @@ message LogEntry {
   string pack_prefix = 5;
   // repository_deletion, when set, indicates this log entry deletes the repository.
   RepositoryDeletion repository_deletion = 6;
-  // repository_creation is set if this log entry creates a repository.
-  RepositoryCreation repository_creation = 7;
   // alternate_update records a change to the repository's 'objects/info/alternates' file.
   AlternateUpdate alternate_update = 8;
   // housekeeping, when set, indicates this log entry contains a housekeeping task.
