@@ -882,7 +882,7 @@ func TestRepositoryManager_CleanStaleData_serverInfo(t *testing.T) {
 }
 
 func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
-	testhelper.SkipWithReftable(t, "uses file system based reference locks")
+	testhelper.SkipWithReftable(t, "only applicable to the files reference backend")
 
 	t.Parallel()
 
