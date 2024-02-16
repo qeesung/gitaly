@@ -122,12 +122,6 @@ type ReferenceUpdate struct {
 	NewOID git.ObjectID
 }
 
-// DefaultBranchUpdate provides the information to update the default branch of the repo.
-type DefaultBranchUpdate struct {
-	// Reference is the reference to update the default branch to.
-	Reference git.ReferenceName
-}
-
 // repositoryCreation models a repository creation in a transaction.
 type repositoryCreation struct {
 	// objectHash defines the object format the repository is created with.
@@ -249,7 +243,7 @@ type Transaction struct {
 	skipVerificationFailures bool
 	initialReferenceValues   map[git.ReferenceName]git.ObjectID
 	referenceUpdates         []ReferenceUpdates
-	defaultBranchUpdate      *DefaultBranchUpdate
+	defaultBranchUpdated     bool
 	customHooksUpdated       bool
 	repositoryCreation       *repositoryCreation
 	deleteRepository         bool
@@ -457,7 +451,7 @@ func (txn *Transaction) Commit(ctx context.Context) (returnedErr error) {
 		switch {
 		case txn.referenceUpdates != nil:
 			return errReadOnlyReferenceUpdates
-		case txn.defaultBranchUpdate != nil:
+		case txn.defaultBranchUpdated:
 			return errReadOnlyDefaultBranchUpdate
 		case txn.customHooksUpdated:
 			return errReadOnlyCustomHooksUpdate
@@ -473,7 +467,7 @@ func (txn *Transaction) Commit(ctx context.Context) (returnedErr error) {
 	}
 
 	if txn.runHousekeeping != nil && (txn.referenceUpdates != nil ||
-		txn.defaultBranchUpdate != nil ||
+		txn.defaultBranchUpdated ||
 		txn.customHooksUpdated ||
 		txn.deleteRepository ||
 		txn.includedObjects != nil) {
@@ -622,11 +616,10 @@ func (txn *Transaction) DeleteRepository() {
 	txn.deleteRepository = true
 }
 
-// SetDefaultBranch sets the default branch as part of the transaction. If SetDefaultBranch is called
-// multiple times, only the changes from the latest invocation take place. The reference is validated
-// to exist.
-func (txn *Transaction) SetDefaultBranch(new git.ReferenceName) {
-	txn.defaultBranchUpdate = &DefaultBranchUpdate{Reference: new}
+// MarkDefaultBranchUpdated sets a hint for the transaction manager that the default branch has been updated
+// as a part of the transaction. This leads to the manager identifying changes and staging them for commit.
+func (txn *Transaction) MarkDefaultBranchUpdated() {
+	txn.defaultBranchUpdated = true
 }
 
 // MarkCustomHooksUpdated sets a hint to the transaction manager that custom hooks have been updated as part
@@ -951,7 +944,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 			}
 		}
 
-		if transaction.defaultBranchUpdate != nil {
+		if transaction.defaultBranchUpdated {
 			if err := transaction.walEntry.RecordFileUpdate(
 				mgr.getAbsolutePath(transaction.snapshot.prefix),
 				filepath.Join(transaction.relativePath, "HEAD"),
@@ -1064,13 +1057,6 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 	transaction.repositoryCreation = &repositoryCreation{
 		objectHash: objectHash,
 	}
-
-	head, err := transaction.snapshotRepository.HeadReference(ctx)
-	if err != nil {
-		return fmt.Errorf("head reference: %w", err)
-	}
-
-	transaction.SetDefaultBranch(head)
 
 	references, err := transaction.snapshotRepository.GetReferences(ctx)
 	if err != nil {

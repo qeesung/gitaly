@@ -16,7 +16,7 @@ type nilTransaction struct {
 	int //nolint:unused
 }
 
-func (nilTransaction) SetDefaultBranch(git.ReferenceName) {}
+func (nilTransaction) MarkDefaultBranchUpdated() {}
 
 func (nilTransaction) DeleteRepository() {}
 
