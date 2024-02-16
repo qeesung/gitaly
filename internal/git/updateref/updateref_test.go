@@ -85,8 +85,6 @@ func TestUpdater_referenceAlreadyExists(t *testing.T) {
 }
 
 func TestUpdater_nonCommitObject(t *testing.T) {
-	testhelper.SkipWithReftable(t, "nonCommitObjectRegex doesn't match error thrown by reftable backend")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -189,8 +187,6 @@ func TestUpdater_properErrorOnWriteFailure(t *testing.T) {
 }
 
 func TestUpdater_nonExistentObject(t *testing.T) {
-	testhelper.SkipWithReftable(t, "refs are directly modified via the filesystem")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -228,8 +224,6 @@ func TestUpdater_nonExistentObject(t *testing.T) {
 }
 
 func TestUpdater_fileDirectoryConflict(t *testing.T) {
-	testhelper.SkipWithReftable(t, "errors thrown by reftable backend do not match regexs defined in updateref.go")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -515,8 +509,6 @@ func TestUpdater_invalidReferenceName(t *testing.T) {
 }
 
 func TestUpdater_concurrentLocking(t *testing.T) {
-	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -563,11 +555,17 @@ func TestUpdater_concurrentLocking(t *testing.T) {
 			require.NoError(t, secondUpdater.Start())
 			require.NoError(t, secondUpdater.Update(ref, commitID, ""))
 
-			// Try locking the reference via the second updater. This should fail now because the reference
-			// is locked already.
-			require.Equal(t, AlreadyLockedError{
-				ReferenceName: string(ref),
-			}, tc.lock(secondUpdater))
+			if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+				// Reftable locks are on an entire table instead of per reference, so
+				// git doesn't output the name of the individual ref.
+				require.Equal(t, AlreadyLockedError{}, tc.lock(secondUpdater))
+			} else {
+				// Try locking the reference via the second updater. This should fail now because the reference
+				// is locked already.
+				require.Equal(t, AlreadyLockedError{
+					ReferenceName: string(ref),
+				}, tc.lock(secondUpdater))
+			}
 
 			// Whereas committing the first transaction should succeed.
 			require.NoError(t, firstUpdater.Commit())
@@ -636,8 +634,6 @@ func TestUpdater_contextCancellation(t *testing.T) {
 }
 
 func TestUpdater_cancel(t *testing.T) {
-	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -660,6 +656,13 @@ func TestUpdater_cancel(t *testing.T) {
 	expectedErr := AlreadyLockedError{
 		ReferenceName: "refs/heads/main",
 	}
+
+	// Reftable locks are on an entire table instead of per reference, so
+	// git doesn't output the name of the individual ref.
+	if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+		expectedErr.ReferenceName = ""
+	}
+
 	defer func() { require.Equal(t, expectedErr, failingUpdater.Close()) }()
 
 	require.NoError(t, failingUpdater.Start())
@@ -730,9 +733,7 @@ func TestUpdater_capturesStderr(t *testing.T) {
 	require.Equal(t, expectedErr, updater.Commit())
 }
 
-func TestUpdater_packedRefsLocked(t *testing.T) {
-	testhelper.SkipWithReftable(t, "packed-refs aren't part of the reftable backend")
-
+func TestUpdater_packRefsLocked(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -745,7 +746,16 @@ func TestUpdater_packedRefsLocked(t *testing.T) {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
-			for _, lockFile := range []string{"packed-refs.lock", "packed-refs.new"} {
+
+			files := []string{"packed-refs.lock", "packed-refs.new"}
+			expectedErr := ErrPackedRefsLocked
+
+			if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+				files = []string{"reftable/tables.list.lock"}
+				expectedErr = AlreadyLockedError{}
+			}
+
+			for _, lockFile := range files {
 				lockFile := lockFile
 				t.Run(lockFile, func(t *testing.T) {
 					t.Parallel()
@@ -753,17 +763,20 @@ func TestUpdater_packedRefsLocked(t *testing.T) {
 					ctx := testhelper.Context(t)
 
 					cfg, _, repoPath, updater := setupUpdater(t, ctx)
-					defer func() { require.Equal(t, ErrPackedRefsLocked, updater.Close()) }()
+					defer func() { require.Equal(t, expectedErr, updater.Close()) }()
 
-					// Write a reference an pack it.
+					// Write a reference and pack it. Packing for the reftable backend
+					// means table compaction (which would also run automatically based
+					// on heuristics).
 					gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 					gittest.Exec(t, cfg, "-C", repoPath, "pack-refs", "--all")
+
 					// Write a lock file file so we can assert a lock related error is raised.
 					require.NoError(t, os.WriteFile(filepath.Join(repoPath, lockFile), nil, fs.ModePerm))
 
 					require.NoError(t, updater.Start())
 					require.NoError(t, updater.Delete("refs/heads/main"))
-					require.Equal(t, ErrPackedRefsLocked, updater.Commit())
+					require.Equal(t, expectedErr, updater.Commit())
 				})
 			}
 		})

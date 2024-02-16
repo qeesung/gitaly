@@ -221,8 +221,6 @@ func TestUpdateReferences(t *testing.T) {
 		{
 			desc: "missing object",
 			setup: func(t *testing.T) setupData {
-				testhelper.SkipWithReftable(t, "nonExistentObjectRegex doesn't match error thrown by reftable backend")
-
 				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
@@ -298,8 +296,6 @@ func TestUpdateReferences(t *testing.T) {
 		{
 			desc: "locked reference",
 			setup: func(t *testing.T) setupData {
-				testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
-
 				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
 				repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
@@ -312,6 +308,13 @@ func TestUpdateReferences(t *testing.T) {
 				require.NoError(t, updater.Start())
 				require.NoError(t, updater.Delete("refs/heads/branch"))
 				require.NoError(t, updater.Prepare())
+
+				expectedRefs := []byte("refs/heads/branch")
+				// For reftable there is only table level locking and hence no
+				// reference value is provided.
+				if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+					expectedRefs = nil
+				}
 
 				return setupData{
 					requests: []*gitalypb.UpdateReferencesRequest{
@@ -328,12 +331,12 @@ func TestUpdateReferences(t *testing.T) {
 					},
 					expectedErr: structerr.NewAborted("reference is already locked").
 						WithDetail(&testproto.ErrorMetadata{
-							Key: []byte("reference"), Value: []byte("refs/heads/branch"),
+							Key: []byte("reference"), Value: expectedRefs,
 						}).
 						WithDetail(&gitalypb.UpdateReferencesError{
 							Error: &gitalypb.UpdateReferencesError_ReferencesLocked{
 								ReferencesLocked: &gitalypb.ReferencesLockedError{
-									Refs: [][]byte{[]byte("refs/heads/branch")},
+									Refs: [][]byte{expectedRefs},
 								},
 							},
 						}),

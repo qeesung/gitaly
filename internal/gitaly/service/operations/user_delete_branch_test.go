@@ -348,8 +348,6 @@ func TestUserDeleteBranch_allowed(t *testing.T) {
 }
 
 func TestUserDeleteBranch_concurrentUpdate(t *testing.T) {
-	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -375,10 +373,18 @@ func TestUserDeleteBranch_concurrentUpdate(t *testing.T) {
 		BranchName: []byte("concurrent-update"),
 		User:       gittest.TestUser,
 	})
+
+	value := []byte("refs/heads/concurrent-update")
+	// For reftable there is only table level locking and hence no
+	// reference value is provided.
+	if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+		value = nil
+	}
+
 	testhelper.RequireGrpcError(t, structerr.NewFailedPrecondition("reference update failed: reference update: reference is already locked").
 		WithDetail(&testproto.ErrorMetadata{
 			Key:   []byte("reference"),
-			Value: []byte("refs/heads/concurrent-update"),
+			Value: value,
 		}).
 		WithDetail(&gitalypb.UserDeleteBranchError{
 			Error: &gitalypb.UserDeleteBranchError_ReferenceUpdate{

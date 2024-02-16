@@ -35,6 +35,10 @@ type Repo struct {
 	detectObjectHashOnce sync.Once
 	objectHash           git.ObjectHash
 	objectHashErr        error
+
+	detectRefBackendOnce sync.Once
+	referenceBackend     git.ReferenceBackend
+	referenceBackendErr  error
 }
 
 // New creates a new Repo from its protobuf representation.
@@ -157,4 +161,13 @@ func (repo *Repo) ObjectHash(ctx context.Context) (git.ObjectHash, error) {
 		repo.objectHash, repo.objectHashErr = git.DetectObjectHash(ctx, repo.gitCmdFactory, repo)
 	})
 	return repo.objectHash, repo.objectHashErr
+}
+
+// ReferenceBackend detects the reference backend used by this repository.
+func (repo *Repo) ReferenceBackend(ctx context.Context) (git.ReferenceBackend, error) {
+	repo.detectRefBackendOnce.Do(func() {
+		repo.referenceBackend, repo.referenceBackendErr = git.DetectReferenceBackend(ctx, repo.gitCmdFactory, repo)
+	})
+
+	return repo.referenceBackend, repo.referenceBackendErr
 }

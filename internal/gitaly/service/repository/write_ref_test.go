@@ -376,8 +376,6 @@ func TestWriteRef(t *testing.T) {
 }
 
 func TestWriteRef_locked(t *testing.T) {
-	testhelper.SkipWithReftable(t, "refLockedRegex doesn't match error thrown by reftable backend")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -404,10 +402,18 @@ func TestWriteRef_locked(t *testing.T) {
 		Ref:        []byte("refs/heads/locked-branch"),
 		Revision:   []byte(commitID),
 	})
+
+	value := "refs/heads/locked-branch"
+	// For reftable there is only table level locking and hence no
+	// reference value is provided.
+	if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
+		value = ""
+	}
+
 	testhelper.RequireGrpcError(t,
 		testhelper.WithInterceptedMetadata(
 			structerr.NewAborted("reference is locked already"),
-			"reference", "refs/heads/locked-branch",
+			"reference", value,
 		),
 		err,
 	)
