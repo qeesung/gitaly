@@ -2,6 +2,7 @@ package gitalyclient
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/stream"
@@ -34,7 +35,7 @@ func UploadArchive(ctx context.Context, conn *grpc.ClientConn, stdin io.Reader, 
 	}, func(errC chan error) {
 		_, errRecv := io.Copy(inWriter, stdin)
 		if err := uploadPackStream.CloseSend(); err != nil && errRecv == nil {
-			errC <- err
+			errC <- fmt.Errorf("close stream: %w", err)
 		} else {
 			errC <- errRecv
 		}
