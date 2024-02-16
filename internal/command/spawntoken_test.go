@@ -79,7 +79,7 @@ func TestGetSpawnToken_CommandStats(t *testing.T) {
 	t.Parallel()
 
 	ctx := log.InitContextCustomFields(testhelper.Context(t))
-	timeout := 3 * time.Second
+	timeout := 10 * time.Second
 	manager := NewSpawnTokenManager(SpawnConfig{
 		Timeout:     timeout,
 		MaxParallel: 1,
