@@ -21,8 +21,6 @@ import (
 )
 
 func TestRepo_SetConfig(t *testing.T) {
-	testhelper.SkipWithReftable(t, "core.repositoryformatversion is set when reftables are used")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -109,11 +107,19 @@ func TestRepo_SetConfig(t *testing.T) {
 				"core.filemode=true",
 				"core.bare=true",
 			}
-			if gittest.ObjectHashIsSHA256() {
+
+			if gittest.ObjectHashIsSHA256() || testhelper.IsReftableEnabled() {
 				standardEntries = append(standardEntries, "core.repositoryformatversion=1")
-				standardEntries = append(standardEntries, "extensions.objectformat=sha256")
 			} else {
 				standardEntries = append(standardEntries, "core.repositoryformatversion=0")
+			}
+
+			if gittest.ObjectHashIsSHA256() {
+				standardEntries = append(standardEntries, "extensions.objectformat=sha256")
+			}
+
+			if testhelper.IsReftableEnabled() {
+				standardEntries = append(standardEntries, "extensions.refstorage=reftable")
 			}
 
 			if runtime.GOOS == "darwin" {
