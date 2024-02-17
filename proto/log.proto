@@ -26,13 +26,6 @@ message LogEntry {
     repeated Change changes = 1;
   }
 
-  // DefaultBranchUpdate models a default branch update.
-  message DefaultBranchUpdate {
-    // reference_name is the fully qualified name of the reference
-    // to update the default branch to.
-    bytes reference_name = 1;
-  }
-
   // RepositoryDeletion models a repository deletion.
   message RepositoryDeletion {
   }
@@ -82,12 +75,6 @@ message LogEntry {
   // through verification and are applied without any further checks.
   // The reference transactions are applied in order.
   repeated ReferenceTransaction reference_transactions = 2;
-  // default_branch_update contains the information pertaining to updating
-  // the default branch of the repo.
-  DefaultBranchUpdate default_branch_update = 3;
-  // pack_prefix contains the prefix (`pack-<digest>`) of the pack and its index.
-  // If pack_prefix is empty, the log entry has no associated pack.
-  string pack_prefix = 5;
   // repository_deletion, when set, indicates this log entry deletes the repository.
   RepositoryDeletion repository_deletion = 6;
   // alternate_update records a change to the repository's 'objects/info/alternates' file.

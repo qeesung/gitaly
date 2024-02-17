@@ -51,6 +51,40 @@ func (e *Entry) stageFile(path string) (string, error) {
 	return fileName, nil
 }
 
+// RecordFileCreation stages the file at the source and adds an operation to link it
+// to the given destination relative path in the storage. It does not implicitly flush the
+// parent directory so multiple file creations can be staged in the same parent directory
+// without redundant flush operations appended. The parent directory must be flushed
+// explicitly.
+func (e *Entry) RecordFileCreation(sourceAbsolutePath string, relativePath string) error {
+	stagedFile, err := e.stageFile(sourceAbsolutePath)
+	if err != nil {
+		return fmt.Errorf("stage file: %w", err)
+	}
+
+	e.operations.createHardLink(stagedFile, relativePath, false)
+	return nil
+}
+
+// RecordFlush records flushing the modifications to relative path to the disk.
+func (e *Entry) RecordFlush(relativePath string) {
+	e.operations.flush(relativePath)
+}
+
+// RecordFileUpdate records a file being updated. It stages operations to remove the old file,
+// to place the new file in its place and to finally flush the modification.
+func (e *Entry) RecordFileUpdate(storageRoot, relativePath string) error {
+	e.operations.removeDirectoryEntry(relativePath)
+
+	if err := e.RecordFileCreation(filepath.Join(storageRoot, relativePath), relativePath); err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+
+	e.RecordFlush(filepath.Dir(relativePath))
+
+	return nil
+}
+
 // RecordRepositoryCreation records the creation of the repository itself and the directory
 // hierarchy above it. It logs flush operations for all directories in the hierarchy and stages
 // the files from the repository.
@@ -65,7 +99,7 @@ func (e *Entry) RecordRepositoryCreation(storageRoot, relativePath string) error
 	}
 
 	// Flush the storage's root at the end to flush the directory hierarchy creation.
-	defer e.operations.flush(".")
+	defer e.RecordFlush(".")
 
 	var previousParentDir string
 	for _, dirComponent := range dirComponents {
@@ -74,7 +108,7 @@ func (e *Entry) RecordRepositoryCreation(storageRoot, relativePath string) error
 
 		// Flush directories in the parent directory hierarchy in reverse
 		// order after the repository itself has been created.
-		defer e.operations.flush(currentDir)
+		defer e.RecordFlush(currentDir)
 
 		previousParentDir = currentDir
 	}
@@ -96,7 +130,7 @@ func (e *Entry) RecordDirectoryCreation(storageRoot, directoryRelativePath strin
 		return err
 	}
 
-	e.operations.flush(filepath.Dir(directoryRelativePath))
+	e.RecordFlush(filepath.Dir(directoryRelativePath))
 
 	return nil
 }
@@ -115,19 +149,16 @@ func (e *Entry) recordDirectoryCreation(storageRoot, directoryRelativePath strin
 			return nil
 		},
 		func(relativePath string, dirEntry fs.DirEntry) error {
-			stagedPath, err := e.stageFile(filepath.Join(storageRoot, relativePath))
-			if err != nil {
-				return fmt.Errorf("stage file: %w", err)
-			}
-
 			// The parent directory has already been created so we can immediately create
 			// the file.
-			e.operations.createHardLink(stagedPath, relativePath, false)
+			if err := e.RecordFileCreation(filepath.Join(storageRoot, relativePath), relativePath); err != nil {
+				return fmt.Errorf("create file: %w", err)
+			}
 			return nil
 		},
 		func(relativePath string, dirEntry fs.DirEntry) error {
 			// Flush the directory once only after all of its children have been created.
-			e.operations.flush(relativePath)
+			e.RecordFlush(relativePath)
 			return nil
 		},
 	); err != nil {

@@ -177,7 +177,7 @@ func (repo *Repo) setDefaultBranchWithTransaction(ctx context.Context, txManager
 	}
 
 	storagectx.RunWithTransaction(ctx, func(tx storagectx.Transaction) {
-		tx.SetDefaultBranch(reference)
+		tx.MarkDefaultBranchUpdated()
 	})
 
 	return nil

@@ -122,12 +122,6 @@ type ReferenceUpdate struct {
 	NewOID git.ObjectID
 }
 
-// DefaultBranchUpdate provides the information to update the default branch of the repo.
-type DefaultBranchUpdate struct {
-	// Reference is the reference to update the default branch to.
-	Reference git.ReferenceName
-}
-
 // repositoryCreation models a repository creation in a transaction.
 type repositoryCreation struct {
 	// objectHash defines the object format the repository is created with.
@@ -249,7 +243,7 @@ type Transaction struct {
 	skipVerificationFailures bool
 	initialReferenceValues   map[git.ReferenceName]git.ObjectID
 	referenceUpdates         []ReferenceUpdates
-	defaultBranchUpdate      *DefaultBranchUpdate
+	defaultBranchUpdated     bool
 	customHooksUpdated       bool
 	repositoryCreation       *repositoryCreation
 	deleteRepository         bool
@@ -457,7 +451,7 @@ func (txn *Transaction) Commit(ctx context.Context) (returnedErr error) {
 		switch {
 		case txn.referenceUpdates != nil:
 			return errReadOnlyReferenceUpdates
-		case txn.defaultBranchUpdate != nil:
+		case txn.defaultBranchUpdated:
 			return errReadOnlyDefaultBranchUpdate
 		case txn.customHooksUpdated:
 			return errReadOnlyCustomHooksUpdate
@@ -473,7 +467,7 @@ func (txn *Transaction) Commit(ctx context.Context) (returnedErr error) {
 	}
 
 	if txn.runHousekeeping != nil && (txn.referenceUpdates != nil ||
-		txn.defaultBranchUpdate != nil ||
+		txn.defaultBranchUpdated ||
 		txn.customHooksUpdated ||
 		txn.deleteRepository ||
 		txn.includedObjects != nil) {
@@ -622,11 +616,10 @@ func (txn *Transaction) DeleteRepository() {
 	txn.deleteRepository = true
 }
 
-// SetDefaultBranch sets the default branch as part of the transaction. If SetDefaultBranch is called
-// multiple times, only the changes from the latest invocation take place. The reference is validated
-// to exist.
-func (txn *Transaction) SetDefaultBranch(new git.ReferenceName) {
-	txn.defaultBranchUpdate = &DefaultBranchUpdate{Reference: new}
+// MarkDefaultBranchUpdated sets a hint for the transaction manager that the default branch has been updated
+// as a part of the transaction. This leads to the manager identifying changes and staging them for commit.
+func (txn *Transaction) MarkDefaultBranchUpdated() {
+	txn.defaultBranchUpdated = true
 }
 
 // MarkCustomHooksUpdated sets a hint to the transaction manager that custom hooks have been updated as part
@@ -936,17 +929,43 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 		); err != nil {
 			return fmt.Errorf("record repository creation: %w", err)
 		}
-	} else if transaction.customHooksUpdated {
-		// Log the custom hook creation. The deletion of the previous hooks is logged after admission to
-		// ensure we log the latest state for deletion in case someone else modified the hooks.
-		//
-		// If the transaction removed the custom hooks, we won't have anything to log. We'll ignore the
-		// ErrNotExist and stage the deletion later.
-		if err := transaction.walEntry.RecordDirectoryCreation(
-			mgr.getAbsolutePath(transaction.snapshot.prefix),
-			filepath.Join(transaction.relativePath, repoutil.CustomHooksDir),
-		); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("record custom hook directory: %w", err)
+	} else {
+		if transaction.customHooksUpdated {
+			// Log the custom hook creation. The deletion of the previous hooks is logged after admission to
+			// ensure we log the latest state for deletion in case someone else modified the hooks.
+			//
+			// If the transaction removed the custom hooks, we won't have anything to log. We'll ignore the
+			// ErrNotExist and stage the deletion later.
+			if err := transaction.walEntry.RecordDirectoryCreation(
+				mgr.getAbsolutePath(transaction.snapshot.prefix),
+				filepath.Join(transaction.relativePath, repoutil.CustomHooksDir),
+			); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("record custom hook directory: %w", err)
+			}
+		}
+
+		// If there were objects packed that should be committed, record the packfile's creation.
+		if transaction.packPrefix != "" {
+			packDir := filepath.Join(transaction.relativePath, "objects", "pack")
+			for _, fileExtension := range []string{".pack", ".idx", ".rev"} {
+				if err := transaction.walEntry.RecordFileCreation(
+					filepath.Join(transaction.walFilesPath(), "objects"+fileExtension),
+					filepath.Join(packDir, transaction.packPrefix+fileExtension),
+				); err != nil {
+					return fmt.Errorf("record file creation: %w", err)
+				}
+			}
+
+			transaction.walEntry.RecordFlush(packDir)
+		}
+
+		if transaction.defaultBranchUpdated {
+			if err := transaction.walEntry.RecordFileUpdate(
+				mgr.getAbsolutePath(transaction.snapshot.prefix),
+				filepath.Join(transaction.relativePath, "HEAD"),
+			); err != nil {
+				return fmt.Errorf("record HEAD update: %w", err)
+			}
 		}
 	}
 
@@ -1053,13 +1072,6 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 	transaction.repositoryCreation = &repositoryCreation{
 		objectHash: objectHash,
 	}
-
-	head, err := transaction.snapshotRepository.HeadReference(ctx)
-	if err != nil {
-		return fmt.Errorf("head reference: %w", err)
-	}
-
-	transaction.SetDefaultBranch(head)
 
 	references, err := transaction.snapshotRepository.GetReferences(ctx)
 	if err != nil {
@@ -1677,16 +1689,6 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			return fmt.Errorf("verify references: %w", err)
 		}
 
-		if transaction.defaultBranchUpdate != nil {
-			if err := mgr.verifyDefaultBranchUpdate(mgr.ctx, transaction); err != nil {
-				return fmt.Errorf("verify default branch update: %w", err)
-			}
-
-			logEntry.DefaultBranchUpdate = &gitalypb.LogEntry_DefaultBranchUpdate{
-				ReferenceName: []byte(transaction.defaultBranchUpdate.Reference),
-			}
-		}
-
 		if transaction.customHooksUpdated {
 			// Log a deletion of the existing custom hooks so they are removed before the
 			// new ones are put in place.
@@ -1696,10 +1698,6 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("record custom hook removal: %w", err)
 			}
-		}
-
-		if transaction.packPrefix != "" {
-			logEntry.PackPrefix = transaction.packPrefix
 		}
 
 		if transaction.deleteRepository {
@@ -2115,20 +2113,6 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 	return nil
 }
 
-// verifyDefaultBranchUpdate verifies the default branch reference update. This is done by first checking if it is one of
-// the references in the current transaction which is not scheduled to be deleted. If not, we check if its a valid reference
-// name in the repository. We don't do reference name validation because any reference going through the transaction manager
-// has name validation and we can rely on that.
-func (mgr *TransactionManager) verifyDefaultBranchUpdate(ctx context.Context, transaction *Transaction) error {
-	referenceName := transaction.defaultBranchUpdate.Reference
-
-	if err := git.ValidateReference(referenceName.String()); err != nil {
-		return InvalidReferenceFormatError{ReferenceName: referenceName}
-	}
-
-	return nil
-}
-
 // verifyHousekeeping verifies if all included housekeeping tasks can be performed. Although it's feasible for multiple
 // housekeeping tasks running at the same time, it's not guaranteed they are conflict-free. So, we need to ensure there
 // is no other concurrent housekeeping task. Each sub-task also needs specific verification.
@@ -2373,23 +2357,6 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 	}, nil
 }
 
-// applyDefaultBranchUpdate applies the default branch update to the repository from the log entry.
-func (mgr *TransactionManager) applyDefaultBranchUpdate(ctx context.Context, logEntry *gitalypb.LogEntry) error {
-	if logEntry.DefaultBranchUpdate == nil {
-		return nil
-	}
-
-	var stderr bytes.Buffer
-	if err := mgr.repositoryFactory.Build(logEntry.RelativePath).ExecAndWait(ctx, git.Command{
-		Name: "symbolic-ref",
-		Args: []string{"HEAD", string(logEntry.DefaultBranchUpdate.ReferenceName)},
-	}, git.WithStderr(&stderr), git.WithDisabledHooks()); err != nil {
-		return structerr.New("exec symbolic-ref: %w", err).WithMetadata("stderr", stderr.String())
-	}
-
-	return nil
-}
-
 // prepareReferenceTransaction prepares a reference transaction with `git update-ref`. It leaves committing
 // or aborting up to the caller. Either should be called to clean up the process. The process is cleaned up
 // if an error is returned.
@@ -2555,18 +2522,8 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 			return fmt.Errorf("apply alternate update: %w", err)
 		}
 
-		if logEntry.PackPrefix != "" {
-			if err := mgr.applyPackFile(ctx, lsn, logEntry); err != nil {
-				return fmt.Errorf("apply pack file: %w", err)
-			}
-		}
-
 		if err := mgr.applyReferenceTransactions(ctx, logEntry); err != nil {
 			return fmt.Errorf("apply reference transactions: %w", err)
-		}
-
-		if err := mgr.applyDefaultBranchUpdate(ctx, logEntry); err != nil {
-			return fmt.Errorf("writing default branch: %w", err)
 		}
 
 		if err := mgr.applyHousekeeping(ctx, lsn, logEntry); err != nil {
@@ -2824,36 +2781,6 @@ func (mgr *TransactionManager) createRepository(ctx context.Context, repositoryP
 		return structerr.New("wait git init: %w", err).WithMetadata("stderr", stderr.String())
 	}
 
-	return nil
-}
-
-// applyPackFile unpacks the objects from the pack file into the repository if the log entry
-// has an associated pack file. This is done by hard linking the pack and index from the
-// log into the repository's object directory.
-func (mgr *TransactionManager) applyPackFile(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
-	packDirectory := filepath.Join(mgr.getAbsolutePath(logEntry.RelativePath), "objects", "pack")
-	for _, fileExtension := range []string{
-		".pack",
-		".idx",
-		".rev",
-	} {
-		if err := os.Link(
-			filepath.Join(walFilesPathForLSN(mgr.stateDirectory, lsn), "objects"+fileExtension),
-			filepath.Join(packDirectory, logEntry.PackPrefix+fileExtension),
-		); err != nil {
-			if !errors.Is(err, fs.ErrExist) {
-				return fmt.Errorf("link file: %w", err)
-			}
-
-			// The file already existing means that we've already linked it in place or a repack
-			// has resulted in the exact same file. No need to do anything about it.
-		}
-	}
-
-	// Sync the new directory entries created.
-	if err := safe.NewSyncer().Sync(packDirectory); err != nil {
-		return fmt.Errorf("sync: %w", err)
-	}
 	return nil
 }
 

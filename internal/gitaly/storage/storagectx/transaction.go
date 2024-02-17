@@ -10,7 +10,7 @@ import (
 // Transaction is the interface of the storagemgr.Transaction accessible through the context.
 // See the details of that type for method documentation.
 type Transaction interface {
-	SetDefaultBranch(git.ReferenceName)
+	MarkDefaultBranchUpdated()
 	DeleteRepository()
 	MarkCustomHooksUpdated()
 	IncludeObject(git.ObjectID)

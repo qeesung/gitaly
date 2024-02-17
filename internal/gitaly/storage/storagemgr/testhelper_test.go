@@ -614,6 +614,12 @@ type CustomHooksUpdate struct {
 	CustomHooksTAR []byte
 }
 
+// DefaultBranchUpdate provides the information to update the default branch of the repo.
+type DefaultBranchUpdate struct {
+	// Reference is the reference to update the default branch to.
+	Reference git.ReferenceName
+}
+
 // Commit calls Commit on a transaction.
 type Commit struct {
 	// TransactionID identifies the transaction to commit.
@@ -850,16 +856,17 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 				transaction.UpdateReferences(step.ReferenceUpdates)
 			}
 
-			if step.DefaultBranchUpdate != nil {
-				transaction.SetDefaultBranch(step.DefaultBranchUpdate.Reference)
-			}
-
 			rewrittenRepo := setup.RepositoryFactory.Build(
 				transaction.RewriteRepository(&gitalypb.Repository{
 					StorageName:  setup.Config.Storages[0].Name,
 					RelativePath: transaction.relativePath,
 				}),
 			)
+
+			if step.DefaultBranchUpdate != nil {
+				transaction.MarkDefaultBranchUpdated()
+				require.NoError(t, rewrittenRepo.SetDefaultBranch(ctx, nil, step.DefaultBranchUpdate.Reference))
+			}
 
 			if step.CustomHooksUpdate != nil {
 				transaction.MarkCustomHooksUpdated()
