@@ -358,6 +358,7 @@ func TestConvertRepositoryInfo(t *testing.T) {
 			desc: "references",
 			repoInfo: stats.RepositoryInfo{
 				References: stats.ReferencesInfo{
+					ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 					LooseReferencesCount: 123,
 					PackedReferencesSize: 456,
 				},

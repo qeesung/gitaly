@@ -2,6 +2,7 @@ package housekeeping
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"time"
 
@@ -29,7 +30,7 @@ type OptimizationStrategy interface {
 	ShouldRepackReferences(context.Context) bool
 	// ShouldWriteCommitGraph determines whether we need to write the commit-graph and how it
 	// should be written.
-	ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig)
+	ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig, error)
 }
 
 // HeuristicalOptimizationStrategy is an optimization strategy that is based on a set of
@@ -231,12 +232,22 @@ func (s HeuristicalOptimizationStrategy) ShouldRepackObjects(ctx context.Context
 
 // ShouldWriteCommitGraph determines whether we need to write the commit-graph and how it should be
 // written.
-func (s HeuristicalOptimizationStrategy) ShouldWriteCommitGraph(ctx context.Context) (bool, WriteCommitGraphConfig) {
-	// If the repository doesn't have any references at all then there is no point in writing
-	// commit-graphs given that it would only contain reachable objects, of which there are
-	// none.
-	if s.info.References.LooseReferencesCount == 0 && s.info.References.PackedReferencesSize == 0 {
-		return false, WriteCommitGraphConfig{}
+func (s HeuristicalOptimizationStrategy) ShouldWriteCommitGraph(ctx context.Context) (bool, WriteCommitGraphConfig, error) {
+	switch s.info.References.ReferenceBackendName {
+	case git.ReferenceBackendReftables.Name:
+		// For reftables, we don't have a loose ref or packsize count. While we could check if
+		// 'tables.list' is empty or not. The reftable backend always populates it with HEAD,
+		// even for an empty repository. So fallback to creating the commit graph. This could
+		// be end up with an empty graph, but that's okay.
+	case git.ReferenceBackendFiles.Name:
+		// If the repository doesn't have any references at all then there is no point in writing
+		// commit-graphs given that it would only contain reachable objects, of which there are
+		// none.
+		if s.info.References.LooseReferencesCount == 0 && s.info.References.PackedReferencesSize == 0 {
+			return false, WriteCommitGraphConfig{}, nil
+		}
+	default:
+		return false, WriteCommitGraphConfig{}, fmt.Errorf("unexpected reference backend: %q", s.info.References.ReferenceBackendName)
 	}
 
 	// When we have pruned objects in the repository then it may happen that the commit-graph
@@ -250,13 +261,13 @@ func (s HeuristicalOptimizationStrategy) ShouldWriteCommitGraph(ctx context.Cont
 	if shouldPrune, _ := s.ShouldPruneObjects(ctx); shouldPrune {
 		return true, WriteCommitGraphConfig{
 			ReplaceChain: true,
-		}
+		}, nil
 	}
 
 	if commitGraphNeedsRewrite(ctx, s.info.CommitGraph) {
 		return true, WriteCommitGraphConfig{
 			ReplaceChain: true,
-		}
+		}, nil
 	}
 
 	// When we repacked the repository then chances are high that we have accumulated quite some
@@ -267,10 +278,10 @@ func (s HeuristicalOptimizationStrategy) ShouldWriteCommitGraph(ctx context.Cont
 			// packs with an expiry date then we may end up pruning objects. We thus
 			// need to replace the commit-graph chain in that case.
 			ReplaceChain: repackCfg.Strategy == RepackObjectsStrategyFullWithCruft && !repackCfg.CruftExpireBefore.IsZero(),
-		}
+		}, nil
 	}
 
-	return false, WriteCommitGraphConfig{}
+	return false, WriteCommitGraphConfig{}, nil
 }
 
 // ShouldPruneObjects determines whether the repository has stale objects that should be pruned.
@@ -376,10 +387,10 @@ func (s EagerOptimizationStrategy) ShouldRepackObjects(ctx context.Context) (boo
 
 // ShouldWriteCommitGraph always instructs the caller to write the commit-graph. The strategy will
 // always be to completely rewrite the commit-graph chain.
-func (s EagerOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig) {
+func (s EagerOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig, error) {
 	return true, WriteCommitGraphConfig{
 		ReplaceChain: true,
-	}
+	}, nil
 }
 
 // ShouldPruneObjects always instructs the caller to prune objects, unless the repository is an

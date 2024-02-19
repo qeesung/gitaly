@@ -259,90 +259,106 @@ func TestObjectPool_logStats(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 
+	type setupData struct {
+		pool   *ObjectPool
+		fields log.Fields
+	}
+
 	for _, tc := range []struct {
 		desc           string
-		setup          func(t *testing.T, logger log.Logger) *ObjectPool
+		setup          func(t *testing.T, logger log.Logger) setupData
 		expectedFields log.Fields
 	}{
 		{
 			desc: "empty object pool",
-			setup: func(t *testing.T, logger log.Logger) *ObjectPool {
-				testhelper.SkipWithReftable(t, "considers the reftable as a loose reference")
-
+			setup: func(t *testing.T, logger log.Logger) setupData {
 				_, pool, _ := setupObjectPool(t, ctx, withLogger(logger))
-				return pool
-			},
-			expectedFields: log.Fields{
-				"when":                "now",
-				"references.dangling": referencedObjectTypes{},
-				"references.normal":   referencedObjectTypes{},
-				"repository_info": stats.RepositoryInfo{
-					IsObjectPool: true,
-				},
+				return setupData{
+					pool: pool,
+					fields: log.Fields{
+						"when":                "now",
+						"references.dangling": referencedObjectTypes{},
+						"references.normal":   referencedObjectTypes{},
+						"repository_info": stats.RepositoryInfo{
+							IsObjectPool: true,
+							References: stats.ReferencesInfo{
+								ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+							},
+						},
+					},
+				}
 			},
 		},
 		{
 			desc: "normal reference",
-			setup: func(t *testing.T, logger log.Logger) *ObjectPool {
+			setup: func(t *testing.T, logger log.Logger) setupData {
 				cfg, pool, _ := setupObjectPool(t, ctx, withLogger(logger))
 				gittest.WriteCommit(t, cfg, gittest.RepositoryPath(t, pool), gittest.WithBranch("main"))
-				return pool
-			},
-			expectedFields: log.Fields{
-				"when":                "now",
-				"references.dangling": referencedObjectTypes{},
-				"references.normal": referencedObjectTypes{
-					Commits: 1,
-				},
-				"repository_info": stats.RepositoryInfo{
-					IsObjectPool: true,
-					LooseObjects: stats.LooseObjectsInfo{
-						Count: 2,
-						Size:  hashDependentSize(t, 142, 158),
+
+				return setupData{
+					pool: pool,
+					fields: log.Fields{
+						"when":                "now",
+						"references.dangling": referencedObjectTypes{},
+						"references.normal": referencedObjectTypes{
+							Commits: 1,
+						},
+						"repository_info": stats.RepositoryInfo{
+							IsObjectPool: true,
+							LooseObjects: stats.LooseObjectsInfo{
+								Count: 2,
+								Size:  hashDependentSize(t, 142, 158),
+							},
+							References: stats.ReferencesInfo{
+								ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+								LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
+							},
+						},
 					},
-					References: stats.ReferencesInfo{
-						LooseReferencesCount: 1,
-					},
-				},
+				}
 			},
 		},
 		{
 			desc: "dangling reference",
-			setup: func(t *testing.T, logger log.Logger) *ObjectPool {
+			setup: func(t *testing.T, logger log.Logger) setupData {
 				cfg, pool, _ := setupObjectPool(t, ctx, withLogger(logger))
 				gittest.WriteCommit(t, cfg, gittest.RepositoryPath(t, pool), gittest.WithReference("refs/dangling/commit"))
-				return pool
-			},
-			expectedFields: log.Fields{
-				"when": "now",
-				"references.dangling": referencedObjectTypes{
-					Commits: 1,
-				},
-				"references.normal": referencedObjectTypes{},
-				"repository_info": stats.RepositoryInfo{
-					IsObjectPool: true,
-					LooseObjects: stats.LooseObjectsInfo{
-						Count: 2,
-						Size:  hashDependentSize(t, 142, 158),
+
+				return setupData{
+					pool: pool,
+					fields: log.Fields{
+						"when": "now",
+						"references.dangling": referencedObjectTypes{
+							Commits: 1,
+						},
+						"references.normal": referencedObjectTypes{},
+						"repository_info": stats.RepositoryInfo{
+							IsObjectPool: true,
+							LooseObjects: stats.LooseObjectsInfo{
+								Count: 2,
+								Size:  hashDependentSize(t, 142, 158),
+							},
+							References: stats.ReferencesInfo{
+								ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+								LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
+							},
+						},
 					},
-					References: stats.ReferencesInfo{
-						LooseReferencesCount: 1,
-					},
-				},
+				}
 			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			logger := testhelper.NewLogger(t)
 			hook := testhelper.AddLoggerHook(logger)
-			pool := tc.setup(t, logger)
+			setup := tc.setup(t, logger)
 
-			require.NoError(t, pool.logStats(ctx, "now"))
+			require.NoError(t, setup.pool.logStats(ctx, "now"))
 
 			logEntries := hook.AllEntries()
 			require.Len(t, logEntries, 1)
 			require.Equal(t, "pool dangling ref stats", logEntries[0].Message)
-			require.Equal(t, tc.expectedFields, logEntries[0].Data)
+			require.Equal(t, setup.fields, logEntries[0].Data)
 		})
 	}
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
@@ -606,6 +607,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackReferences(t *testing.T) {
 			strategy := HeuristicalOptimizationStrategy{
 				info: stats.RepositoryInfo{
 					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 						PackedReferencesSize: tc.packedRefsSize,
 						LooseReferencesCount: tc.requiredRefs - 1,
 					},
@@ -633,25 +635,38 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 		expectedCfg    WriteCommitGraphConfig
 	}{
 		{
-			desc:           "empty repository",
-			expectedNeeded: false,
+			desc: "empty repository",
+			strategy: HeuristicalOptimizationStrategy{
+				info: stats.RepositoryInfo{
+					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+					},
+				},
+			},
+			expectedNeeded: gittest.FilesOrReftables(false, true),
+			expectedCfg:    gittest.FilesOrReftables(WriteCommitGraphConfig{}, WriteCommitGraphConfig{ReplaceChain: true}),
 		},
 		{
 			desc: "repository with objects but no refs",
 			strategy: HeuristicalOptimizationStrategy{
 				info: stats.RepositoryInfo{
+					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+					},
 					LooseObjects: stats.LooseObjectsInfo{
 						Count: 9000,
 					},
 				},
 			},
-			expectedNeeded: false,
+			expectedNeeded: gittest.FilesOrReftables(false, true),
+			expectedCfg:    gittest.FilesOrReftables(WriteCommitGraphConfig{}, WriteCommitGraphConfig{ReplaceChain: true}),
 		},
 		{
 			desc: "repository without bloom filters",
 			strategy: HeuristicalOptimizationStrategy{
 				info: stats.RepositoryInfo{
 					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 						LooseReferencesCount: 1,
 					},
 				},
@@ -666,6 +681,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 			strategy: HeuristicalOptimizationStrategy{
 				info: stats.RepositoryInfo{
 					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 						LooseReferencesCount: 1,
 					},
 					LooseObjects: stats.LooseObjectsInfo{
@@ -686,6 +702,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 			strategy: HeuristicalOptimizationStrategy{
 				info: stats.RepositoryInfo{
 					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 						LooseReferencesCount: 1,
 					},
 					CommitGraph: stats.CommitGraphInfo{
@@ -706,6 +723,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 			strategy: HeuristicalOptimizationStrategy{
 				info: stats.RepositoryInfo{
 					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 						LooseReferencesCount: 1,
 					},
 					CommitGraph: stats.CommitGraphInfo{
@@ -728,6 +746,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 						Count: 9000,
 					},
 					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 						LooseReferencesCount: 1,
 					},
 					CommitGraph: stats.CommitGraphInfo{
@@ -751,6 +770,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 						StaleCount: 9000,
 					},
 					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 						LooseReferencesCount: 1,
 					},
 					CommitGraph: stats.CommitGraphInfo{
@@ -774,6 +794,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 						Count: 9000,
 					},
 					References: stats.ReferencesInfo{
+						ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 						LooseReferencesCount: 1,
 					},
 					CommitGraph: stats.CommitGraphInfo{
@@ -794,7 +815,8 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			needed, writeCommitGraphCfg := tc.strategy.ShouldWriteCommitGraph(ctx)
+			needed, writeCommitGraphCfg, err := tc.strategy.ShouldWriteCommitGraph(ctx)
+			require.NoError(t, err)
 			require.Equal(t, tc.expectedNeeded, needed)
 			require.Equal(t, tc.expectedCfg, writeCommitGraphCfg)
 		})
@@ -887,7 +909,8 @@ func TestEagerOptimizationStrategy(t *testing.T) {
 				CruftExpireBefore:   expectedExpireBefore,
 			}, repackObjectsCfg)
 
-			shouldWriteCommitGraph, writeCommitGraphCfg := tc.strategy.ShouldWriteCommitGraph(ctx)
+			shouldWriteCommitGraph, writeCommitGraphCfg, err := tc.strategy.ShouldWriteCommitGraph(ctx)
+			require.NoError(t, err)
 			require.True(t, shouldWriteCommitGraph)
 			require.Equal(t, WriteCommitGraphConfig{
 				ReplaceChain: true,
@@ -925,6 +948,6 @@ func (m mockOptimizationStrategy) ShouldRepackReferences(ctx context.Context) bo
 	return m.shouldRepackReferences(ctx)
 }
 
-func (m mockOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig) {
-	return m.shouldWriteCommitGraph, m.writeCommitGraphCfg
+func (m mockOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig, error) {
+	return m.shouldWriteCommitGraph, m.writeCommitGraphCfg, nil
 }
