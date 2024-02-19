@@ -10,6 +10,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 )
@@ -1094,7 +1095,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   false,
 						},
 					},
 				},
@@ -1148,7 +1148,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: true,
-							HasCommitGraphs:   false,
 						},
 					},
 				},
@@ -1197,7 +1196,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: true,
-							HasCommitGraphs:   false,
 						},
 					},
 				},
@@ -1245,7 +1243,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: true,
-							HasCommitGraphs:   true,
 						},
 					},
 				},
@@ -1307,7 +1304,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: true,
-							HasCommitGraphs:   true,
 						},
 					},
 				},
@@ -1356,7 +1352,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: true,
-							HasCommitGraphs:   true,
 						},
 					},
 				},
@@ -1408,7 +1403,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: true,
-							HasCommitGraphs:   true,
 						},
 					},
 				},
@@ -1462,7 +1456,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: true,
-							HasCommitGraphs:   true,
 						},
 					},
 				},
@@ -1520,228 +1513,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   true,
-						},
-					},
-				},
-			},
-		},
-		{
-			desc:        "run repacking (Geometric) on a repository having existing commit-graphs",
-			customSetup: customSetup,
-			steps: steps{
-				StartManager{
-					ModifyStorage: func(tb testing.TB, cfg config.Cfg, storagePath string) {
-						repoPath := filepath.Join(storagePath, setup.RelativePath)
-						gittest.Exec(tb, cfg, "-c", "repack.writeBitmaps=false", "-C", repoPath, "repack", "-ad")
-						gittest.Exec(tb, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--changed-paths", "--size-multiple=4", "--split=replace")
-					},
-				},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				RunRepack{
-					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyGeometric,
-					},
-				},
-				Commit{
-					TransactionID: 1,
-				},
-			},
-			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						DefaultBranch: "refs/heads/main",
-						References:    &ReferencesState{LooseReferences: defaultReferences},
-						Packfiles: &PackfilesState{
-							LooseObjects: nil,
-							Packfiles: []*PackfileState{
-								{
-									Objects:         defaultReachableObjects,
-									HasBitmap:       false,
-									HasReverseIndex: true,
-								},
-								{
-									Objects: []git.ObjectID{
-										setup.Commits.Orphan.OID,
-										setup.Commits.Unreachable.OID,
-									},
-									HasBitmap:       false,
-									HasReverseIndex: true,
-								},
-							},
-							HasMultiPackIndex: false,
-							HasCommitGraphs:   true,
-						},
-					},
-				},
-			},
-		},
-		{
-			desc:        "run repacking (FullWithUnreachable) on a repository having existing commit-graphs",
-			customSetup: customSetup,
-			steps: steps{
-				StartManager{
-					ModifyStorage: func(tb testing.TB, cfg config.Cfg, storagePath string) {
-						repoPath := filepath.Join(storagePath, setup.RelativePath)
-						gittest.Exec(tb, cfg, "-c", "repack.writeBitmaps=false", "-C", repoPath, "repack", "-ad")
-						gittest.Exec(tb, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--changed-paths", "--size-multiple=4", "--split=replace")
-					},
-				},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				RunRepack{
-					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
-					},
-				},
-				Commit{
-					TransactionID: 1,
-				},
-			},
-			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						DefaultBranch: "refs/heads/main",
-						References:    &ReferencesState{LooseReferences: defaultReferences},
-						Packfiles: &PackfilesState{
-							LooseObjects: nil,
-							Packfiles: []*PackfileState{
-								{
-									Objects: append(defaultReachableObjects,
-										setup.Commits.Orphan.OID,
-										setup.Commits.Unreachable.OID,
-									),
-									HasBitmap:       false,
-									HasReverseIndex: true,
-								},
-							},
-							HasMultiPackIndex: false,
-							HasCommitGraphs:   true,
-						},
-					},
-				},
-			},
-		},
-		{
-			desc:        "run repacking (FullWithCruft) on a repository having existing commit-graphs",
-			customSetup: customSetup,
-			steps: steps{
-				StartManager{
-					ModifyStorage: func(tb testing.TB, cfg config.Cfg, storagePath string) {
-						repoPath := filepath.Join(storagePath, setup.RelativePath)
-						gittest.Exec(tb, cfg, "-C", repoPath, "repack", "-adl")
-						gittest.Exec(tb, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--changed-paths", "--size-multiple=4", "--split=replace")
-					},
-				},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				RunRepack{
-					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyFullWithCruft,
-						WriteBitmap:         true,
-						WriteMultiPackIndex: true,
-					},
-				},
-				Commit{
-					TransactionID: 1,
-				},
-			},
-			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						DefaultBranch: "refs/heads/main",
-						References:    &ReferencesState{LooseReferences: defaultReferences},
-						Packfiles: &PackfilesState{
-							// Interestingly, loose unreachable objects stay untouched!
-							LooseObjects: []git.ObjectID{
-								setup.Commits.Orphan.OID,
-								setup.Commits.Unreachable.OID,
-							},
-							Packfiles: []*PackfileState{
-								{
-									Objects:         defaultReachableObjects,
-									HasBitmap:       false,
-									HasReverseIndex: true,
-								},
-							},
-							HasMultiPackIndex: true,
-							HasCommitGraphs:   true,
-						},
-					},
-				},
-			},
-		},
-		{
-			desc:        "run repacking on a repository having monolithic commit-graph file",
-			customSetup: customSetup,
-			steps: steps{
-				StartManager{
-					ModifyStorage: func(tb testing.TB, cfg config.Cfg, storagePath string) {
-						repoPath := filepath.Join(storagePath, setup.RelativePath)
-						gittest.Exec(tb, cfg, "-c", "repack.writeBitmaps=false", "-C", repoPath, "repack", "-ad")
-						gittest.Exec(tb, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--changed-paths")
-					},
-				},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				RunRepack{
-					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyGeometric,
-					},
-				},
-				Commit{
-					TransactionID: 1,
-				},
-			},
-			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						DefaultBranch: "refs/heads/main",
-						References:    &ReferencesState{LooseReferences: defaultReferences},
-						Packfiles: &PackfilesState{
-							LooseObjects: nil,
-							Packfiles: []*PackfileState{
-								{
-									Objects:         defaultReachableObjects,
-									HasBitmap:       false,
-									HasReverseIndex: true,
-								},
-								{
-									Objects: []git.ObjectID{
-										setup.Commits.Orphan.OID,
-										setup.Commits.Unreachable.OID,
-									},
-									HasBitmap:       false,
-									HasReverseIndex: true,
-								},
-							},
-							HasMultiPackIndex: false,
-							HasCommitGraphs:   true,
 						},
 					},
 				},
@@ -1810,7 +1581,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 								},
 							},
 							HasMultiPackIndex: true,
-							HasCommitGraphs:   false,
 						},
 					},
 				},
@@ -1851,7 +1621,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 							LooseObjects:      append(defaultReachableObjects, setup.Commits.Unreachable.OID, setup.Commits.Orphan.OID),
 							Packfiles:         []*PackfileState{},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   false,
 						},
 					},
 				},
@@ -1894,8 +1663,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							LooseReferences: map[git.ReferenceName]git.ObjectID{},
 						},
 						Packfiles: &PackfilesState{
-							Packfiles:       []*PackfileState{},
-							HasCommitGraphs: false,
+							Packfiles: []*PackfileState{},
 						},
 					},
 				},
@@ -1961,7 +1729,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 									HasReverseIndex: true,
 								},
 							},
-							HasCommitGraphs: true,
 						},
 					},
 				},
@@ -2047,7 +1814,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 									HasReverseIndex: true,
 								},
 							},
-							HasCommitGraphs: true,
 						},
 					},
 				},
@@ -2132,7 +1898,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 									HasReverseIndex: true,
 								},
 							},
-							HasCommitGraphs: true,
 						},
 					},
 				},
@@ -2208,7 +1973,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 									HasReverseIndex: true,
 								},
 							},
-							HasCommitGraphs: true,
 						},
 					},
 				},
@@ -2414,7 +2178,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 									HasReverseIndex: true,
 								},
 							},
-							HasCommitGraphs: false,
 						},
 					},
 				},
@@ -2500,7 +2263,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 									HasReverseIndex: true,
 								},
 							},
-							HasCommitGraphs: false,
 						},
 					},
 				},
@@ -2587,7 +2349,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 									HasReverseIndex: true,
 								},
 							},
-							HasCommitGraphs: false,
 						},
 					},
 				},
@@ -2702,7 +2463,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   false,
 						},
 						DefaultBranch: "refs/heads/main",
 						References: &ReferencesState{
@@ -2734,7 +2494,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								setup.Commits.Second.OID,
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   false,
 						},
 						References: &ReferencesState{
 							LooseReferences: map[git.ReferenceName]git.ObjectID{
@@ -2838,7 +2597,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   false,
 						},
 						DefaultBranch: "refs/heads/main",
 						References: &ReferencesState{
@@ -2860,7 +2618,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								setup.Commits.Third.OID,
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   false,
 						},
 						References: nil,
 						Alternate:  "../../pool/objects",
@@ -2978,7 +2735,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   false,
 						},
 						DefaultBranch: "refs/heads/main",
 						References: &ReferencesState{
@@ -3012,7 +2768,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   false,
 						},
 						References: &ReferencesState{
 							LooseReferences: map[git.ReferenceName]git.ObjectID{
@@ -3123,7 +2878,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   false,
 						},
 						DefaultBranch: "refs/heads/main",
 						References: &ReferencesState{
@@ -3150,7 +2904,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								setup.Commits.Second.OID,
 							},
 							HasMultiPackIndex: false,
-							HasCommitGraphs:   true,
 						},
 						References: &ReferencesState{
 							LooseReferences: map[git.ReferenceName]git.ObjectID{
@@ -3273,6 +3026,337 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								setup.Commits.Diverging.OID,
 							},
 							Packfiles: []*PackfileState{},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, setup testTransactionSetup) []transactionTestCase {
+	defaultLooseObjects := []git.ObjectID{
+		setup.Commits.First.OID,
+		setup.Commits.Second.OID,
+		setup.Commits.Third.OID,
+		setup.Commits.Diverging.OID,
+		setup.ObjectHash.EmptyTreeOID,
+	}
+	return []transactionTestCase{
+		{
+			desc: "run writing commit graph on a repository without existing commit graph",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+					QuarantinedPacks: [][]byte{
+						setup.Commits.First.Pack,
+						setup.Commits.Second.Pack,
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				WriteCommitGraphs{
+					TransactionID: 2,
+					Config: housekeeping.WriteCommitGraphConfig{
+						ReplaceChain: true,
+					},
+				},
+				Commit{
+					TransactionID: 2,
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
+						Packfiles: &PackfilesState{
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.Commits.First.OID,
+										setup.Commits.Second.OID,
+										setup.ObjectHash.EmptyTreeOID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+							CommitGraphs: &stats.CommitGraphInfo{
+								Exists:                 true,
+								CommitGraphChainLength: 1,
+								HasBloomFilters:        true,
+								HasGenerationData:      true,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "run writing commit graph on an empty repository",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				WriteCommitGraphs{
+					TransactionID: 1,
+					Config: housekeeping.WriteCommitGraphConfig{
+						ReplaceChain: true,
+					},
+				},
+				Commit{
+					TransactionID: 1,
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{},
+						},
+						Packfiles: &PackfilesState{
+							CommitGraphs: &stats.CommitGraphInfo{
+								Exists:                 true,
+								CommitGraphChainLength: 1,
+								HasBloomFilters:        true,
+								HasGenerationData:      true,
+							},
+							Packfiles: []*PackfileState{},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "run writing commit graph on a repository having existing commit graph",
+			steps: steps{
+				StartManager{
+					ModifyStorage: func(tb testing.TB, cfg config.Cfg, storagePath string) {
+						repoPath := filepath.Join(storagePath, setup.RelativePath)
+						gittest.Exec(tb, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--changed-paths", "--size-multiple=4", "--split=replace")
+					},
+				},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				WriteCommitGraphs{
+					TransactionID: 1,
+					Config: housekeeping.WriteCommitGraphConfig{
+						ReplaceChain: true,
+					},
+				},
+				Commit{
+					TransactionID: 1,
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						Packfiles: &PackfilesState{
+							LooseObjects: defaultLooseObjects,
+							Packfiles:    []*PackfileState{},
+							CommitGraphs: &stats.CommitGraphInfo{
+								Exists:                 true,
+								CommitGraphChainLength: 1,
+								HasBloomFilters:        true,
+								HasGenerationData:      true,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "run writing commit graph on a repository having existing commit graph without replacing chain",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+					QuarantinedPacks: [][]byte{
+						setup.Commits.First.Pack,
+						setup.Commits.Second.Pack,
+						setup.Commits.Diverging.Pack,
+					},
+					IncludeObjects: []git.ObjectID{
+						setup.Commits.Diverging.OID,
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				WriteCommitGraphs{
+					TransactionID: 2,
+					Config: housekeeping.WriteCommitGraphConfig{
+						ReplaceChain: false,
+					},
+				},
+				Commit{
+					TransactionID: 2,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 2,
+				},
+				RunRepack{
+					TransactionID: 3,
+					Config: housekeeping.RepackObjectsConfig{
+						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					},
+				},
+				Commit{
+					TransactionID: 3,
+				},
+				Begin{
+					TransactionID:       4,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 3,
+				},
+				Commit{
+					TransactionID: 4,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Third.OID},
+					},
+					QuarantinedPacks: [][]byte{
+						setup.Commits.Third.Pack,
+					},
+				},
+				Begin{
+					TransactionID:       5,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 4,
+				},
+				WriteCommitGraphs{
+					TransactionID: 5,
+					Config: housekeeping.WriteCommitGraphConfig{
+						ReplaceChain: false,
+					},
+				},
+				Commit{
+					TransactionID: 5,
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(5).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main":   setup.Commits.Second.OID,
+								"refs/heads/branch": setup.Commits.Third.OID,
+							},
+						},
+						Packfiles: &PackfilesState{
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.Commits.First.OID,
+										setup.Commits.Second.OID,
+										setup.ObjectHash.EmptyTreeOID,
+									},
+									HasReverseIndex: true,
+								},
+								{
+									Objects: []git.ObjectID{
+										setup.Commits.Third.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+							CommitGraphs: &stats.CommitGraphInfo{
+								Exists:                 true,
+								CommitGraphChainLength: 1,
+								HasBloomFilters:        true,
+								HasGenerationData:      true,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "run writing commit graph on a repository having monolithic commit graph file",
+			steps: steps{
+				StartManager{
+					ModifyStorage: func(tb testing.TB, cfg config.Cfg, storagePath string) {
+						repoPath := filepath.Join(storagePath, setup.RelativePath)
+						gittest.Exec(tb, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--changed-paths")
+					},
+				},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				WriteCommitGraphs{
+					TransactionID: 1,
+					Config: housekeeping.WriteCommitGraphConfig{
+						ReplaceChain: true,
+					},
+				},
+				Commit{
+					TransactionID: 1,
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						Packfiles: &PackfilesState{
+							LooseObjects: defaultLooseObjects,
+							Packfiles:    []*PackfileState{},
+							CommitGraphs: &stats.CommitGraphInfo{
+								Exists:                 true,
+								CommitGraphChainLength: 1,
+								HasBloomFilters:        true,
+								HasGenerationData:      true,
+							},
 						},
 					},
 				},
