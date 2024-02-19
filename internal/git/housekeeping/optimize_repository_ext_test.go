@@ -20,8 +20,6 @@ import (
 )
 
 func TestPruneIfNeeded(t *testing.T) {
-	testhelper.SkipWithReftable(t, "commit graph is written as the reftable is considered a loose object")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -173,6 +171,11 @@ func TestPruneIfNeeded(t *testing.T) {
 
 			logger := testhelper.NewLogger(t)
 			hook := testhelper.AddLoggerHook(logger)
+
+			// In reftables, we always write the commit graph.
+			if testhelper.IsReftableEnabled() {
+				tc.expectedLogEntries["written_commit_graph_full"] = "success"
+			}
 
 			require.NoError(t, housekeeping.NewManager(cfg.Prometheus, logger, nil).OptimizeRepository(ctx, repo))
 			require.Equal(t, tc.expectedLogEntries, hook.LastEntry().Data["optimizations"])
