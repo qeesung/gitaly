@@ -176,14 +176,19 @@ func TestWriteRef(t *testing.T) {
 			desc: "revision refers to missing reference",
 			setup: func(t *testing.T) setupData {
 				repo, _ := gittest.CreateRepository(t, ctx, cfg)
+				revision := []byte("refs/heads/missing")
 
 				return setupData{
 					request: &gitalypb.WriteRefRequest{
 						Repository: repo,
 						Ref:        []byte("refs/heads/main"),
-						Revision:   []byte("refs/heads/missing"),
+						Revision:   revision,
 					},
-					expectedErr: structerr.NewInternal("resolving new revision: reference not found"),
+					expectedErr: structerr.NewNotFound("resolving new revision: reference not found").WithDetail(
+						&gitalypb.ReferenceNotFoundError{
+							ReferenceName: revision,
+						},
+					),
 					expectedRefs: []git.Reference{
 						git.NewSymbolicReference("HEAD", git.DefaultRef),
 					},
@@ -195,14 +200,19 @@ func TestWriteRef(t *testing.T) {
 			desc: "revision refers to missing object",
 			setup: func(t *testing.T) setupData {
 				repo, _ := gittest.CreateRepository(t, ctx, cfg)
+				revision := bytes.Repeat([]byte("1"), gittest.DefaultObjectHash.EncodedLen())
 
 				return setupData{
 					request: &gitalypb.WriteRefRequest{
 						Repository: repo,
 						Ref:        []byte("refs/heads/main"),
-						Revision:   bytes.Repeat([]byte("1"), gittest.DefaultObjectHash.EncodedLen()),
+						Revision:   revision,
 					},
-					expectedErr: structerr.NewInternal("resolving new revision: reference not found"),
+					expectedErr: structerr.NewNotFound("resolving new revision: reference not found").WithDetail(
+						&gitalypb.ReferenceNotFoundError{
+							ReferenceName: revision,
+						},
+					),
 					expectedRefs: []git.Reference{
 						git.NewSymbolicReference("HEAD", git.DefaultRef),
 					},
@@ -216,15 +226,20 @@ func TestWriteRef(t *testing.T) {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 				commitID := gittest.WriteCommit(t, cfg, repoPath)
+				oldRevision := bytes.Repeat([]byte("1"), gittest.DefaultObjectHash.EncodedLen())
 
 				return setupData{
 					request: &gitalypb.WriteRefRequest{
 						Repository:  repo,
 						Ref:         []byte("refs/heads/main"),
 						Revision:    []byte(commitID),
-						OldRevision: bytes.Repeat([]byte("1"), gittest.DefaultObjectHash.EncodedLen()),
+						OldRevision: oldRevision,
 					},
-					expectedErr: structerr.NewInternal("resolving old revision: reference not found"),
+					expectedErr: structerr.NewNotFound("resolving old revision: reference not found").WithDetail(
+						&gitalypb.ReferenceNotFoundError{
+							ReferenceName: oldRevision,
+						},
+					),
 					expectedRefs: []git.Reference{
 						git.NewSymbolicReference("HEAD", git.DefaultRef),
 					},

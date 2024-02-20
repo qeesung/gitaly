@@ -76,6 +76,8 @@ type RepositoryServiceClient interface {
 	// repository corruption.
 	Fsck(ctx context.Context, in *FsckRequest, opts ...grpc.CallOption) (*FsckResponse, error)
 	// WriteRef creates or updates a ref in a repository to point to a new value.
+	// If the request contains object revisions that do not exist in the repository, the RPC returns
+	// the NOT_FOUND code with the ReferenceNotFoundError detail.
 	WriteRef(ctx context.Context, in *WriteRefRequest, opts ...grpc.CallOption) (*WriteRefResponse, error)
 	// FindMergeBase returns the best common ancestor between two or more commits. Consult the man
 	// pages of git-merge-base(1) for more information on how this is calculated.
@@ -1054,6 +1056,8 @@ type RepositoryServiceServer interface {
 	// repository corruption.
 	Fsck(context.Context, *FsckRequest) (*FsckResponse, error)
 	// WriteRef creates or updates a ref in a repository to point to a new value.
+	// If the request contains object revisions that do not exist in the repository, the RPC returns
+	// the NOT_FOUND code with the ReferenceNotFoundError detail.
 	WriteRef(context.Context, *WriteRefRequest) (*WriteRefResponse, error)
 	// FindMergeBase returns the best common ancestor between two or more commits. Consult the man
 	// pages of git-merge-base(1) for more information on how this is calculated.
