@@ -243,6 +243,10 @@ message LFSPointer {
   bytes data = 2;
   // oid is the object ID of the blob.
   string oid = 3;
+  // file_size is the size given when parsing the LFS pointer spec.
+  int64 file_size = 4;
+  // file_oid is the object id given when parsing the LFS pointer spec.
+  bytes file_oid = 5;
 }
 
 // GetLFSPointersRequest is a request for the GetLFSPointers RPC.

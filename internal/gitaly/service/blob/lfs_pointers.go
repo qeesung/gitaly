@@ -224,7 +224,8 @@ func sendLFSPointers(chunker *chunk.Chunker, iter gitpipe.CatfileObjectIterator,
 			return structerr.NewInternal("reading LFS pointer data: %w", err)
 		}
 
-		if !git.IsLFSPointer(buffer.Bytes()) {
+		pointer, fileOid, fileSize := git.IsLFSPointer(buffer.Bytes())
+		if !pointer {
 			continue
 		}
 
@@ -232,9 +233,11 @@ func sendLFSPointers(chunker *chunk.Chunker, iter gitpipe.CatfileObjectIterator,
 		copy(objectData, buffer.Bytes())
 
 		if err := chunker.Send(&gitalypb.LFSPointer{
-			Data: objectData,
-			Size: int64(len(objectData)),
-			Oid:  lfsPointer.ObjectID().String(),
+			Data:     objectData,
+			Size:     int64(len(objectData)),
+			Oid:      lfsPointer.ObjectID().String(),
+			FileOid:  fileOid,
+			FileSize: fileSize,
 		}); err != nil {
 			return structerr.NewInternal("sending LFS pointer chunk: %w", err)
 		}
