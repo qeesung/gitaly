@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
@@ -180,4 +181,31 @@ func TestRequireDirectoryState(t *testing.T) {
 			)
 		})
 	}
+}
+
+func TestCreateFS(t *testing.T) {
+	tmpDir := t.TempDir()
+	rootPath := filepath.Join(tmpDir, "root")
+
+	CreateFS(t, rootPath, fstest.MapFS{
+		".":                              {Mode: fs.ModeDir | perm.SharedDir},
+		"private-dir":                    {Mode: fs.ModeDir | perm.PrivateDir},
+		"private-dir/private-file":       {Mode: perm.PrivateFile, Data: []byte("private-file")},
+		"private-dir/subdir":             {Mode: fs.ModeDir | perm.PrivateDir},
+		"private-dir/subdir/subdir-file": {Mode: perm.PrivateDir, Data: []byte("subdir-file")},
+		"shared-dir":                     {Mode: fs.ModeDir | perm.PrivateDir},
+		"shared-dir/shared-file":         {Mode: perm.PrivateDir, Data: []byte("shared-file")},
+		"root-file":                      {Mode: perm.PrivateFile, Data: []byte("root-file")},
+	})
+
+	RequireDirectoryState(t, rootPath, "", DirectoryState{
+		"/":                               {Mode: fs.ModeDir | perm.SharedDir},
+		"/private-dir":                    {Mode: fs.ModeDir | perm.PrivateDir},
+		"/private-dir/private-file":       {Mode: perm.PrivateFile, Content: []byte("private-file")},
+		"/private-dir/subdir":             {Mode: fs.ModeDir | perm.PrivateDir},
+		"/private-dir/subdir/subdir-file": {Mode: perm.PrivateDir, Content: []byte("subdir-file")},
+		"/shared-dir":                     {Mode: fs.ModeDir | perm.PrivateDir},
+		"/shared-dir/shared-file":         {Mode: perm.PrivateDir, Content: []byte("shared-file")},
+		"/root-file":                      {Mode: perm.PrivateFile, Content: []byte("root-file")},
+	})
 }
