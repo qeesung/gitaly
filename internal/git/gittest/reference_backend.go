@@ -14,3 +14,12 @@ var DefaultReferenceBackend = func() git.ReferenceBackend {
 
 	return git.ReferenceBackendFiles
 }()
+
+// FilesOrReftables returns the files or reftable value based on which reference
+// backend is currently being used.
+func FilesOrReftables[T any](files, reftable T) T {
+	if DefaultReferenceBackend == git.ReferenceBackendFiles {
+		return files
+	}
+	return reftable
+}

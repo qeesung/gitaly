@@ -653,14 +653,10 @@ func TestUpdater_cancel(t *testing.T) {
 	failingUpdater, err := New(ctx, repo)
 	require.NoError(t, err)
 
-	expectedErr := AlreadyLockedError{
-		ReferenceName: "refs/heads/main",
-	}
-
 	// Reftable locks are on an entire table instead of per reference, so
 	// git doesn't output the name of the individual ref.
-	if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
-		expectedErr.ReferenceName = ""
+	expectedErr := AlreadyLockedError{
+		ReferenceName: gittest.FilesOrReftables("refs/heads/main", ""),
 	}
 
 	defer func() { require.Equal(t, expectedErr, failingUpdater.Close()) }()
@@ -747,13 +743,8 @@ func TestUpdater_packRefsLocked(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
-			files := []string{"packed-refs.lock", "packed-refs.new"}
-			expectedErr := ErrPackedRefsLocked
-
-			if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
-				files = []string{"reftable/tables.list.lock"}
-				expectedErr = AlreadyLockedError{}
-			}
+			files := gittest.FilesOrReftables([]string{"packed-refs.lock", "packed-refs.new"}, []string{"reftable/tables.list.lock"})
+			expectedErr := gittest.FilesOrReftables[error](ErrPackedRefsLocked, AlreadyLockedError{})
 
 			for _, lockFile := range files {
 				lockFile := lockFile

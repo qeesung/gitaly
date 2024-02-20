@@ -403,17 +403,13 @@ func TestWriteRef_locked(t *testing.T) {
 		Revision:   []byte(commitID),
 	})
 
-	value := "refs/heads/locked-branch"
-	// For reftable there is only table level locking and hence no
-	// reference value is provided.
-	if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
-		value = ""
-	}
-
 	testhelper.RequireGrpcError(t,
 		testhelper.WithInterceptedMetadata(
 			structerr.NewAborted("reference is locked already"),
-			"reference", value,
+			"reference",
+			// For reftable there is only table level locking and hence no
+			// reference value is provided.
+			gittest.FilesOrReftables("refs/heads/locked-branch", ""),
 		),
 		err,
 	)

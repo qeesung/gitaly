@@ -374,12 +374,9 @@ func TestUserDeleteBranch_concurrentUpdate(t *testing.T) {
 		User:       gittest.TestUser,
 	})
 
-	value := []byte("refs/heads/concurrent-update")
 	// For reftable there is only table level locking and hence no
 	// reference value is provided.
-	if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
-		value = nil
-	}
+	value := gittest.FilesOrReftables([]byte("refs/heads/concurrent-update"), nil)
 
 	testhelper.RequireGrpcError(t, structerr.NewFailedPrecondition("reference update failed: reference update: reference is already locked").
 		WithDetail(&testproto.ErrorMetadata{
