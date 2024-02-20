@@ -183,7 +183,9 @@ func TestWriteRef(t *testing.T) {
 						Ref:        []byte("refs/heads/main"),
 						Revision:   []byte("refs/heads/missing"),
 					},
-					expectedErr: structerr.NewInternal("resolving new revision: reference not found"),
+					expectedErr: structerr.NewNotFound("resolving new revision: reference not found").WithDetail(
+						&gitalypb.ReferenceNotFoundError{},
+					),
 					expectedRefs: []git.Reference{
 						git.NewSymbolicReference("HEAD", git.DefaultRef),
 					},
@@ -202,7 +204,9 @@ func TestWriteRef(t *testing.T) {
 						Ref:        []byte("refs/heads/main"),
 						Revision:   bytes.Repeat([]byte("1"), gittest.DefaultObjectHash.EncodedLen()),
 					},
-					expectedErr: structerr.NewInternal("resolving new revision: reference not found"),
+					expectedErr: structerr.NewNotFound("resolving new revision: reference not found").WithDetail(
+						&gitalypb.ReferenceNotFoundError{},
+					),
 					expectedRefs: []git.Reference{
 						git.NewSymbolicReference("HEAD", git.DefaultRef),
 					},
@@ -224,7 +228,9 @@ func TestWriteRef(t *testing.T) {
 						Revision:    []byte(commitID),
 						OldRevision: bytes.Repeat([]byte("1"), gittest.DefaultObjectHash.EncodedLen()),
 					},
-					expectedErr: structerr.NewInternal("resolving old revision: reference not found"),
+					expectedErr: structerr.NewNotFound("resolving old revision: reference not found").WithDetail(
+						&gitalypb.ReferenceNotFoundError{},
+					),
 					expectedRefs: []git.Reference{
 						git.NewSymbolicReference("HEAD", git.DefaultRef),
 					},
