@@ -620,6 +620,51 @@ func TestFindCommits(t *testing.T) {
 				}
 			},
 		},
+		{
+			desc: "no commits found due to ambiguous argument",
+			setup: func(t *testing.T) setupData {
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository:       repo,
+						Revision:         []byte("non-existing-ref"),
+						Limit:            9000,
+						IncludeShortstat: true,
+					},
+					expectedErr: structerr.NewNotFound("commits not found"),
+				}
+			},
+		},
+		{
+			desc: "no commits found due to bad object id",
+			setup: func(t *testing.T) setupData {
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository:       repo,
+						Revision:         []byte("37811987837aacbd3b1d8ceb8de669b33f7c7c0a"),
+						Limit:            9000,
+						IncludeShortstat: true,
+					},
+					expectedErr: structerr.NewNotFound("commits not found"),
+				}
+			},
+		},
+		{
+			desc: "no commits found due to invalid range",
+			setup: func(t *testing.T) setupData {
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository:       repo,
+						Revision:         []byte("37811987837aacbd3b1d8ceb8de669b33f7c7c0a..37811987837aacbd3b1d8ceb8de669b33f7c7c0b"),
+						Limit:            9000,
+						IncludeShortstat: true,
+					},
+					expectedErr: structerr.NewNotFound("commits not found"),
+				}
+			},
+		},
 	} {
 		tc := tc
 
@@ -651,6 +696,7 @@ func TestFindCommits_quarantine(t *testing.T) {
 		desc          string
 		altDirs       []string
 		expectedCount int
+		expectedErr   error
 	}{
 		{
 			desc:          "present GIT_ALTERNATE_OBJECT_DIRECTORIES",
@@ -661,6 +707,7 @@ func TestFindCommits_quarantine(t *testing.T) {
 			desc:          "empty GIT_ALTERNATE_OBJECT_DIRECTORIES",
 			altDirs:       []string{},
 			expectedCount: 0,
+			expectedErr:   structerr.NewNotFound("commits not found"),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -681,7 +728,7 @@ func TestFindCommits_quarantine(t *testing.T) {
 				Revision:   []byte(commitID.String()),
 				Limit:      1,
 			})
-			require.NoError(t, err)
+			testhelper.RequireGrpcError(t, tc.expectedErr, err)
 			require.Len(t, commits, tc.expectedCount)
 		})
 	}
