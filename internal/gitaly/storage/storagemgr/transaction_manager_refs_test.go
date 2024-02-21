@@ -7,6 +7,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 )
@@ -459,17 +460,54 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 		{
 			desc: "create a reference to non-existent object",
 			steps: steps{
+				Prune{},
 				StartManager{},
 				Begin{
-					RelativePath: setup.RelativePath,
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
 				},
 				Commit{
+					TransactionID:    1,
+					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
+					IncludeObjects:   []git.ObjectID{setup.Commits.First.OID},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				RunRepack{
+					TransactionID: 3,
+					Config: housekeeping.RepackObjectsConfig{
+						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					},
+				},
+				Commit{
+					TransactionID: 3,
+				},
+				Commit{
+					TransactionID: 2,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.NonExistentOID},
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
 					ExpectedError: updateref.NonExistentObjectError{
 						ReferenceName: "refs/heads/main",
-						ObjectID:      setup.NonExistentOID.String(),
+						ObjectID:      setup.Commits.First.OID.String(),
+					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						Objects: []git.ObjectID{},
 					},
 				},
 			},
