@@ -1,5 +1,9 @@
 # Gitaly changelog
 
+## 16.9.1 (2024-02-20)
+
+No changes.
+
 ## 16.9.0 (2024-02-14)
 
 ### Added (1 change)
@@ -15,6 +19,10 @@
 ### Deprecated (1 change)
 
 - [proto: Deprecate RemoveAll](gitlab-org/gitaly@a9b8db1b0894b1d613c77b2736409563199d5e62) ([merge request](gitlab-org/gitaly!6614))
+
+## 16.8.3 (2024-02-20)
+
+No changes.
 
 ## 16.8.2 (2024-02-07)
 
@@ -34,6 +42,10 @@ No changes.
 ### Deprecated (1 change)
 
 - [proto: Deprecate RemoveAll](gitlab-org/gitaly@bead28d4dd8c6fa0166d4490fe479dca78c51bc7) ([merge request](gitlab-org/gitaly!6579))
+
+## 16.7.6 (2024-02-20)
+
+No changes.
 
 ## 16.7.5 (2024-02-07)
 
