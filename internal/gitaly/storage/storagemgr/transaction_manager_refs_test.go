@@ -2,16 +2,13 @@ package storagemgr
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 )
 
 func generateInvalidReferencesTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
@@ -188,136 +185,6 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 							},
 						},
 					},
-				},
-			},
-		},
-		{
-			desc: "create reference with existing reference lock",
-			steps: steps{
-				StartManager{
-					ModifyStorage: func(_ testing.TB, _ config.Cfg, storagePath string) {
-						err := os.WriteFile(filepath.Join(storagePath, setup.RelativePath, "refs", "heads", "main.lock"), []byte{}, 0o666)
-						require.NoError(t, err)
-					},
-				},
-				Begin{
-					RelativePath: setup.RelativePath,
-				},
-				Commit{
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-					},
-				},
-			},
-			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						DefaultBranch: "refs/heads/main",
-						References: &ReferencesState{
-							LooseReferences: map[git.ReferenceName]git.ObjectID{
-								"refs/heads/main": setup.Commits.First.OID,
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			desc: "delete packed reference with existing packed-refs.lock",
-			steps: steps{
-				StartManager{},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				Commit{
-					TransactionID: 1,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-					},
-				},
-				CloseManager{},
-				StartManager{
-					ModifyStorage: func(tb testing.TB, cfg config.Cfg, storagePath string) {
-						repoPath := filepath.Join(storagePath, setup.RelativePath)
-						// Pack the reference and create a stale lockfile for it.
-						gittest.Exec(tb, cfg, "-C", repoPath, "pack-refs", "--all")
-
-						// Add packed-refs.lock. The reference deletion will fail if this
-						// isn't cleaned up.
-						require.NoError(t, os.WriteFile(
-							filepath.Join(repoPath, "packed-refs.lock"),
-							[]byte{},
-							perm.PrivateFile,
-						))
-					},
-				},
-				Begin{
-					TransactionID:       2,
-					RelativePath:        setup.RelativePath,
-					ExpectedSnapshotLSN: 1,
-				},
-				Commit{
-					TransactionID: 2,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
-					},
-				},
-			},
-			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
-				},
-			},
-		},
-		{
-			desc: "delete packed reference with existing packed-refs.new",
-			steps: steps{
-				StartManager{},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				Commit{
-					TransactionID: 1,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-					},
-				},
-				CloseManager{},
-				StartManager{
-					ModifyStorage: func(tb testing.TB, cfg config.Cfg, storagePath string) {
-						repoPath := filepath.Join(storagePath, setup.RelativePath)
-						// Pack the reference and create a stale lockfile for it.
-						gittest.Exec(tb, cfg, "-C", repoPath, "pack-refs", "--all")
-
-						// Add packed-refs.new. The reference deletion will fail if this
-						// isn't cleaned up.
-						require.NoError(t, os.WriteFile(
-							filepath.Join(repoPath, "packed-refs.new"),
-							[]byte{},
-							perm.PrivateFile,
-						))
-					},
-				},
-				Begin{
-					TransactionID:       2,
-					RelativePath:        setup.RelativePath,
-					ExpectedSnapshotLSN: 1,
-				},
-				Commit{
-					TransactionID: 2,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
-					},
-				},
-			},
-			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
 				},
 			},
 		},
