@@ -371,7 +371,6 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		partitionMgr, err := storagemgr.NewPartitionManager(
 			cfg.Storages,
 			gitCmdFactory,
-			housekeepingManager,
 			localrepo.NewFactory(logger, locator, gitCmdFactory, catfileCache),
 			logger,
 			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),

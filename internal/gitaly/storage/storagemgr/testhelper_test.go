@@ -27,8 +27,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/counter"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -741,9 +739,6 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 	require.NoError(t, err)
 	defer testhelper.MustClose(t, database)
 
-	txManager := transaction.NewManager(setup.Config, logger, backchannel.NewRegistry())
-	housekeepingManager := housekeeping.NewManager(setup.Config.Prometheus, logger, txManager)
-
 	storagePath := setup.Config.Storages[0].Path
 	stateDir := filepath.Join(storagePath, "state")
 
@@ -754,7 +749,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 		// managerRunning tracks whether the manager is running or closed.
 		managerRunning bool
 		// transactionManager is the current TransactionManager instance.
-		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, housekeepingManager, storageScopedFactory)
+		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory)
 		// managerErr is used for synchronizing manager closing and returning
 		// the error from Run.
 		managerErr chan error
@@ -801,7 +796,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.NoError(t, os.RemoveAll(stagingDir))
 			require.NoError(t, os.Mkdir(stagingDir, perm.PrivateDir))
 
-			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, housekeepingManager, storageScopedFactory)
+			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory)
 			installHooks(transactionManager, &inflightTransactions, step.Hooks)
 
 			go func() {

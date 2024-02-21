@@ -784,8 +784,6 @@ type TransactionManager struct {
 	// oldestLSN holds the LSN of the head of log entries which is still kept in the database. The manager keeps
 	// them because they are still referred by a transaction.
 	oldestLSN LSN
-	// housekeepingManager access to the housekeeping.Manager.
-	housekeepingManager housekeeping.Manager
 
 	// awaitingTransactions contains transactions waiting for their log entry to be applied to
 	// the partition. It's keyed by the LSN the transaction is waiting to be applied and the
@@ -821,7 +819,6 @@ func NewTransactionManager(
 	stateDir,
 	stagingDir string,
 	cmdFactory git.CommandFactory,
-	housekeepingManager housekeeping.Manager,
 	repositoryFactory localrepo.StorageScopedFactory,
 ) *TransactionManager {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -842,7 +839,6 @@ func NewTransactionManager(
 		snapshotLocks:        make(map[LSN]*snapshotLock),
 		stateDirectory:       stateDir,
 		stagingDirectory:     stagingDir,
-		housekeepingManager:  housekeepingManager,
 		awaitingTransactions: make(map[LSN]resultChannel),
 		committedEntries:     list.New(),
 

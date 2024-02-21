@@ -22,11 +22,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -1822,9 +1819,6 @@ func BenchmarkTransactionManager(b *testing.B) {
 			require.NoError(b, err)
 			defer testhelper.MustClose(b, database)
 
-			txManager := transaction.NewManager(cfg, logger, backchannel.NewRegistry())
-			housekeepingManager := housekeeping.NewManager(cfg.Prometheus, logger, txManager)
-
 			var (
 				// managerWG records the running TransactionManager.Run goroutines.
 				managerWG sync.WaitGroup
@@ -1878,7 +1872,7 @@ func BenchmarkTransactionManager(b *testing.B) {
 
 				// Valid partition IDs are >=1.
 				testPartitionID := partitionID(i + 1)
-				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, housekeepingManager, repositoryFactory)
+				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory)
 
 				managers = append(managers, manager)
 
