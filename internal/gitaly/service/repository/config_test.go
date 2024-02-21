@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -47,8 +48,6 @@ func TestGetConfig(t *testing.T) {
 	}
 
 	t.Run("normal repo", func(t *testing.T) {
-		testhelper.SkipWithReftable(t, "core.repositoryformatversion is set when reftables are used")
-
 		repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 		config, err := getConfig(t, client, repo)
@@ -59,9 +58,28 @@ func TestGetConfig(t *testing.T) {
 			darwinConfig = "\tignorecase = true\n\tprecomposeunicode = true\n"
 		}
 
+		var extensionsForSha1 string
+		extensionsForSha256 := "[extensions]\n\tobjectformat = sha256\n"
+		repoFormatVersion := 0
+
+		if testhelper.IsReftableEnabled() {
+			repoFormatVersion = 1
+			extensionsForSha1 = "[extensions]\n\trefstorage = reftable\n"
+			extensionsForSha256 += "\trefstorage = reftable\n"
+		}
+
 		expectedConfig := gittest.ObjectHashDependent(t, map[string]string{
-			"sha1":   "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n" + darwinConfig,
-			"sha256": "[core]\n\trepositoryformatversion = 1\n\tfilemode = true\n\tbare = true\n" + darwinConfig + "[extensions]\n\tobjectformat = sha256\n",
+			"sha1": fmt.Sprintf(
+				"[core]\n\trepositoryformatversion = %d\n\tfilemode = true\n\tbare = true\n%s%s",
+				repoFormatVersion,
+				darwinConfig,
+				extensionsForSha1,
+			),
+			"sha256": fmt.Sprintf(
+				"[core]\n\trepositoryformatversion = 1\n\tfilemode = true\n\tbare = true\n%s%s",
+				darwinConfig,
+				extensionsForSha256,
+			),
 		})
 
 		require.Equal(t, expectedConfig, config)

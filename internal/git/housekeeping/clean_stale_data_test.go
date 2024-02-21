@@ -1197,8 +1197,6 @@ func TestRepositoryManager_CleanStaleData_unsetConfiguration(t *testing.T) {
 }
 
 func TestRepositoryManager_CleanStaleData_unsetConfigurationTransactional(t *testing.T) {
-	testhelper.SkipWithReftable(t, "extensions.refstorage is added to config with reftables")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -1229,10 +1227,14 @@ func TestRepositoryManager_CleanStaleData_unsetConfigurationTransactional(t *tes
 	if runtime.GOOS == "darwin" {
 		expectedConfig = expectedConfig + "core.ignorecase\ncore.precomposeunicode\n"
 	}
+	if testhelper.IsReftableEnabled() {
+		expectedConfig = expectedConfig + "extensions.refstorage\n"
+	}
 
 	if gittest.DefaultObjectHash.Format == "sha256" {
 		expectedConfig = expectedConfig + "extensions.objectformat\n"
 	}
+
 	require.Equal(t, expectedConfig, string(configKeys))
 }
 
