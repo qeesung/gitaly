@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -188,6 +189,98 @@ func (e *Entry) RecordDirectoryRemoval(storageRoot, directoryRelativePath string
 	}
 
 	ops.flush(filepath.Dir(directoryRelativePath))
+
+	e.operations = append(ops, e.operations...)
+
+	return nil
+}
+
+// RecordAlternateUnlink records the operations to unlink the repository at the relative path
+// from its alternate. All loose objects and packs are hard linked from the alternate to the
+// repository and the `objects/info/alternate` file is removed.
+func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath string) error {
+	destinationObjectsDir := filepath.Join(relativePath, "objects")
+	sourceObjectsDir := filepath.Join(destinationObjectsDir, alternatePath)
+
+	entries, err := os.ReadDir(filepath.Join(storageRoot, sourceObjectsDir))
+	if err != nil {
+		return fmt.Errorf("read alternate objects dir: %w", err)
+	}
+
+	dirsCreated := false
+
+	var ops operations
+	for _, subDir := range entries {
+		if !subDir.IsDir() || !(len(subDir.Name()) == 2 || subDir.Name() == "pack") {
+			// Only look in objects/<xx> and objects/pack for files.
+			continue
+		}
+
+		objectsCreated := false
+
+		sourceDir := filepath.Join(sourceObjectsDir, subDir.Name())
+
+		objects, err := os.ReadDir(filepath.Join(storageRoot, sourceDir))
+		if err != nil {
+			return fmt.Errorf("read subdirectory: %w", err)
+		}
+
+		if len(objects) == 0 {
+			// Don't create empty directories
+			continue
+		}
+
+		destinationDir := filepath.Join(destinationObjectsDir, subDir.Name())
+
+		// Create the destination directory if it doesn't yet exist.
+		if _, err := os.Stat(filepath.Join(storageRoot, destinationDir)); err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("stat: %w", err)
+			}
+
+			info, err := subDir.Info()
+			if err != nil {
+				return fmt.Errorf("subdirectory info: %w", err)
+			}
+
+			dirsCreated = true
+			ops.createDirectory(destinationDir, info.Mode().Perm())
+		}
+
+		// Create all of the objects in the directory if they don't yet exist.
+		for _, objectFile := range objects {
+			if !objectFile.Type().IsRegular() {
+				continue
+			}
+
+			objectDestination := filepath.Join(destinationDir, objectFile.Name())
+			if _, err := os.Stat(filepath.Join(storageRoot, objectDestination)); err != nil {
+				if !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("stat: %w", err)
+				}
+
+				objectsCreated = true
+				// The object doesn't yet exist, log the linking.
+				ops.createHardLink(
+					filepath.Join(sourceDir, objectFile.Name()),
+					objectDestination,
+					true,
+				)
+			}
+		}
+
+		if objectsCreated {
+			ops.flush(destinationDir)
+		}
+	}
+
+	if dirsCreated {
+		ops.flush(destinationObjectsDir)
+	}
+
+	destinationAlternatesPath := filepath.Join(destinationObjectsDir, "info", "alternates")
+	ops.removeDirectoryEntry(destinationAlternatesPath)
+	ops.flush(filepath.Dir(destinationAlternatesPath))
 
 	e.operations = append(ops, e.operations...)
 

@@ -15,7 +15,7 @@ type Transaction interface {
 	MarkCustomHooksUpdated()
 	IncludeObject(git.ObjectID)
 	OriginalRepository(*gitalypb.Repository) *gitalypb.Repository
-	UpdateAlternate(string)
+	MarkAlternateUpdated()
 }
 
 type keyTransaction struct{}
