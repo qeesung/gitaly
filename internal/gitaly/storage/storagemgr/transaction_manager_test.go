@@ -180,7 +180,6 @@ func TestTransactionManager(t *testing.T) {
 	subTests := [][]transactionTestCase{
 		generateCommonTests(t, ctx, setup),
 		generateCommittedEntriesTests(t, setup),
-		generateInvalidReferencesTests(t, setup),
 		generateModifyReferencesTests(t, setup),
 		generateCreateRepositoryTests(t, setup),
 		generateDeleteRepositoryTests(t, setup),

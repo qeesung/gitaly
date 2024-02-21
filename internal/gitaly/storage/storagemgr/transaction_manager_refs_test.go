@@ -1,7 +1,6 @@
 package storagemgr
 
 import (
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -11,152 +10,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 )
-
-func generateInvalidReferencesTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
-	type invalidReferenceTestCase struct {
-		desc          string
-		referenceName git.ReferenceName
-	}
-
-	commit := setup.Commits.First
-	testCases := []transactionTestCase{
-		{
-			desc: "invalid reference aborts the entire transaction",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-				},
-				Commit{
-					SkipVerificationFailures: true,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main":    {OldOID: setup.ObjectHash.ZeroOID, NewOID: commit.OID},
-						"refs/heads/../main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: commit.OID},
-					},
-					ExpectedError: InvalidReferenceFormatError{ReferenceName: "refs/heads/../main"},
-				},
-			},
-		},
-		{
-			desc: "continues processing after aborting due to an invalid reference",
-			steps: steps{
-				StartManager{},
-				Begin{
-					TransactionID: 1,
-					RelativePath:  setup.RelativePath,
-				},
-				Commit{
-					TransactionID: 1,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/../main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: commit.OID},
-					},
-					ExpectedError: InvalidReferenceFormatError{ReferenceName: "refs/heads/../main"},
-				},
-				Begin{
-					TransactionID: 2,
-					RelativePath:  setup.RelativePath,
-				},
-				Commit{
-					TransactionID: 2,
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: commit.OID},
-					},
-				},
-			},
-			expectedState: StateAssertion{
-				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
-				},
-				Repositories: RepositoryStates{
-					setup.RelativePath: {
-						DefaultBranch: "refs/heads/main",
-						References: &ReferencesState{
-							LooseReferences: map[git.ReferenceName]git.ObjectID{
-								"refs/heads/main": commit.OID,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	appendInvalidReferenceTestCase := func(tc invalidReferenceTestCase) {
-		testCases = append(testCases, transactionTestCase{
-			desc: fmt.Sprintf("invalid reference %s", tc.desc),
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-				},
-				Commit{
-					ReferenceUpdates: ReferenceUpdates{
-						tc.referenceName: {OldOID: setup.ObjectHash.ZeroOID, NewOID: commit.OID},
-					},
-					ExpectedError: InvalidReferenceFormatError{ReferenceName: tc.referenceName},
-				},
-			},
-		})
-	}
-
-	// Generate test cases for the reference format rules according to https://git-scm.com/docs/git-check-ref-format.
-	// This is to ensure the references are correctly validated prior to logging so they are guaranteed to apply later.
-	// We also have two levels for catching invalid refs, the first is part of the transaction_manager, the second is
-	// the errors thrown by git-update-ref(1) itself.
-	for _, tc := range []invalidReferenceTestCase{
-		// 1. They can include slash / for hierarchical (directory) grouping, but no slash-separated
-		// component can begin with a dot . or end with the sequence .lock.
-		{"starting with a period", ".refs/heads/main"},
-		{"subcomponent starting with a period", "refs/heads/.main"},
-		{"ending in .lock", "refs/heads/main.lock"},
-		{"subcomponent ending in .lock", "refs/heads/main.lock/main"},
-		// 2. They must contain at least one /. This enforces the presence of a category like heads/,
-		// tags/ etc. but the actual names are not restricted.
-		{"without a /", "one-level"},
-		{"with refs without a /", "refs"},
-		// We restrict this further by requiring a 'refs/' prefix to ensure loose references only end up
-		// in the 'refs/' folder.
-		{"without refs/ prefix ", "nonrefs/main"},
-		// 3. They cannot have two consecutive dots .. anywhere.
-		{"containing two consecutive dots", "refs/heads/../main"},
-		// 4. They cannot have ASCII control characters ... (\177 DEL), space, tilde ~, caret ^, or colon : anywhere.
-		//
-		// Tests for control characters < \040 generated further down.
-		{"containing DEL", "refs/heads/ma\177in"},
-		{"containing space", "refs/heads/ma in"},
-		{"containing ~", "refs/heads/ma~in"},
-		{"containing ^", "refs/heads/ma^in"},
-		{"containing :", "refs/heads/ma:in"},
-		// 5. They cannot have question-mark ?, asterisk *, or open bracket [ anywhere.
-		{"containing ?", "refs/heads/ma?in"},
-		{"containing *", "refs/heads/ma*in"},
-		{"containing [", "refs/heads/ma[in"},
-		// 6. They cannot begin or end with a slash / or contain multiple consecutive slashes
-		{"begins with /", "/refs/heads/main"},
-		{"ends with /", "refs/heads/main/"},
-		{"contains consecutive /", "refs/heads//main"},
-		// 7. They cannot end with a dot.
-		{"ending in a dot", "refs/heads/main."},
-		// 8. They cannot contain a sequence @{.
-		{"invalid reference contains @{", "refs/heads/m@{n"},
-		// 9. They cannot be the single character @.
-		{"is a single character @", "@"},
-		// 10. They cannot contain a \.
-		{`containing \`, `refs/heads\main`},
-	} {
-		appendInvalidReferenceTestCase(tc)
-	}
-
-	// Rule 4. They cannot have ASCII control characters i.e. bytes whose values are lower than \040,
-	for i := byte(0); i < '\040'; i++ {
-		appendInvalidReferenceTestCase(invalidReferenceTestCase{
-			desc:          fmt.Sprintf(`containing ASCII control character %d`, i),
-			referenceName: git.ReferenceName(fmt.Sprintf("refs/heads/ma%sin", []byte{i})),
-		})
-	}
-
-	return testCases
-}
 
 func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
 	return []transactionTestCase{
@@ -185,6 +38,23 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 								"refs/heads/main": setup.Commits.First.OID,
 							},
 						},
+					},
+				},
+			},
+		},
+		{
+			desc: "create reference outside of refs",
+			steps: steps{
+				StartManager{},
+				Begin{
+					RelativePath: setup.RelativePath,
+				},
+				Commit{
+					ReferenceUpdates: ReferenceUpdates{
+						"not-in-refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+					ExpectedError: InvalidReferenceFormatError{
+						ReferenceName: "not-in-refs/heads/main",
 					},
 				},
 			},

@@ -2023,7 +2023,11 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 
 	conflictingReferenceUpdates := map[git.ReferenceName]struct{}{}
 	for referenceName, update := range transaction.flattenReferenceTransactions() {
-		if err := git.ValidateReference(string(referenceName)); err != nil {
+		// Transactions should only stage references with valid names as otherwise Git would already
+		// fail when they try to stage them against their snapshot. `update-ref` happily accepts references
+		// outside of `refs` directory so such references could theoretically arrive here. We thus sanity
+		// check that all references modified are within the refs directory.
+		if !strings.HasPrefix(referenceName.String(), "refs/") {
 			return nil, InvalidReferenceFormatError{ReferenceName: referenceName}
 		}
 
