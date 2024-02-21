@@ -1,6 +1,6 @@
 module gitlab.com/gitlab-org/gitaly/tools/protoc-gen-go
 
-go 1.20
+go 1.21
 
 require google.golang.org/protobuf v1.31.0
 
