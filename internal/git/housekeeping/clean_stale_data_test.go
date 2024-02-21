@@ -2,6 +2,7 @@ package housekeeping
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -166,6 +167,7 @@ type cleanStaleDataMetrics struct {
 	locks          int
 	refs           int
 	reflocks       int
+	reftablelocks  int
 	refsEmptyDir   int
 	packFileLocks  int
 	packedRefsLock int
@@ -190,6 +192,7 @@ func requireCleanStaleDataMetrics(t *testing.T, m *RepositoryManager, metrics cl
 		"locks":          metrics.locks,
 		"refs":           metrics.refs,
 		"reflocks":       metrics.reflocks,
+		"reftablelocks":  metrics.reftablelocks,
 		"packfilelocks":  metrics.packFileLocks,
 		"packedrefslock": metrics.packedRefsLock,
 		"packedrefsnew":  metrics.packedRefsNew,
@@ -407,6 +410,68 @@ func TestRepositoryManager_CleanStaleData(t *testing.T) {
 				e.validate(t, repoPath)
 			}
 
+			requireCleanStaleDataMetrics(t, mgr, tc.expectedMetrics)
+		})
+	}
+}
+
+func TestRepositoryManager_CleanStaleData_reftable(t *testing.T) {
+	if !testhelper.IsReftableEnabled() {
+		t.Skip("test is reftable dependent")
+	}
+
+	t.Parallel()
+
+	for _, tc := range []struct {
+		desc            string
+		age             time.Duration
+		expected        bool
+		expectedMetrics cleanStaleDataMetrics
+	}{
+		{
+			desc:     "fresh lock",
+			age:      0,
+			expected: true,
+		},
+		{
+			desc:     "stale lock",
+			age:      reftableLockfileGracePeriod + time.Minute,
+			expected: false,
+			expectedMetrics: cleanStaleDataMetrics{
+				reftablelocks: 1,
+			},
+		},
+	} {
+		tc := tc
+
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := testhelper.Context(t)
+			cfg := testcfg.Build(t)
+
+			repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+				SkipCreationViaService: true,
+			})
+			repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+			path := filepath.Join(repoPath, "reftable", "tables.list.lock")
+
+			require.NoError(t, os.WriteFile(path, []byte{}, perm.SharedFile))
+			filetime := time.Now().Add(-tc.age)
+			require.NoError(t, os.Chtimes(path, filetime, filetime))
+
+			mgr := NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+			require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+
+			exists := false
+			if _, err := os.Stat(path); err == nil {
+				exists = true
+			} else if !errors.Is(err, os.ErrNotExist) {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.expected, exists)
 			requireCleanStaleDataMetrics(t, mgr, tc.expectedMetrics)
 		})
 	}

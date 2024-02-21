@@ -26,6 +26,7 @@ const (
 	brokenRefsGracePeriod            = 24 * time.Hour
 	lockfileGracePeriod              = 15 * time.Minute
 	referenceLockfileGracePeriod     = 1 * time.Hour
+	reftableLockfileGracePeriod      = 1 * time.Hour
 	packedRefsLockGracePeriod        = 1 * time.Hour
 	packedRefsNewGracePeriod         = 15 * time.Minute
 	packFileLockGracePeriod          = 7 * 24 * time.Hour
@@ -73,6 +74,7 @@ func DefaultStaleDataCleanup() CleanStaleDataConfig {
 			"locks":          findStaleLockfiles,
 			"refs":           findBrokenLooseReferences,
 			"reflocks":       findStaleReferenceLocks(referenceLockfileGracePeriod),
+			"reftablelocks":  findStaleReftableLock,
 			"packfilelocks":  findStalePackFileLocks,
 			"packedrefslock": findPackedRefsLock,
 			"packedrefsnew":  findPackedRefsNew,
@@ -496,6 +498,26 @@ func findStaleReferenceLocks(gracePeriod time.Duration) findStaleFileFunc {
 
 		return staleReferenceLocks, nil
 	}
+}
+
+// findStaleReftableLock provides a function which scans the reftable folder
+// for stale a reftable lock and deletes it.
+func findStaleReftableLock(_ context.Context, repoPath string) ([]string, error) {
+	lockPath := filepath.Join(repoPath, "reftable", "tables.list.lock")
+	stat, err := os.Stat(lockPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("statting reftable lock: %w", err)
+	}
+
+	if time.Since(stat.ModTime()) < reftableLockfileGracePeriod {
+		return nil, nil
+	}
+
+	return []string{lockPath}, nil
 }
 
 func removeUnnecessaryConfig(ctx context.Context, repository *localrepo.Repo, txManager transaction.Manager) (int, error) {
