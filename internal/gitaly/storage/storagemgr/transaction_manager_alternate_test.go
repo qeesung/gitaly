@@ -113,7 +113,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Commit{
 					TransactionID:   3,
-					UpdateAlternate: &alternateUpdate{relativePath: "pool"},
+					UpdateAlternate: &alternateUpdate{content: "../../pool/objects"},
 				},
 			},
 			expectedState: StateAssertion{
@@ -247,6 +247,42 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 		},
 		{
+			desc: "repository can't be connected to multiple alternates on creation",
+			steps: steps{
+				RemoveRepository{},
+				StartManager{},
+				Begin{
+					RelativePath: "repository",
+				},
+				CreateRepository{
+					Alternate: "../../alternate-1\n/../../alternate-2\n",
+				},
+				Commit{
+					ExpectedError: errMultipleAlternates,
+				},
+			},
+			expectedState: StateAssertion{
+				Repositories: RepositoryStates{},
+			},
+		},
+		{
+			desc: "repository can't be connected to multiple alternates after creation",
+			steps: steps{
+				StartManager{},
+				Begin{
+					TransactionID: 2,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 2,
+					UpdateAlternate: &alternateUpdate{
+						content: "../../alternate-1\n/../../alternate-2\n",
+					},
+					ExpectedError: errMultipleAlternates,
+				},
+			},
+		},
+		{
 			desc: "repository's alternate must not point to repository itself",
 			steps: steps{
 				RemoveRepository{},
@@ -357,7 +393,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Commit{
 					TransactionID:   3,
-					UpdateAlternate: &alternateUpdate{relativePath: "pool"},
+					UpdateAlternate: &alternateUpdate{content: "../../pool/objects"},
 				},
 				Begin{
 					TransactionID:       4,
@@ -366,7 +402,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Commit{
 					TransactionID:   4,
-					UpdateAlternate: &alternateUpdate{relativePath: "pool"},
+					UpdateAlternate: &alternateUpdate{content: "../../pool/objects"},
 					ExpectedError:   errAlternateAlreadyLinked,
 				},
 			},
@@ -423,11 +459,11 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Commit{
 					TransactionID:   3,
-					UpdateAlternate: &alternateUpdate{relativePath: "pool"},
+					UpdateAlternate: &alternateUpdate{content: "../../pool/objects"},
 				},
 				Commit{
 					TransactionID:   4,
-					UpdateAlternate: &alternateUpdate{relativePath: "pool"},
+					UpdateAlternate: &alternateUpdate{content: "../../pool/objects"},
 					ExpectedError:   errAlternateAlreadyLinked,
 				},
 			},
@@ -594,7 +630,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Commit{
 					TransactionID:   3,
-					UpdateAlternate: &alternateUpdate{relativePath: "pool"},
+					UpdateAlternate: &alternateUpdate{content: "../../pool/objects"},
 					ExpectedError:   ErrTransactionProcessingStopped,
 				},
 				AssertManager{

@@ -153,3 +153,35 @@ func MustCreateCustomHooksTar(tb testing.TB) io.Reader {
 
 	return &buffer
 }
+
+// CreateFS takes in an FS and creates its state on the actual filesystem at rootPath.
+// fstest.MapFS is convenient type to use for building state.
+func CreateFS(tb testing.TB, rootPath string, state fs.FS) {
+	tb.Helper()
+
+	require.NoError(tb, fs.WalkDir(state, ".", func(relativePath string, d fs.DirEntry, err error) error {
+		require.NoError(tb, err)
+
+		info, err := d.Info()
+		require.NoError(tb, err)
+
+		absolutePath := filepath.Join(rootPath, relativePath)
+		if d.IsDir() {
+			require.NoError(tb, os.Mkdir(absolutePath, info.Mode().Perm()))
+			return nil
+		}
+
+		source, err := state.Open(relativePath)
+		require.NoError(tb, err)
+		defer MustClose(tb, source)
+
+		destination, err := os.OpenFile(absolutePath, os.O_WRONLY|os.O_EXCL|os.O_CREATE, info.Mode().Perm())
+		require.NoError(tb, err)
+		defer MustClose(tb, destination)
+
+		_, err = io.Copy(destination, source)
+		require.NoError(tb, err)
+
+		return nil
+	}))
+}

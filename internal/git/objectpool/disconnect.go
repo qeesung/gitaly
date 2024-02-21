@@ -251,7 +251,7 @@ func removeAlternatesIfOk(ctx context.Context, repo *localrepo.Repo, altFile, ba
 	}
 
 	storagectx.RunWithTransaction(ctx, func(tx storagectx.Transaction) {
-		tx.UpdateAlternate("")
+		tx.MarkAlternateUpdated()
 	})
 
 	// The repository should only be disconnected from its object pool if validation is successful.

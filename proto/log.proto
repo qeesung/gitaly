@@ -30,13 +30,6 @@ message LogEntry {
   message RepositoryDeletion {
   }
 
-  // AlternateUpdate models an update to the 'objects/info/alternates' file.
-  message AlternateUpdate {
-    // path is the path to set in the alternates file. If the path is empty,
-    // the alternate file is removed.
-    string path = 1;
-  }
-
   // Housekeeping models a housekeeping run. It is supposed to handle housekeeping tasks for repositories such as the
   // cleanup of unneeded files and optimizations for the repository's data structures. It is a collection of smaller
   // tasks.
@@ -77,8 +70,6 @@ message LogEntry {
   repeated ReferenceTransaction reference_transactions = 2;
   // repository_deletion, when set, indicates this log entry deletes the repository.
   RepositoryDeletion repository_deletion = 6;
-  // alternate_update records a change to the repository's 'objects/info/alternates' file.
-  AlternateUpdate alternate_update = 8;
   // housekeeping, when set, indicates this log entry contains a housekeeping task.
   Housekeeping housekeeping = 9;
 
