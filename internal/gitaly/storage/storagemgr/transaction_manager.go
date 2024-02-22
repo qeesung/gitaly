@@ -2565,6 +2565,10 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 // when removing directory entries. We can be stricter once log entry application becomes atomic
 // through https://gitlab.com/gitlab-org/gitaly/-/issues/5765.
 func (mgr *TransactionManager) applyOperations(lsn LSN, entry *gitalypb.LogEntry) error {
+	// dirtyDirectories holds all directories that have been dirtied by the operations.
+	// As files have already been synced to the disk when the log entry was written, we
+	// only need to sync the operations on directories.
+	dirtyDirectories := map[string]struct{}{}
 	for _, wrappedOp := range entry.Operations {
 		switch wrapper := wrappedOp.GetOperation().(type) {
 		case *gitalypb.LogEntry_Operation_CreateHardLink_:
@@ -2581,18 +2585,32 @@ func (mgr *TransactionManager) applyOperations(lsn LSN, entry *gitalypb.LogEntry
 			); err != nil && !errors.Is(err, fs.ErrExist) {
 				return fmt.Errorf("link: %w", err)
 			}
+
+			// Sync the parent directory of the newly created directory entry.
+			dirtyDirectories[filepath.Dir(op.DestinationPath)] = struct{}{}
 		case *gitalypb.LogEntry_Operation_CreateDirectory_:
 			op := wrapper.CreateDirectory
 
 			if err := os.Mkdir(mgr.getAbsolutePath(op.Path), fs.FileMode(op.Permissions)); err != nil && !errors.Is(err, fs.ErrExist) {
 				return fmt.Errorf("mkdir: %w", err)
 			}
+
+			// Sync the newly created directory itself.
+			dirtyDirectories[op.Path] = struct{}{}
+			// Sync the parent directory where the new directory's directory entry was created.
+			dirtyDirectories[filepath.Dir(op.Path)] = struct{}{}
 		case *gitalypb.LogEntry_Operation_RemoveDirectoryEntry_:
 			op := wrapper.RemoveDirectoryEntry
 
 			if err := os.Remove(mgr.getAbsolutePath(op.Path)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("remove: %w", err)
 			}
+
+			// Remove the dirty marker from the removed directory entry if it exists. There's
+			// no need to sync it anymore as it doesn't exist.
+			delete(dirtyDirectories, op.Path)
+			// Sync the parent directory where directory entry was removed from.
+			dirtyDirectories[filepath.Dir(op.Path)] = struct{}{}
 		case *gitalypb.LogEntry_Operation_Flush_:
 			op := wrapper.Flush
 
@@ -2603,6 +2621,15 @@ func (mgr *TransactionManager) applyOperations(lsn LSN, entry *gitalypb.LogEntry
 			return fmt.Errorf("unhandled operation type: %T", wrappedOp)
 		}
 	}
+
+	// Sync all the dirty directories.
+	syncer := safe.NewSyncer()
+	for relativePath := range dirtyDirectories {
+		if err := syncer.Sync(mgr.getAbsolutePath(relativePath)); err != nil {
+			return fmt.Errorf("sync: %w", err)
+		}
+	}
+
 	return nil
 }
 
