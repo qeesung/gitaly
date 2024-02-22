@@ -186,7 +186,6 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 		return fmt.Errorf("read alternate objects dir: %w", err)
 	}
 
-	var ops operations
 	for _, subDir := range entries {
 		if !subDir.IsDir() || !(len(subDir.Name()) == 2 || subDir.Name() == "pack") {
 			// Only look in objects/<xx> and objects/pack for files.
@@ -218,7 +217,7 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 				return fmt.Errorf("subdirectory info: %w", err)
 			}
 
-			ops.createDirectory(destinationDir, info.Mode().Perm())
+			e.operations.createDirectory(destinationDir, info.Mode().Perm())
 		}
 
 		// Create all of the objects in the directory if they don't yet exist.
@@ -234,7 +233,7 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 				}
 
 				// The object doesn't yet exist, log the linking.
-				ops.createHardLink(
+				e.operations.createHardLink(
 					filepath.Join(sourceDir, objectFile.Name()),
 					objectDestination,
 					true,
@@ -244,9 +243,7 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 	}
 
 	destinationAlternatesPath := filepath.Join(destinationObjectsDir, "info", "alternates")
-	ops.removeDirectoryEntry(destinationAlternatesPath)
-
-	e.operations = append(ops, e.operations...)
+	e.RecordDirectoryEntryRemoval(destinationAlternatesPath)
 
 	return nil
 }
