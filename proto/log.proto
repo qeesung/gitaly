@@ -112,12 +112,6 @@ message LogEntry {
       uint32 permissions = 2;
     }
 
-    // Flush flushes the entry at the given path to disk.
-    message Flush {
-      // path is relative path in the storage to flush.
-      string path = 1;
-    }
-
     oneof operation {
       // create_hard_link creates a hard link in the storage.
       CreateHardLink       create_hard_link       = 1;
@@ -125,8 +119,6 @@ message LogEntry {
       RemoveDirectoryEntry remove_directory_entry = 2;
       // create_directory creates a directory in the storage.
       CreateDirectory      create_directory       = 3;
-      // flush flushes a given path in the storage to disk.
-      Flush                flush                  = 4;
     };
   }
 

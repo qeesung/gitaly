@@ -50,7 +50,7 @@ func TestEntry(t *testing.T) {
 			},
 			expectedOperations: func() operations {
 				var ops operations
-				ops.flush("sentinel-op")
+				ops.removeDirectoryEntry("sentinel-op")
 				ops.createHardLink("1", "test-dir/file-1", false)
 				return ops
 			}(),
@@ -60,33 +60,15 @@ func TestEntry(t *testing.T) {
 			},
 		},
 		{
-			desc: "RecordFlush",
-			run: func(t *testing.T, entry *Entry) {
-				entry.RecordFlush("test-dir")
-				entry.RecordFlush("second-level/test-dir/file-1")
-			},
-			expectedOperations: func() operations {
-				var ops operations
-				ops.flush("sentinel-op")
-				ops.flush("test-dir")
-				ops.flush("second-level/test-dir/file-1")
-				return ops
-			}(),
-			expectedFiles: testhelper.DirectoryState{
-				"/": {Mode: fs.ModeDir | perm.SharedDir},
-			},
-		},
-		{
 			desc: "RecordFileUpdate on root level file",
 			run: func(t *testing.T, entry *Entry) {
 				require.NoError(t, entry.RecordFileUpdate(storageRoot, "root-file"))
 			},
 			expectedOperations: func() operations {
 				var ops operations
-				ops.flush("sentinel-op")
+				ops.removeDirectoryEntry("sentinel-op")
 				ops.removeDirectoryEntry("root-file")
 				ops.createHardLink("1", "root-file", false)
-				ops.flush(".")
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
@@ -101,10 +83,9 @@ func TestEntry(t *testing.T) {
 			},
 			expectedOperations: func() operations {
 				var ops operations
-				ops.flush("sentinel-op")
+				ops.removeDirectoryEntry("sentinel-op")
 				ops.removeDirectoryEntry("test-dir/file-1")
 				ops.createHardLink("1", "test-dir/file-1", false)
-				ops.flush("test-dir")
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
@@ -119,17 +100,13 @@ func TestEntry(t *testing.T) {
 			},
 			expectedOperations: func() operations {
 				var ops operations
-				ops.flush("sentinel-op")
+				ops.removeDirectoryEntry("sentinel-op")
 				ops.createDirectory("test-dir", perm.PrivateDir)
 				ops.createHardLink("1", "test-dir/file-1", false)
 				ops.createDirectory("test-dir/subdir-private", perm.PrivateDir)
 				ops.createHardLink("2", "test-dir/subdir-private/file-2", false)
-				ops.flush("test-dir/subdir-private")
 				ops.createDirectory("test-dir/subdir-shared", perm.SharedDir)
 				ops.createHardLink("3", "test-dir/subdir-shared/file-3", false)
-				ops.flush("test-dir/subdir-shared")
-				ops.flush("test-dir")
-				ops.flush(".")
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
@@ -146,17 +123,13 @@ func TestEntry(t *testing.T) {
 			},
 			expectedOperations: func() operations {
 				var ops operations
-				ops.flush("sentinel-op")
+				ops.removeDirectoryEntry("sentinel-op")
 				ops.createDirectory("second-level/test-dir", perm.PrivateDir)
 				ops.createHardLink("1", "second-level/test-dir/file-1", false)
 				ops.createDirectory("second-level/test-dir/subdir-private", perm.PrivateDir)
 				ops.createHardLink("2", "second-level/test-dir/subdir-private/file-2", false)
-				ops.flush("second-level/test-dir/subdir-private")
 				ops.createDirectory("second-level/test-dir/subdir-shared", perm.SharedDir)
 				ops.createHardLink("3", "second-level/test-dir/subdir-shared/file-3", false)
-				ops.flush("second-level/test-dir/subdir-shared")
-				ops.flush("second-level/test-dir")
-				ops.flush("second-level")
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
@@ -179,8 +152,7 @@ func TestEntry(t *testing.T) {
 				ops.removeDirectoryEntry("test-dir/subdir-shared/file-3")
 				ops.removeDirectoryEntry("test-dir/subdir-shared")
 				ops.removeDirectoryEntry("test-dir")
-				ops.flush(".")
-				ops.flush("sentinel-op")
+				ops.removeDirectoryEntry("sentinel-op")
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
@@ -200,8 +172,7 @@ func TestEntry(t *testing.T) {
 				ops.removeDirectoryEntry("second-level/test-dir/subdir-shared/file-3")
 				ops.removeDirectoryEntry("second-level/test-dir/subdir-shared")
 				ops.removeDirectoryEntry("second-level/test-dir")
-				ops.flush("second-level")
-				ops.flush("sentinel-op")
+				ops.removeDirectoryEntry("sentinel-op")
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
@@ -215,7 +186,7 @@ func TestEntry(t *testing.T) {
 
 			stateDir := t.TempDir()
 			entry := NewEntry(stateDir)
-			entry.operations.flush("sentinel-op")
+			entry.operations.removeDirectoryEntry("sentinel-op")
 
 			tc.run(t, entry)
 
@@ -261,16 +232,11 @@ func TestRecordAlternateUnlink(t *testing.T) {
 				ops.createDirectory("target/objects/3f", perm.PrivateDir)
 				ops.createHardLink("source/objects/3f/1", "target/objects/3f/1", true)
 				ops.createHardLink("source/objects/3f/2", "target/objects/3f/2", true)
-				ops.flush("target/objects/3f")
 				ops.createDirectory("target/objects/4f", perm.SharedDir)
 				ops.createHardLink("source/objects/4f/3", "target/objects/4f/3", true)
-				ops.flush("target/objects/4f")
 				ops.createHardLink("source/objects/pack/pack.idx", "target/objects/pack/pack.idx", true)
 				ops.createHardLink("source/objects/pack/pack.pack", "target/objects/pack/pack.pack", true)
-				ops.flush("target/objects/pack")
-				ops.flush("target/objects")
 				ops.removeDirectoryEntry("target/objects/info/alternates")
-				ops.flush("target/objects/info")
 				return ops
 			}(),
 		},
@@ -291,11 +257,8 @@ func TestRecordAlternateUnlink(t *testing.T) {
 			expectedOperations: func() operations {
 				var ops operations
 				ops.createHardLink("source/objects/3f/2", "target/objects/3f/2", true)
-				ops.flush("target/objects/3f")
 				ops.createHardLink("source/objects/pack/pack.pack", "target/objects/pack/pack.pack", true)
-				ops.flush("target/objects/pack")
 				ops.removeDirectoryEntry("target/objects/info/alternates")
-				ops.flush("target/objects/info")
 				return ops
 			}(),
 		},
@@ -305,7 +268,6 @@ func TestRecordAlternateUnlink(t *testing.T) {
 			expectedOperations: func() operations {
 				var ops operations
 				ops.removeDirectoryEntry("target/objects/info/alternates")
-				ops.flush("target/objects/info")
 				return ops
 			}(),
 		},

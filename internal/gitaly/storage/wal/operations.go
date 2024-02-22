@@ -54,14 +54,3 @@ func (ops *operations) removeDirectoryEntry(relativePath string) {
 		},
 	})
 }
-
-// flush appends an operation to flush the modifications to the given relative path in the storage to disk.
-func (ops *operations) flush(relativePath string) {
-	ops.append(&gitalypb.LogEntry_Operation{
-		Operation: &gitalypb.LogEntry_Operation_Flush_{
-			Flush: &gitalypb.LogEntry_Operation_Flush{
-				Path: relativePath,
-			},
-		},
-	})
-}

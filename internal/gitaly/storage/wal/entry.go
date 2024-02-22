@@ -53,10 +53,7 @@ func (e *Entry) stageFile(path string) (string, error) {
 }
 
 // RecordFileCreation stages the file at the source and adds an operation to link it
-// to the given destination relative path in the storage. It does not implicitly flush the
-// parent directory so multiple file creations can be staged in the same parent directory
-// without redundant flush operations appended. The parent directory must be flushed
-// explicitly.
+// to the given destination relative path in the storage.
 func (e *Entry) RecordFileCreation(sourceAbsolutePath string, relativePath string) error {
 	stagedFile, err := e.stageFile(sourceAbsolutePath)
 	if err != nil {
@@ -67,13 +64,8 @@ func (e *Entry) RecordFileCreation(sourceAbsolutePath string, relativePath strin
 	return nil
 }
 
-// RecordFlush records flushing the modifications to relative path to the disk.
-func (e *Entry) RecordFlush(relativePath string) {
-	e.operations.flush(relativePath)
-}
-
 // RecordFileUpdate records a file being updated. It stages operations to remove the old file,
-// to place the new file in its place and to finally flush the modification.
+// to place the new file in its place.
 func (e *Entry) RecordFileUpdate(storageRoot, relativePath string) error {
 	e.operations.removeDirectoryEntry(relativePath)
 
@@ -81,14 +73,11 @@ func (e *Entry) RecordFileUpdate(storageRoot, relativePath string) error {
 		return fmt.Errorf("create file: %w", err)
 	}
 
-	e.RecordFlush(filepath.Dir(relativePath))
-
 	return nil
 }
 
 // RecordRepositoryCreation records the creation of the repository itself and the directory
-// hierarchy above it. It logs flush operations for all directories in the hierarchy and stages
-// the files from the repository.
+// hierarchy above it.
 func (e *Entry) RecordRepositoryCreation(storageRoot, relativePath string) error {
 	parentDir := filepath.Dir(relativePath)
 
@@ -99,23 +88,15 @@ func (e *Entry) RecordRepositoryCreation(storageRoot, relativePath string) error
 		dirComponents = strings.Split(parentDir, string(os.PathSeparator))
 	}
 
-	// Flush the storage's root at the end to flush the directory hierarchy creation.
-	defer e.RecordFlush(".")
-
 	var previousParentDir string
 	for _, dirComponent := range dirComponents {
 		currentDir := filepath.Join(previousParentDir, dirComponent)
 		e.operations.createDirectory(currentDir, perm.PrivateDir)
 
-		// Flush directories in the parent directory hierarchy in reverse
-		// order after the repository itself has been created.
-		defer e.RecordFlush(currentDir)
-
 		previousParentDir = currentDir
 	}
 
-	// Log the repository itself and afterwards run all the deferred
-	// directory flushes.
+	// Log the repository itself.
 	if err := e.recordDirectoryCreation(storageRoot, relativePath); err != nil {
 		return fmt.Errorf("record directory creation: %w", err)
 	}
@@ -124,14 +105,11 @@ func (e *Entry) RecordRepositoryCreation(storageRoot, relativePath string) error
 }
 
 // RecordDirectoryCreation records the operations to create a given directory in the storage and
-// all of its children in to the storage. It logs flush operations for all created directories and
-// the parent of the directory.
+// all of its children in to the storage.
 func (e *Entry) RecordDirectoryCreation(storageRoot, directoryRelativePath string) error {
 	if err := e.recordDirectoryCreation(storageRoot, directoryRelativePath); err != nil {
 		return err
 	}
-
-	e.RecordFlush(filepath.Dir(directoryRelativePath))
 
 	return nil
 }
@@ -158,8 +136,6 @@ func (e *Entry) recordDirectoryCreation(storageRoot, directoryRelativePath strin
 			return nil
 		},
 		func(relativePath string, dirEntry fs.DirEntry) error {
-			// Flush the directory once only after all of its children have been created.
-			e.RecordFlush(relativePath)
 			return nil
 		},
 	); err != nil {
@@ -188,8 +164,6 @@ func (e *Entry) RecordDirectoryRemoval(storageRoot, directoryRelativePath string
 		return fmt.Errorf("walk directory: %w", err)
 	}
 
-	ops.flush(filepath.Dir(directoryRelativePath))
-
 	e.operations = append(ops, e.operations...)
 
 	return nil
@@ -207,16 +181,12 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 		return fmt.Errorf("read alternate objects dir: %w", err)
 	}
 
-	dirsCreated := false
-
 	var ops operations
 	for _, subDir := range entries {
 		if !subDir.IsDir() || !(len(subDir.Name()) == 2 || subDir.Name() == "pack") {
 			// Only look in objects/<xx> and objects/pack for files.
 			continue
 		}
-
-		objectsCreated := false
 
 		sourceDir := filepath.Join(sourceObjectsDir, subDir.Name())
 
@@ -243,7 +213,6 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 				return fmt.Errorf("subdirectory info: %w", err)
 			}
 
-			dirsCreated = true
 			ops.createDirectory(destinationDir, info.Mode().Perm())
 		}
 
@@ -259,7 +228,6 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 					return fmt.Errorf("stat: %w", err)
 				}
 
-				objectsCreated = true
 				// The object doesn't yet exist, log the linking.
 				ops.createHardLink(
 					filepath.Join(sourceDir, objectFile.Name()),
@@ -268,19 +236,10 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 				)
 			}
 		}
-
-		if objectsCreated {
-			ops.flush(destinationDir)
-		}
-	}
-
-	if dirsCreated {
-		ops.flush(destinationObjectsDir)
 	}
 
 	destinationAlternatesPath := filepath.Join(destinationObjectsDir, "info", "alternates")
 	ops.removeDirectoryEntry(destinationAlternatesPath)
-	ops.flush(filepath.Dir(destinationAlternatesPath))
 
 	e.operations = append(ops, e.operations...)
 

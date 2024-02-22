@@ -951,8 +951,6 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 				); err != nil && !errors.Is(err, fs.ErrNotExist) {
 					return fmt.Errorf("record alternates update: %w", err)
 				}
-
-				transaction.walEntry.RecordFlush(filepath.Dir(stagedAlternatesRelativePath))
 			}
 		}
 
@@ -981,8 +979,6 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 					return fmt.Errorf("record file creation: %w", err)
 				}
 			}
-
-			transaction.walEntry.RecordFlush(packDir)
 		}
 
 		if transaction.defaultBranchUpdated {
@@ -2611,12 +2607,6 @@ func (mgr *TransactionManager) applyOperations(lsn LSN, entry *gitalypb.LogEntry
 			delete(dirtyDirectories, op.Path)
 			// Sync the parent directory where directory entry was removed from.
 			dirtyDirectories[filepath.Dir(op.Path)] = struct{}{}
-		case *gitalypb.LogEntry_Operation_Flush_:
-			op := wrapper.Flush
-
-			if err := safe.NewSyncer().Sync(mgr.getAbsolutePath(op.Path)); err != nil {
-				return fmt.Errorf("sync: %w", err)
-			}
 		default:
 			return fmt.Errorf("unhandled operation type: %T", wrappedOp)
 		}
