@@ -1836,7 +1836,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 1,
 					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Second.OID},
+						"refs/heads/main": {OldOID: setup.Commits.Third.OID, NewOID: setup.Commits.Second.OID},
 					},
 					ExpectedError: errHousekeepingConflictOtherUpdates,
 				},

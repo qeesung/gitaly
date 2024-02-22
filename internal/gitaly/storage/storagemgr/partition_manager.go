@@ -13,7 +13,6 @@ import (
 
 	"github.com/dgraph-io/badger/v4"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
@@ -40,7 +39,6 @@ type transactionManagerFactory func(
 	partitionID partitionID,
 	storageMgr *storageManager,
 	cmdFactory git.CommandFactory,
-	housekeepingManager housekeeping.Manager,
 	absoluteStateDir, stagingDir string,
 ) transactionManager
 
@@ -50,8 +48,6 @@ type PartitionManager struct {
 	storages map[string]*storageManager
 	// commandFactory is passed as a dependency to the constructed TransactionManagers.
 	commandFactory git.CommandFactory
-	// housekeepingManager access to the housekeeping.Manager.
-	housekeepingManager housekeeping.Manager
 	// transactionManagerFactory is a factory to create TransactionManagers. This shouldn't ever be changed
 	// during normal operation, but can be used to adjust the transaction manager's behaviour in tests.
 	transactionManagerFactory transactionManagerFactory
@@ -216,7 +212,6 @@ func (ptn *partition) isClosing() bool {
 func NewPartitionManager(
 	configuredStorages []config.Storage,
 	cmdFactory git.CommandFactory,
-	housekeepingManager housekeeping.Manager,
 	localRepoFactory localrepo.Factory,
 	logger log.Logger,
 	dbOpener DatabaseOpener,
@@ -327,14 +322,12 @@ func NewPartitionManager(
 	}
 
 	return &PartitionManager{
-		storages:            storages,
-		commandFactory:      cmdFactory,
-		housekeepingManager: housekeepingManager,
+		storages:       storages,
+		commandFactory: cmdFactory,
 		transactionManagerFactory: func(
 			partitionID partitionID,
 			storageMgr *storageManager,
 			cmdFactory git.CommandFactory,
-			housekeepingManager housekeeping.Manager,
 			absoluteStateDir, stagingDir string,
 		) transactionManager {
 			return NewTransactionManager(
@@ -345,7 +338,6 @@ func NewPartitionManager(
 				absoluteStateDir,
 				stagingDir,
 				cmdFactory,
-				housekeepingManager,
 				storageMgr.repoFactory,
 			)
 		},
@@ -418,7 +410,7 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 				return nil, fmt.Errorf("create staging directory: %w", err)
 			}
 
-			mgr := pm.transactionManagerFactory(partitionID, storageMgr, pm.commandFactory, pm.housekeepingManager, absoluteStateDir, stagingDir)
+			mgr := pm.transactionManagerFactory(partitionID, storageMgr, pm.commandFactory, absoluteStateDir, stagingDir)
 
 			ptn.transactionManager = mgr
 

@@ -18,12 +18,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -386,7 +383,6 @@ func TestPartitionManager(t *testing.T) {
 						testPartitionID partitionID,
 						storageMgr *storageManager,
 						commandFactory git.CommandFactory,
-						housekeepingManager housekeeping.Manager,
 						absoluteStateDir, stagingDir string,
 					) transactionManager {
 						return stoppedTransactionManager{
@@ -398,7 +394,6 @@ func TestPartitionManager(t *testing.T) {
 								absoluteStateDir,
 								stagingDir,
 								commandFactory,
-								housekeepingManager,
 								storageMgr.repoFactory,
 							),
 						}
@@ -433,7 +428,6 @@ func TestPartitionManager(t *testing.T) {
 						testPartitionID partitionID,
 						storageMgr *storageManager,
 						commandFactory git.CommandFactory,
-						housekeepingManager housekeeping.Manager,
 						absoluteStateDir, stagingDir string,
 					) transactionManager {
 						txMgr := NewTransactionManager(
@@ -444,7 +438,6 @@ func TestPartitionManager(t *testing.T) {
 							absoluteStateDir,
 							stagingDir,
 							commandFactory,
-							housekeepingManager,
 							storageMgr.repoFactory,
 						)
 
@@ -784,10 +777,7 @@ func TestPartitionManager(t *testing.T) {
 				)
 			}
 
-			txManager := transaction.NewManager(cfg, logger, backchannel.NewRegistry())
-			housekeepingManager := housekeeping.NewManager(cfg.Prometheus, logger, txManager)
-
-			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, housekeepingManager, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory())
+			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory())
 			require.NoError(t, err)
 
 			if setup.transactionManagerFactory != nil {
@@ -922,9 +912,6 @@ func TestPartitionManager_garbageCollection(t *testing.T) {
 
 	localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
 
-	txManager := transaction.NewManager(cfg, logger, backchannel.NewRegistry())
-	housekeepingManager := housekeeping.NewManager(cfg.Prometheus, logger, txManager)
-
 	gcRunCount := 0
 	gcCompleted := make(chan struct{})
 	errExpected := errors.New("some gc failure")
@@ -932,7 +919,6 @@ func TestPartitionManager_garbageCollection(t *testing.T) {
 	partitionManager, err := NewPartitionManager(
 		cfg.Storages,
 		cmdFactory,
-		housekeepingManager,
 		localRepoFactory,
 		logger,
 		DatabaseOpenerFunc(func(logger log.Logger, path string) (Database, error) {
@@ -1014,10 +1000,7 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 
 	localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
 
-	txManager := transaction.NewManager(cfg, logger, backchannel.NewRegistry())
-	housekeepingManager := housekeeping.NewManager(cfg.Prometheus, logger, txManager)
-
-	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, housekeepingManager, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory())
+	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory())
 	require.NoError(t, err)
 	defer partitionManager.Close()
 
