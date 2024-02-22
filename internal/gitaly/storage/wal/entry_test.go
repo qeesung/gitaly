@@ -60,6 +60,21 @@ func TestEntry(t *testing.T) {
 			},
 		},
 		{
+			desc: "RecordDirectoryEntryRemoval",
+			run: func(t *testing.T, entry *Entry) {
+				entry.RecordDirectoryEntryRemoval("test-dir/file-1")
+			},
+			expectedOperations: func() operations {
+				var ops operations
+				ops.removeDirectoryEntry("sentinel-op")
+				ops.removeDirectoryEntry("test-dir/file-1")
+				return ops
+			}(),
+			expectedFiles: testhelper.DirectoryState{
+				"/": {Mode: fs.ModeDir | perm.SharedDir},
+			},
+		},
+		{
 			desc: "RecordFileUpdate on root level file",
 			run: func(t *testing.T, entry *Entry) {
 				require.NoError(t, entry.RecordFileUpdate(storageRoot, "root-file"))

@@ -67,13 +67,18 @@ func (e *Entry) RecordFileCreation(sourceAbsolutePath string, relativePath strin
 // RecordFileUpdate records a file being updated. It stages operations to remove the old file,
 // to place the new file in its place.
 func (e *Entry) RecordFileUpdate(storageRoot, relativePath string) error {
-	e.operations.removeDirectoryEntry(relativePath)
+	e.RecordDirectoryEntryRemoval(relativePath)
 
 	if err := e.RecordFileCreation(filepath.Join(storageRoot, relativePath), relativePath); err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
 
 	return nil
+}
+
+// RecordDirectoryEntryRemoval records the removal of the file system object at the given path.
+func (e *Entry) RecordDirectoryEntryRemoval(relativePath string) {
+	e.operations.removeDirectoryEntry(relativePath)
 }
 
 // RecordRepositoryCreation records the creation of the repository itself and the directory
