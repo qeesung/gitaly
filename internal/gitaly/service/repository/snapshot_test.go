@@ -3,10 +3,13 @@ package repository
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -22,8 +25,6 @@ import (
 )
 
 func TestGetSnapshot(t *testing.T) {
-	testhelper.SkipWithReftable(t, "snapshots are taken by directly parsing the repositories filesystem")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -155,6 +156,10 @@ doesn't seem to test a realistic scenario.`)
 
 				// Generate packed-refs file, but also keep around the loose reference.
 				gittest.Exec(t, cfg, "-C", repoPath, "pack-refs", "--all", "--no-prune")
+				refs := gittest.FilesOrReftables(
+					[]string{"packed-refs", "refs/", "refs/heads/", "refs/heads/master", "refs/tags/"},
+					append([]string{"refs/", "refs/heads", "reftable/", "reftable/tables.list"}, reftableFiles(t, repoPath)...),
+				)
 
 				// The shallow file, used if the repository is a shallow clone, is also included in snapshots.
 				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "shallow"), nil, perm.SharedFile))
@@ -171,20 +176,16 @@ doesn't seem to test a realistic scenario.`)
 
 				return setupData{
 					repo: repoProto,
-					expectedEntries: []string{
-						"HEAD",
-						"packed-refs",
-						"refs/",
-						"refs/heads/",
-						"refs/heads/master",
-						"refs/tags/",
-						fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
-						fmt.Sprintf("objects/%s/%s", commitID[0:2], commitID[2:]),
-						fmt.Sprintf("objects/%s/%s", unreachableCommitID[0:2], unreachableCommitID[2:]),
-						filepath.Join("objects/pack", index),
-						filepath.Join("objects/pack", packfile),
-						"shallow",
-					},
+					expectedEntries: append(
+						[]string{
+							"HEAD",
+							fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
+							fmt.Sprintf("objects/%s/%s", commitID[0:2], commitID[2:]),
+							fmt.Sprintf("objects/%s/%s", unreachableCommitID[0:2], unreachableCommitID[2:]),
+							filepath.Join("objects/pack", index),
+							filepath.Join("objects/pack", packfile),
+							"shallow",
+						}, refs...),
 				}
 			},
 		},
@@ -206,9 +207,14 @@ doesn't seem to test a realistic scenario.`)
 					perm.SharedFile,
 				))
 
+				refs := gittest.FilesOrReftables(
+					[]string{"refs/", "refs/heads/", "refs/tags/"},
+					append([]string{"refs/", "refs/heads", "reftable/", "reftable/tables.list"}, reftableFiles(t, repoPath)...),
+				)
+
 				return setupData{
 					repo:            repoProto,
-					expectedEntries: []string{"HEAD", "refs/", "refs/heads/", "refs/tags/"},
+					expectedEntries: append([]string{"HEAD"}, refs...),
 				}
 			},
 		},
@@ -227,9 +233,14 @@ doesn't seem to test a realistic scenario.`)
 				altObjectDir := filepath.Join(repoPath, "alt-object-dir")
 				require.NoError(t, os.WriteFile(altFile, []byte(fmt.Sprintf("%s\n", altObjectDir)), 0o000))
 
+				refs := gittest.FilesOrReftables(
+					[]string{"refs/", "refs/heads/", "refs/tags/"},
+					append([]string{"refs/", "refs/heads", "reftable/", "reftable/tables.list"}, reftableFiles(t, repoPath)...),
+				)
+
 				setupData := setupData{
 					repo:            repoProto,
-					expectedEntries: []string{"HEAD", "refs/", "refs/heads/", "refs/tags/"},
+					expectedEntries: append([]string{"HEAD"}, refs...),
 				}
 
 				if testhelper.IsWALEnabled() {
@@ -272,17 +283,22 @@ doesn't seem to test a realistic scenario.`)
 				))
 				gittest.RequireObjectExists(t, cfg, repoPath, commitID)
 
+				refs := gittest.FilesOrReftables(
+					[]string{"refs/", "refs/heads/", "refs/tags/"},
+					append([]string{"refs/", "refs/heads", "reftable/", "reftable/tables.list"}, reftableFiles(t, repoPath)...),
+				)
+
 				return setupData{
 					repo: repoProto,
-					expectedEntries: []string{
-						"HEAD",
-						"refs/",
-						"refs/heads/",
-						"refs/tags/",
-						// The commit ID is not included because it exists in an alternate object
-						// database that is outside the storage root.
-						fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
-					},
+					expectedEntries: append(
+						[]string{
+							"HEAD",
+							// The commit ID is not included because it exists in an alternate object
+							// database that is outside the storage root.
+							fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
+						},
+						refs...,
+					),
 				}
 			},
 		},
@@ -310,19 +326,24 @@ doesn't seem to test a realistic scenario.`)
 				require.NoError(t, os.WriteFile(altFile, []byte("./alt-objects\n"), perm.SharedFile))
 				gittest.RequireObjectExists(t, cfg, repoPath, commitID)
 
+				refs := gittest.FilesOrReftables(
+					[]string{"refs/", "refs/heads/", "refs/tags/"},
+					append([]string{"refs/", "refs/heads", "reftable/", "reftable/tables.list"}, reftableFiles(t, repoPath)...),
+				)
+
 				setupData := setupData{
 					repo: repoProto,
-					expectedEntries: []string{
-						"HEAD",
-						"refs/",
-						"refs/heads/",
-						"refs/tags/",
-						fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
-						fmt.Sprintf("objects/%s/%s", commitID[0:2], commitID[2:]),
-						// If the alternate object database is under the object database it will be
-						// included again in the snapshot.
-						fmt.Sprintf("objects/alt-objects/%s/%s", commitID[0:2], commitID[2:]),
-					},
+					expectedEntries: append(
+						[]string{
+							"HEAD",
+							fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
+							fmt.Sprintf("objects/%s/%s", commitID[0:2], commitID[2:]),
+							// If the alternate object database is under the object database it will be
+							// included again in the snapshot.
+							fmt.Sprintf("objects/alt-objects/%s/%s", commitID[0:2], commitID[2:]),
+						},
+						refs...,
+					),
 				}
 
 				if testhelper.IsWALEnabled() {
@@ -364,16 +385,21 @@ doesn't seem to test a realistic scenario.`)
 				))
 				gittest.RequireObjectExists(t, cfg, repoPath, commitID)
 
+				refs := gittest.FilesOrReftables(
+					[]string{"refs/", "refs/heads/", "refs/tags/"},
+					append([]string{"refs/", "refs/heads", "reftable/", "reftable/tables.list"}, reftableFiles(t, repoPath)...),
+				)
+
 				return setupData{
 					repo: repoProto,
-					expectedEntries: []string{
-						"HEAD",
-						"refs/",
-						"refs/heads/",
-						"refs/tags/",
-						fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
-						fmt.Sprintf("objects/%s/%s", commitID[0:2], commitID[2:]),
-					},
+					expectedEntries: append(
+						[]string{
+							"HEAD",
+							fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
+							fmt.Sprintf("objects/%s/%s", commitID[0:2], commitID[2:]),
+						},
+						refs...,
+					),
 				}
 			},
 		},
@@ -407,16 +433,21 @@ doesn't seem to test a realistic scenario.`)
 				))
 				gittest.RequireObjectExists(t, cfg, repoPath, commitID)
 
+				refs := gittest.FilesOrReftables(
+					[]string{"refs/", "refs/heads/", "refs/tags/"},
+					append([]string{"refs/", "refs/heads", "reftable/", "reftable/tables.list"}, reftableFiles(t, repoPath)...),
+				)
+
 				return setupData{
 					repo: repoProto,
-					expectedEntries: []string{
-						"HEAD",
-						"refs/",
-						"refs/heads/",
-						"refs/tags/",
-						fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
-						fmt.Sprintf("objects/%s/%s", commitID[0:2], commitID[2:]),
-					},
+					expectedEntries: append(
+						[]string{
+							"HEAD",
+							fmt.Sprintf("objects/%s/%s", treeID[0:2], treeID[2:]),
+							fmt.Sprintf("objects/%s/%s", commitID[0:2], commitID[2:]),
+						},
+						refs...,
+					),
 				}
 			},
 		},
@@ -440,4 +471,29 @@ doesn't seem to test a realistic scenario.`)
 			require.ElementsMatch(t, entries, setup.expectedEntries)
 		})
 	}
+}
+
+func reftableFiles(t *testing.T, repoPath string) []string {
+	var files []string
+
+	root := filepath.Join(repoPath, "reftable")
+
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		if strings.HasSuffix(path, ".ref") {
+			files = append(files, filepath.Join("reftable", filepath.Base(path)))
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	return files
 }
