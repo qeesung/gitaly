@@ -1,16 +1,19 @@
 package repository
 
 import (
+	"bufio"
+	"errors"
 	"io"
 	"os"
-	"path/filepath"
+	"strings"
 
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/gitaly/v16/streamio"
 )
 
-func (s *server) GetInfoAttributes(in *gitalypb.GetInfoAttributesRequest, stream gitalypb.RepositoryService_GetInfoAttributesServer) error {
+func (s *server) GetInfoAttributes(in *gitalypb.GetInfoAttributesRequest, stream gitalypb.RepositoryService_GetInfoAttributesServer) (returnedErr error) {
 	repository := in.GetRepository()
 	if err := s.locator.ValidateRepository(repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
@@ -20,14 +23,46 @@ func (s *server) GetInfoAttributes(in *gitalypb.GetInfoAttributesRequest, stream
 		return err
 	}
 
-	attrFile := filepath.Join(repoPath, "info", "attributes")
-	f, err := os.Open(attrFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return stream.Send(&gitalypb.GetInfoAttributesResponse{})
-		}
+	// In git 2.43.0+, gitattributes supports reading from HEAD:.gitattributes,
+	// so info/attributes is no longer needed. To make sure info/attributes file is cleaned up,
+	// we delete it if it exists when reading from HEAD:.gitattributes is called.
+	// This logic can be removed when ApplyGitattributes and GetInfoAttributes PRC are totally removed from
+	// the code base.
+	deletionErr := deleteInfoAttributesFile(repoPath)
+	if !os.IsNotExist(deletionErr) {
+		s.logger.WithError(deletionErr).Error("failed to delete info/gitattributes file at " + repoPath)
+	}
 
-		return structerr.NewInternal("failure to read info attributes: %w", err)
+	repo := s.localrepo(in.GetRepository())
+	ctx := stream.Context()
+	var stderr strings.Builder
+	// Call cat-file -p HEAD:.gitattributes instead of cat info/attributes
+	catFileCmd, err := repo.Exec(ctx, git.Command{
+		Name: "cat-file",
+		Flags: []git.Option{
+			git.Flag{Name: "-p"},
+		},
+		Args: []string{"HEAD:.gitattributes"},
+	},
+		git.WithSetupStdout(),
+		git.WithStderr(&stderr),
+	)
+	if err != nil {
+		return structerr.NewInternal("failure to read HEAD:.gitattributes: %w", err)
+	}
+	defer func() {
+		if err := catFileCmd.Wait(); err != nil {
+			s.logger.Error("git cat-file command error: " + stderr.String())
+			if returnedErr != nil {
+				returnedErr = structerr.NewInternal("failure to read HEAD:.gitattributes: %w", err)
+			}
+		}
+	}()
+
+	buf := bufio.NewReader(catFileCmd)
+	_, err = buf.Peek(1)
+	if errors.Is(err, io.EOF) {
+		return stream.Send(&gitalypb.GetInfoAttributesResponse{})
 	}
 
 	sw := streamio.NewWriter(func(p []byte) error {
@@ -35,7 +70,7 @@ func (s *server) GetInfoAttributes(in *gitalypb.GetInfoAttributesRequest, stream
 			Attributes: p,
 		})
 	})
+	_, err = io.Copy(sw, buf)
 
-	_, err = io.Copy(sw, f)
 	return err
 }
