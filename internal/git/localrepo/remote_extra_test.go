@@ -113,7 +113,6 @@ func TestRepo_FetchInternal(t *testing.T) {
 	})
 
 	t.Run("nonexistent revision", func(t *testing.T) {
-		testhelper.SkipQuarantinedTest(t, "https://gitlab.com/gitlab-org/gitaly/-/issues/5623")
 		ctx := testhelper.MergeIncomingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 
 		repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
@@ -126,7 +125,15 @@ func TestRepo_FetchInternal(t *testing.T) {
 		)
 		require.EqualError(t, err, "exit status 128")
 		require.IsType(t, err, localrepo.FetchFailedError{})
-		require.Equal(t, stderr.String(), "fatal: couldn't find remote ref refs/does/not/exist\n")
+
+		// When git-fetch(1) is spawned, it is configured to use the gitaly-ssh binary. Instead of
+		// an SSH connection, a sidechannel connection is created to transmit git data by using a
+		// multiplexed yamux session. In scenarios where the server hangs up a yamux connection and
+		// a client continues to write to the closed connection, an info log is written to stderr.
+		// This means there is a race where both git and yamux can write to stderr. Because this
+		// race is inconsequential, the test assertion only validates that stderr contains the
+		// expected git error.
+		require.Contains(t, stderr.String(), "fatal: couldn't find remote ref refs/does/not/exist\n")
 	})
 
 	t.Run("with env", func(t *testing.T) {
