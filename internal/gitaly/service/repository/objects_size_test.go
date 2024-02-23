@@ -351,8 +351,6 @@ func TestObjectsSize(t *testing.T) {
 		{
 			desc: "unique objects in an object deduplication network",
 			setup: func(t *testing.T) setupData {
-				testhelper.SkipWithWAL(t, `
-Object pools are not yet supported with transaction management.`)
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 				dedupBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("1234"))
 				dedupTree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{

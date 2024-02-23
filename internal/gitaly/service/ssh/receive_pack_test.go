@@ -421,9 +421,6 @@ func TestReceivePack_customHookFailure(t *testing.T) {
 }
 
 func TestReceivePack_hidesObjectPoolReferences(t *testing.T) {
-	testhelper.SkipWithWAL(t, `
-Object pools are not yet support with WAL. This test is testing with a pooled repository.`)
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
