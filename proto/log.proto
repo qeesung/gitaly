@@ -53,11 +53,19 @@ message LogEntry {
       repeated string deleted_files = 2;
     }
 
+    // WriteCommitGraphs models commit-graphs updates. An up-to-date
+    // commit-graphs structure accelerates commit graph walks.
+    message WriteCommitGraphs {
+    }
+
     // pack_refs signifies if the housekeeping run includes a pack-refs task.
     PackRefs pack_refs = 1;
 
     // repack signifies if the housekeeping run includes a repacking task.
     Repack repack = 2;
+
+    // write_commit_graphs signififies if the housekeeping run includes commit-graphs updates.
+    WriteCommitGraphs write_commit_graphs = 3;
   }
 
   // relative_path is the relative path of the repository the changes in the

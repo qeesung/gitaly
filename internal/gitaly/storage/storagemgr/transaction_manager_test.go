@@ -189,6 +189,7 @@ func TestTransactionManager(t *testing.T) {
 		generateHousekeepingPackRefsTests(t, ctx, testPartitionID, relativePath),
 		generateHousekeepingRepackingStrategyTests(t, ctx, testPartitionID, relativePath),
 		generateHousekeepingRepackingConcurrentTests(t, ctx, setup),
+		generateHousekeepingCommitGraphsTests(t, ctx, setup),
 	}
 	for _, subCases := range subTests {
 		testCases = append(testCases, subCases...)

@@ -76,8 +76,8 @@ type PackfilesState struct {
 	PooledObjects []git.ObjectID
 	// HasMultiPackIndex asserts whether there is a multi-pack-index inside the objects/pack directory.
 	HasMultiPackIndex bool
-	// HasCommitGraphs assert whether the repository has valid commit graphs.
-	HasCommitGraphs bool
+	// CommitGraphs assert commit graphs of the repository.
+	CommitGraphs *stats.CommitGraphInfo
 }
 
 // PackfileState describes the asserted state of an individual packfile, including its contained objects, index, bitmap.
@@ -193,7 +193,7 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 		objectHash, err := repo.ObjectHash(ctx)
 		require.NoError(tb, err)
 
-		actualPackfiles = collectPackfilesState(tb, repoPath, cfg, objectHash)
+		actualPackfiles = collectPackfilesState(tb, repoPath, cfg, objectHash, expected.Packfiles)
 		sortObjects(actualPackfiles.LooseObjects)
 		for _, packfile := range actualPackfiles.Packfiles {
 			sortObjects(packfile.Objects)
@@ -297,7 +297,7 @@ func collectReferencesState(tb testing.TB, expected RepositoryState, repoPath st
 	}, nil
 }
 
-func collectPackfilesState(tb testing.TB, repoPath string, cfg config.Cfg, objectHash git.ObjectHash) *PackfilesState {
+func collectPackfilesState(tb testing.TB, repoPath string, cfg config.Cfg, objectHash git.ObjectHash, expected *PackfilesState) *PackfilesState {
 	state := &PackfilesState{}
 
 	objectsDir := filepath.Join(repoPath, "objects")
@@ -370,9 +370,13 @@ func collectPackfilesState(tb testing.TB, repoPath string, cfg config.Cfg, objec
 		require.NoError(tb, err)
 	}
 
-	info, err := stats.CommitGraphInfoForRepository(repoPath)
-	require.NoError(tb, err)
-	state.HasCommitGraphs = info.Exists
+	if expected.CommitGraphs != nil {
+		gittest.Exec(tb, cfg, "-C", repoPath, "commit-graph", "verify")
+
+		info, err := stats.CommitGraphInfoForRepository(repoPath)
+		require.NoError(tb, err)
+		state.CommitGraphs = &info
+	}
 
 	return state
 }
@@ -603,6 +607,14 @@ type RunRepack struct {
 	TransactionID int
 	// Config is the desired repacking config for the task.
 	Config housekeeping.RepackObjectsConfig
+}
+
+// WriteCommitGraphs calls commit-graphs writing housekeeping task on a transaction.
+type WriteCommitGraphs struct {
+	// TransactionID is the transaction for which the repack task runs.
+	TransactionID int
+	// Config is the desired commit-graphs config for the task.
+	Config housekeeping.WriteCommitGraphConfig
 }
 
 // CustomHooksUpdate models an update to the custom hooks.
@@ -1045,6 +1057,11 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 			transaction := openTransactions[step.TransactionID]
 			transaction.Repack(step.Config)
+		case WriteCommitGraphs:
+			require.Contains(t, openTransactions, step.TransactionID, "test error: repack housekeeping task aborted on committed before beginning it")
+
+			transaction := openTransactions[step.TransactionID]
+			transaction.WriteCommitGraphs(step.Config)
 		case RepositoryAssertion:
 			require.Contains(t, openTransactions, step.TransactionID, "test error: transaction's snapshot asserted before beginning it")
 			transaction := openTransactions[step.TransactionID]
