@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
@@ -34,7 +34,7 @@ func (mo *mockOptimizer) OptimizeRepository(ctx context.Context, logger log.Logg
 	catfileCache := catfile.NewCache(mo.cfg)
 	mo.t.Cleanup(catfileCache.Stop)
 	txManager := transaction.NewManager(mo.cfg, logger, backchannel.NewRegistry())
-	housekeepingManager := housekeeping.NewManager(mo.cfg.Prometheus, logger, txManager)
+	housekeepingManager := housekeepingmgr.NewManager(mo.cfg.Prometheus, logger, txManager)
 
 	return housekeepingManager.OptimizeRepository(ctx, localrepo.New(logger, l, gitCmdFactory, catfileCache, repository))
 }

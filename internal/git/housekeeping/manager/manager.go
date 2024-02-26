@@ -1,4 +1,4 @@
-package housekeeping
+package manager
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
@@ -16,7 +17,7 @@ import (
 // such as the cleanup of unneeded files and optimizations for the repository's data structures.
 type Manager interface {
 	// CleanStaleData removes any stale data in the repository as per the provided configuration.
-	CleanStaleData(context.Context, *localrepo.Repo, CleanStaleDataConfig) error
+	CleanStaleData(context.Context, *localrepo.Repo, housekeeping.CleanStaleDataConfig) error
 	// OptimizeRepository optimizes the repository's data structures such that it can be more
 	// efficiently served.
 	OptimizeRepository(context.Context, *localrepo.Repo, ...OptimizeRepositoryOption) error
@@ -215,7 +216,7 @@ type RepositoryManager struct {
 	dataStructureCount                     *prometheus.HistogramVec
 	dataStructureSize                      *prometheus.HistogramVec
 	dataStructureTimeSinceLastOptimization *prometheus.HistogramVec
-	optimizeFunc                           func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, OptimizationStrategy) error
+	optimizeFunc                           func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error
 	repositoryStates                       repositoryStates
 }
 

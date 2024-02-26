@@ -1,4 +1,4 @@
-package housekeeping
+package manager
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -29,7 +30,7 @@ type OptimizeRepositoryOption func(cfg *OptimizeRepositoryConfig)
 
 // OptimizationStrategyConstructor is a constructor for an OptimizationStrategy that is being
 // informed by the passed-in RepositoryInfo.
-type OptimizationStrategyConstructor func(stats.RepositoryInfo) OptimizationStrategy
+type OptimizationStrategyConstructor func(stats.RepositoryInfo) housekeeping.OptimizationStrategy
 
 // WithOptimizationStrategyConstructor changes the constructor for the optimization strategy.that is
 // used to determine which parts of the repository will be optimized. By default the
@@ -79,9 +80,9 @@ func (m *RepositoryManager) OptimizeRepository(
 	}
 	m.reportRepositoryInfo(ctx, m.logger, repositoryInfo)
 
-	var strategy OptimizationStrategy
+	var strategy housekeeping.OptimizationStrategy
 	if cfg.StrategyConstructor == nil {
-		strategy = NewHeuristicalOptimizationStrategy(gitVersion, repositoryInfo)
+		strategy = housekeeping.NewHeuristicalOptimizationStrategy(gitVersion, repositoryInfo)
 	} else {
 		strategy = cfg.StrategyConstructor(repositoryInfo)
 	}
@@ -144,7 +145,7 @@ func optimizeRepository(
 	m *RepositoryManager,
 	logger log.Logger,
 	repo *localrepo.Repo,
-	strategy OptimizationStrategy,
+	strategy housekeeping.OptimizationStrategy,
 ) error {
 	totalTimer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("total"))
 	totalStatus := "failure"
@@ -162,13 +163,13 @@ func optimizeRepository(
 	}()
 
 	timer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("clean-stale-data"))
-	if err := m.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()); err != nil {
+	if err := m.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()); err != nil {
 		return fmt.Errorf("could not execute housekeeping: %w", err)
 	}
 	timer.ObserveDuration()
 
 	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("clean-worktrees"))
-	if err := CleanupWorktrees(ctx, repo); err != nil {
+	if err := housekeeping.CleanupWorktrees(ctx, repo); err != nil {
 		return fmt.Errorf("could not clean up worktrees: %w", err)
 	}
 	timer.ObserveDuration()
@@ -238,13 +239,13 @@ func optimizeRepository(
 }
 
 // repackIfNeeded repacks the repository according to the strategy.
-func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy OptimizationStrategy) (bool, RepackObjectsConfig, error) {
+func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, housekeeping.RepackObjectsConfig, error) {
 	repackNeeded, cfg := strategy.ShouldRepackObjects(ctx)
 	if !repackNeeded {
-		return false, RepackObjectsConfig{}, nil
+		return false, housekeeping.RepackObjectsConfig{}, nil
 	}
 
-	if err := RepackObjects(ctx, repo, cfg); err != nil {
+	if err := housekeeping.RepackObjects(ctx, repo, cfg); err != nil {
 		return false, cfg, err
 	}
 
@@ -252,13 +253,13 @@ func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy Optimiza
 }
 
 // writeCommitGraphIfNeeded writes the commit-graph if required.
-func writeCommitGraphIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy OptimizationStrategy) (bool, WriteCommitGraphConfig, error) {
+func writeCommitGraphIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, housekeeping.WriteCommitGraphConfig, error) {
 	needed, cfg, err := strategy.ShouldWriteCommitGraph(ctx)
 	if !needed || err != nil {
-		return false, WriteCommitGraphConfig{}, err
+		return false, housekeeping.WriteCommitGraphConfig{}, err
 	}
 
-	if err := WriteCommitGraph(ctx, repo, cfg); err != nil {
+	if err := housekeeping.WriteCommitGraph(ctx, repo, cfg); err != nil {
 		return true, cfg, fmt.Errorf("writing commit-graph: %w", err)
 	}
 
@@ -267,20 +268,20 @@ func writeCommitGraphIfNeeded(ctx context.Context, repo *localrepo.Repo, strateg
 
 // pruneIfNeeded removes objects from the repository which are either unreachable or which are
 // already part of a packfile. We use a grace period of two weeks.
-func pruneIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy OptimizationStrategy) (bool, error) {
+func pruneIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, error) {
 	needed, cfg := strategy.ShouldPruneObjects(ctx)
 	if !needed {
 		return false, nil
 	}
 
-	if err := PruneObjects(ctx, repo, cfg); err != nil {
+	if err := housekeeping.PruneObjects(ctx, repo, cfg); err != nil {
 		return true, fmt.Errorf("pruning objects: %w", err)
 	}
 
 	return true, nil
 }
 
-func (m *RepositoryManager) packRefsIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy OptimizationStrategy) (bool, error) {
+func (m *RepositoryManager) packRefsIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, error) {
 	path, err := repo.Path()
 	if err != nil {
 		return false, err
@@ -311,7 +312,7 @@ func (m *RepositoryManager) packRefsIfNeeded(ctx context.Context, repo *localrep
 }
 
 // CleanStaleData removes any stale data in the repository as per the provided configuration.
-func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.Repo, cfg CleanStaleDataConfig) error {
+func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.Repo, cfg housekeeping.CleanStaleDataConfig) error {
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "housekeeping.CleanStaleData", nil)
 	defer span.Finish()
 

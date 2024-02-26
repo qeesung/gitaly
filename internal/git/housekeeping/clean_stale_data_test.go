@@ -18,9 +18,6 @@ import (
 const (
 	Delete entryFinalState = iota
 	Keep
-
-	ancient = 240 * time.Hour
-	recent  = 24 * time.Hour
 )
 
 type mockDirEntry struct {

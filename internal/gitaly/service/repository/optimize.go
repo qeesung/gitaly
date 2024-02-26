@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -22,7 +23,7 @@ func (s *server) OptimizeRepository(ctx context.Context, in *gitalypb.OptimizeRe
 		return nil, fmt.Errorf("detecting Git version: %w", err)
 	}
 
-	var strategyConstructor housekeeping.OptimizationStrategyConstructor
+	var strategyConstructor housekeepingmgr.OptimizationStrategyConstructor
 	switch in.GetStrategy() {
 	case gitalypb.OptimizeRepositoryRequest_STRATEGY_UNSPECIFIED, gitalypb.OptimizeRepositoryRequest_STRATEGY_HEURISTICAL:
 		strategyConstructor = func(info stats.RepositoryInfo) housekeeping.OptimizationStrategy {
@@ -37,7 +38,7 @@ func (s *server) OptimizeRepository(ctx context.Context, in *gitalypb.OptimizeRe
 	}
 
 	if err := s.housekeepingManager.OptimizeRepository(ctx, repo,
-		housekeeping.WithOptimizationStrategyConstructor(strategyConstructor),
+		housekeepingmgr.WithOptimizationStrategyConstructor(strategyConstructor),
 	); err != nil {
 		return nil, structerr.NewInternal("%w", err)
 	}

@@ -16,7 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -64,7 +64,7 @@ func TestDisconnect(t *testing.T) {
 			gittest.NewCommandFactory(t, cfg, git.WithSkipHooks()),
 			catfileCache,
 			txManager,
-			housekeeping.NewManager(cfg.Prometheus, logger, txManager),
+			housekeepingmgr.NewManager(cfg.Prometheus, logger, txManager),
 			&gitalypb.ObjectPool{
 				Repository: &gitalypb.Repository{
 					StorageName:  cfg.Storages[0].Name,

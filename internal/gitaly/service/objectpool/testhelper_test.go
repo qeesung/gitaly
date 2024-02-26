@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
@@ -94,7 +94,7 @@ func createObjectPool(
 		gittest.NewCommandFactory(tb, cfg),
 		catfileCache,
 		txManager,
-		housekeeping.NewManager(cfg.Prometheus, logger, txManager),
+		housekeepingmgr.NewManager(cfg.Prometheus, logger, txManager),
 		&gitalypb.ObjectPool{
 			Repository: &gitalypb.Repository{
 				StorageName:  cfg.Storages[0].Name,

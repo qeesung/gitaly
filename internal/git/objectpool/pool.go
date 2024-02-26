@@ -13,7 +13,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
@@ -43,7 +43,7 @@ type ObjectPool struct {
 	locator             storage.Locator
 	gitCmdFactory       git.CommandFactory
 	txManager           transaction.Manager
-	housekeepingManager housekeeping.Manager
+	housekeepingManager housekeepingmgr.Manager
 }
 
 // FromProto returns an object pool object from its Protobuf representation. This function verifies
@@ -54,7 +54,7 @@ func FromProto(
 	gitCmdFactory git.CommandFactory,
 	catfileCache catfile.Cache,
 	txManager transaction.Manager,
-	housekeepingManager housekeeping.Manager,
+	housekeepingManager housekeepingmgr.Manager,
 	proto *gitalypb.ObjectPool,
 ) (*ObjectPool, error) {
 	poolPath, err := locator.GetRepoPath(proto.GetRepository(), storage.WithRepositoryVerificationSkipped())
@@ -150,7 +150,7 @@ func FromRepo(
 	gitCmdFactory git.CommandFactory,
 	catfileCache catfile.Cache,
 	txManager transaction.Manager,
-	housekeepingManager housekeeping.Manager,
+	housekeepingManager housekeepingmgr.Manager,
 	repo *localrepo.Repo,
 ) (*ObjectPool, error) {
 	storagePath, err := locator.GetStorageByName(repo.GetStorageName())

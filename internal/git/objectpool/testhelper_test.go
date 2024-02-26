@@ -8,7 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
@@ -65,7 +65,7 @@ func setupObjectPool(t *testing.T, ctx context.Context, opts ...setupObjectPoolO
 		gitCommandFactory,
 		catfileCache,
 		txManager,
-		housekeeping.NewManager(cfg.Prometheus, setupCfg.logger, txManager),
+		housekeepingmgr.NewManager(cfg.Prometheus, setupCfg.logger, txManager),
 		&gitalypb.ObjectPool{
 			Repository: &gitalypb.Repository{
 				StorageName:  repo.GetStorageName(),

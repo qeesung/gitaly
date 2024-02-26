@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
@@ -253,12 +254,12 @@ func TestOptimizeRepository(t *testing.T) {
 }
 
 type mockHousekeepingManager struct {
-	housekeeping.Manager
+	housekeepingmgr.Manager
 	strategyCh chan housekeeping.OptimizationStrategy
 }
 
-func (m mockHousekeepingManager) OptimizeRepository(_ context.Context, _ *localrepo.Repo, opts ...housekeeping.OptimizeRepositoryOption) error {
-	var cfg housekeeping.OptimizeRepositoryConfig
+func (m mockHousekeepingManager) OptimizeRepository(_ context.Context, _ *localrepo.Repo, opts ...housekeepingmgr.OptimizeRepositoryOption) error {
+	var cfg housekeepingmgr.OptimizeRepositoryConfig
 	for _, opt := range opts {
 		opt(&cfg)
 	}

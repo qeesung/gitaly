@@ -9,7 +9,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
@@ -30,7 +30,7 @@ func Create(
 	gitCmdFactory git.CommandFactory,
 	catfileCache catfile.Cache,
 	txManager transaction.Manager,
-	housekeepingManager housekeeping.Manager,
+	housekeepingManager housekeepingmgr.Manager,
 	proto *gitalypb.ObjectPool,
 	sourceRepo *localrepo.Repo,
 ) (*ObjectPool, error) {

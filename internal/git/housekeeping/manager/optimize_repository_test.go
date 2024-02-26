@@ -1,4 +1,4 @@
-package housekeeping
+package manager
 
 import (
 	"bytes"
@@ -18,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -31,6 +32,16 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/txinfo"
 	"google.golang.org/grpc/peer"
+)
+
+type entryFinalState int
+
+const (
+	Delete entryFinalState = iota
+	Keep
+
+	ancient = 240 * time.Hour
+	recent  = 24 * time.Hour
 )
 
 type errorInjectingCommandFactory struct {
@@ -90,7 +101,7 @@ func TestRepackIfNeeded(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.False(t, didRepack)
-		require.Equal(t, RepackObjectsConfig{}, repackObjectsCfg)
+		require.Equal(t, housekeeping.RepackObjectsConfig{}, repackObjectsCfg)
 
 		requireObjectsState(t, repo, objectsState{
 			looseObjects: 2,
@@ -112,14 +123,14 @@ func TestRepackIfNeeded(t *testing.T) {
 
 		didRepack, repackObjectsCfg, err := repackIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldRepackObjects: true,
-			repackObjectsCfg: RepackObjectsConfig{
-				Strategy: RepackObjectsStrategyIncrementalWithUnreachable,
+			repackObjectsCfg: housekeeping.RepackObjectsConfig{
+				Strategy: housekeeping.RepackObjectsStrategyIncrementalWithUnreachable,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didRepack)
-		require.Equal(t, RepackObjectsConfig{
-			Strategy: RepackObjectsStrategyIncrementalWithUnreachable,
+		require.Equal(t, housekeeping.RepackObjectsConfig{
+			Strategy: housekeeping.RepackObjectsStrategyIncrementalWithUnreachable,
 		}, repackObjectsCfg)
 
 		requireObjectsState(t, repo, objectsState{
@@ -143,14 +154,14 @@ func TestRepackIfNeeded(t *testing.T) {
 
 		didRepack, repackObjectsCfg, err := repackIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldRepackObjects: true,
-			repackObjectsCfg: RepackObjectsConfig{
-				Strategy: RepackObjectsStrategyFullWithUnreachable,
+			repackObjectsCfg: housekeeping.RepackObjectsConfig{
+				Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didRepack)
-		require.Equal(t, RepackObjectsConfig{
-			Strategy: RepackObjectsStrategyFullWithUnreachable,
+		require.Equal(t, housekeeping.RepackObjectsConfig{
+			Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
 		}, repackObjectsCfg)
 
 		requireObjectsState(t, repo, objectsState{
@@ -173,15 +184,15 @@ func TestRepackIfNeeded(t *testing.T) {
 
 		didRepack, repackObjectsCfg, err := repackIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldRepackObjects: true,
-			repackObjectsCfg: RepackObjectsConfig{
-				Strategy:          RepackObjectsStrategyFullWithCruft,
+			repackObjectsCfg: housekeeping.RepackObjectsConfig{
+				Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
 				CruftExpireBefore: expiryTime,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didRepack)
-		require.Equal(t, RepackObjectsConfig{
-			Strategy:          RepackObjectsStrategyFullWithCruft,
+		require.Equal(t, housekeeping.RepackObjectsConfig{
+			Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
 			CruftExpireBefore: expiryTime,
 		}, repackObjectsCfg)
 
@@ -207,15 +218,15 @@ func TestRepackIfNeeded(t *testing.T) {
 
 		didRepack, repackObjectsCfg, err := repackIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldRepackObjects: true,
-			repackObjectsCfg: RepackObjectsConfig{
-				Strategy:          RepackObjectsStrategyFullWithCruft,
+			repackObjectsCfg: housekeeping.RepackObjectsConfig{
+				Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
 				CruftExpireBefore: expiryTime,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didRepack)
-		require.Equal(t, RepackObjectsConfig{
-			Strategy:          RepackObjectsStrategyFullWithCruft,
+		require.Equal(t, housekeeping.RepackObjectsConfig{
+			Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
 			CruftExpireBefore: expiryTime,
 		}, repackObjectsCfg)
 
@@ -239,8 +250,8 @@ func TestRepackIfNeeded(t *testing.T) {
 
 		repo := localrepo.New(testhelper.NewLogger(t), config.NewLocator(cfg), gitCmdFactory, nil, repoProto)
 
-		expectedCfg := RepackObjectsConfig{
-			Strategy:          RepackObjectsStrategyFullWithCruft,
+		expectedCfg := housekeeping.RepackObjectsConfig{
+			Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
 			CruftExpireBefore: time.Now(),
 		}
 
@@ -707,7 +718,7 @@ func TestOptimizeRepository(t *testing.T) {
 				// get pruned.
 				almostTwoWeeksAgo := time.Now().Add(stats.StaleObjectsGracePeriod).Add(time.Minute)
 
-				for i := 0; i < LooseObjectLimit+1; i++ {
+				for i := 0; i < housekeeping.LooseObjectLimit+1; i++ {
 					blobPath := filepath.Join(repoPath, "objects", "17", fmt.Sprintf("%d", i))
 					require.NoError(t, os.WriteFile(blobPath, nil, perm.SharedFile))
 					require.NoError(t, os.Chtimes(blobPath, almostTwoWeeksAgo, almostTwoWeeksAgo))
@@ -742,7 +753,7 @@ func TestOptimizeRepository(t *testing.T) {
 
 				moreThanTwoWeeksAgo := time.Now().Add(stats.StaleObjectsGracePeriod).Add(-time.Minute)
 
-				for i := 0; i < LooseObjectLimit+1; i++ {
+				for i := 0; i < housekeeping.LooseObjectLimit+1; i++ {
 					blobPath := filepath.Join(repoPath, "objects", "17", fmt.Sprintf("%d", i))
 					require.NoError(t, os.WriteFile(blobPath, nil, perm.SharedFile))
 					require.NoError(t, os.Chtimes(blobPath, moreThanTwoWeeksAgo, moreThanTwoWeeksAgo))
@@ -944,8 +955,8 @@ func TestOptimizeRepository(t *testing.T) {
 				return setupData{
 					repo: localrepo.NewTestRepo(t, cfg, repo),
 					options: []OptimizeRepositoryOption{
-						WithOptimizationStrategyConstructor(func(repoInfo stats.RepositoryInfo) OptimizationStrategy {
-							return NewEagerOptimizationStrategy(repoInfo)
+						WithOptimizationStrategyConstructor(func(repoInfo stats.RepositoryInfo) housekeeping.OptimizationStrategy {
+							return housekeeping.NewEagerOptimizationStrategy(repoInfo)
 						}),
 					},
 					expectedMetrics: []metric{
@@ -1093,7 +1104,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		manager := NewManager(gitalycfgprom.Config{}, testhelper.NewLogger(t), nil)
-		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, OptimizationStrategy) error {
+		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			reqReceivedCh <- struct{}{}
 			ch <- struct{}{}
 
@@ -1125,7 +1136,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		manager := NewManager(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil)
-		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, OptimizationStrategy) error {
+		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			// This should only happen if housekeeping is running successfully.
 			// So by sending data on this channel we can notify the test that this
 			// function ran successfully.
@@ -1159,7 +1170,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
 		manager := NewManager(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil)
-		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, OptimizationStrategy) error {
+		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			require.FailNow(t, "housekeeping run should have been skipped")
 			return nil
 		}
@@ -1192,7 +1203,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		reposOptimized := make(map[string]struct{})
 
 		manager := NewManager(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil)
-		manager.optimizeFunc = func(_ context.Context, _ *RepositoryManager, _ log.Logger, repo *localrepo.Repo, _ OptimizationStrategy) error {
+		manager.optimizeFunc = func(_ context.Context, _ *RepositoryManager, _ log.Logger, repo *localrepo.Repo, _ housekeeping.OptimizationStrategy) error {
 			reposOptimized[repo.GetRelativePath()] = struct{}{}
 
 			if repo.GetRelativePath() == repoFirst.GetRelativePath() {
@@ -1229,7 +1240,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		var optimizations int
 
 		manager := NewManager(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil)
-		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, OptimizationStrategy) error {
+		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			optimizations++
 
 			if optimizations == 1 {
@@ -1296,7 +1307,7 @@ func TestPruneIfNeeded(t *testing.T) {
 	// We shouldn't prune when the strategy determines there aren't enough old objects.
 	didPrune, err := pruneIfNeeded(ctx, repo, mockOptimizationStrategy{
 		shouldPruneObjects: false,
-		pruneObjectsCfg: PruneObjectsConfig{
+		pruneObjectsCfg: housekeeping.PruneObjectsConfig{
 			ExpireBefore: twoWeeksAgo,
 		},
 	})
@@ -1310,7 +1321,7 @@ func TestPruneIfNeeded(t *testing.T) {
 	// But we naturally should prune if told so.
 	didPrune, err = pruneIfNeeded(ctx, repo, mockOptimizationStrategy{
 		shouldPruneObjects: true,
-		pruneObjectsCfg: PruneObjectsConfig{
+		pruneObjectsCfg: housekeeping.PruneObjectsConfig{
 			ExpireBefore: twoWeeksAgo,
 		},
 	})
@@ -1343,7 +1354,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.False(t, written)
-		require.Equal(t, WriteCommitGraphConfig{}, cfg)
+		require.Equal(t, housekeeping.WriteCommitGraphConfig{}, cfg)
 
 		require.NoFileExists(t, filepath.Join(repoPath, "objects", "info", "commit-graph"))
 		require.NoDirExists(t, filepath.Join(repoPath, "objects", "info", "commit-graphs"))
@@ -1364,7 +1375,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.True(t, written)
-		require.Equal(t, WriteCommitGraphConfig{}, cfg)
+		require.Equal(t, housekeeping.WriteCommitGraphConfig{}, cfg)
 
 		require.NoFileExists(t, filepath.Join(repoPath, "objects", "info", "commit-graph"))
 		require.DirExists(t, filepath.Join(repoPath, "objects", "info", "commit-graphs"))
@@ -1406,7 +1417,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.True(t, didWrite)
-		require.Equal(t, WriteCommitGraphConfig{}, writeCommitGraphCfg)
+		require.Equal(t, housekeeping.WriteCommitGraphConfig{}, writeCommitGraphCfg)
 
 		// We should still observe the failure failure.
 		stderr.Reset()
@@ -1419,13 +1430,13 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 		// commit-graph completely.
 		didWrite, writeCommitGraphCfg, err = writeCommitGraphIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldWriteCommitGraph: true,
-			writeCommitGraphCfg: WriteCommitGraphConfig{
+			writeCommitGraphCfg: housekeeping.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didWrite)
-		require.Equal(t, WriteCommitGraphConfig{
+		require.Equal(t, housekeeping.WriteCommitGraphConfig{
 			ReplaceChain: true,
 		}, writeCommitGraphCfg)
 
@@ -1612,7 +1623,7 @@ func TestRepositoryManager_CleanStaleData(t *testing.T) {
 
 			mgr := NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil)
 
-			require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
 			for _, e := range tc.entries {
 				e.validate(t, repoPath)
@@ -1643,7 +1654,7 @@ func TestRepositoryManager_CleanStaleData_reftable(t *testing.T) {
 		},
 		{
 			desc:     "stale lock",
-			age:      ReftableLockfileGracePeriod + time.Minute,
+			age:      housekeeping.ReftableLockfileGracePeriod + time.Minute,
 			expected: false,
 			expectedMetrics: cleanStaleDataMetrics{
 				reftablelocks: 1,
@@ -1670,7 +1681,7 @@ func TestRepositoryManager_CleanStaleData_reftable(t *testing.T) {
 			require.NoError(t, os.Chtimes(path, filetime, filetime))
 
 			mgr := NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil)
-			require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
 			exists := false
 			if _, err := os.Stat(path); err == nil {
@@ -1782,7 +1793,7 @@ func TestRepositoryManager_CleanStaleData_references(t *testing.T) {
 
 			mgr := NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil)
 
-			require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
 			var actual []string
 			require.NoError(t, filepath.Walk(filepath.Join(repoPath, "refs"), func(path string, info os.FileInfo, _ error) error {
@@ -1909,7 +1920,7 @@ func TestRepositoryManager_CleanStaleData_emptyRefDirs(t *testing.T) {
 
 			mgr := NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil)
 
-			require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
 			for _, e := range tc.entries {
 				e.validate(t, repoPath)
@@ -1951,13 +1962,13 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 		desc            string
 		file            string
 		subdirs         []string
-		finder          FindStaleFileFunc
+		finder          housekeeping.FindStaleFileFunc
 		expectedMetrics cleanStaleDataMetrics
 	}{
 		{
 			desc:   "locked HEAD",
 			file:   "HEAD.lock",
-			finder: FindStaleLockfiles,
+			finder: housekeeping.FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -1965,7 +1976,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 		{
 			desc:   "locked config",
 			file:   "config.lock",
-			finder: FindStaleLockfiles,
+			finder: housekeeping.FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -1976,7 +1987,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 			subdirs: []string{
 				"info",
 			},
-			finder: FindStaleLockfiles,
+			finder: housekeeping.FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -1987,7 +1998,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 			subdirs: []string{
 				"objects", "info",
 			},
-			finder: FindStaleLockfiles,
+			finder: housekeeping.FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -1998,7 +2009,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 			subdirs: []string{
 				"objects", "info", "commit-graphs",
 			},
-			finder: FindStaleLockfiles,
+			finder: housekeeping.FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -2006,7 +2017,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 		{
 			desc:   "locked packed-refs",
 			file:   "packed-refs.lock",
-			finder: FindPackedRefsLock,
+			finder: housekeeping.FindPackedRefsLock,
 			expectedMetrics: cleanStaleDataMetrics{
 				packedRefsLock: 1,
 			},
@@ -2014,7 +2025,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 		{
 			desc:   "temporary packed-refs",
 			file:   "packed-refs.new",
-			finder: FindPackedRefsNew,
+			finder: housekeeping.FindPackedRefsNew,
 			expectedMetrics: cleanStaleDataMetrics{
 				packedRefsNew: 1,
 			},
@@ -2025,7 +2036,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 			subdirs: []string{
 				"objects", "pack",
 			},
-			finder: FindStaleLockfiles,
+			finder: housekeeping.FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -2045,7 +2056,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 			mgr := NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil)
 
-			require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 			for _, subcase := range []struct {
 				desc          string
 				entry         entry
@@ -2089,7 +2100,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 					require.NoError(t, err)
 					require.ElementsMatch(t, subcase.expectedFiles, staleFiles)
 
-					require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+					require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
 					entry.validate(t, repoPath)
 				})
@@ -2132,7 +2143,7 @@ func TestRepositoryManager_CleanStaleData_serverInfo(t *testing.T) {
 		entry.create(t, repoPath)
 	}
 
-	staleFiles, err := FindServerInfo(ctx, repoPath)
+	staleFiles, err := housekeeping.FindServerInfo(ctx, repoPath)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{
 		filepath.Join(repoPath, "info/refs"),
@@ -2143,7 +2154,7 @@ func TestRepositoryManager_CleanStaleData_serverInfo(t *testing.T) {
 
 	mgr := NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil)
 
-	require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+	require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
 	for _, entry := range entries {
 		entry.validate(t, repoPath)
@@ -2167,7 +2178,7 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 		expectedReferenceLocks []string
 		expectedMetrics        cleanStaleDataMetrics
 		gracePeriod            time.Duration
-		cfg                    CleanStaleDataConfig
+		cfg                    housekeeping.CleanStaleDataConfig
 		metricsCompareFn       func(t *testing.T, m *RepositoryManager, metrics cleanStaleDataMetrics)
 	}{
 		{
@@ -2178,8 +2189,8 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 					f("main.lock", withAge(10*time.Minute)),
 				}),
 			},
-			gracePeriod: ReferenceLockfileGracePeriod,
-			cfg:         DefaultStaleDataCleanup(),
+			gracePeriod: housekeeping.ReferenceLockfileGracePeriod,
+			cfg:         housekeeping.DefaultStaleDataCleanup(),
 		},
 		{
 			desc: "fresh lock is deleted when grace period is low",
@@ -2196,7 +2207,7 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 				reflocks: 1,
 			},
 			gracePeriod:      time.Second,
-			cfg:              OnlyStaleReferenceLockCleanup(time.Second),
+			cfg:              housekeeping.OnlyStaleReferenceLockCleanup(time.Second),
 			metricsCompareFn: requireReferenceLockCleanupMetrics,
 		},
 		{
@@ -2213,8 +2224,8 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 			expectedMetrics: cleanStaleDataMetrics{
 				reflocks: 1,
 			},
-			gracePeriod: ReferenceLockfileGracePeriod,
-			cfg:         DefaultStaleDataCleanup(),
+			gracePeriod: housekeeping.ReferenceLockfileGracePeriod,
+			cfg:         housekeeping.DefaultStaleDataCleanup(),
 		},
 		{
 			desc: "nested reference locks are deleted",
@@ -2242,8 +2253,8 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 			expectedMetrics: cleanStaleDataMetrics{
 				reflocks: 3,
 			},
-			gracePeriod: ReferenceLockfileGracePeriod,
-			cfg:         DefaultStaleDataCleanup(),
+			gracePeriod: housekeeping.ReferenceLockfileGracePeriod,
+			cfg:         housekeeping.DefaultStaleDataCleanup(),
 		},
 	} {
 		tc := tc
@@ -2270,7 +2281,7 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 				expectedReferenceLocks = append(expectedReferenceLocks, filepath.Join(repoPath, referenceLock))
 			}
 
-			staleLockfiles, err := FindStaleReferenceLocks(tc.gracePeriod)(ctx, repoPath)
+			staleLockfiles, err := housekeeping.FindStaleReferenceLocks(tc.gracePeriod)(ctx, repoPath)
 			require.NoError(t, err)
 			require.ElementsMatch(t, expectedReferenceLocks, staleLockfiles)
 
@@ -2304,7 +2315,7 @@ func TestRepositoryManager_CleanStaleData_missingRepo(t *testing.T) {
 
 	require.NoError(t, os.RemoveAll(repoPath))
 
-	require.NoError(t, NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil).CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+	require.NoError(t, NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil).CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 }
 
 func TestRepositoryManager_CleanStaleData_unsetConfiguration(t *testing.T) {
@@ -2345,7 +2356,7 @@ func TestRepositoryManager_CleanStaleData_unsetConfiguration(t *testing.T) {
 
 	mgr := NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil)
 
-	require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+	require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 	require.Equal(t,
 		`[core]
 	repositoryformatversion = 0
@@ -2385,7 +2396,7 @@ func TestRepositoryManager_CleanStaleData_unsetConfigurationTransactional(t *tes
 		AuthInfo: backchannel.WithID(nil, 1234),
 	})
 
-	require.NoError(t, NewManager(cfg.Prometheus, testhelper.SharedLogger(t), txManager).CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+	require.NoError(t, NewManager(cfg.Prometheus, testhelper.SharedLogger(t), txManager).CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 	require.Equal(t, 2, len(txManager.Votes()))
 
 	configKeys := gittest.Exec(t, cfg, "-C", repoPath, "config", "--list", "--local", "--name-only")
@@ -2441,7 +2452,7 @@ func TestRepositoryManager_CleanStaleData_pruneEmptyConfigSections(t *testing.T)
 
 	mgr := NewManager(cfg.Prometheus, testhelper.SharedLogger(t), nil)
 
-	require.NoError(t, mgr.CleanStaleData(ctx, repo, DefaultStaleDataCleanup()))
+	require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 	require.Equal(t, `[core]
 	repositoryformatversion = 0
 	filemode = true
@@ -2459,19 +2470,19 @@ func TestRepositoryManager_CleanStaleData_pruneEmptyConfigSections(t *testing.T)
 // mockOptimizationStrategy is a mock strategy that can be used with OptimizeRepository.
 type mockOptimizationStrategy struct {
 	shouldRepackObjects    bool
-	repackObjectsCfg       RepackObjectsConfig
+	repackObjectsCfg       housekeeping.RepackObjectsConfig
 	shouldPruneObjects     bool
-	pruneObjectsCfg        PruneObjectsConfig
+	pruneObjectsCfg        housekeeping.PruneObjectsConfig
 	shouldRepackReferences func(ctx context.Context) bool
 	shouldWriteCommitGraph bool
-	writeCommitGraphCfg    WriteCommitGraphConfig
+	writeCommitGraphCfg    housekeeping.WriteCommitGraphConfig
 }
 
-func (m mockOptimizationStrategy) ShouldRepackObjects(context.Context) (bool, RepackObjectsConfig) {
+func (m mockOptimizationStrategy) ShouldRepackObjects(context.Context) (bool, housekeeping.RepackObjectsConfig) {
 	return m.shouldRepackObjects, m.repackObjectsCfg
 }
 
-func (m mockOptimizationStrategy) ShouldPruneObjects(context.Context) (bool, PruneObjectsConfig) {
+func (m mockOptimizationStrategy) ShouldPruneObjects(context.Context) (bool, housekeeping.PruneObjectsConfig) {
 	return m.shouldPruneObjects, m.pruneObjectsCfg
 }
 
@@ -2479,6 +2490,6 @@ func (m mockOptimizationStrategy) ShouldRepackReferences(ctx context.Context) bo
 	return m.shouldRepackReferences(ctx)
 }
 
-func (m mockOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig, error) {
+func (m mockOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, housekeeping.WriteCommitGraphConfig, error) {
 	return m.shouldWriteCommitGraph, m.writeCommitGraphCfg, nil
 }
