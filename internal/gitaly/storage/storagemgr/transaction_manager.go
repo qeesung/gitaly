@@ -951,8 +951,6 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 				); err != nil && !errors.Is(err, fs.ErrNotExist) {
 					return fmt.Errorf("record alternates update: %w", err)
 				}
-
-				transaction.walEntry.RecordFlush(filepath.Dir(stagedAlternatesRelativePath))
 			}
 		}
 
@@ -981,8 +979,6 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 					return fmt.Errorf("record file creation: %w", err)
 				}
 			}
-
-			transaction.walEntry.RecordFlush(packDir)
 		}
 
 		if transaction.defaultBranchUpdated {
@@ -2520,7 +2516,7 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 
 	mgr.testHooks.beforeApplyLogEntry()
 
-	if err := mgr.applyOperations(lsn, logEntry); err != nil {
+	if err := applyOperations(safe.NewSyncer().Sync, mgr.storagePath, walFilesPathForLSN(mgr.stateDirectory, lsn), logEntry); err != nil {
 		return fmt.Errorf("apply operations: %w", err)
 	}
 
@@ -2555,54 +2551,6 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 	// snapshot.
 	close(mgr.snapshotLocks[lsn].applied)
 
-	return nil
-}
-
-// applyOperations applies the operations from the log entry to the storage.
-//
-// ErrExists is ignored when creating directories and hard links. They could have been created
-// during an earlier interrupted attempt to apply the log entry. Similarly ErrNotExist is ignored
-// when removing directory entries. We can be stricter once log entry application becomes atomic
-// through https://gitlab.com/gitlab-org/gitaly/-/issues/5765.
-func (mgr *TransactionManager) applyOperations(lsn LSN, entry *gitalypb.LogEntry) error {
-	for _, wrappedOp := range entry.Operations {
-		switch wrapper := wrappedOp.GetOperation().(type) {
-		case *gitalypb.LogEntry_Operation_CreateHardLink_:
-			op := wrapper.CreateHardLink
-
-			basePath := walFilesPathForLSN(mgr.stateDirectory, lsn)
-			if op.SourceInStorage {
-				basePath = mgr.storagePath
-			}
-
-			if err := os.Link(
-				filepath.Join(basePath, op.SourcePath),
-				mgr.getAbsolutePath(op.DestinationPath),
-			); err != nil && !errors.Is(err, fs.ErrExist) {
-				return fmt.Errorf("link: %w", err)
-			}
-		case *gitalypb.LogEntry_Operation_CreateDirectory_:
-			op := wrapper.CreateDirectory
-
-			if err := os.Mkdir(mgr.getAbsolutePath(op.Path), fs.FileMode(op.Permissions)); err != nil && !errors.Is(err, fs.ErrExist) {
-				return fmt.Errorf("mkdir: %w", err)
-			}
-		case *gitalypb.LogEntry_Operation_RemoveDirectoryEntry_:
-			op := wrapper.RemoveDirectoryEntry
-
-			if err := os.Remove(mgr.getAbsolutePath(op.Path)); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return fmt.Errorf("remove: %w", err)
-			}
-		case *gitalypb.LogEntry_Operation_Flush_:
-			op := wrapper.Flush
-
-			if err := safe.NewSyncer().Sync(mgr.getAbsolutePath(op.Path)); err != nil {
-				return fmt.Errorf("sync: %w", err)
-			}
-		default:
-			return fmt.Errorf("unhandled operation type: %T", wrappedOp)
-		}
-	}
 	return nil
 }
 
