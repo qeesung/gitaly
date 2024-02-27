@@ -64,6 +64,7 @@ func (s *server) GetSnapshot(in *gitalypb.GetSnapshotRequest, stream gitalypb.Re
 	_ = builder.FileIfExist("HEAD")
 	_ = builder.FileIfExist("packed-refs")
 	_ = builder.RecursiveDirIfExist("refs")
+	_ = builder.RecursiveDirIfExist("reftable")
 	_ = builder.RecursiveDirIfExist("branches")
 
 	// The packfiles + any loose objects.
