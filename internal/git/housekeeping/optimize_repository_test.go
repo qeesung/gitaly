@@ -707,7 +707,7 @@ func TestOptimizeRepository(t *testing.T) {
 				// get pruned.
 				almostTwoWeeksAgo := time.Now().Add(stats.StaleObjectsGracePeriod).Add(time.Minute)
 
-				for i := 0; i < looseObjectLimit+1; i++ {
+				for i := 0; i < LooseObjectLimit+1; i++ {
 					blobPath := filepath.Join(repoPath, "objects", "17", fmt.Sprintf("%d", i))
 					require.NoError(t, os.WriteFile(blobPath, nil, perm.SharedFile))
 					require.NoError(t, os.Chtimes(blobPath, almostTwoWeeksAgo, almostTwoWeeksAgo))
@@ -742,7 +742,7 @@ func TestOptimizeRepository(t *testing.T) {
 
 				moreThanTwoWeeksAgo := time.Now().Add(stats.StaleObjectsGracePeriod).Add(-time.Minute)
 
-				for i := 0; i < looseObjectLimit+1; i++ {
+				for i := 0; i < LooseObjectLimit+1; i++ {
 					blobPath := filepath.Join(repoPath, "objects", "17", fmt.Sprintf("%d", i))
 					require.NoError(t, os.WriteFile(blobPath, nil, perm.SharedFile))
 					require.NoError(t, os.Chtimes(blobPath, moreThanTwoWeeksAgo, moreThanTwoWeeksAgo))

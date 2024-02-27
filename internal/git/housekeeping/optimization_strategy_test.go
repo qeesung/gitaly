@@ -458,7 +458,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 						},
 						Packfiles: stats.PackfilesInfo{
 							// We need to pretend that we have a bitmap,
-							// otherwise we aways do a full repack.
+							// otherwise we always do a full repack.
 							Bitmap: stats.BitmapInfo{
 								Exists: true,
 							},
