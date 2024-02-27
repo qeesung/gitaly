@@ -435,7 +435,7 @@ func TestRepositoryManager_CleanStaleData_reftable(t *testing.T) {
 		},
 		{
 			desc:     "stale lock",
-			age:      reftableLockfileGracePeriod + time.Minute,
+			age:      ReftableLockfileGracePeriod + time.Minute,
 			expected: false,
 			expectedMetrics: cleanStaleDataMetrics{
 				reftablelocks: 1,
@@ -743,13 +743,13 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 		desc            string
 		file            string
 		subdirs         []string
-		finder          findStaleFileFunc
+		finder          FindStaleFileFunc
 		expectedMetrics cleanStaleDataMetrics
 	}{
 		{
 			desc:   "locked HEAD",
 			file:   "HEAD.lock",
-			finder: findStaleLockfiles,
+			finder: FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -757,7 +757,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 		{
 			desc:   "locked config",
 			file:   "config.lock",
-			finder: findStaleLockfiles,
+			finder: FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -768,7 +768,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 			subdirs: []string{
 				"info",
 			},
-			finder: findStaleLockfiles,
+			finder: FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -779,7 +779,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 			subdirs: []string{
 				"objects", "info",
 			},
-			finder: findStaleLockfiles,
+			finder: FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -790,7 +790,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 			subdirs: []string{
 				"objects", "info", "commit-graphs",
 			},
-			finder: findStaleLockfiles,
+			finder: FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -798,7 +798,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 		{
 			desc:   "locked packed-refs",
 			file:   "packed-refs.lock",
-			finder: findPackedRefsLock,
+			finder: FindPackedRefsLock,
 			expectedMetrics: cleanStaleDataMetrics{
 				packedRefsLock: 1,
 			},
@@ -806,7 +806,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 		{
 			desc:   "temporary packed-refs",
 			file:   "packed-refs.new",
-			finder: findPackedRefsNew,
+			finder: FindPackedRefsNew,
 			expectedMetrics: cleanStaleDataMetrics{
 				packedRefsNew: 1,
 			},
@@ -817,7 +817,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 			subdirs: []string{
 				"objects", "pack",
 			},
-			finder: findStaleLockfiles,
+			finder: FindStaleLockfiles,
 			expectedMetrics: cleanStaleDataMetrics{
 				locks: 1,
 			},
@@ -924,7 +924,7 @@ func TestRepositoryManager_CleanStaleData_serverInfo(t *testing.T) {
 		entry.create(t, repoPath)
 	}
 
-	staleFiles, err := findServerInfo(ctx, repoPath)
+	staleFiles, err := FindServerInfo(ctx, repoPath)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{
 		filepath.Join(repoPath, "info/refs"),
@@ -970,7 +970,7 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 					f("main.lock", withAge(10*time.Minute)),
 				}),
 			},
-			gracePeriod: referenceLockfileGracePeriod,
+			gracePeriod: ReferenceLockfileGracePeriod,
 			cfg:         DefaultStaleDataCleanup(),
 		},
 		{
@@ -1005,7 +1005,7 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 			expectedMetrics: cleanStaleDataMetrics{
 				reflocks: 1,
 			},
-			gracePeriod: referenceLockfileGracePeriod,
+			gracePeriod: ReferenceLockfileGracePeriod,
 			cfg:         DefaultStaleDataCleanup(),
 		},
 		{
@@ -1034,7 +1034,7 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 			expectedMetrics: cleanStaleDataMetrics{
 				reflocks: 3,
 			},
-			gracePeriod: referenceLockfileGracePeriod,
+			gracePeriod: ReferenceLockfileGracePeriod,
 			cfg:         DefaultStaleDataCleanup(),
 		},
 	} {
@@ -1062,7 +1062,7 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 				expectedReferenceLocks = append(expectedReferenceLocks, filepath.Join(repoPath, referenceLock))
 			}
 
-			staleLockfiles, err := findStaleReferenceLocks(tc.gracePeriod)(ctx, repoPath)
+			staleLockfiles, err := FindStaleReferenceLocks(tc.gracePeriod)(ctx, repoPath)
 			require.NoError(t, err)
 			require.ElementsMatch(t, expectedReferenceLocks, staleLockfiles)
 
@@ -1484,7 +1484,7 @@ func TestPruneEmptyConfigSections(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			require.NoError(t, os.WriteFile(configPath, []byte(tc.configData), perm.SharedFile))
 
-			skippedSections, err := pruneEmptyConfigSections(ctx, repo)
+			skippedSections, err := PruneEmptyConfigSections(ctx, repo)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedSkippedSections, skippedSections)
 
