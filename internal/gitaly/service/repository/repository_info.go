@@ -29,7 +29,7 @@ func (s *server) RepositoryInfo(
 		return nil, fmt.Errorf("calculating repository size: %w", err)
 	}
 
-	repoInfo, err := stats.RepositoryInfoForRepository(repo)
+	repoInfo, err := stats.RepositoryInfoForRepository(ctx, repo)
 	if err != nil {
 		return nil, fmt.Errorf("deriving repository info: %w", err)
 	}

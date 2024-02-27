@@ -70,7 +70,7 @@ func (m *RepositoryManager) OptimizeRepository(
 		opt(&cfg)
 	}
 
-	repositoryInfo, err := stats.RepositoryInfoForRepository(repo)
+	repositoryInfo, err := stats.RepositoryInfoForRepository(ctx, repo)
 	if err != nil {
 		return fmt.Errorf("deriving repository info: %w", err)
 	}
@@ -250,9 +250,9 @@ func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy Optimiza
 
 // writeCommitGraphIfNeeded writes the commit-graph if required.
 func writeCommitGraphIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy OptimizationStrategy) (bool, WriteCommitGraphConfig, error) {
-	needed, cfg := strategy.ShouldWriteCommitGraph(ctx)
-	if !needed {
-		return false, WriteCommitGraphConfig{}, nil
+	needed, cfg, err := strategy.ShouldWriteCommitGraph(ctx)
+	if !needed || err != nil {
+		return false, WriteCommitGraphConfig{}, err
 	}
 
 	if err := WriteCommitGraph(ctx, repo, cfg); err != nil {

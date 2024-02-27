@@ -84,9 +84,6 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreate_emptySource(t *testing.T) {
-	testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
-and considers the reftable as a loose file`)
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -109,11 +106,14 @@ and considers the reftable as a loose file`)
 	objectPoolRepo := localrepo.NewTestRepo(t, cfg, objectPoolProto.Repository)
 
 	// Assert that the created object pool is indeed empty.
-	info, err := stats.RepositoryInfoForRepository(objectPoolRepo)
+	info, err := stats.RepositoryInfoForRepository(ctx, objectPoolRepo)
 	require.NoError(t, err)
 	info.Packfiles.LastFullRepack = time.Time{}
 	require.Equal(t, stats.RepositoryInfo{
 		IsObjectPool: true,
+		References: stats.ReferencesInfo{
+			ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+		},
 	}, info)
 
 	// And furthermore assert that the object hash of the new object pool matches what we

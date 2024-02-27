@@ -503,19 +503,23 @@ func TestOptimizeRepository(t *testing.T) {
 		{
 			desc: "empty repository does nothing",
 			setup: func(t *testing.T, relativePath string) setupData {
-				testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
-and considers the reftable as a loose file and generates a commit graph`)
-
 				repo, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
 				})
 
+				metrics := []metric{
+					{name: "total", status: "success", count: 1},
+				}
+
+				// We always create commit graphs with reftables.
+				if testhelper.IsReftableEnabled() {
+					metrics = append(metrics, metric{name: "written_commit_graph_full", status: "success", count: 1})
+				}
+
 				return setupData{
-					repo: localrepo.NewTestRepo(t, cfg, repo),
-					expectedMetrics: []metric{
-						{name: "total", status: "success", count: 1},
-					},
+					repo:            localrepo.NewTestRepo(t, cfg, repo),
+					expectedMetrics: metrics,
 				}
 			},
 		},
@@ -765,8 +769,7 @@ and considers the reftable as a loose file and generates a commit graph`)
 		{
 			desc: "loose refs get packed",
 			setup: func(t *testing.T, relativePath string) setupData {
-				testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
-and considers the reftable as a loose file and generates a commit graph`)
+				testhelper.SkipWithReftable(t, `tests are specific to files backend`)
 
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
@@ -880,8 +883,7 @@ and considers the reftable as a loose file and generates a commit graph`)
 		{
 			desc: "recently linked repository gets a full repack",
 			setup: func(t *testing.T, relativePath string) setupData {
-				testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
-and considers the reftable as a loose file and generates a commit graph`)
+				testhelper.SkipWithReftable(t, `tests are specific to files backend`)
 
 				_, poolPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,

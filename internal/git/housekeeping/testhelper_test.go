@@ -39,8 +39,9 @@ type objectsState struct {
 
 func requireObjectsState(tb testing.TB, repo *localrepo.Repo, expectedState objectsState) {
 	tb.Helper()
+	ctx := testhelper.Context(tb)
 
-	repoInfo, err := stats.RepositoryInfoForRepository(repo)
+	repoInfo, err := stats.RepositoryInfoForRepository(ctx, repo)
 	require.NoError(tb, err)
 
 	require.Equal(tb, expectedState, objectsState{

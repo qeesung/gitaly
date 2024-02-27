@@ -134,6 +134,7 @@ func TestLogObjectInfo(t *testing.T) {
 		repoInfo := requireRepositoryInfo(hook.AllEntries())
 		require.Equal(t, RepositoryInfo{
 			References: ReferencesInfo{
+				ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 				PackedReferencesSize: uint64(packedRefsStat.Size()),
 			},
 			Alternates: AlternatesInfo{
@@ -168,16 +169,14 @@ func TestLogObjectInfo(t *testing.T) {
 				Size:  hashDependentSize(t, 142, 158),
 			},
 			References: ReferencesInfo{
-				LooseReferencesCount: 1,
+				ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+				LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 			},
 		}, objectsInfo)
 	})
 }
 
 func TestRepositoryInfoForRepository(t *testing.T) {
-	testhelper.SkipWithReftable(t, `ReferencesInfoForRepository only considers the files backend,
-and considers the reftable as a loose file`)
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -241,7 +240,7 @@ and considers the reftable as a loose file`)
 							},
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 					},
 				}
@@ -273,7 +272,7 @@ and considers the reftable as a loose file`)
 							},
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 					},
 				}
@@ -334,7 +333,7 @@ and considers the reftable as a loose file`)
 							Size:  hashDependentSize(t, 142, 158),
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 						CommitGraph: CommitGraphInfo{
 							Exists: true,
@@ -359,7 +358,7 @@ and considers the reftable as a loose file`)
 							Size:  hashDependentSize(t, 142, 158),
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 						CommitGraph: CommitGraphInfo{
 							Exists:          true,
@@ -389,7 +388,7 @@ and considers the reftable as a loose file`)
 							Size:  hashDependentSize(t, 142, 158),
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 						CommitGraph: CommitGraphInfo{
 							Exists:            true,
@@ -459,7 +458,7 @@ and considers the reftable as a loose file`)
 							},
 						},
 						References: ReferencesInfo{
-							LooseReferencesCount: 1,
+							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
 						},
 						Alternates: AlternatesInfo{
 							Exists: true,
@@ -482,7 +481,8 @@ and considers the reftable as a loose file`)
 
 			setup := tc.setup(t, repoPath)
 
-			repoInfo, err := RepositoryInfoForRepository(repo)
+			setup.expectedInfo.References.ReferenceBackendName = gittest.DefaultReferenceBackend.Name
+			repoInfo, err := RepositoryInfoForRepository(ctx, repo)
 			require.Equal(t, setup.expectedError, err)
 			require.Equal(t, setup.expectedInfo, repoInfo)
 		})
@@ -841,6 +841,9 @@ func TestReferencesInfoForRepository(t *testing.T) {
 			desc: "empty repository",
 			setup: func(*testing.T, *localrepo.Repo, string) {
 			},
+			expectedInfo: ReferencesInfo{
+				ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+			},
 		},
 		{
 			desc: "single unpacked reference",
@@ -848,6 +851,7 @@ func TestReferencesInfoForRepository(t *testing.T) {
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 			},
 			expectedInfo: ReferencesInfo{
+				ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 				LooseReferencesCount: 1,
 			},
 		},
@@ -860,6 +864,7 @@ func TestReferencesInfoForRepository(t *testing.T) {
 				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "packed-refs"), []byte("content"), perm.SharedFile))
 			},
 			expectedInfo: ReferencesInfo{
+				ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 				PackedReferencesSize: 7,
 			},
 		},
@@ -880,6 +885,7 @@ func TestReferencesInfoForRepository(t *testing.T) {
 				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "packed-refs"), []byte("content"), perm.SharedFile))
 			},
 			expectedInfo: ReferencesInfo{
+				ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 				LooseReferencesCount: 3,
 				PackedReferencesSize: 7,
 			},
@@ -892,7 +898,7 @@ func TestReferencesInfoForRepository(t *testing.T) {
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 			tc.setup(t, repo, repoPath)
 
-			info, err := ReferencesInfoForRepository(repo)
+			info, err := ReferencesInfoForRepository(ctx, repo)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedInfo, info)
 		})

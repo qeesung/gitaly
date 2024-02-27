@@ -213,12 +213,9 @@ func TestDeleteRefs_refLocked(t *testing.T) {
 
 	response, err := client.DeleteRefs(ctx, request)
 
-	expectedRefs := []byte("refs/heads/master")
 	// For reftable there is only table level locking and hence no
 	// reference value is provided.
-	if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
-		expectedRefs = nil
-	}
+	expectedRefs := gittest.FilesOrReftables([]byte("refs/heads/master"), nil)
 
 	require.Nil(t, response)
 	detailedErr := structerr.NewAborted("cannot lock references").WithDetail(

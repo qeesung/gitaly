@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -118,7 +119,7 @@ func LooseObjects(repo *localrepo.Repo) (uint64, error) {
 // LogRepositoryInfo derives RepositoryInfo and calls its `Log()` function, if successful. Otherwise
 // it logs an error.
 func LogRepositoryInfo(ctx context.Context, logger log.Logger, repo *localrepo.Repo) {
-	repoInfo, err := RepositoryInfoForRepository(repo)
+	repoInfo, err := RepositoryInfoForRepository(ctx, repo)
 	if err != nil {
 		logger.WithError(err).WarnContext(ctx, "failed reading repository info")
 	} else {
@@ -143,7 +144,7 @@ type RepositoryInfo struct {
 }
 
 // RepositoryInfoForRepository computes the RepositoryInfo for a repository.
-func RepositoryInfoForRepository(repo *localrepo.Repo) (RepositoryInfo, error) {
+func RepositoryInfoForRepository(ctx context.Context, repo *localrepo.Repo) (RepositoryInfo, error) {
 	var info RepositoryInfo
 	var err error
 
@@ -164,7 +165,7 @@ func RepositoryInfoForRepository(repo *localrepo.Repo) (RepositoryInfo, error) {
 		return RepositoryInfo{}, fmt.Errorf("counting packfiles: %w", err)
 	}
 
-	info.References, err = ReferencesInfoForRepository(repo)
+	info.References, err = ReferencesInfoForRepository(ctx, repo)
 	if err != nil {
 		return RepositoryInfo{}, fmt.Errorf("checking references: %w", err)
 	}
@@ -193,10 +194,12 @@ type ReferencesInfo struct {
 	LooseReferencesCount uint64 `json:"loose_references_count"`
 	// PackedReferencesSize is the size of the packed-refs file in bytes.
 	PackedReferencesSize uint64 `json:"packed_references_size"`
+	// ReferenceBackendName denotes the reference backend name of the repo.
+	ReferenceBackendName string `json:"reference_backend"`
 }
 
 // ReferencesInfoForRepository derives information about references in the repository.
-func ReferencesInfoForRepository(repo *localrepo.Repo) (ReferencesInfo, error) {
+func ReferencesInfoForRepository(ctx context.Context, repo *localrepo.Repo) (ReferencesInfo, error) {
 	repoPath, err := repo.Path()
 	if err != nil {
 		return ReferencesInfo{}, fmt.Errorf("getting repository path: %w", err)
@@ -204,32 +207,47 @@ func ReferencesInfoForRepository(repo *localrepo.Repo) (ReferencesInfo, error) {
 	refsPath := filepath.Join(repoPath, "refs")
 
 	var info ReferencesInfo
-	if err := filepath.WalkDir(refsPath, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			// It may happen that references got deleted concurrently. This is fine and expected, so we just
-			// ignore any such errors.
-			if errors.Is(err, os.ErrNotExist) {
-				return nil
+	referenceBackend, err := repo.ReferenceBackend(ctx)
+	if err != nil {
+		return ReferencesInfo{}, fmt.Errorf("reference backend: %w", err)
+	}
+	info.ReferenceBackendName = referenceBackend.Name
+
+	switch info.ReferenceBackendName {
+	case git.ReferenceBackendFiles.Name:
+		if err := filepath.WalkDir(refsPath, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				// It may happen that references got deleted concurrently. This is fine and expected, so we just
+				// ignore any such errors.
+				if errors.Is(err, os.ErrNotExist) {
+					return nil
+				}
+
+				return err
 			}
 
-			return err
+			if !entry.IsDir() {
+				info.LooseReferencesCount++
+			}
+
+			return nil
+		}); err != nil {
+			return ReferencesInfo{}, fmt.Errorf("counting loose refs: %w", err)
 		}
 
-		if !entry.IsDir() {
-			info.LooseReferencesCount++
+		if stat, err := os.Stat(filepath.Join(repoPath, "packed-refs")); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return ReferencesInfo{}, fmt.Errorf("getting packed-refs size: %w", err)
+			}
+		} else {
+			info.PackedReferencesSize = uint64(stat.Size())
 		}
-
-		return nil
-	}); err != nil {
-		return ReferencesInfo{}, fmt.Errorf("counting loose refs: %w", err)
-	}
-
-	if stat, err := os.Stat(filepath.Join(repoPath, "packed-refs")); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return ReferencesInfo{}, fmt.Errorf("getting packed-refs size: %w", err)
-		}
-	} else {
-		info.PackedReferencesSize = uint64(stat.Size())
+	case git.ReferenceBackendReftables.Name:
+		// TODO: Capture some metrics for the reftables backend
+		// 1. The length of `tables.list`
+		// 2. A list of tables, each with their minimum/maximum update index and file size.
+		// 3. The number of unrecognized garbage files.
+		// https://gitlab.com/gitlab-org/gitaly/-/issues/5870
 	}
 
 	return info, nil

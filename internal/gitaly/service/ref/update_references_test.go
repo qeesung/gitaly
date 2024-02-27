@@ -309,12 +309,9 @@ func TestUpdateReferences(t *testing.T) {
 				require.NoError(t, updater.Delete("refs/heads/branch"))
 				require.NoError(t, updater.Prepare())
 
-				expectedRefs := []byte("refs/heads/branch")
 				// For reftable there is only table level locking and hence no
 				// reference value is provided.
-				if gittest.DefaultReferenceBackend == git.ReferenceBackendReftables {
-					expectedRefs = nil
-				}
+				expectedRefs := gittest.FilesOrReftables([]byte("refs/heads/branch"), nil)
 
 				return setupData{
 					requests: []*gitalypb.UpdateReferencesRequest{
