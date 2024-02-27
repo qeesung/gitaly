@@ -65,14 +65,22 @@ func (s *server) FindCommits(req *gitalypb.FindCommitsRequest, stream gitalypb.C
 	return nil
 }
 
-func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsRequest, stream gitalypb.CommitService_FindCommitsServer) error {
+func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsRequest, stream gitalypb.CommitService_FindCommitsServer) (err error) {
 	opts := git.ConvertGlobalOptions(req.GetGlobalOptions())
 	repo := s.localrepo(req.GetRepository())
 
-	logCmd, err := repo.Exec(ctx, getLogCommandSubCmd(req), append(opts, git.WithSetupStdout())...)
+	var stderr bytes.Buffer
+	gitLogCmd := getLogCommandSubCmd(req)
+	logCmd, err := repo.Exec(ctx, gitLogCmd, append(opts, git.WithSetupStdout(), git.WithStderr(&stderr))...)
 	if err != nil {
 		return fmt.Errorf("error when creating git log command: %w", err)
 	}
+
+	defer func() {
+		if err = logCmd.Wait(); err != nil {
+			err = wrapGitLogCmdError(req.GetRevision(), err, stderr.String())
+		}
+	}()
 
 	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)
 	if err != nil {
@@ -98,6 +106,7 @@ func (s *server) findCommits(ctx context.Context, req *gitalypb.FindCommitsReque
 	if err := streamCommits(getCommits, stream, req.GetTrailers(), req.GetIncludeShortstat(), len(req.GetIncludeReferencedBy()) > 0); err != nil {
 		return fmt.Errorf("error streaming commits: %w", err)
 	}
+
 	return nil
 }
 
@@ -390,4 +399,27 @@ func splitStat(data []byte, atEOF bool) (int, []byte, error) {
 	}
 
 	return index + 1, data[:index], nil
+}
+
+var (
+	ambiguousArgRegex         = regexp.MustCompile(`fatal: ambiguous argument '.+': unknown revision or path not in the working tree.`)
+	badObjectRegex            = regexp.MustCompile(`fatal: bad object [0-9a-g]+`)
+	invalidRevisionRangeRegex = regexp.MustCompile(`fatal: Invalid revision range [0-9a-g]+\.\.[0-9a-g]+`)
+)
+
+// wrapGitError wraps git log error with a structError.
+func wrapGitLogCmdError(revision []byte, err error, stderr string) structerr.Error {
+	switch {
+	case ambiguousArgRegex.MatchString(stderr):
+		fallthrough
+	case badObjectRegex.MatchString(stderr):
+		fallthrough
+	case invalidRevisionRangeRegex.MatchString(stderr):
+		// for example git log 37811987837aacbd3b1d8ceb8de669b33f7c7c0a..37811987837aacbd3b1d8ceb8de669b33f7c7c0b will cause
+		// fatal: Invalid revision range 37811987837aacbd3b1d8ceb8de669b33f7c7c0a..37811987837aacbd3b1d8ceb8de669b33f7c7c0b
+		return structerr.NewNotFound("commits not found").
+			WithDetail(&gitalypb.FindCommitsError{})
+	default:
+		return structerr.NewInternal("listing commits failed").WithMetadata("stderr", stderr)
+	}
 }
