@@ -3,12 +3,14 @@ package repository
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -351,8 +353,6 @@ func TestObjectsSize(t *testing.T) {
 		{
 			desc: "unique objects in an object deduplication network",
 			setup: func(t *testing.T) setupData {
-				testhelper.SkipWithWAL(t, `
-Object pools are not yet supported with transaction management.`)
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 				dedupBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("1234"))
 				dedupTree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
@@ -397,19 +397,18 @@ Object pools are not yet supported with transaction management.`)
 		{
 			desc: "deduplicated objects in an object deduplication network",
 			setup: func(t *testing.T) setupData {
-				testhelper.SkipWithWAL(t, `
-Object pools are not yet supported with transaction management.`)
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 				dedupBlob := gittest.WriteBlob(t, cfg, repoPath, []byte("1234"))
 				dedupTree := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
 					{Path: "blob", Mode: "100644", OID: dedupBlob},
 				})
+				reference := "refs/heads/main"
 				dedupCommit := gittest.WriteCommit(t, cfg, repoPath,
 					gittest.WithTree(dedupTree),
-					gittest.WithReference("refs/heads/main"),
+					gittest.WithReference(reference),
 				)
 
-				gittest.CreateObjectPool(t, ctx, cfg, repo, gittest.CreateObjectPoolConfig{
+				_, poolPath := gittest.CreateObjectPool(t, ctx, cfg, repo, gittest.CreateObjectPoolConfig{
 					LinkRepositoryToObjectPool: true,
 				})
 
@@ -423,6 +422,16 @@ Object pools are not yet supported with transaction management.`)
 					gittest.WithReference("refs/heads/main"),
 				)
 
+				// As we're only interested in objects in the pool, we expect them to exactly match the disk
+				// size in the pool. We use rev-list to figure out the size as the objects are loose without
+				// transactions and packed with transactions.
+				expectedSize, err := strconv.ParseUint(
+					text.ChompBytes(
+						gittest.Exec(t, cfg, "-C", poolPath, "rev-list", "--disk-usage", "--objects", reference),
+					), 10, 64,
+				)
+				require.NoError(t, err)
+
 				return setupData{
 					requests: []*gitalypb.ObjectsSizeRequest{
 						{
@@ -433,7 +442,7 @@ Object pools are not yet supported with transaction management.`)
 						},
 					},
 					expectedResponse: &gitalypb.ObjectsSizeResponse{
-						Size: looseObjectsSize(t, repoPath, dedupBlob, dedupTree, dedupCommit),
+						Size: expectedSize,
 					},
 				}
 			},

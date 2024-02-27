@@ -41,13 +41,6 @@ func gitRequestValidation(w http.ResponseWriter, r *http.Request, next http.Hand
 }
 
 func TestFetchRemote(t *testing.T) {
-	testhelper.SkipWithWAL(t, `
-Reference transaction hook is disabled in this RPC due to the reason commented in the
-RPC handler body. For now, we'll wait for the RPC to be updated to do the reference updates
-manually using update-ref with the fetch being just a dry-run.
-
-Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/3780`)
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -1069,9 +1062,6 @@ func TestFetchRemote_transaction(t *testing.T) {
 }
 
 func TestFetchRemote_pooledRepository(t *testing.T) {
-	testhelper.SkipWithWAL(t, `
-Object pools are not yet supported with transaction management.`)
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -1117,6 +1107,8 @@ Object pools are not yet supported with transaction management.`)
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			cfg := testcfg.Build(t, testcfg.WithBase(tc.cfg))
+			testcfg.BuildGitalyHooks(t, cfg)
+
 			gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 
 			client, swocketPath := runRepositoryService(t, cfg, testserver.WithGitCommandFactory(gitCmdFactory))
