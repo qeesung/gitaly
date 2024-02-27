@@ -2455,3 +2455,30 @@ func TestRepositoryManager_CleanStaleData_pruneEmptyConfigSections(t *testing.T)
 		configsections: 7,
 	})
 }
+
+// mockOptimizationStrategy is a mock strategy that can be used with OptimizeRepository.
+type mockOptimizationStrategy struct {
+	shouldRepackObjects    bool
+	repackObjectsCfg       RepackObjectsConfig
+	shouldPruneObjects     bool
+	pruneObjectsCfg        PruneObjectsConfig
+	shouldRepackReferences func(ctx context.Context) bool
+	shouldWriteCommitGraph bool
+	writeCommitGraphCfg    WriteCommitGraphConfig
+}
+
+func (m mockOptimizationStrategy) ShouldRepackObjects(context.Context) (bool, RepackObjectsConfig) {
+	return m.shouldRepackObjects, m.repackObjectsCfg
+}
+
+func (m mockOptimizationStrategy) ShouldPruneObjects(context.Context) (bool, PruneObjectsConfig) {
+	return m.shouldPruneObjects, m.pruneObjectsCfg
+}
+
+func (m mockOptimizationStrategy) ShouldRepackReferences(ctx context.Context) bool {
+	return m.shouldRepackReferences(ctx)
+}
+
+func (m mockOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig, error) {
+	return m.shouldWriteCommitGraph, m.writeCommitGraphCfg, nil
+}
