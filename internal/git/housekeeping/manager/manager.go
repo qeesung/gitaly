@@ -220,8 +220,8 @@ type RepositoryManager struct {
 	repositoryStates                       repositoryStates
 }
 
-// NewManager creates a new RepositoryManager.
-func NewManager(promCfg gitalycfgprom.Config, logger log.Logger, txManager transaction.Manager) *RepositoryManager {
+// New creates a new RepositoryManager.
+func New(promCfg gitalycfgprom.Config, logger log.Logger, txManager transaction.Manager) *RepositoryManager {
 	return &RepositoryManager{
 		logger:    logger.WithField("system", "housekeeping"),
 		txManager: txManager,

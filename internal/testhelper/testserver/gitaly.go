@@ -378,7 +378,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 	}
 
 	if gsd.housekeepingManager == nil {
-		gsd.housekeepingManager = housekeepingmgr.NewManager(cfg.Prometheus, gsd.logger, gsd.txMgr)
+		gsd.housekeepingManager = housekeepingmgr.New(cfg.Prometheus, gsd.logger, gsd.txMgr)
 	}
 
 	var partitionManager *storagemgr.PartitionManager

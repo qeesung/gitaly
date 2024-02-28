@@ -177,7 +177,7 @@ func TestPruneIfNeeded(t *testing.T) {
 				tc.expectedLogEntries["written_commit_graph_full"] = "success"
 			}
 
-			require.NoError(t, housekeepingmgr.NewManager(cfg.Prometheus, logger, nil).OptimizeRepository(ctx, repo))
+			require.NoError(t, housekeepingmgr.New(cfg.Prometheus, logger, nil).OptimizeRepository(ctx, repo))
 			require.Equal(t, tc.expectedLogEntries, hook.LastEntry().Data["optimizations"])
 		})
 	}

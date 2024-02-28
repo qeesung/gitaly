@@ -64,7 +64,7 @@ func TestDisconnect(t *testing.T) {
 			gittest.NewCommandFactory(t, cfg, git.WithSkipHooks()),
 			catfileCache,
 			txManager,
-			housekeepingmgr.NewManager(cfg.Prometheus, logger, txManager),
+			housekeepingmgr.New(cfg.Prometheus, logger, txManager),
 			&gitalypb.ObjectPool{
 				Repository: &gitalypb.Repository{
 					StorageName:  cfg.Storages[0].Name,
