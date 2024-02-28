@@ -15,9 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/safe"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
-	"google.golang.org/grpc/codes"
 )
 
 const (
@@ -96,74 +93,6 @@ func DefaultStaleDataCleanup() CleanStaleDataConfig {
 			"configkeys": removeUnnecessaryConfig,
 		},
 	}
-}
-
-// CleanStaleData removes any stale data in the repository as per the provided configuration.
-func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.Repo, cfg CleanStaleDataConfig) error {
-	span, ctx := tracing.StartSpanIfHasParent(ctx, "housekeeping.CleanStaleData", nil)
-	defer span.Finish()
-
-	repoPath, err := repo.Path()
-	if err != nil {
-		m.logger.WithError(err).WarnContext(ctx, "housekeeping failed to get repo path")
-		if structerr.GRPCCode(err) == codes.NotFound {
-			return nil
-		}
-		return fmt.Errorf("housekeeping failed to get repo path: %w", err)
-	}
-
-	staleDataByType := map[string]int{}
-	defer func() {
-		if len(staleDataByType) == 0 {
-			return
-		}
-
-		logEntry := m.logger
-		for staleDataType, count := range staleDataByType {
-			logEntry = logEntry.WithField(fmt.Sprintf("stale_data.%s", staleDataType), count)
-			m.prunedFilesTotal.WithLabelValues(staleDataType).Add(float64(count))
-		}
-		logEntry.InfoContext(ctx, "removed files")
-	}()
-
-	var filesToPrune []string
-	for staleFileType, staleFileFinder := range cfg.StaleFileFinders {
-		staleFiles, err := staleFileFinder(ctx, repoPath)
-		if err != nil {
-			return fmt.Errorf("housekeeping failed to find %s: %w", staleFileType, err)
-		}
-
-		filesToPrune = append(filesToPrune, staleFiles...)
-		staleDataByType[staleFileType] = len(staleFiles)
-	}
-
-	for _, path := range filesToPrune {
-		if err := os.Remove(path); err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			staleDataByType["failures"]++
-			m.logger.WithError(err).WithField("path", path).WarnContext(ctx, "unable to remove stale file")
-		}
-	}
-
-	for repoCleanupName, repoCleanupFn := range cfg.RepoCleanups {
-		cleanupCount, err := repoCleanupFn(ctx, repo)
-		staleDataByType[repoCleanupName] = cleanupCount
-		if err != nil {
-			return fmt.Errorf("housekeeping could not perform cleanup %s: %w", repoCleanupName, err)
-		}
-	}
-
-	for repoCleanupName, repoCleanupFn := range cfg.RepoCleanupWithTxManagers {
-		cleanupCount, err := repoCleanupFn(ctx, repo, m.txManager)
-		staleDataByType[repoCleanupName] = cleanupCount
-		if err != nil {
-			return fmt.Errorf("housekeeping could not perform cleanup (with TxManager) %s: %w", repoCleanupName, err)
-		}
-	}
-
-	return nil
 }
 
 // PruneEmptyConfigSections prunes all empty sections from the repo's config.
