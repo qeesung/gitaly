@@ -985,7 +985,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 			packDir := filepath.Join(transaction.relativePath, "objects", "pack")
 			for _, fileExtension := range []string{".pack", ".idx", ".rev"} {
 				if err := transaction.walEntry.RecordFileCreation(
-					filepath.Join(transaction.walFilesPath(), "objects"+fileExtension),
+					filepath.Join(transaction.stagingDirectory, "objects"+fileExtension),
 					filepath.Join(packDir, transaction.packPrefix+fileExtension),
 				); err != nil {
 					return fmt.Errorf("record file creation: %w", err)
@@ -1063,7 +1063,7 @@ func (mgr *TransactionManager) replaceObjectDirectory(tx *Transaction) (returned
 	if tx.packPrefix != "" {
 		for _, fileExtension := range []string{".pack", ".idx", ".rev"} {
 			if err := os.Link(
-				filepath.Join(tx.walFilesPath(), "objects"+fileExtension),
+				filepath.Join(tx.stagingDirectory, "objects"+fileExtension),
 				filepath.Join(newObjectsDir, "pack", tx.packPrefix+fileExtension),
 			); err != nil {
 				return fmt.Errorf("link to synthesized object directory: %w", err)
@@ -1304,7 +1304,7 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 		if err := transaction.stagingRepository.ExecAndWait(ctx, git.Command{
 			Name:  "index-pack",
 			Flags: []git.Option{git.Flag{Name: "--stdin"}, git.Flag{Name: "--rev-index"}},
-			Args:  []string{filepath.Join(transaction.walFilesPath(), "objects.pack")},
+			Args:  []string{filepath.Join(transaction.stagingDirectory, "objects.pack")},
 		}, git.WithStdin(packReader), git.WithStdout(&stdout), git.WithStderr(&stderr)); err != nil {
 			return structerr.New("index pack: %w", err).WithMetadata("stderr", stderr.String())
 		}
