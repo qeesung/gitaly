@@ -361,12 +361,12 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		defer stop()
 	}
 
-	var partitionMgr *storagemgr.PartitionManager
 	var txMiddleware server.TransactionMiddleware
+	var partitionMgr *storagemgr.PartitionManager
 	if cfg.Transactions.Enabled {
 		logger.WarnContext(ctx, "Transactions enabled. Transactions are an experimental feature. The feature is not production ready yet and might lead to various issues including data loss.")
 
-		partitionMgr, err := storagemgr.NewPartitionManager(
+		partitionMgr, err = storagemgr.NewPartitionManager(
 			cfg.Storages,
 			gitCmdFactory,
 			localrepo.NewFactory(logger, locator, gitCmdFactory, catfileCache),
@@ -510,9 +510,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	}
 	bootstrapSpan.Finish()
 
-	if !cfg.DailyMaintenance.IsDisabled() && cfg.Transactions.Enabled {
-		logger.WarnContext(ctx, "Forcibly disabling daily maintenance worker due to transactions being enabled. Daily maintenance is not supported with transactions.")
-	} else if !cfg.DailyMaintenance.IsDisabled() {
+	if !cfg.DailyMaintenance.IsDisabled() {
 		shutdownWorkers, err := maintenance.StartWorkers(
 			ctx,
 			logger,

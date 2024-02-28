@@ -25,10 +25,10 @@ import (
 	gitalycfg "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/txinfo"
@@ -504,20 +504,22 @@ func TestOptimizeRepository(t *testing.T) {
 	}
 
 	type setupData struct {
-		repo                   *localrepo.Repo
-		options                []OptimizeRepositoryOption
-		expectedErr            error
-		expectedMetrics        []metric
-		expectedMetricsForPool []metric
+		repo                          *localrepo.Repo
+		options                       []OptimizeRepositoryOption
+		expectedErr                   error
+		expectedMetrics               []metric
+		expectedMetricsForTransaction []metric
+		expectedMetricsForPool        []metric
 	}
 
 	for _, tc := range []struct {
-		desc  string
-		setup func(t *testing.T, relativePath string) setupData
+		desc                      string
+		setup                     func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData
+		shouldNotRunInTransaction string
 	}{
 		{
 			desc: "empty repository does nothing",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -540,7 +542,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository without bitmap repacks objects",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -560,7 +562,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository without commit-graph writes commit-graph",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -581,7 +583,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository with commit-graph without generation data writes commit-graph",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -603,7 +605,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository without multi-pack-index performs incremental repack",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -624,7 +626,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository with multiple packfiles packs only for object pool",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -661,7 +663,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "well-packed repository does not optimize",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -683,7 +685,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "well-packed repository with multi-pack-index does not optimize",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -701,7 +703,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "recent loose objects don't get pruned",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -739,7 +741,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "old loose objects get pruned",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -770,6 +772,13 @@ func TestOptimizeRepository(t *testing.T) {
 						{name: "written_multi_pack_index", status: "success", count: 1},
 						{name: "total", status: "success", count: 1},
 					},
+					expectedMetricsForTransaction: []metric{
+						{name: "packed_objects_geometric", status: "success", count: 1},
+						{name: "written_bitmap", status: "success", count: 1},
+						{name: "written_commit_graph_full", status: "success", count: 1},
+						{name: "written_multi_pack_index", status: "success", count: 1},
+						{name: "total", status: "success", count: 1},
+					},
 					// Object pools never prune objects.
 					expectedMetricsForPool: []metric{
 						{name: "packed_objects_geometric", status: "success", count: 1},
@@ -783,7 +792,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "loose refs get packed",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				testhelper.SkipWithReftable(t, `tests are specific to files backend`)
 
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
@@ -813,7 +822,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository connected to empty object pool",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -841,7 +850,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository with all objects deduplicated via pool",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				_, poolPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           gittest.NewObjectPoolName(t),
@@ -869,7 +878,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository with some deduplicated objects",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				_, poolPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           gittest.NewObjectPoolName(t),
@@ -897,7 +906,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "recently linked repository gets a full repack",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				testhelper.SkipWithReftable(t, `tests are specific to files backend`)
 
 				_, poolPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
@@ -938,7 +947,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository with some deduplicated objects and eager strategy",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				_, poolPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           gittest.NewObjectPoolName(t),
@@ -968,6 +977,13 @@ func TestOptimizeRepository(t *testing.T) {
 						{name: "written_multi_pack_index", status: "success", count: 1},
 						{name: "total", status: "success", count: 1},
 					},
+					expectedMetricsForTransaction: []metric{
+						{name: "packed_refs", status: "success", count: 1},
+						{name: "packed_objects_full_with_cruft", status: "success", count: 1},
+						{name: "written_commit_graph_full", status: "success", count: 1},
+						{name: "written_multi_pack_index", status: "success", count: 1},
+						{name: "total", status: "success", count: 1},
+					},
 					expectedMetricsForPool: []metric{
 						{name: "packed_refs", status: "success", count: 1},
 						{name: "packed_objects_full_with_unreachable", status: "success", count: 1},
@@ -980,7 +996,7 @@ func TestOptimizeRepository(t *testing.T) {
 		},
 		{
 			desc: "repository with same packfile in pool",
-			setup: func(t *testing.T, relativePath string) setupData {
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				_, poolPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           gittest.NewObjectPoolName(t),
@@ -1020,8 +1036,9 @@ func TestOptimizeRepository(t *testing.T) {
 			},
 		},
 		{
-			desc: "failing repack",
-			setup: func(t *testing.T, relativePath string) setupData {
+			desc:                      "failing repack",
+			shouldNotRunInTransaction: "cannot inject a command error into WAL transaction manager",
+			setup: func(t *testing.T, cfg gitalycfg.Cfg, relativePath string) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
 					RelativePath:           relativePath,
@@ -1051,42 +1068,52 @@ func TestOptimizeRepository(t *testing.T) {
 		tc := tc
 
 		testRepoAndPool(t, tc.desc, func(t *testing.T, relativePath string) {
-			t.Parallel()
+			testWithTransaction(t, tc.desc, func(t *testing.T, cfg gitalycfg.Cfg, partitionMgr *storagemgr.PartitionManager) {
+				t.Parallel()
 
-			setup := tc.setup(t, relativePath)
+				if tc.shouldNotRunInTransaction != "" && partitionMgr != nil {
+					t.Skipf("test should not run in transaction: %s", tc.shouldNotRunInTransaction)
+					return
+				}
+				setup := tc.setup(t, cfg, relativePath)
+				manager := New(cfg.Prometheus, testhelper.SharedLogger(t), txManager, partitionMgr)
 
-			manager := New(cfg.Prometheus, testhelper.SharedLogger(t), txManager, nil)
+				err := manager.OptimizeRepository(ctx, setup.repo, setup.options...)
+				require.Equal(t, setup.expectedErr, err)
 
-			err := manager.OptimizeRepository(ctx, setup.repo, setup.options...)
-			require.Equal(t, setup.expectedErr, err)
+				expectedMetrics := setup.expectedMetrics
+				if partitionMgr != nil && setup.expectedMetricsForTransaction != nil {
+					expectedMetrics = setup.expectedMetricsForTransaction
+				}
+				// If object pool is enabled, asserting transaction's metrics using
+				// expectedMetricsForPool.
+				if storage.IsPoolRepository(setup.repo) && setup.expectedMetricsForPool != nil {
+					expectedMetrics = setup.expectedMetricsForPool
+				}
 
-			expectedMetrics := setup.expectedMetrics
-			if storage.IsPoolRepository(setup.repo) && setup.expectedMetricsForPool != nil {
-				expectedMetrics = setup.expectedMetricsForPool
-			}
-
-			var buf bytes.Buffer
-			_, err = buf.WriteString("# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository\n")
-			require.NoError(t, err)
-			_, err = buf.WriteString("# TYPE gitaly_housekeeping_tasks_total counter\n")
-			require.NoError(t, err)
-
-			for _, metric := range expectedMetrics {
-				_, err := buf.WriteString(fmt.Sprintf(
-					"gitaly_housekeeping_tasks_total{housekeeping_task=%q, status=%q} %d\n",
-					metric.name, metric.status, metric.count,
-				))
+				var buf bytes.Buffer
+				_, err = buf.WriteString("# HELP gitaly_housekeeping_tasks_total Total number of housekeeping tasks performed in the repository\n")
 				require.NoError(t, err)
-			}
+				_, err = buf.WriteString("# TYPE gitaly_housekeeping_tasks_total counter\n")
+				require.NoError(t, err)
 
-			require.NoError(t, testutil.CollectAndCompare(
-				manager.tasksTotal, &buf, "gitaly_housekeeping_tasks_total",
-			))
+				for _, metric := range expectedMetrics {
+					_, err := buf.WriteString(fmt.Sprintf(
+						"gitaly_housekeeping_tasks_total{housekeeping_task=%q, status=%q} %d\n",
+						metric.name, metric.status, metric.count,
+					))
+					require.NoError(t, err)
+				}
 
-			path, err := setup.repo.Path()
-			require.NoError(t, err)
-			// The state of the repo should be cleared after running housekeeping.
-			require.NotContains(t, manager.repositoryStates.values, path)
+				require.NoError(t, testutil.CollectAndCompare(
+					manager.tasksTotal, &buf, "gitaly_housekeeping_tasks_total",
+				))
+
+				path, err := setup.repo.Path()
+				require.NoError(t, err)
+				// The state of the repo should be cleared after running housekeeping.
+				require.NotContains(t, manager.repositoryStates.values, path)
+			})
 		})
 	}
 }
@@ -1094,9 +1121,8 @@ func TestOptimizeRepository(t *testing.T) {
 func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
-	cfg := testcfg.Build(t)
 
-	t.Run("subsequent calls get skipped", func(t *testing.T) {
+	testWithTransaction(t, "subsequent calls get skipped", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		reqReceivedCh, ch := make(chan struct{}), make(chan struct{})
 
 		repoProto, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
@@ -1104,8 +1130,8 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		manager := New(gitalycfgprom.Config{}, testhelper.NewLogger(t), nil, nil)
-		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
+		manager := New(gitalycfgprom.Config{}, testhelper.NewLogger(t), nil, pm)
+		manager.optimizeFunc = func(context.Context, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			reqReceivedCh <- struct{}{}
 			ch <- struct{}{}
 
@@ -1124,11 +1150,10 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 
 		<-ch
 	})
-
 	// We want to confirm that even if a state exists, the housekeeping shall run as
 	// long as the state doesn't state that there is another housekeeping running
 	// i.e. `isRunning` is set to false.
-	t.Run("there is no other housekeeping running but state exists", func(t *testing.T) {
+	testWithTransaction(t, "there is no other housekeeping running but state exists", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		ch := make(chan struct{})
 
 		repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
@@ -1136,8 +1161,8 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, nil)
-		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
+		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, pm)
+		manager.optimizeFunc = func(context.Context, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			// This should only happen if housekeeping is running successfully.
 			// So by sending data on this channel we can notify the test that this
 			// function ran successfully.
@@ -1164,14 +1189,14 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		<-ch
 	})
 
-	t.Run("there is a housekeeping running state", func(t *testing.T) {
+	testWithTransaction(t, "there is a housekeeping running state", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 			SkipCreationViaService: true,
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, nil)
-		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
+		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, pm)
+		manager.optimizeFunc = func(context.Context, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			require.FailNow(t, "housekeeping run should have been skipped")
 			return nil
 		}
@@ -1189,7 +1214,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		require.NotContains(t, manager.repositoryStates.values, repoPath)
 	})
 
-	t.Run("multiple repositories concurrently", func(t *testing.T) {
+	testWithTransaction(t, "multiple repositories concurrently", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		reqReceivedCh, ch := make(chan struct{}), make(chan struct{})
 
 		repoProtoFirst, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
@@ -1203,8 +1228,8 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 
 		reposOptimized := make(map[string]struct{})
 
-		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, nil)
-		manager.optimizeFunc = func(_ context.Context, _ *RepositoryManager, _ log.Logger, repo *localrepo.Repo, _ housekeeping.OptimizationStrategy) error {
+		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, pm)
+		manager.optimizeFunc = func(_ context.Context, repo *localrepo.Repo, _ housekeeping.OptimizationStrategy) error {
 			reposOptimized[repo.GetRelativePath()] = struct{}{}
 
 			if repo.GetRelativePath() == repoFirst.GetRelativePath() {
@@ -1232,7 +1257,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		assert.Contains(t, reposOptimized, repoSecond.GetRelativePath())
 	})
 
-	t.Run("serialized optimizations", func(t *testing.T) {
+	testWithTransaction(t, "serialized optimizations", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		reqReceivedCh, ch := make(chan struct{}), make(chan struct{})
 		repoProto, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 			SkipCreationViaService: true,
@@ -1240,8 +1265,8 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 		var optimizations int
 
-		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, nil)
-		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
+		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, pm)
+		manager.optimizeFunc = func(context.Context, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			optimizations++
 
 			if optimizations == 1 {

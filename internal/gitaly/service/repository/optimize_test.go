@@ -34,6 +34,8 @@ func TestOptimizeRepository(t *testing.T) {
 	t.Run("gitconfig credentials get pruned", func(t *testing.T) {
 		t.Parallel()
 
+		testhelper.SkipWithWAL(t, "OptimizeRepository in WAL doesn't clean up configs because writing into the config won't be supported")
+
 		repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 		gitconfigPath := filepath.Join(repoPath, "config")
 
@@ -214,6 +216,8 @@ func TestOptimizeRepository(t *testing.T) {
 
 	t.Run("empty ref directories get pruned after grace period", func(t *testing.T) {
 		t.Parallel()
+
+		testhelper.SkipWithWAL(t, "Empty ref directories won't be a problem in WAL. Eventually, we'll clean up them as a part of pack-refs task.")
 
 		repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 

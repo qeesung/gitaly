@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
@@ -16,6 +17,9 @@ type Transaction interface {
 	IncludeObject(git.ObjectID)
 	OriginalRepository(*gitalypb.Repository) *gitalypb.Repository
 	MarkAlternateUpdated()
+	PackRefs()
+	Repack(housekeepingcfg.RepackObjectsConfig)
+	WriteCommitGraphs(housekeepingcfg.WriteCommitGraphConfig)
 }
 
 type keyTransaction struct{}
@@ -23,6 +27,12 @@ type keyTransaction struct{}
 // ContextWithTransaction stores the transaction into the context.
 func ContextWithTransaction(ctx context.Context, tx Transaction) context.Context {
 	return context.WithValue(ctx, keyTransaction{}, tx)
+}
+
+// HasTransaction returns if the transaction is present in the context.
+func HasTransaction(ctx context.Context) bool {
+	value := ctx.Value(keyTransaction{})
+	return value != nil
 }
 
 // RunWithTransaction runs the callback with the transaction in the context. If there is

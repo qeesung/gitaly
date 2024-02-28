@@ -220,7 +220,7 @@ type RepositoryManager struct {
 	dataStructureCount                     *prometheus.HistogramVec
 	dataStructureSize                      *prometheus.HistogramVec
 	dataStructureTimeSinceLastOptimization *prometheus.HistogramVec
-	optimizeFunc                           func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error
+	optimizeFunc                           func(context.Context, *localrepo.Repo, housekeeping.OptimizationStrategy) error
 	repositoryStates                       repositoryStates
 }
 
@@ -303,7 +303,6 @@ func New(promCfg gitalycfgprom.Config, logger log.Logger, txManager transaction.
 			},
 			[]string{"data_structure"},
 		),
-		optimizeFunc: optimizeRepository,
 		repositoryStates: repositoryStates{
 			values: make(map[string]*refCountedState),
 		},

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
@@ -29,6 +30,11 @@ func (nilTransaction) OriginalRepository(*gitalypb.Repository) *gitalypb.Reposit
 }
 
 func (nilTransaction) MarkAlternateUpdated() {}
+
+func (nilTransaction) PackRefs()                                                {}
+func (nilTransaction) Repack(housekeepingcfg.RepackObjectsConfig)               {}
+func (nilTransaction) WriteCommitGraphs(housekeepingcfg.WriteCommitGraphConfig) {}
+func (nilTransaction) AfterCommit(func(error))                                  {}
 
 func TestContextWithTransaction(t *testing.T) {
 	t.Run("no transaction in context", func(t *testing.T) {
