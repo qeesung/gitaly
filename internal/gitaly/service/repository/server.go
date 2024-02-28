@@ -6,7 +6,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -31,7 +31,7 @@ type server struct {
 	cfg                 config.Cfg
 	loggingCfg          config.Logging
 	catfileCache        catfile.Cache
-	housekeepingManager housekeeping.Manager
+	housekeepingManager housekeepingmgr.Manager
 	backupSink          backup.Sink
 	backupLocator       backup.Locator
 	repositoryCounter   *counter.RepositoryCounter

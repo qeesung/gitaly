@@ -54,3 +54,5 @@ func requireObjectsState(tb testing.TB, repo *localrepo.Repo, expectedState obje
 		hasMultiPackIndexBitmap: repoInfo.Packfiles.MultiPackIndexBitmap.Exists,
 	})
 }
+
+type entryFinalState int

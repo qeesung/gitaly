@@ -3,7 +3,7 @@ package objectpool
 import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
@@ -20,7 +20,7 @@ type server struct {
 	gitCmdFactory       git.CommandFactory
 	catfileCache        catfile.Cache
 	txManager           transaction.Manager
-	housekeepingManager housekeeping.Manager
+	housekeepingManager housekeepingmgr.Manager
 	repositoryCounter   *counter.RepositoryCounter
 }
 

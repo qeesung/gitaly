@@ -19,7 +19,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/sentry"
@@ -234,7 +234,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	transactionManager := transaction.NewManager(cfg, logger, registry)
 	prometheus.MustRegister(transactionManager)
 
-	housekeepingManager := housekeeping.NewManager(cfg.Prometheus, logger, transactionManager)
+	housekeepingManager := housekeepingmgr.New(cfg.Prometheus, logger, transactionManager)
 	prometheus.MustRegister(housekeepingManager)
 
 	hookManager := hook.Manager(hook.DisabledManager{})

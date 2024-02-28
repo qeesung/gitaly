@@ -14,7 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/auth"
@@ -281,7 +281,7 @@ type gitalyServerDeps struct {
 	limitHandler        *limithandler.LimiterMiddleware
 	repositoryCounter   *counter.RepositoryCounter
 	updaterWithHooks    *updateref.UpdaterWithHooks
-	housekeepingManager housekeeping.Manager
+	housekeepingManager housekeepingmgr.Manager
 	backupSink          backup.Sink
 	backupLocator       backup.Locator
 	signingKey          string
@@ -378,7 +378,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 	}
 
 	if gsd.housekeepingManager == nil {
-		gsd.housekeepingManager = housekeeping.NewManager(cfg.Prometheus, gsd.logger, gsd.txMgr)
+		gsd.housekeepingManager = housekeepingmgr.New(cfg.Prometheus, gsd.logger, gsd.txMgr)
 	}
 
 	var partitionManager *storagemgr.PartitionManager
@@ -521,7 +521,7 @@ func WithPackObjectsLimiter(limiter *limiter.ConcurrencyLimiter) GitalyServerOpt
 
 // WithHousekeepingManager sets the housekeeping.Manager that will be used for Gitaly services
 // initialization.
-func WithHousekeepingManager(manager housekeeping.Manager) GitalyServerOpt {
+func WithHousekeepingManager(manager housekeepingmgr.Manager) GitalyServerOpt {
 	return func(deps gitalyServerDeps) gitalyServerDeps {
 		deps.housekeepingManager = manager
 		return deps

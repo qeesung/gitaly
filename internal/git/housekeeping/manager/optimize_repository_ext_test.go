@@ -1,4 +1,4 @@
-package housekeeping_test
+package manager_test
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/setup"
@@ -177,7 +177,7 @@ func TestPruneIfNeeded(t *testing.T) {
 				tc.expectedLogEntries["written_commit_graph_full"] = "success"
 			}
 
-			require.NoError(t, housekeeping.NewManager(cfg.Prometheus, logger, nil).OptimizeRepository(ctx, repo))
+			require.NoError(t, housekeepingmgr.New(cfg.Prometheus, logger, nil).OptimizeRepository(ctx, repo))
 			require.Equal(t, tc.expectedLogEntries, hook.LastEntry().Data["optimizations"])
 		})
 	}

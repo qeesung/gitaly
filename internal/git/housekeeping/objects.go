@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	// looseObjectLimit is the limit of loose objects we accept both when doing incremental
+	// LooseObjectLimit is the limit of loose objects we accept both when doing incremental
 	// repacks and when pruning objects.
-	looseObjectLimit = 1024
+	LooseObjectLimit = 1024
 )
 
 // RepackObjectsStrategy defines how objects shall be repacked.

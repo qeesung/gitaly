@@ -1,7 +1,6 @@
 package housekeeping
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -459,7 +458,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 						},
 						Packfiles: stats.PackfilesInfo{
 							// We need to pretend that we have a bitmap,
-							// otherwise we aways do a full repack.
+							// otherwise we always do a full repack.
 							Bitmap: stats.BitmapInfo{
 								Exists: true,
 							},
@@ -923,31 +922,4 @@ func TestEagerOptimizationStrategy(t *testing.T) {
 			require.True(t, tc.strategy.ShouldRepackReferences(ctx))
 		})
 	}
-}
-
-// mockOptimizationStrategy is a mock strategy that can be used with OptimizeRepository.
-type mockOptimizationStrategy struct {
-	shouldRepackObjects    bool
-	repackObjectsCfg       RepackObjectsConfig
-	shouldPruneObjects     bool
-	pruneObjectsCfg        PruneObjectsConfig
-	shouldRepackReferences func(ctx context.Context) bool
-	shouldWriteCommitGraph bool
-	writeCommitGraphCfg    WriteCommitGraphConfig
-}
-
-func (m mockOptimizationStrategy) ShouldRepackObjects(context.Context) (bool, RepackObjectsConfig) {
-	return m.shouldRepackObjects, m.repackObjectsCfg
-}
-
-func (m mockOptimizationStrategy) ShouldPruneObjects(context.Context) (bool, PruneObjectsConfig) {
-	return m.shouldPruneObjects, m.pruneObjectsCfg
-}
-
-func (m mockOptimizationStrategy) ShouldRepackReferences(ctx context.Context) bool {
-	return m.shouldRepackReferences(ctx)
-}
-
-func (m mockOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig, error) {
-	return m.shouldWriteCommitGraph, m.writeCommitGraphCfg, nil
 }

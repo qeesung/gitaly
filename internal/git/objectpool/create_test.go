@@ -11,7 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
@@ -48,7 +48,7 @@ func TestCreate(t *testing.T) {
 			gittest.NewCommandFactory(t, cfg, git.WithSkipHooks()),
 			catfileCache,
 			txManager,
-			housekeeping.NewManager(cfg.Prometheus, logger, txManager),
+			housekeepingmgr.New(cfg.Prometheus, logger, txManager),
 			poolProto,
 			repo,
 		)

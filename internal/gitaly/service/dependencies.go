@@ -5,7 +5,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook/updateref"
@@ -40,7 +40,7 @@ type Dependencies struct {
 	LimitHandler        *limithandler.LimiterMiddleware
 	RepositoryCounter   *counter.RepositoryCounter
 	UpdaterWithHooks    *updateref.UpdaterWithHooks
-	HousekeepingManager housekeeping.Manager
+	HousekeepingManager housekeepingmgr.Manager
 	TransactionRegistry *storagemgr.TransactionRegistry
 	PartitionManager    *storagemgr.PartitionManager
 	BackupSink          backup.Sink
@@ -124,7 +124,7 @@ func (dc *Dependencies) GetUpdaterWithHooks() *updateref.UpdaterWithHooks {
 }
 
 // GetHousekeepingManager returns the housekeeping manager.
-func (dc *Dependencies) GetHousekeepingManager() housekeeping.Manager {
+func (dc *Dependencies) GetHousekeepingManager() housekeepingmgr.Manager {
 	return dc.HousekeepingManager
 }
 

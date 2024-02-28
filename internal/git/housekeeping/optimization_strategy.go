@@ -223,7 +223,7 @@ func (s HeuristicalOptimizationStrategy) ShouldRepackObjects(ctx context.Context
 	// their reachability. This is the cheapest we can do: we don't need to compute
 	// whether objects are reachable and we don't need to update any data structures
 	// that scale with the repository size.
-	if s.info.LooseObjects.Count > looseObjectLimit {
+	if s.info.LooseObjects.Count > LooseObjectLimit {
 		return true, incrementalRepackCfg
 	}
 
@@ -296,7 +296,7 @@ func (s HeuristicalOptimizationStrategy) ShouldPruneObjects(context.Context) (bo
 
 	// When we have a number of loose objects that is older than two weeks then they have
 	// surpassed the grace period and may thus be pruned.
-	if s.info.LooseObjects.StaleCount <= looseObjectLimit {
+	if s.info.LooseObjects.StaleCount <= LooseObjectLimit {
 		return false, PruneObjectsConfig{}
 	}
 

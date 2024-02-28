@@ -15,9 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/safe"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
-	"google.golang.org/grpc/codes"
 )
 
 const (
@@ -25,11 +22,14 @@ const (
 	deleteTempFilesOlderThanDuration = 24 * time.Hour
 	brokenRefsGracePeriod            = 24 * time.Hour
 	lockfileGracePeriod              = 15 * time.Minute
-	referenceLockfileGracePeriod     = 1 * time.Hour
-	reftableLockfileGracePeriod      = 1 * time.Hour
 	packedRefsLockGracePeriod        = 1 * time.Hour
 	packedRefsNewGracePeriod         = 15 * time.Minute
 	packFileLockGracePeriod          = 7 * 24 * time.Hour
+	// ReferenceLockfileGracePeriod is the grace period when cleaning up lock files of individual references in the
+	// repository. Lock files existing less than this period are ignored.
+	ReferenceLockfileGracePeriod = 1 * time.Hour
+	// ReftableLockfileGracePeriod is the grace period when cleaning up lock files reftable.
+	ReftableLockfileGracePeriod = 1 * time.Hour
 )
 
 var lockfiles = []string{
@@ -42,25 +42,30 @@ var lockfiles = []string{
 }
 
 type (
-	findStaleFileFunc            func(context.Context, string) ([]string, error)
-	cleanupRepoFunc              func(context.Context, *localrepo.Repo) (int, error)
+	// FindStaleFileFunc is a type of function that returns the list of stale files in the repository.
+	FindStaleFileFunc func(context.Context, string) ([]string, error)
+	// CleanupRepoFunc is a type of function that performs a clean up task in the repository.
+	CleanupRepoFunc              func(context.Context, *localrepo.Repo) (int, error)
 	cleanupRepoWithTxManagerFunc func(context.Context, *localrepo.Repo, transaction.Manager) (int, error)
 )
 
 // CleanStaleDataConfig is the configuration for running CleanStaleData. It is used to define
 // the different types of cleanups we want to run.
 type CleanStaleDataConfig struct {
-	staleFileFinders          map[string]findStaleFileFunc
-	repoCleanups              map[string]cleanupRepoFunc
-	repoCleanupWithTxManagers map[string]cleanupRepoWithTxManagerFunc
+	// StaleFileFinders contains the list of finder functions to find stale files in the repository.
+	StaleFileFinders map[string]FindStaleFileFunc
+	// RepoCleanups contains the list of clean-up functions for the repository.
+	RepoCleanups map[string]CleanupRepoFunc
+	// RepoCleanupWithTxManagers contains the list of clean-up functions with transaction manager support.
+	RepoCleanupWithTxManagers map[string]cleanupRepoWithTxManagerFunc
 }
 
 // OnlyStaleReferenceLockCleanup returns a config which only contains a
 // stale reference lock cleaner with the provided grace period.
 func OnlyStaleReferenceLockCleanup(gracePeriod time.Duration) CleanStaleDataConfig {
 	return CleanStaleDataConfig{
-		staleFileFinders: map[string]findStaleFileFunc{
-			"reflocks": findStaleReferenceLocks(gracePeriod),
+		StaleFileFinders: map[string]FindStaleFileFunc{
+			"reflocks": FindStaleReferenceLocks(gracePeriod),
 		},
 	}
 }
@@ -69,97 +74,29 @@ func OnlyStaleReferenceLockCleanup(gracePeriod time.Duration) CleanStaleDataConf
 // which contains all the cleanup functions.
 func DefaultStaleDataCleanup() CleanStaleDataConfig {
 	return CleanStaleDataConfig{
-		staleFileFinders: map[string]findStaleFileFunc{
-			"objects":        findTemporaryObjects,
-			"locks":          findStaleLockfiles,
-			"refs":           findBrokenLooseReferences,
-			"reflocks":       findStaleReferenceLocks(referenceLockfileGracePeriod),
-			"reftablelocks":  findStaleReftableLock,
-			"packfilelocks":  findStalePackFileLocks,
-			"packedrefslock": findPackedRefsLock,
-			"packedrefsnew":  findPackedRefsNew,
-			"serverinfo":     findServerInfo,
+		StaleFileFinders: map[string]FindStaleFileFunc{
+			"objects":        FindTemporaryObjects,
+			"locks":          FindStaleLockfiles,
+			"refs":           FindBrokenLooseReferences,
+			"reflocks":       FindStaleReferenceLocks(ReferenceLockfileGracePeriod),
+			"reftablelocks":  FindStaleReftableLock,
+			"packfilelocks":  FindStalePackFileLocks,
+			"packedrefslock": FindPackedRefsLock,
+			"packedrefsnew":  FindPackedRefsNew,
+			"serverinfo":     FindServerInfo,
 		},
-		repoCleanups: map[string]cleanupRepoFunc{
-			"refsemptydir":   removeRefEmptyDirs,
-			"configsections": pruneEmptyConfigSections,
+		RepoCleanups: map[string]CleanupRepoFunc{
+			"refsemptydir":   RemoveRefEmptyDirs,
+			"configsections": PruneEmptyConfigSections,
 		},
-		repoCleanupWithTxManagers: map[string]cleanupRepoWithTxManagerFunc{
+		RepoCleanupWithTxManagers: map[string]cleanupRepoWithTxManagerFunc{
 			"configkeys": removeUnnecessaryConfig,
 		},
 	}
 }
 
-// CleanStaleData removes any stale data in the repository as per the provided configuration.
-func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.Repo, cfg CleanStaleDataConfig) error {
-	span, ctx := tracing.StartSpanIfHasParent(ctx, "housekeeping.CleanStaleData", nil)
-	defer span.Finish()
-
-	repoPath, err := repo.Path()
-	if err != nil {
-		m.logger.WithError(err).WarnContext(ctx, "housekeeping failed to get repo path")
-		if structerr.GRPCCode(err) == codes.NotFound {
-			return nil
-		}
-		return fmt.Errorf("housekeeping failed to get repo path: %w", err)
-	}
-
-	staleDataByType := map[string]int{}
-	defer func() {
-		if len(staleDataByType) == 0 {
-			return
-		}
-
-		logEntry := m.logger
-		for staleDataType, count := range staleDataByType {
-			logEntry = logEntry.WithField(fmt.Sprintf("stale_data.%s", staleDataType), count)
-			m.prunedFilesTotal.WithLabelValues(staleDataType).Add(float64(count))
-		}
-		logEntry.InfoContext(ctx, "removed files")
-	}()
-
-	var filesToPrune []string
-	for staleFileType, staleFileFinder := range cfg.staleFileFinders {
-		staleFiles, err := staleFileFinder(ctx, repoPath)
-		if err != nil {
-			return fmt.Errorf("housekeeping failed to find %s: %w", staleFileType, err)
-		}
-
-		filesToPrune = append(filesToPrune, staleFiles...)
-		staleDataByType[staleFileType] = len(staleFiles)
-	}
-
-	for _, path := range filesToPrune {
-		if err := os.Remove(path); err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			staleDataByType["failures"]++
-			m.logger.WithError(err).WithField("path", path).WarnContext(ctx, "unable to remove stale file")
-		}
-	}
-
-	for repoCleanupName, repoCleanupFn := range cfg.repoCleanups {
-		cleanupCount, err := repoCleanupFn(ctx, repo)
-		staleDataByType[repoCleanupName] = cleanupCount
-		if err != nil {
-			return fmt.Errorf("housekeeping could not perform cleanup %s: %w", repoCleanupName, err)
-		}
-	}
-
-	for repoCleanupName, repoCleanupFn := range cfg.repoCleanupWithTxManagers {
-		cleanupCount, err := repoCleanupFn(ctx, repo, m.txManager)
-		staleDataByType[repoCleanupName] = cleanupCount
-		if err != nil {
-			return fmt.Errorf("housekeeping could not perform cleanup (with TxManager) %s: %w", repoCleanupName, err)
-		}
-	}
-
-	return nil
-}
-
-// pruneEmptyConfigSections prunes all empty sections from the repo's config.
-func pruneEmptyConfigSections(ctx context.Context, repo *localrepo.Repo) (_ int, returnedErr error) {
+// PruneEmptyConfigSections prunes all empty sections from the repo's config.
+func PruneEmptyConfigSections(ctx context.Context, repo *localrepo.Repo) (_ int, returnedErr error) {
 	repoPath, err := repo.Path()
 	if err != nil {
 		return 0, fmt.Errorf("getting repo path: %w", err)
@@ -291,22 +228,22 @@ func findStaleFiles(repoPath string, gracePeriod time.Duration, files ...string)
 	return staleFiles, nil
 }
 
-// findStaleLockfiles finds a subset of lockfiles which may be created by git
+// FindStaleLockfiles finds a subset of lockfiles which may be created by git
 // commands. We're quite conservative with what we're removing, we certainly
 // don't just scan the repo for `*.lock` files. Instead, we only remove a known
 // set of lockfiles which have caused problems in the past.
-func findStaleLockfiles(ctx context.Context, repoPath string) ([]string, error) {
+func FindStaleLockfiles(ctx context.Context, repoPath string) ([]string, error) {
 	return findStaleFiles(repoPath, lockfileGracePeriod, lockfiles...)
 }
 
-// findStalePackFileLocks finds packfile locks (`.keep` files) that git-receive-pack(1) and
+// FindStalePackFileLocks finds packfile locks (`.keep` files) that git-receive-pack(1) and
 // git-fetch-pack(1) write in order to not have the newly written packfile be deleted while refs
 // have not yet been updated to point to their objects. Normally, these locks would get removed by
 // both Git commands once the refs have been updated. But when the command gets killed meanwhile,
 // then it can happen that the locks are left behind. As Git will never delete packfiles with an
 // associated `.keep` file, the end result is that we may accumulate more and more of these locked
 // packfiles over time.
-func findStalePackFileLocks(ctx context.Context, repoPath string) ([]string, error) {
+func FindStalePackFileLocks(ctx context.Context, repoPath string) ([]string, error) {
 	locks, err := filepath.Glob(filepath.Join(repoPath, "objects", "pack", "pack-*.keep"))
 	if err != nil {
 		return nil, fmt.Errorf("enumerating .keep files: %w", err)
@@ -355,7 +292,9 @@ func findStalePackFileLocks(ctx context.Context, repoPath string) ([]string, err
 	return staleLocks, nil
 }
 
-func findTemporaryObjects(ctx context.Context, repoPath string) ([]string, error) {
+// FindTemporaryObjects find temporary objects of a repository. Those objects are created by some git processes
+// and are sure to be removed when the processes are done.
+func FindTemporaryObjects(ctx context.Context, repoPath string) ([]string, error) {
 	var temporaryObjects []string
 
 	if err := filepath.WalkDir(filepath.Join(repoPath, "objects"), func(path string, dirEntry fs.DirEntry, err error) error {
@@ -413,7 +352,9 @@ func isStaleTemporaryObject(dirEntry fs.DirEntry) (bool, error) {
 	return true, nil
 }
 
-func findBrokenLooseReferences(ctx context.Context, repoPath string) ([]string, error) {
+// FindBrokenLooseReferences return the list of broken refs. A ref is considered to be broken when the loose ref file is
+// empty. We don't validate the existence of referred objects.
+func FindBrokenLooseReferences(ctx context.Context, repoPath string) ([]string, error) {
 	var brokenRefs []string
 	if err := filepath.WalkDir(filepath.Join(repoPath, "refs"), func(path string, dirEntry fs.DirEntry, err error) error {
 		if err != nil {
@@ -454,9 +395,9 @@ func findBrokenLooseReferences(ctx context.Context, repoPath string) ([]string, 
 	return brokenRefs, nil
 }
 
-// findStaleReferenceLocks provides a function which scans the refdb for stale locks
+// FindStaleReferenceLocks provides a function which scans the refdb for stale locks
 // and loose references against the provided grace period.
-func findStaleReferenceLocks(gracePeriod time.Duration) findStaleFileFunc {
+func FindStaleReferenceLocks(gracePeriod time.Duration) FindStaleFileFunc {
 	return func(_ context.Context, repoPath string) ([]string, error) {
 		var staleReferenceLocks []string
 
@@ -500,9 +441,9 @@ func findStaleReferenceLocks(gracePeriod time.Duration) findStaleFileFunc {
 	}
 }
 
-// findStaleReftableLock provides a function which scans the reftable folder
+// FindStaleReftableLock provides a function which scans the reftable folder
 // for stale a reftable lock and deletes it.
-func findStaleReftableLock(_ context.Context, repoPath string) ([]string, error) {
+func FindStaleReftableLock(_ context.Context, repoPath string) ([]string, error) {
 	lockPath := filepath.Join(repoPath, "reftable", "tables.list.lock")
 	stat, err := os.Stat(lockPath)
 	if err != nil {
@@ -513,7 +454,7 @@ func findStaleReftableLock(_ context.Context, repoPath string) ([]string, error)
 		return nil, fmt.Errorf("statting reftable lock: %w", err)
 	}
 
-	if time.Since(stat.ModTime()) < reftableLockfileGracePeriod {
+	if time.Since(stat.ModTime()) < ReftableLockfileGracePeriod {
 		return nil, nil
 	}
 
@@ -538,20 +479,20 @@ func removeUnnecessaryConfig(ctx context.Context, repository *localrepo.Repo, tx
 	return 1, nil
 }
 
-// findPackedRefsLock returns stale lockfiles for the packed-refs file.
-func findPackedRefsLock(ctx context.Context, repoPath string) ([]string, error) {
+// FindPackedRefsLock returns stale lockfiles for the packed-refs file.
+func FindPackedRefsLock(ctx context.Context, repoPath string) ([]string, error) {
 	return findStaleFiles(repoPath, packedRefsLockGracePeriod, "packed-refs.lock")
 }
 
-// findPackedRefsNew returns stale temporary packed-refs files.
-func findPackedRefsNew(ctx context.Context, repoPath string) ([]string, error) {
+// FindPackedRefsNew returns stale temporary packed-refs files.
+func FindPackedRefsNew(ctx context.Context, repoPath string) ([]string, error) {
 	return findStaleFiles(repoPath, packedRefsNewGracePeriod, "packed-refs.new")
 }
 
-// findServerInfo returns files generated by git-update-server-info(1). These files are only
+// FindServerInfo returns files generated by git-update-server-info(1). These files are only
 // required to serve Git fetches via the dumb HTTP protocol, which we don't serve at all. It's thus
 // safe to remove all of those files without a grace period.
-func findServerInfo(ctx context.Context, repoPath string) ([]string, error) {
+func FindServerInfo(ctx context.Context, repoPath string) ([]string, error) {
 	var serverInfoFiles []string
 
 	for directory, basename := range map[string]string{
@@ -585,7 +526,9 @@ func findServerInfo(ctx context.Context, repoPath string) ([]string, error) {
 	return serverInfoFiles, nil
 }
 
-func removeRefEmptyDirs(ctx context.Context, repository *localrepo.Repo) (int, error) {
+// RemoveRefEmptyDirs removes empty directories inside refs directory. They are left-over of ref deletion
+// operations.
+func RemoveRefEmptyDirs(ctx context.Context, repository *localrepo.Repo) (int, error) {
 	rPath, err := repository.Path()
 	if err != nil {
 		return 0, err
