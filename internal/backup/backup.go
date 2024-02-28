@@ -170,7 +170,6 @@ func ResolveLocator(layout string, sink Sink) (Locator, error) {
 // Manager manages process of the creating/restoring backups.
 type Manager struct {
 	sink    Sink
-	conns   *client.Pool
 	locator Locator
 	logger  log.Logger
 
@@ -183,7 +182,6 @@ type Manager struct {
 func NewManager(sink Sink, logger log.Logger, locator Locator, pool *client.Pool) *Manager {
 	return &Manager{
 		sink:    sink,
-		conns:   pool,
 		locator: locator,
 		repositoryFactory: func(ctx context.Context, repo *gitalypb.Repository, server storage.ServerInfo) (Repository, error) {
 			if err := setContextServerInfo(ctx, &server, repo.GetStorageName()); err != nil {
@@ -214,7 +212,6 @@ func NewManagerLocal(
 ) *Manager {
 	return &Manager{
 		sink:    sink,
-		conns:   nil, // Will be removed once the restore operations are part of the Repository interface.
 		locator: locator,
 		repositoryFactory: func(ctx context.Context, repo *gitalypb.Repository, server storage.ServerInfo) (Repository, error) {
 			localRepo := localrepo.New(logger, storageLocator, gitCmdFactory, catfileCache, repo)
@@ -223,56 +220,6 @@ func NewManagerLocal(
 		},
 		logger: logger,
 	}
-}
-
-// RemoveRepository removes the specified repository from its storage.
-func (mgr *Manager) RemoveRepository(ctx context.Context, req *RemoveRepositoryRequest) error {
-	if err := setContextServerInfo(ctx, &req.Server, req.Repo.StorageName); err != nil {
-		return fmt.Errorf("remove repo: set context: %w", err)
-	}
-
-	repoClient, err := mgr.newRepoClient(ctx, req.Server)
-	if err != nil {
-		return fmt.Errorf("remove repo: create client: %w", err)
-	}
-
-	_, err = repoClient.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{Repository: req.Repo})
-	if err != nil {
-		return fmt.Errorf("remove repo: remove: %w", err)
-	}
-
-	return nil
-}
-
-// ListRepositories returns a list of repositories found in the given storage.
-func (mgr *Manager) ListRepositories(ctx context.Context, req *ListRepositoriesRequest) (repos []*gitalypb.Repository, err error) {
-	if err := setContextServerInfo(ctx, &req.Server, req.StorageName); err != nil {
-		return nil, fmt.Errorf("list repos: set context: %w", err)
-	}
-
-	internalClient, err := mgr.newInternalClient(ctx, req.Server)
-	if err != nil {
-		return nil, fmt.Errorf("list repos: create client: %w", err)
-	}
-
-	stream, err := internalClient.WalkRepos(ctx, &gitalypb.WalkReposRequest{StorageName: req.StorageName})
-	if err != nil {
-		return nil, fmt.Errorf("list repos: walk: %w", err)
-	}
-
-	for {
-		resp, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("list repos: receiving messages: %w", err)
-		}
-
-		repos = append(repos, &gitalypb.Repository{RelativePath: resp.RelativePath, StorageName: req.StorageName})
-	}
-
-	return repos, nil
 }
 
 // Create creates a repository backup.
@@ -671,22 +618,4 @@ func (mgr *Manager) writeRefs(ctx context.Context, path string, refs []git.Refer
 	}
 
 	return nil
-}
-
-func (mgr *Manager) newRepoClient(ctx context.Context, server storage.ServerInfo) (gitalypb.RepositoryServiceClient, error) {
-	conn, err := mgr.conns.Dial(ctx, server.Address, server.Token)
-	if err != nil {
-		return nil, err
-	}
-
-	return gitalypb.NewRepositoryServiceClient(conn), nil
-}
-
-func (mgr *Manager) newInternalClient(ctx context.Context, server storage.ServerInfo) (gitalypb.InternalGitalyClient, error) {
-	conn, err := mgr.conns.Dial(ctx, server.Address, server.Token)
-	if err != nil {
-		return nil, err
-	}
-
-	return gitalypb.NewInternalGitalyClient(conn), nil
 }
