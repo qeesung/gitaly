@@ -719,6 +719,32 @@ type committedEntry struct {
 	snapshotReaders int
 }
 
+// LogConsumer is the interface of a log consumer that is passed to a TransactionManager.
+// The LogConsumer may perform read-only operations against the on-disk log entry.
+// The TransactionManager notifies the consumer of new transactions by invoking the
+// NotifyNewTransaction method after they are committed.
+type LogConsumer interface {
+	// NotifyNewTransactions alerts the LogConsumer that new log entries are available for
+	// consumption. The method invoked both when the TransactionManager
+	// initializes and when new transactions are committed. Both the low and high water mark
+	// LSNs are sent so that a newly initialized consumer is aware of the full range of
+	// entries it can process.
+	//
+	// A single LogConsumer may interact simultaneously with many LogManagers. The
+	// LogManager passes itself as a parameter so that the LogConsumer may call back to
+	// it when the operation is finished.
+	NotifyNewTransactions(partitionID uint64, lowWaterMark, highWaterMark LSN, mgr LogManager)
+}
+
+// LogManager is the interface used on the consumer side of the integration. The consumer
+// has the ability to acknowledge transactions as having been processed with AcknowledgeTransaction.
+type LogManager interface {
+	// AcknowledgeTransaction acknowledges log entries up and including lsn as successfully processed.
+	AcknowledgeTransaction(lsn LSN)
+	// GetTransactionPath returns the path of the log entry's root directory.
+	GetTransactionPath(lsn LSN) string
+}
+
 // TransactionManager is responsible for transaction management of a single repository. Each repository has
 // a single TransactionManager; it is the repository's single-writer. It accepts writes one at a time from
 // the admissionQueue. Each admitted write is processed in three steps:
