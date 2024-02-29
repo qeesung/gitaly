@@ -19,9 +19,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	gitalycfg "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
@@ -101,7 +102,7 @@ func TestRepackIfNeeded(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.False(t, didRepack)
-		require.Equal(t, housekeeping.RepackObjectsConfig{}, repackObjectsCfg)
+		require.Equal(t, config.RepackObjectsConfig{}, repackObjectsCfg)
 
 		requireObjectsState(t, repo, objectsState{
 			looseObjects: 2,
@@ -123,14 +124,14 @@ func TestRepackIfNeeded(t *testing.T) {
 
 		didRepack, repackObjectsCfg, err := repackIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldRepackObjects: true,
-			repackObjectsCfg: housekeeping.RepackObjectsConfig{
-				Strategy: housekeeping.RepackObjectsStrategyIncrementalWithUnreachable,
+			repackObjectsCfg: config.RepackObjectsConfig{
+				Strategy: config.RepackObjectsStrategyIncrementalWithUnreachable,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didRepack)
-		require.Equal(t, housekeeping.RepackObjectsConfig{
-			Strategy: housekeeping.RepackObjectsStrategyIncrementalWithUnreachable,
+		require.Equal(t, config.RepackObjectsConfig{
+			Strategy: config.RepackObjectsStrategyIncrementalWithUnreachable,
 		}, repackObjectsCfg)
 
 		requireObjectsState(t, repo, objectsState{
@@ -154,14 +155,14 @@ func TestRepackIfNeeded(t *testing.T) {
 
 		didRepack, repackObjectsCfg, err := repackIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldRepackObjects: true,
-			repackObjectsCfg: housekeeping.RepackObjectsConfig{
-				Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
+			repackObjectsCfg: config.RepackObjectsConfig{
+				Strategy: config.RepackObjectsStrategyFullWithUnreachable,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didRepack)
-		require.Equal(t, housekeeping.RepackObjectsConfig{
-			Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
+		require.Equal(t, config.RepackObjectsConfig{
+			Strategy: config.RepackObjectsStrategyFullWithUnreachable,
 		}, repackObjectsCfg)
 
 		requireObjectsState(t, repo, objectsState{
@@ -184,15 +185,15 @@ func TestRepackIfNeeded(t *testing.T) {
 
 		didRepack, repackObjectsCfg, err := repackIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldRepackObjects: true,
-			repackObjectsCfg: housekeeping.RepackObjectsConfig{
-				Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
+			repackObjectsCfg: config.RepackObjectsConfig{
+				Strategy:          config.RepackObjectsStrategyFullWithCruft,
 				CruftExpireBefore: expiryTime,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didRepack)
-		require.Equal(t, housekeeping.RepackObjectsConfig{
-			Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
+		require.Equal(t, config.RepackObjectsConfig{
+			Strategy:          config.RepackObjectsStrategyFullWithCruft,
 			CruftExpireBefore: expiryTime,
 		}, repackObjectsCfg)
 
@@ -218,15 +219,15 @@ func TestRepackIfNeeded(t *testing.T) {
 
 		didRepack, repackObjectsCfg, err := repackIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldRepackObjects: true,
-			repackObjectsCfg: housekeeping.RepackObjectsConfig{
-				Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
+			repackObjectsCfg: config.RepackObjectsConfig{
+				Strategy:          config.RepackObjectsStrategyFullWithCruft,
 				CruftExpireBefore: expiryTime,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didRepack)
-		require.Equal(t, housekeeping.RepackObjectsConfig{
-			Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
+		require.Equal(t, config.RepackObjectsConfig{
+			Strategy:          config.RepackObjectsStrategyFullWithCruft,
 			CruftExpireBefore: expiryTime,
 		}, repackObjectsCfg)
 
@@ -248,10 +249,10 @@ func TestRepackIfNeeded(t *testing.T) {
 			},
 		}
 
-		repo := localrepo.New(testhelper.NewLogger(t), config.NewLocator(cfg), gitCmdFactory, nil, repoProto)
+		repo := localrepo.New(testhelper.NewLogger(t), gitalycfg.NewLocator(cfg), gitCmdFactory, nil, repoProto)
 
-		expectedCfg := housekeeping.RepackObjectsConfig{
-			Strategy:          housekeeping.RepackObjectsStrategyFullWithCruft,
+		expectedCfg := config.RepackObjectsConfig{
+			Strategy:          config.RepackObjectsStrategyFullWithCruft,
 			CruftExpireBefore: time.Now(),
 		}
 
@@ -430,7 +431,7 @@ func TestPackRefsIfNeeded(t *testing.T) {
 			repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 				SkipCreationViaService: true,
 			})
-			repo := localrepo.New(logger, config.NewLocator(cfg), &gitCmdFactory, nil, repoProto)
+			repo := localrepo.New(logger, gitalycfg.NewLocator(cfg), &gitCmdFactory, nil, repoProto)
 
 			// Write an empty commit such that we can create valid refs.
 			gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
@@ -1035,7 +1036,7 @@ func TestOptimizeRepository(t *testing.T) {
 				}
 
 				return setupData{
-					repo: localrepo.New(testhelper.NewLogger(t), config.NewLocator(cfg), gitCmdFactory, nil, repo),
+					repo: localrepo.New(testhelper.NewLogger(t), gitalycfg.NewLocator(cfg), gitCmdFactory, nil, repo),
 					expectedMetrics: []metric{
 						{name: "packed_objects_geometric", status: "failure", count: 1},
 						{name: "written_bitmap", status: "failure", count: 1},
@@ -1354,7 +1355,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.False(t, written)
-		require.Equal(t, housekeeping.WriteCommitGraphConfig{}, cfg)
+		require.Equal(t, config.WriteCommitGraphConfig{}, cfg)
 
 		require.NoFileExists(t, filepath.Join(repoPath, "objects", "info", "commit-graph"))
 		require.NoDirExists(t, filepath.Join(repoPath, "objects", "info", "commit-graphs"))
@@ -1375,7 +1376,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.True(t, written)
-		require.Equal(t, housekeeping.WriteCommitGraphConfig{}, cfg)
+		require.Equal(t, config.WriteCommitGraphConfig{}, cfg)
 
 		require.NoFileExists(t, filepath.Join(repoPath, "objects", "info", "commit-graph"))
 		require.DirExists(t, filepath.Join(repoPath, "objects", "info", "commit-graphs"))
@@ -1417,7 +1418,7 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.True(t, didWrite)
-		require.Equal(t, housekeeping.WriteCommitGraphConfig{}, writeCommitGraphCfg)
+		require.Equal(t, config.WriteCommitGraphConfig{}, writeCommitGraphCfg)
 
 		// We should still observe the failure failure.
 		stderr.Reset()
@@ -1430,13 +1431,13 @@ func TestWriteCommitGraphIfNeeded(t *testing.T) {
 		// commit-graph completely.
 		didWrite, writeCommitGraphCfg, err = writeCommitGraphIfNeeded(ctx, repo, mockOptimizationStrategy{
 			shouldWriteCommitGraph: true,
-			writeCommitGraphCfg: housekeeping.WriteCommitGraphConfig{
+			writeCommitGraphCfg: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		})
 		require.NoError(t, err)
 		require.True(t, didWrite)
-		require.Equal(t, housekeeping.WriteCommitGraphConfig{
+		require.Equal(t, config.WriteCommitGraphConfig{
 			ReplaceChain: true,
 		}, writeCommitGraphCfg)
 
@@ -2470,15 +2471,15 @@ func TestRepositoryManager_CleanStaleData_pruneEmptyConfigSections(t *testing.T)
 // mockOptimizationStrategy is a mock strategy that can be used with OptimizeRepository.
 type mockOptimizationStrategy struct {
 	shouldRepackObjects    bool
-	repackObjectsCfg       housekeeping.RepackObjectsConfig
+	repackObjectsCfg       config.RepackObjectsConfig
 	shouldPruneObjects     bool
 	pruneObjectsCfg        housekeeping.PruneObjectsConfig
 	shouldRepackReferences func(ctx context.Context) bool
 	shouldWriteCommitGraph bool
-	writeCommitGraphCfg    housekeeping.WriteCommitGraphConfig
+	writeCommitGraphCfg    config.WriteCommitGraphConfig
 }
 
-func (m mockOptimizationStrategy) ShouldRepackObjects(context.Context) (bool, housekeeping.RepackObjectsConfig) {
+func (m mockOptimizationStrategy) ShouldRepackObjects(context.Context) (bool, config.RepackObjectsConfig) {
 	return m.shouldRepackObjects, m.repackObjectsCfg
 }
 
@@ -2490,6 +2491,6 @@ func (m mockOptimizationStrategy) ShouldRepackReferences(ctx context.Context) bo
 	return m.shouldRepackReferences(ctx)
 }
 
-func (m mockOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, housekeeping.WriteCommitGraphConfig, error) {
+func (m mockOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, config.WriteCommitGraphConfig, error) {
 	return m.shouldWriteCommitGraph, m.writeCommitGraphCfg, nil
 }

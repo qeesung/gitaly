@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 )
 
@@ -21,7 +22,7 @@ const (
 type OptimizationStrategy interface {
 	// ShouldRepackObjects determines whether the repository needs to be repacked and, if so,
 	// how it should be done.
-	ShouldRepackObjects(context.Context) (bool, RepackObjectsConfig)
+	ShouldRepackObjects(context.Context) (bool, config.RepackObjectsConfig)
 	// ShouldPruneObjects determines whether the repository has stale objects that should be
 	// pruned and, if so, how it should be done.
 	ShouldPruneObjects(context.Context) (bool, PruneObjectsConfig)
@@ -30,7 +31,7 @@ type OptimizationStrategy interface {
 	ShouldRepackReferences(context.Context) bool
 	// ShouldWriteCommitGraph determines whether we need to write the commit-graph and how it
 	// should be written.
-	ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig, error)
+	ShouldWriteCommitGraph(context.Context) (bool, config.WriteCommitGraphConfig, error)
 }
 
 // HeuristicalOptimizationStrategy is an optimization strategy that is based on a set of
@@ -55,21 +56,21 @@ func NewHeuristicalOptimizationStrategy(gitVersion git.Version, info stats.Repos
 // ShouldRepackObjects checks whether the repository's objects need to be repacked. This uses a
 // set of heuristics that scales with the size of the object database: the larger the repository,
 // the less frequent does it get a full repack.
-func (s HeuristicalOptimizationStrategy) ShouldRepackObjects(ctx context.Context) (bool, RepackObjectsConfig) {
+func (s HeuristicalOptimizationStrategy) ShouldRepackObjects(ctx context.Context) (bool, config.RepackObjectsConfig) {
 	// If there are neither packfiles nor loose objects in this repository then there is no need
 	// to repack anything.
 	if s.info.Packfiles.Count == 0 && s.info.LooseObjects.Count == 0 {
-		return false, RepackObjectsConfig{}
+		return false, config.RepackObjectsConfig{}
 	}
 
 	nonCruftPackfilesCount := s.info.Packfiles.Count - s.info.Packfiles.CruftCount
 	timeSinceLastFullRepack := time.Since(s.info.Packfiles.LastFullRepack)
 
-	fullRepackCfg := RepackObjectsConfig{
+	fullRepackCfg := config.RepackObjectsConfig{
 		// We use the full-with-unreachable strategy to also pack all unreachable
 		// objects into the packfile. This only happens for object pools though,
 		// as they should never delete objects.
-		Strategy: RepackObjectsStrategyFullWithUnreachable,
+		Strategy: config.RepackObjectsStrategyFullWithUnreachable,
 		// We cannot write bitmaps when there are alternates as we don't have full
 		// closure of all objects in the packfile.
 		WriteBitmap: len(s.info.Alternates.ObjectDirectories) == 0,
@@ -81,12 +82,12 @@ func (s HeuristicalOptimizationStrategy) ShouldRepackObjects(ctx context.Context
 	if !s.info.IsObjectPool {
 		// When we don't have an object pool at hand we want to be able to expire
 		// unreachable objects. We thus use cruft packs with an expiry date.
-		fullRepackCfg.Strategy = RepackObjectsStrategyFullWithCruft
+		fullRepackCfg.Strategy = config.RepackObjectsStrategyFullWithCruft
 		fullRepackCfg.CruftExpireBefore = s.expireBefore
 	}
 
-	geometricRepackCfg := RepackObjectsConfig{
-		Strategy: RepackObjectsStrategyGeometric,
+	geometricRepackCfg := config.RepackObjectsConfig{
+		Strategy: config.RepackObjectsStrategyGeometric,
 		// We cannot write bitmaps when there are alternates as we don't have full
 		// closure of all objects in the packfile.
 		WriteBitmap: len(s.info.Alternates.ObjectDirectories) == 0,
@@ -99,8 +100,8 @@ func (s HeuristicalOptimizationStrategy) ShouldRepackObjects(ctx context.Context
 	// perform this kind of repack in the case where the overall repository structure
 	// looks good to us we try to do use the least amount of resources to update them.
 	// We thus neither update the multi-pack-index nor do we update bitmaps.
-	incrementalRepackCfg := RepackObjectsConfig{
-		Strategy:            RepackObjectsStrategyIncrementalWithUnreachable,
+	incrementalRepackCfg := config.RepackObjectsConfig{
+		Strategy:            config.RepackObjectsStrategyIncrementalWithUnreachable,
 		WriteBitmap:         false,
 		WriteMultiPackIndex: false,
 	}
@@ -227,12 +228,12 @@ func (s HeuristicalOptimizationStrategy) ShouldRepackObjects(ctx context.Context
 		return true, incrementalRepackCfg
 	}
 
-	return false, RepackObjectsConfig{}
+	return false, config.RepackObjectsConfig{}
 }
 
 // ShouldWriteCommitGraph determines whether we need to write the commit-graph and how it should be
 // written.
-func (s HeuristicalOptimizationStrategy) ShouldWriteCommitGraph(ctx context.Context) (bool, WriteCommitGraphConfig, error) {
+func (s HeuristicalOptimizationStrategy) ShouldWriteCommitGraph(ctx context.Context) (bool, config.WriteCommitGraphConfig, error) {
 	switch s.info.References.ReferenceBackendName {
 	case git.ReferenceBackendReftables.Name:
 		// For reftables, we don't have a loose ref or packsize count. While we could check if
@@ -244,10 +245,10 @@ func (s HeuristicalOptimizationStrategy) ShouldWriteCommitGraph(ctx context.Cont
 		// commit-graphs given that it would only contain reachable objects, of which there are
 		// none.
 		if s.info.References.LooseReferencesCount == 0 && s.info.References.PackedReferencesSize == 0 {
-			return false, WriteCommitGraphConfig{}, nil
+			return false, config.WriteCommitGraphConfig{}, nil
 		}
 	default:
-		return false, WriteCommitGraphConfig{}, fmt.Errorf("unexpected reference backend: %q", s.info.References.ReferenceBackendName)
+		return false, config.WriteCommitGraphConfig{}, fmt.Errorf("unexpected reference backend: %q", s.info.References.ReferenceBackendName)
 	}
 
 	// When we have pruned objects in the repository then it may happen that the commit-graph
@@ -259,13 +260,13 @@ func (s HeuristicalOptimizationStrategy) ShouldWriteCommitGraph(ctx context.Cont
 	// To fix this case we will replace the complete commit-chain when we have pruned objects
 	// from the repository.
 	if shouldPrune, _ := s.ShouldPruneObjects(ctx); shouldPrune {
-		return true, WriteCommitGraphConfig{
+		return true, config.WriteCommitGraphConfig{
 			ReplaceChain: true,
 		}, nil
 	}
 
 	if commitGraphNeedsRewrite(ctx, s.info.CommitGraph) {
-		return true, WriteCommitGraphConfig{
+		return true, config.WriteCommitGraphConfig{
 			ReplaceChain: true,
 		}, nil
 	}
@@ -273,15 +274,15 @@ func (s HeuristicalOptimizationStrategy) ShouldWriteCommitGraph(ctx context.Cont
 	// When we repacked the repository then chances are high that we have accumulated quite some
 	// objects since the last time we wrote a commit-graph.
 	if needsRepacking, repackCfg := s.ShouldRepackObjects(ctx); needsRepacking {
-		return true, WriteCommitGraphConfig{
+		return true, config.WriteCommitGraphConfig{
 			// Same as with pruning: if we are repacking the repository and write cruft
 			// packs with an expiry date then we may end up pruning objects. We thus
 			// need to replace the commit-graph chain in that case.
-			ReplaceChain: repackCfg.Strategy == RepackObjectsStrategyFullWithCruft && !repackCfg.CruftExpireBefore.IsZero(),
+			ReplaceChain: repackCfg.Strategy == config.RepackObjectsStrategyFullWithCruft && !repackCfg.CruftExpireBefore.IsZero(),
 		}, nil
 	}
 
-	return false, WriteCommitGraphConfig{}, nil
+	return false, config.WriteCommitGraphConfig{}, nil
 }
 
 // ShouldPruneObjects determines whether the repository has stale objects that should be pruned.
@@ -360,8 +361,8 @@ func NewEagerOptimizationStrategy(info stats.RepositoryInfo) EagerOptimizationSt
 // ShouldRepackObjects always instructs the caller to repack objects. The strategy will always be to
 // repack all objects into a single packfile. The bitmap will be written in case the repository does
 // not have any alternates.
-func (s EagerOptimizationStrategy) ShouldRepackObjects(ctx context.Context) (bool, RepackObjectsConfig) {
-	cfg := RepackObjectsConfig{
+func (s EagerOptimizationStrategy) ShouldRepackObjects(ctx context.Context) (bool, config.RepackObjectsConfig) {
+	cfg := config.RepackObjectsConfig{
 		WriteBitmap:         len(s.info.Alternates.ObjectDirectories) == 0,
 		WriteMultiPackIndex: true,
 	}
@@ -376,10 +377,10 @@ func (s EagerOptimizationStrategy) ShouldRepackObjects(ctx context.Context) (boo
 	// more space. Instead, we ask git-repack(1) to append unreachable objects to the newly
 	// created packfile.
 	if !s.info.IsObjectPool {
-		cfg.Strategy = RepackObjectsStrategyFullWithCruft
+		cfg.Strategy = config.RepackObjectsStrategyFullWithCruft
 		cfg.CruftExpireBefore = s.expireBefore
 	} else {
-		cfg.Strategy = RepackObjectsStrategyFullWithUnreachable
+		cfg.Strategy = config.RepackObjectsStrategyFullWithUnreachable
 	}
 
 	return true, cfg
@@ -387,8 +388,8 @@ func (s EagerOptimizationStrategy) ShouldRepackObjects(ctx context.Context) (boo
 
 // ShouldWriteCommitGraph always instructs the caller to write the commit-graph. The strategy will
 // always be to completely rewrite the commit-graph chain.
-func (s EagerOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, WriteCommitGraphConfig, error) {
-	return true, WriteCommitGraphConfig{
+func (s EagerOptimizationStrategy) ShouldWriteCommitGraph(context.Context) (bool, config.WriteCommitGraphConfig, error) {
+	return true, config.WriteCommitGraphConfig{
 		ReplaceChain: true,
 	}, nil
 }

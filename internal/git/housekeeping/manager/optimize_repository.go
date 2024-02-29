@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -239,10 +240,10 @@ func optimizeRepository(
 }
 
 // repackIfNeeded repacks the repository according to the strategy.
-func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, housekeeping.RepackObjectsConfig, error) {
+func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, config.RepackObjectsConfig, error) {
 	repackNeeded, cfg := strategy.ShouldRepackObjects(ctx)
 	if !repackNeeded {
-		return false, housekeeping.RepackObjectsConfig{}, nil
+		return false, config.RepackObjectsConfig{}, nil
 	}
 
 	if err := housekeeping.RepackObjects(ctx, repo, cfg); err != nil {
@@ -253,10 +254,10 @@ func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekee
 }
 
 // writeCommitGraphIfNeeded writes the commit-graph if required.
-func writeCommitGraphIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, housekeeping.WriteCommitGraphConfig, error) {
+func writeCommitGraphIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, config.WriteCommitGraphConfig, error) {
 	needed, cfg, err := strategy.ShouldWriteCommitGraph(ctx)
 	if !needed || err != nil {
-		return false, housekeeping.WriteCommitGraphConfig{}, err
+		return false, config.WriteCommitGraphConfig{}, err
 	}
 
 	if err := housekeeping.WriteCommitGraph(ctx, repo, cfg); err != nil {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
@@ -23,55 +24,12 @@ const (
 	LooseObjectLimit = 1024
 )
 
-// RepackObjectsStrategy defines how objects shall be repacked.
-type RepackObjectsStrategy string
-
-const (
-	// RepackObjectsStrategyIncrementalWithUnreachable performs an incremental repack by writing
-	// all loose objects into a new packfile, regardless of their reachability. The loose
-	// objects will be deleted.
-	RepackObjectsStrategyIncrementalWithUnreachable = RepackObjectsStrategy("incremental_with_unreachable")
-	// RepackObjectsStrategyFullWithCruft performs a full repack by writing all reachable
-	// objects into a new packfile. Unreachable objects will be written into a separate cruft
-	// packfile.
-	RepackObjectsStrategyFullWithCruft = RepackObjectsStrategy("full_with_cruft")
-	// RepackObjectsStrategyFullWithUnreachable performs a full repack by writing all reachable
-	// objects into a new packfile. Packed unreachable objects will be appended to the packfile
-	// and redundant loose object files will be deleted.
-	//
-	// Note that this will not include unreachable loose objects, but only packed loose objects.
-	// git-repack(1) does not currently expose an option to make it include all objects.
-	// Combined with geometric repacks though this is acceptable as the geometric strategy will
-	// include all loose objects.
-	RepackObjectsStrategyFullWithUnreachable = RepackObjectsStrategy("full_with_unreachable")
-	// RepackObjectsStrategyGeometric performs an geometric repack. This strategy will repack
-	// packfiles so that the resulting pack structure forms a geometric sequence in the number
-	// of objects. Loose objects will get soaked up as part of the repack regardless of their
-	// reachability.
-	RepackObjectsStrategyGeometric = RepackObjectsStrategy("geometric")
-)
-
-// RepackObjectsConfig is configuration for RepackObjects.
-type RepackObjectsConfig struct {
-	// Strategy determines the strategy with which to repack objects.
-	Strategy RepackObjectsStrategy
-	// WriteBitmap determines whether reachability bitmaps should be written or not. There is no
-	// reason to set this to `false`, except for legacy compatibility reasons with existing RPC
-	// behaviour
-	WriteBitmap bool
-	// WriteMultiPackIndex determines whether a multi-pack index should be written or not.
-	WriteMultiPackIndex bool
-	// CruftExpireBefore determines the cutoff date before which unreachable cruft objects shall
-	// be expired and thus deleted.
-	CruftExpireBefore time.Time
-}
-
 // ValidateRepacking validates the input repacking config. This function any validating error and if the configuration
 // is for full repack.
-func ValidateRepacking(cfg RepackObjectsConfig) (bool, error) {
+func ValidateRepacking(cfg config.RepackObjectsConfig) (bool, error) {
 	var isFullRepack bool
 	switch cfg.Strategy {
-	case RepackObjectsStrategyIncrementalWithUnreachable:
+	case config.RepackObjectsStrategyIncrementalWithUnreachable:
 		isFullRepack = false
 		if cfg.WriteBitmap {
 			return false, structerr.NewInvalidArgument("cannot write packfile bitmap for an incremental repack")
@@ -79,9 +37,9 @@ func ValidateRepacking(cfg RepackObjectsConfig) (bool, error) {
 		if cfg.WriteMultiPackIndex {
 			return false, structerr.NewInvalidArgument("cannot write multi-pack index for an incremental repack")
 		}
-	case RepackObjectsStrategyGeometric:
+	case config.RepackObjectsStrategyGeometric:
 		isFullRepack = false
-	case RepackObjectsStrategyFullWithCruft, RepackObjectsStrategyFullWithUnreachable:
+	case config.RepackObjectsStrategyFullWithCruft, config.RepackObjectsStrategyFullWithUnreachable:
 		isFullRepack = true
 	default:
 		return false, structerr.NewInvalidArgument("invalid strategy: %q", cfg.Strategy)
@@ -90,7 +48,7 @@ func ValidateRepacking(cfg RepackObjectsConfig) (bool, error) {
 	if !isFullRepack && !cfg.WriteMultiPackIndex && cfg.WriteBitmap {
 		return false, structerr.NewInvalidArgument("cannot write packfile bitmap for an incremental repack")
 	}
-	if cfg.Strategy != RepackObjectsStrategyFullWithCruft && !cfg.CruftExpireBefore.IsZero() {
+	if cfg.Strategy != config.RepackObjectsStrategyFullWithCruft && !cfg.CruftExpireBefore.IsZero() {
 		return isFullRepack, structerr.NewInvalidArgument("cannot expire cruft objects when not writing cruft packs")
 	}
 
@@ -98,8 +56,8 @@ func ValidateRepacking(cfg RepackObjectsConfig) (bool, error) {
 }
 
 // RepackObjects repacks objects in the given repository and updates the commit-graph. The way
-// objects are repacked is determined via the RepackObjectsConfig.
-func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig) error {
+// objects are repacked is determined via the config.RepackObjectsConfig.
+func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg config.RepackObjectsConfig) error {
 	repoPath, err := repo.Path()
 	if err != nil {
 		return err
@@ -126,7 +84,7 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 	}
 
 	switch cfg.Strategy {
-	case RepackObjectsStrategyIncrementalWithUnreachable:
+	case config.RepackObjectsStrategyIncrementalWithUnreachable:
 		var stderr strings.Builder
 
 		// Pack all loose objects into a new packfile, regardless of their reachability.
@@ -200,7 +158,7 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 		}
 
 		return nil
-	case RepackObjectsStrategyFullWithCruft:
+	case config.RepackObjectsStrategyFullWithCruft:
 		options := []git.Option{
 			git.Flag{Name: "--cruft"},
 			git.Flag{Name: "--pack-kept-objects"},
@@ -216,16 +174,16 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsC
 		}
 
 		return PerformRepack(ctx, repo, cfg, options...)
-	case RepackObjectsStrategyFullWithUnreachable:
+	case config.RepackObjectsStrategyFullWithUnreachable:
 		return PerformFullRepackingWithUnreachable(ctx, repo, cfg)
-	case RepackObjectsStrategyGeometric:
+	case config.RepackObjectsStrategyGeometric:
 		return PerformGeometricRepacking(ctx, repo, cfg)
 	}
 	return nil
 }
 
 // PerformFullRepackingWithUnreachable performs a full repacking task using git-repack(1) command. This will omit packing objects part of alternates.
-func PerformFullRepackingWithUnreachable(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig) error {
+func PerformFullRepackingWithUnreachable(ctx context.Context, repo *localrepo.Repo, cfg config.RepackObjectsConfig) error {
 	return PerformRepack(ctx, repo, cfg,
 		// Do a full repack.
 		git.Flag{Name: "-a"},
@@ -246,7 +204,7 @@ func PerformFullRepackingWithUnreachable(ctx context.Context, repo *localrepo.Re
 // that exist in the repository without having to repack all objects into a single packfile regularly.
 // This repacking does not take reachability into account.
 // For more information, https://about.gitlab.com/blog/2023/11/02/rearchitecting-git-object-database-mainentance-for-scale/#geometric-repacking
-func PerformGeometricRepacking(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig) error {
+func PerformGeometricRepacking(ctx context.Context, repo *localrepo.Repo, cfg config.RepackObjectsConfig) error {
 	return PerformRepack(ctx, repo, cfg,
 		// We use a geometric factor `r`, which means that every successively larger
 		// packfile must have at least `r` times the number of objects.
@@ -283,7 +241,7 @@ func PerformGeometricRepacking(ctx context.Context, repo *localrepo.Repo, cfg Re
 }
 
 // PerformRepack performs `git-repack(1)` command on a repository with some pre-built configs.
-func PerformRepack(ctx context.Context, repo *localrepo.Repo, cfg RepackObjectsConfig, opts ...git.Option) error {
+func PerformRepack(ctx context.Context, repo *localrepo.Repo, cfg config.RepackObjectsConfig, opts ...git.Option) error {
 	if cfg.WriteMultiPackIndex {
 		opts = append(opts, git.Flag{Name: "--write-midx"})
 	}

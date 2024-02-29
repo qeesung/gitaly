@@ -5,35 +5,27 @@ import (
 	"context"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 )
 
-// WriteCommitGraphConfig contains configuration that can be passed to WriteCommitGraph to alter its
-// default behaviour.
-type WriteCommitGraphConfig struct {
-	// ReplaceChain causes WriteCommitGraph to rewrite the complete commit-graph chain. This is
-	// a lot more expensive than the default, incremental update of the commit-graph chains but
-	// may be required in certain cases to fix up commit-graphs.
-	ReplaceChain bool
-}
-
 // WriteCommitGraphConfigForRepository returns the optimal default-configuration for the given repo.
 // By default, the configuration will ask for an incremental commit-graph update. If the preexisting
 // commit-graph is missing bloom filters though then the whole commit-graph chain will be rewritten.
-func WriteCommitGraphConfigForRepository(ctx context.Context, repo *localrepo.Repo) (WriteCommitGraphConfig, error) {
+func WriteCommitGraphConfigForRepository(ctx context.Context, repo *localrepo.Repo) (config.WriteCommitGraphConfig, error) {
 	repoPath, err := repo.Path()
 	if err != nil {
-		return WriteCommitGraphConfig{}, err
+		return config.WriteCommitGraphConfig{}, err
 	}
 
 	commitGraphInfo, err := stats.CommitGraphInfoForRepository(repoPath)
 	if err != nil {
-		return WriteCommitGraphConfig{}, structerr.NewInternal("getting commit-graph info: %w", err)
+		return config.WriteCommitGraphConfig{}, structerr.NewInternal("getting commit-graph info: %w", err)
 	}
 
-	return WriteCommitGraphConfig{
+	return config.WriteCommitGraphConfig{
 		ReplaceChain: commitGraphNeedsRewrite(ctx, commitGraphInfo),
 	}, nil
 }
@@ -63,7 +55,7 @@ func commitGraphNeedsRewrite(ctx context.Context, commitGraphInfo stats.CommitGr
 // WriteCommitGraph updates the commit-graph in the given repository. The commit-graph is updated
 // incrementally, except in the case where it doesn't exist yet or in case it is detected that the
 // commit-graph is missing bloom filters.
-func WriteCommitGraph(ctx context.Context, repo *localrepo.Repo, cfg WriteCommitGraphConfig) error {
+func WriteCommitGraph(ctx context.Context, repo *localrepo.Repo, cfg config.WriteCommitGraphConfig) error {
 	flags := []git.Option{
 		git.Flag{Name: "--reachable"},
 		git.Flag{Name: "--changed-paths"}, // enables Bloom filters

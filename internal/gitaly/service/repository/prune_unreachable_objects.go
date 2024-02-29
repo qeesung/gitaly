@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -53,8 +54,8 @@ func (s *server) PruneUnreachableObjects(
 
 	// But we also have to prune unreachable objects part of cruft packs. The only way to do
 	// that is to do a full repack. So unfortunately, this is quite expensive.
-	if err := housekeeping.RepackObjects(ctx, repo, housekeeping.RepackObjectsConfig{
-		Strategy:            housekeeping.RepackObjectsStrategyFullWithCruft,
+	if err := housekeeping.RepackObjects(ctx, repo, housekeepingcfg.RepackObjectsConfig{
+		Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 		WriteMultiPackIndex: true,
 		WriteBitmap:         len(repoInfo.Alternates.ObjectDirectories) == 0,
 		CruftExpireBefore:   expireBefore,
@@ -64,7 +65,7 @@ func (s *server) PruneUnreachableObjects(
 
 	// Rewrite the commit-graph so that it doesn't contain references to pruned commits
 	// anymore.
-	if err := housekeeping.WriteCommitGraph(ctx, repo, housekeeping.WriteCommitGraphConfig{
+	if err := housekeeping.WriteCommitGraph(ctx, repo, housekeepingcfg.WriteCommitGraphConfig{
 		ReplaceChain: true,
 	}); err != nil {
 		return nil, structerr.NewInternal("rewriting commit-graph: %w", err)
