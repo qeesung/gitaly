@@ -2,9 +2,7 @@ package backup
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/client"
@@ -95,56 +93,6 @@ func (ss ServerSideAdapter) Restore(ctx context.Context, req *RestoreRequest) er
 	return nil
 }
 
-// RemoveRepository removes the specified repository from its storage.
-func (ss ServerSideAdapter) RemoveRepository(ctx context.Context, req *RemoveRepositoryRequest) error {
-	if err := setContextServerInfo(ctx, &req.Server, req.Repo.StorageName); err != nil {
-		return fmt.Errorf("server-side remove repo: set context: %w", err)
-	}
-
-	repoClient, err := ss.newRepoClient(ctx, req.Server)
-	if err != nil {
-		return fmt.Errorf("server-side remove repo: create client: %w", err)
-	}
-
-	_, err = repoClient.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{Repository: req.Repo})
-	if err != nil {
-		return fmt.Errorf("server-side remove repo: remove: %w", err)
-	}
-
-	return nil
-}
-
-// ListRepositories returns a list of repositories found in the given storage.
-func (ss ServerSideAdapter) ListRepositories(ctx context.Context, req *ListRepositoriesRequest) (repos []*gitalypb.Repository, err error) {
-	if err := setContextServerInfo(ctx, &req.Server, req.StorageName); err != nil {
-		return nil, fmt.Errorf("server-side list repos: set context: %w", err)
-	}
-
-	internalClient, err := ss.newInternalClient(ctx, req.Server)
-	if err != nil {
-		return nil, fmt.Errorf("server-side list repos: create client: %w", err)
-	}
-
-	stream, err := internalClient.WalkRepos(ctx, &gitalypb.WalkReposRequest{StorageName: req.StorageName})
-	if err != nil {
-		return nil, fmt.Errorf("server-side list repos: walk: %w", err)
-	}
-
-	for {
-		resp, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		repos = append(repos, &gitalypb.Repository{RelativePath: resp.RelativePath, StorageName: req.StorageName})
-	}
-
-	return repos, nil
-}
-
 func (ss ServerSideAdapter) newRepoClient(ctx context.Context, server storage.ServerInfo) (gitalypb.RepositoryServiceClient, error) {
 	conn, err := ss.pool.Dial(ctx, server.Address, server.Token)
 	if err != nil {
@@ -152,13 +100,4 @@ func (ss ServerSideAdapter) newRepoClient(ctx context.Context, server storage.Se
 	}
 
 	return gitalypb.NewRepositoryServiceClient(conn), nil
-}
-
-func (ss ServerSideAdapter) newInternalClient(ctx context.Context, server storage.ServerInfo) (gitalypb.InternalGitalyClient, error) {
-	conn, err := ss.pool.Dial(ctx, server.Address, server.Token)
-	if err != nil {
-		return nil, err
-	}
-
-	return gitalypb.NewInternalGitalyClient(conn), nil
 }

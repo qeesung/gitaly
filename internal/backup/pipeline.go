@@ -20,8 +20,6 @@ type repositoryKey string
 type Strategy interface {
 	Create(context.Context, *CreateRequest) error
 	Restore(context.Context, *RestoreRequest) error
-	ListRepositories(context.Context, *ListRepositoriesRequest) ([]*gitalypb.Repository, error)
-	RemoveRepository(context.Context, *RemoveRepositoryRequest) error
 }
 
 // CreateRequest is the request to create a backup
@@ -55,18 +53,6 @@ type RestoreRequest struct {
 	// BackupID is the ID of the full backup to restore. If not specified, the
 	// latest backup is restored..
 	BackupID string
-}
-
-// RemoveRepositoryRequest is a request to remove an individual repository from its storage.
-type RemoveRepositoryRequest struct {
-	Server storage.ServerInfo
-	Repo   *gitalypb.Repository
-}
-
-// ListRepositoriesRequest is the request to list repositories in a given storage.
-type ListRepositoriesRequest struct {
-	Server      storage.ServerInfo
-	StorageName string
 }
 
 // Command handles a specific backup operation

@@ -139,9 +139,7 @@ func (cmd *restoreSubcommand) run(ctx context.Context, logger log.Logger, stdin 
 	// dangling repos that should be removed.
 	existingRepos := make(map[string][]*gitalypb.Repository)
 	for _, storageName := range cmd.removeAllRepositories {
-		repos, err := manager.ListRepositories(ctx, &backup.ListRepositoriesRequest{
-			StorageName: storageName,
-		})
+		repos, err := listRepositories(ctx, pool, storageName)
 		if err != nil {
 			logger.WithError(err).WithField("storage_name", storageName).Warn("failed to list repositories")
 		}
@@ -193,7 +191,7 @@ func (cmd *restoreSubcommand) run(ctx context.Context, logger log.Logger, stdin 
 				// If we have dangling repos (those which exist in the storage but
 				// weren't part of the restore), they need to be deleted so the
 				// state of repos in Gitaly matches that in the Rails DB.
-				if err := manager.RemoveRepository(ctx, &backup.RemoveRepositoryRequest{Repo: repo}); err != nil {
+				if err := removeRepository(ctx, pool, repo); err != nil {
 					removalErrors = append(removalErrors, fmt.Errorf("storage_name %q relative_path %q: %w", storageName, repo.RelativePath, err))
 				}
 			}
@@ -206,4 +204,60 @@ func (cmd *restoreSubcommand) run(ctx context.Context, logger log.Logger, stdin 
 	}
 
 	return nil
+}
+
+// removeRepository removes the specified repository from its storage.
+func removeRepository(ctx context.Context, pool *client.Pool, repo *gitalypb.Repository) error {
+	server, err := storage.ExtractGitalyServer(ctx, repo.GetStorageName())
+	if err != nil {
+		return fmt.Errorf("remove repo: %w", err)
+	}
+
+	conn, err := pool.Dial(ctx, server.Address, server.Token)
+	if err != nil {
+		return fmt.Errorf("remove repo: %w", err)
+	}
+
+	repoClient := gitalypb.NewRepositoryServiceClient(conn)
+
+	_, err = repoClient.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{Repository: repo})
+	if err != nil {
+		return fmt.Errorf("remove repo: remove: %w", err)
+	}
+
+	return nil
+}
+
+// listRepositories returns a list of repositories found in the given storage.
+func listRepositories(ctx context.Context, pool *client.Pool, storageName string) (repos []*gitalypb.Repository, err error) {
+	server, err := storage.ExtractGitalyServer(ctx, storageName)
+	if err != nil {
+		return nil, fmt.Errorf("list repos: %w", err)
+	}
+
+	conn, err := pool.Dial(ctx, server.Address, server.Token)
+	if err != nil {
+		return nil, fmt.Errorf("list repos: %w", err)
+	}
+
+	internalClient := gitalypb.NewInternalGitalyClient(conn)
+
+	stream, err := internalClient.WalkRepos(ctx, &gitalypb.WalkReposRequest{StorageName: storageName})
+	if err != nil {
+		return nil, fmt.Errorf("list repos: walk: %w", err)
+	}
+
+	for {
+		resp, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("list repos: receiving messages: %w", err)
+		}
+
+		repos = append(repos, &gitalypb.Repository{RelativePath: resp.RelativePath, StorageName: storageName})
+	}
+
+	return repos, nil
 }
