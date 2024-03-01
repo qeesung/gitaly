@@ -1,6 +1,7 @@
 package localrepo
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,24 +28,41 @@ func (repo *Repo) ObjectDirectoryPath() (string, error) {
 		return "", structerr.NewInvalidArgument("object directory path is not set")
 	}
 
-	// We need to check whether the relative object directory as given by the repository is
-	// a valid path. This may either be a path in the Git repository itself, where it may either
-	// point to the main object directory storage or to an object quarantine directory as
-	// created by git-receive-pack(1). Alternatively, if that is not the case, then it may be a
-	// manual object quarantine directory located in the storage's temporary directory. These
-	// have a repository-specific prefix which we must check in order to determine whether the
-	// quarantine directory does in fact belong to the repo at hand.
-	if _, origError := storage.ValidateRelativePath(repoPath, objectDirectoryPath); origError != nil {
-		tempDir, err := repo.locator.TempDir(repo.GetStorageName())
-		if err != nil {
-			return "", structerr.NewInvalidArgument("getting storage's temporary directory: %w", err)
-		}
+	storagePath, err := repo.locator.GetStorageByName(repo.GetStorageName())
+	if err != nil {
+		return "", fmt.Errorf("get storage by name: %w", err)
+	}
 
-		expectedQuarantinePrefix := filepath.Join(tempDir, storage.QuarantineDirectoryPrefix(repo))
-		absoluteObjectDirectoryPath := filepath.Join(repoPath, objectDirectoryPath)
+	// Ensure the path points somewhere in the storage.
+	relativeObjectDirectoryPath, err := storage.ValidateRelativePath(storagePath, filepath.Join(repoPath, objectDirectoryPath))
+	if err != nil {
+		return "", structerr.NewInvalidArgument("validate relative path: %w", err)
+	}
 
-		if !strings.HasPrefix(absoluteObjectDirectoryPath, expectedQuarantinePrefix) {
-			return "", structerr.NewInvalidArgument("not a valid relative path: %w", origError)
+	// Transactions quarantine a repository by pointing the object directory to a 'quarantine' named
+	// directory in the transaction's temporary directory. If the path is suffixed with `/quarantine`,
+	// we assume this is the case and return the path.
+	if !strings.HasSuffix(relativeObjectDirectoryPath, "/quarantine") {
+		// We need to check whether the relative object directory as given by the repository is
+		// a valid path. This may either be a path in the Git repository itself, where it may either
+		// point to the main object directory storage or to an object quarantine directory as
+		// created by git-receive-pack(1). Alternatively, if that is not the case, then it may be a
+		// manual object quarantine directory located in the storage's temporary directory. These
+		// have a repository-specific prefix which we must check in order to determine whether the
+		// quarantine directory does in fact belong to the repo at hand.
+		if _, origError := storage.ValidateRelativePath(repoPath, objectDirectoryPath); origError != nil {
+			tempDir, err := repo.locator.TempDir(repo.GetStorageName())
+			if err != nil {
+				return "", structerr.NewInvalidArgument("getting storage's temporary directory: %w", err)
+			}
+
+			expectedQuarantinePrefix := filepath.Join(tempDir, storage.QuarantineDirectoryPrefix(repo))
+			absoluteObjectDirectoryPath := filepath.Join(repoPath, objectDirectoryPath)
+
+			// The relative path is outside of the repository
+			if !strings.HasPrefix(absoluteObjectDirectoryPath, expectedQuarantinePrefix) {
+				return "", structerr.NewInvalidArgument("not a valid relative path: %w", origError)
+			}
 		}
 	}
 
