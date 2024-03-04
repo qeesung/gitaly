@@ -9,6 +9,13 @@ import (
 	"google.golang.org/grpc"
 )
 
+// UploadPackWithSidechannel proxies an SSH git-upload-pack (git fetch) session to Gitaly
+
+func uploadPackWithSidechannel(ctx context.Context, conn *grpc.ClientConn, reg *SidechannelRegistry, stdin io.Reader, stdout, stderr io.Writer, req *gitalypb.SSHUploadPackWithSidechannelRequest) (UploadPackResult, error) {
+	return UploadPackWithSidechannelWithResult(ctx, conn, reg, stdin, stdout, stderr, req)
+}
+
+
 // UploadPack proxies an SSH git-upload-pack (git fetch) session to Gitaly
 func UploadPack(ctx context.Context, conn *grpc.ClientConn, stdin io.Reader, stdout, stderr io.Writer, req *gitalypb.SSHUploadPackRequest) (int32, error) {
 	return gitalyclient.UploadPack(ctx, conn, stdin, stdout, stderr, req)
