@@ -33,8 +33,6 @@ import (
 )
 
 func TestFetchIntoObjectPool_Success(t *testing.T) {
-	testhelper.SkipWithReftable(t, "reads refs directly from the filesystem")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -66,6 +64,12 @@ func TestFetchIntoObjectPool_Success(t *testing.T) {
 	// Re-fetching the pool should be just fine.
 	_, err = client.FetchIntoObjectPool(ctx, req)
 	require.NoError(t, err)
+
+	// When the reftable backend is used, we can't manipulate refs directly on disk in the
+	// manner that the remainder of this test does.
+	if testhelper.IsReftableEnabled() {
+		return
+	}
 
 	// We now create a broken reference that is all-empty and stale. Normally, such references
 	// break many Git commands, including git-fetch(1). We should know to prune stale broken
