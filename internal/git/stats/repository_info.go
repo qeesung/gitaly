@@ -221,7 +221,6 @@ func ReferencesInfoForRepository(ctx context.Context, repo *localrepo.Repo) (Ref
 	if err != nil {
 		return ReferencesInfo{}, fmt.Errorf("getting repository path: %w", err)
 	}
-	refsPath := filepath.Join(repoPath, "refs")
 
 	var info ReferencesInfo
 	referenceBackend, err := repo.ReferenceBackend(ctx)
@@ -232,6 +231,7 @@ func ReferencesInfoForRepository(ctx context.Context, repo *localrepo.Repo) (Ref
 
 	switch info.ReferenceBackendName {
 	case git.ReferenceBackendFiles.Name:
+		refsPath := filepath.Join(repoPath, "refs")
 		if err := filepath.WalkDir(refsPath, func(path string, entry fs.DirEntry, err error) error {
 			if err != nil {
 				// It may happen that references got deleted concurrently. This is fine and expected, so we just
