@@ -283,6 +283,15 @@ func TestObjectPool_logStats(t *testing.T) {
 							IsObjectPool: true,
 							References: stats.ReferencesInfo{
 								ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+								ReftableTables: gittest.FilesOrReftables(
+									nil,
+									[]stats.ReftableTable{
+										{
+											Size:           124,
+											UpdateIndexMin: 1,
+											UpdateIndexMax: 1,
+										},
+									}),
 							},
 						},
 					},
@@ -312,6 +321,15 @@ func TestObjectPool_logStats(t *testing.T) {
 							References: stats.ReferencesInfo{
 								ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 								LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
+								ReftableTables: gittest.FilesOrReftables(
+									nil,
+									[]stats.ReftableTable{
+										{
+											Size:           165,
+											UpdateIndexMin: 1,
+											UpdateIndexMax: 2,
+										},
+									}),
 							},
 						},
 					},
@@ -341,6 +359,15 @@ func TestObjectPool_logStats(t *testing.T) {
 							References: stats.ReferencesInfo{
 								ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 								LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
+								ReftableTables: gittest.FilesOrReftables(
+									nil,
+									[]stats.ReftableTable{
+										{
+											Size:           171,
+											UpdateIndexMin: 1,
+											UpdateIndexMax: 2,
+										},
+									}),
 							},
 						},
 					},

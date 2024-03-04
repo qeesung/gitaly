@@ -171,6 +171,15 @@ func TestLogObjectInfo(t *testing.T) {
 			References: ReferencesInfo{
 				ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
 				LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
+				ReftableTables: gittest.FilesOrReftables(
+					nil,
+					[]ReftableTable{
+						{
+							Size:           165,
+							UpdateIndexMin: 1,
+							UpdateIndexMax: 2,
+						},
+					}),
 			},
 		}, objectsInfo)
 	})
@@ -201,7 +210,21 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 		{
 			desc: "empty repository",
 			setup: func(*testing.T, string) setupData {
-				return setupData{}
+				return setupData{
+					expectedInfo: RepositoryInfo{
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           124,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 1,
+									},
+								},
+							}),
+					},
+				}
 			},
 		},
 		{
@@ -215,6 +238,17 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 							Count: 1,
 							Size:  16,
 						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           124,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 1,
+									},
+								},
+							}),
 					},
 				}
 			},
@@ -239,9 +273,19 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 								HasHashCache: true,
 							},
 						},
-						References: ReferencesInfo{
-							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
-						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{
+								LooseReferencesCount: 1,
+							},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           164,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 2,
+									},
+								},
+							}),
 					},
 				}
 			},
@@ -271,9 +315,19 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 								HasHashCache: true,
 							},
 						},
-						References: ReferencesInfo{
-							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
-						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{
+								LooseReferencesCount: 1,
+							},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           164,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 2,
+									},
+								},
+							}),
 					},
 				}
 			},
@@ -290,6 +344,45 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 							GarbageCount: 1,
 							GarbageSize:  1,
 						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           124,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 1,
+									},
+								},
+							}),
+					},
+				}
+			},
+		},
+		{
+			desc: "garbage - reftable",
+			setup: func(t *testing.T, repoPath string) setupData {
+				if !testhelper.IsReftableEnabled() {
+					t.Skip()
+				}
+
+				garbagePath := filepath.Join(repoPath, "reftable", "garbage")
+				require.NoError(t, os.WriteFile(garbagePath, []byte("x"), perm.PrivateFile))
+
+				return setupData{
+					expectedInfo: RepositoryInfo{
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           124,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 1,
+									},
+								},
+								ReftableUnrecognizedFilesCount: 1,
+							}),
 					},
 				}
 			},
@@ -313,6 +406,17 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 							LastModified: date,
 							repoPath:     repoPath,
 						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           124,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 1,
+									},
+								},
+							}),
 					},
 				}
 			},
@@ -332,9 +436,19 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 							Count: 2,
 							Size:  hashDependentSize(t, 142, 158),
 						},
-						References: ReferencesInfo{
-							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
-						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{
+								LooseReferencesCount: 1,
+							},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           165,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 2,
+									},
+								},
+							}),
 						CommitGraph: CommitGraphInfo{
 							Exists: true,
 						},
@@ -357,9 +471,19 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 							Count: 2,
 							Size:  hashDependentSize(t, 142, 158),
 						},
-						References: ReferencesInfo{
-							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
-						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{
+								LooseReferencesCount: 1,
+							},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           165,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 2,
+									},
+								},
+							}),
 						CommitGraph: CommitGraphInfo{
 							Exists:          true,
 							HasBloomFilters: true,
@@ -387,9 +511,19 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 							Count: 2,
 							Size:  hashDependentSize(t, 142, 158),
 						},
-						References: ReferencesInfo{
-							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
-						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{
+								LooseReferencesCount: 1,
+							},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           165,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 2,
+									},
+								},
+							}),
 						CommitGraph: CommitGraphInfo{
 							Exists:            true,
 							HasBloomFilters:   true,
@@ -410,6 +544,17 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 						Packfiles: PackfilesInfo{
 							LastFullRepack: time.Date(2005, 4, 7, 15, 13, 13, 0, time.Local),
 						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           124,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 1,
+									},
+								},
+							}),
 					},
 				}
 			},
@@ -457,9 +602,19 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 								HasHashCache: true,
 							},
 						},
-						References: ReferencesInfo{
-							LooseReferencesCount: gittest.FilesOrReftables[uint64](1, 0),
-						},
+						References: gittest.FilesOrReftables(
+							ReferencesInfo{
+								LooseReferencesCount: 1,
+							},
+							ReferencesInfo{
+								ReftableTables: []ReftableTable{
+									{
+										Size:           164,
+										UpdateIndexMin: 1,
+										UpdateIndexMax: 2,
+									},
+								},
+							}),
 						Alternates: AlternatesInfo{
 							Exists: true,
 							ObjectDirectories: []string{
