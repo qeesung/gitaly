@@ -194,8 +194,25 @@ type ReferencesInfo struct {
 	LooseReferencesCount uint64 `json:"loose_references_count"`
 	// PackedReferencesSize is the size of the packed-refs file in bytes.
 	PackedReferencesSize uint64 `json:"packed_references_size"`
+	// ReftableTables contains details of individual table files.
+	ReftableTables []ReftableTable `json:"reftable_tables"`
+	// ReftableUnrecognizedFilesCount is the number of files under the `reftables/`
+	// directory that shouldn't exist, according to the entries in `tables.list`.
+	ReftableUnrecognizedFilesCount uint64 `json:"reftable_unrecognized_files"`
 	// ReferenceBackendName denotes the reference backend name of the repo.
 	ReferenceBackendName string `json:"reference_backend"`
+}
+
+// ReftableTable contains information about an individual reftable table.
+type ReftableTable struct {
+	// Size is the size in bytes.
+	Size uint64 `json:"size"`
+	// UpdateIndexMin is the min_update_index of the reftable table. This is derived
+	// from the filename only.
+	UpdateIndexMin uint64 `json:"update_index_min"`
+	// UpdateIndexMax is the max_update_index of the reftable table. This is derived
+	// from the filename only.
+	UpdateIndexMax uint64 `json:"update_index_max"`
 }
 
 // ReferencesInfoForRepository derives information about references in the repository.
