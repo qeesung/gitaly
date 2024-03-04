@@ -281,7 +281,7 @@ test:reftable:
   variables:
     <<: *test_variables
     SKIP_OVERRIDING_GIT_VERSION: "YesPlease"
-    GIT_VERSION: "pks-reftable-backend"
+    GIT_VERSION: "master"
     TEST_TARGET: test-with-reftable
 
 test:nightly:
