@@ -1910,8 +1910,8 @@ func (mgr *TransactionManager) createStateDirectory() error {
 }
 
 // getAbsolutePath returns the relative path's absolute path in the storage.
-func (mgr *TransactionManager) getAbsolutePath(relativePath string) string {
-	return filepath.Join(mgr.storagePath, relativePath)
+func (mgr *TransactionManager) getAbsolutePath(relativePath ...string) string {
+	return filepath.Join(append([]string{mgr.storagePath}, relativePath...)...)
 }
 
 // removePackedRefsLocks removes any packed-refs.lock and packed-refs.new files present in the manager's
