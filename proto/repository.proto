@@ -124,6 +124,8 @@ service RepositoryService {
   }
 
   // WriteRef creates or updates a ref in a repository to point to a new value.
+  // If the request contains object revisions that do not exist in the repository, the RPC returns
+  // the NOT_FOUND code with the ReferenceNotFoundError detail.
   rpc WriteRef(WriteRefRequest) returns (WriteRefResponse) {
     option (op_type) = {
       op: MUTATOR
