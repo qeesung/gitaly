@@ -2570,8 +2570,19 @@ func (mgr *TransactionManager) appendLogEntry(logEntry *gitalypb.LogEntry, logEn
 	}
 
 	syncer := safe.NewSyncer()
-	if err := syncer.Sync(manifestPath); err != nil {
-		return fmt.Errorf("sync manifest: %w", err)
+	// Sync the log entry completely before committing it.
+	//
+	// Ideally the log entry would be completely flushed to the disk before queuing the
+	// transaction for commit to ensure we don't write a lot to the disk while in the critical
+	// section. We currently stage some of the files only in the critical section though. This
+	// is due to currently lacking conflict checks which prevents staging the log entry completely
+	// before queuing it for commit.
+	//
+	// See https://gitlab.com/gitlab-org/gitaly/-/issues/5892 for more details. Once the issue is
+	// addressed, we could stage the transaction entirely before queuing it for commit, and thus not
+	// need to sync here.
+	if err := syncer.SyncRecursive(logEntryPath); err != nil {
+		return fmt.Errorf("synchronizing WAL directory: %w", err)
 	}
 
 	if err := syncer.SyncParent(manifestPath); err != nil {
