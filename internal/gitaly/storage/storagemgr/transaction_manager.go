@@ -403,6 +403,12 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 	}
 }
 
+// originalPackedRefsFilePath returns the path of the original `packed-refs` file that records the state of the
+// `packed-refs` file as it was when the transaction started.
+func (txn *Transaction) originalPackedRefsFilePath() string {
+	return filepath.Join(txn.stagingDirectory, "packed-refs.original")
+}
+
 // RewriteRepository returns a copy of the repository that has been set up to correctly access
 // the repository in the transaction's snapshot.
 func (txn *Transaction) RewriteRepository(repo *gitalypb.Repository) *gitalypb.Repository {
@@ -1739,9 +1745,11 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			return fmt.Errorf("verify alternate update: %w", err)
 		}
 
-		logEntry.ReferenceTransactions, err = mgr.verifyReferences(ctx, transaction)
-		if err != nil {
-			return fmt.Errorf("verify references: %w", err)
+		if transaction.repositoryCreation == nil && transaction.runHousekeeping == nil {
+			logEntry.ReferenceTransactions, err = mgr.verifyReferences(ctx, transaction)
+			if err != nil {
+				return fmt.Errorf("verify references: %w", err)
+			}
 		}
 
 		if transaction.customHooksUpdated {
@@ -2168,19 +2176,71 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 		return fmt.Errorf("new snapshot: %w", err)
 	}
 
+	snapshotPackedRefsPath := mgr.getAbsolutePath(snapshot.relativePath(tx.relativePath), "packed-refs")
+
+	// Record the original packed-refs file. We use it for determining whether the transaction has changed it and
+	// for conflict checking to see if other concurrent transactions have changed the `packed-refs` file. We link
+	// the file instead of just recording the inode number to prevent it from being recycled.
+	if err := os.Link(
+		snapshotPackedRefsPath,
+		tx.originalPackedRefsFilePath(),
+	); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("record original packed-refs: %w", err)
+	}
+
 	repo, err := mgr.repositoryFactory.Build(snapshot.relativePath(relativePath)).Quarantine(tx.quarantineDirectory)
 	if err != nil {
 		return fmt.Errorf("quarantine: %w", err)
 	}
 
+	objectHash, err := repo.ObjectHash(ctx)
+	if err != nil {
+		return fmt.Errorf("object hash: %w", err)
+	}
+
 	for _, referenceTransaction := range referenceTransactions {
-		updater, err := mgr.prepareReferenceTransaction(ctx, referenceTransaction.Changes, repo)
-		if err != nil {
-			return fmt.Errorf("prepare reference transaction: %w", err)
+		if err := tx.walEntry.RecordReferenceUpdates(ctx,
+			mgr.storagePath,
+			snapshot.prefix,
+			tx.relativePath,
+			referenceTransaction,
+			objectHash,
+			func(changes []*gitalypb.LogEntry_ReferenceTransaction_Change) error {
+				return mgr.applyReferenceTransaction(ctx, changes, repo)
+			},
+		); err != nil {
+			return fmt.Errorf("record reference updates: %w", err)
+		}
+	}
+
+	// Get the inode of the `packed-refs` file as it was before we applied the reference transactions.
+	originalPackedRefsInode, err := getInode(tx.originalPackedRefsFilePath())
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("get original packed-refs inode: %w", err)
+	}
+
+	// Get the inode of the `packed-refs` file as it is in the snapshot after the reference transactions.
+	stagedPackedRefsInode, err := getInode(snapshotPackedRefsPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("get staged packed-refs inode: %w", err)
+	}
+
+	targetPackedRefsPath := filepath.Join(tx.relativePath, "packed-refs")
+	// If the packed-refs file was updated, stage the new updated file.
+	if stagedPackedRefsInode != originalPackedRefsInode {
+		if originalPackedRefsInode > 0 {
+			// If the repository has a packed-refs file already, remove it.
+			tx.walEntry.RecordDirectoryEntryRemoval(targetPackedRefsPath)
 		}
 
-		if err := updater.Commit(); err != nil {
-			return fmt.Errorf("commit: %w", err)
+		if stagedPackedRefsInode > 0 {
+			// If there is a new packed refs file, stage it.
+			if err := tx.walEntry.RecordFileCreation(
+				snapshotPackedRefsPath,
+				targetPackedRefsPath,
+			); err != nil {
+				return fmt.Errorf("record new packed-refs: %w", err)
+			}
 		}
 	}
 
@@ -2466,30 +2526,32 @@ func (mgr *TransactionManager) verifyCommitGraphs(ctx context.Context, transacti
 	return &gitalypb.LogEntry_Housekeeping_WriteCommitGraphs{}, nil
 }
 
-// prepareReferenceTransaction prepares a reference transaction with `git update-ref`. It leaves committing
-// or aborting up to the caller. Either should be called to clean up the process. The process is cleaned up
-// if an error is returned.
-func (mgr *TransactionManager) prepareReferenceTransaction(ctx context.Context, changes []*gitalypb.LogEntry_ReferenceTransaction_Change, repository *localrepo.Repo) (*updateref.Updater, error) {
+// applyReferenceTransaction applies a reference transaction with `git update-ref`.
+func (mgr *TransactionManager) applyReferenceTransaction(ctx context.Context, changes []*gitalypb.LogEntry_ReferenceTransaction_Change, repository *localrepo.Repo) error {
 	updater, err := updateref.New(ctx, repository, updateref.WithDisabledTransactions(), updateref.WithNoDeref())
 	if err != nil {
-		return nil, fmt.Errorf("new: %w", err)
+		return fmt.Errorf("new: %w", err)
 	}
 
 	if err := updater.Start(); err != nil {
-		return nil, fmt.Errorf("start: %w", err)
+		return fmt.Errorf("start: %w", err)
 	}
 
 	for _, change := range changes {
 		if err := updater.Update(git.ReferenceName(change.ReferenceName), git.ObjectID(change.NewOid), ""); err != nil {
-			return nil, fmt.Errorf("update %q: %w", change.ReferenceName, err)
+			return fmt.Errorf("update %q: %w", change.ReferenceName, err)
 		}
 	}
 
 	if err := updater.Prepare(); err != nil {
-		return nil, fmt.Errorf("prepare: %w", err)
+		return fmt.Errorf("prepare: %w", err)
 	}
 
-	return updater, nil
+	if err := updater.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
+	return nil
 }
 
 // appendLogEntry appends the transaction to the write-ahead log. It first writes the transaction's manifest file
@@ -2580,10 +2642,6 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 	// they'd all be removed anyway. Reapplying the other changes after a crash would also
 	// not work if the repository was successfully deleted before the crash.
 	if logEntry.RepositoryDeletion == nil {
-		if err := mgr.applyReferenceTransactions(ctx, logEntry); err != nil {
-			return fmt.Errorf("apply reference transactions: %w", err)
-		}
-
 		if err := mgr.applyHousekeeping(ctx, lsn, logEntry); err != nil {
 			return fmt.Errorf("apply housekeeping: %w", err)
 		}
@@ -2606,29 +2664,6 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error
 	// Notify the transactions waiting for this log entry to be applied prior to take their
 	// snapshot.
 	close(mgr.snapshotLocks[lsn].applied)
-
-	return nil
-}
-
-// applyReferenceTransactions applies the applies the reference transactions to the repository.
-func (mgr *TransactionManager) applyReferenceTransactions(ctx context.Context, logEntry *gitalypb.LogEntry) error {
-	if len(logEntry.ReferenceTransactions) == 0 {
-		return nil
-	}
-
-	for _, referenceTransaction := range logEntry.ReferenceTransactions {
-		updater, err := mgr.prepareReferenceTransaction(ctx,
-			referenceTransaction.Changes,
-			mgr.repositoryFactory.Build(logEntry.RelativePath),
-		)
-		if err != nil {
-			return fmt.Errorf("prepare reference transaction: %w", err)
-		}
-
-		if err := updater.Commit(); err != nil {
-			return fmt.Errorf("commit transaction: %w", err)
-		}
-	}
 
 	return nil
 }

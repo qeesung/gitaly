@@ -755,6 +755,199 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 			},
 		},
 		{
+			desc: "concurrently delete two packed references",
+			steps: steps{
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-1": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/branch-2": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				RunPackRefs{
+					TransactionID: 2,
+				},
+				Commit{
+					TransactionID: 2,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 2,
+				},
+				Begin{
+					TransactionID:       4,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 2,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-1": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+				Commit{
+					TransactionID: 4,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-2": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							PackedReferences: map[git.ReferenceName]git.ObjectID{},
+							LooseReferences:  map[git.ReferenceName]git.ObjectID{},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "concurrently delete two loose references",
+			steps: steps{
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-1":        {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/subdir/branch-2": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-1": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/subdir/branch-2": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+					},
+				},
+			},
+		},
+		{
+			desc: "concurrently delete loose and packed references",
+			steps: steps{
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-packed":   {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/sentinel-packed": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				RunPackRefs{
+					TransactionID: 2,
+				},
+				Commit{
+					TransactionID: 2,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 2,
+				},
+				Commit{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-loose":   {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+						"refs/heads/sentinel-loose": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       4,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 3,
+				},
+				Begin{
+					TransactionID:       5,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 3,
+				},
+				Commit{
+					TransactionID: 4,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-packed": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+				Commit{
+					TransactionID: 5,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-loose": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(5).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							PackedReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/sentinel-packed": setup.Commits.First.OID,
+							},
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/sentinel-loose": setup.Commits.First.OID,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			desc: "delete symbolic reference pointing to non-existent reference",
 			steps: steps{
 				StartManager{
