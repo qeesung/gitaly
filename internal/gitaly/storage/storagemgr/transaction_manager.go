@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -2270,6 +2271,7 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 		return &gitalypb.LogEntry_Housekeeping_Repack{
 			NewFiles:     repack.newFiles,
 			DeletedFiles: repack.deletedFiles,
+			IsFullRepack: repack.isFullRepack,
 		}, nil
 	}
 
@@ -2328,6 +2330,7 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 		return &gitalypb.LogEntry_Housekeeping_Repack{
 			NewFiles:     repack.newFiles,
 			DeletedFiles: repack.deletedFiles,
+			IsFullRepack: repack.isFullRepack,
 		}, nil
 	}
 
@@ -2398,6 +2401,7 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 	return &gitalypb.LogEntry_Housekeeping_Repack{
 		NewFiles:     repack.newFiles,
 		DeletedFiles: repack.deletedFiles,
+		IsFullRepack: repack.isFullRepack,
 	}, nil
 }
 
@@ -2732,6 +2736,12 @@ func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn LSN, logE
 		Flags: []git.Option{git.Flag{Name: "--quiet"}},
 	}, git.WithStderr(&stderr)); err != nil {
 		return structerr.New("exec prune-packed: %w", err).WithMetadata("stderr", stderr.String())
+	}
+
+	if repack.IsFullRepack {
+		if err := stats.UpdateFullRepackTimestamp(mgr.getAbsolutePath(logEntry.RelativePath), time.Now()); err != nil {
+			return fmt.Errorf("updating repack timestamp: %w", err)
+		}
 	}
 
 	if err := safe.NewSyncer().Sync(filepath.Join(repoPath, "objects")); err != nil {
