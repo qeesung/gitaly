@@ -58,6 +58,9 @@ func updateRef(ctx context.Context, repo *localrepo.Repo, req *gitalypb.WriteRef
 		var err error
 		newObjectID, err = repo.ResolveRevision(ctx, git.Revision(req.GetRevision())+"^{object}")
 		if err != nil {
+			if errors.Is(err, git.ErrReferenceNotFound) {
+				return structerr.NewInvalidArgument("resolving new revision: %w", err)
+			}
 			return fmt.Errorf("resolving new revision: %w", err)
 		}
 	}
@@ -72,6 +75,9 @@ func updateRef(ctx context.Context, repo *localrepo.Repo, req *gitalypb.WriteRef
 			var err error
 			oldObjectID, err = repo.ResolveRevision(ctx, git.Revision(req.GetOldRevision())+"^{object}")
 			if err != nil {
+				if errors.Is(err, git.ErrReferenceNotFound) {
+					return structerr.NewInvalidArgument("resolving old revision: %w", err)
+				}
 				return fmt.Errorf("resolving old revision: %w", err)
 			}
 		}

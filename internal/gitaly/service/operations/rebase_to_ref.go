@@ -26,11 +26,17 @@ func (s *Server) UserRebaseToRef(ctx context.Context, request *gitalypb.UserReba
 
 	oid, err := quarantineRepo.ResolveRevision(ctx, git.Revision(request.FirstParentRef))
 	if err != nil {
+		if errors.Is(err, git.ErrReferenceNotFound) {
+			return nil, structerr.NewInvalidArgument("invalid FirstParentRef")
+		}
 		return nil, structerr.NewInvalidArgument("invalid FirstParentRef")
 	}
 
 	sourceOID, err := quarantineRepo.ResolveRevision(ctx, git.Revision(request.SourceSha))
 	if err != nil {
+		if errors.Is(err, git.ErrReferenceNotFound) {
+			return nil, structerr.NewInvalidArgument("invalid SourceSha")
+		}
 		return nil, structerr.NewInvalidArgument("invalid SourceSha")
 	}
 

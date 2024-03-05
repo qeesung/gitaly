@@ -686,6 +686,9 @@ func (repo *Repo) ReadTree(ctx context.Context, treeish git.Revision, options ..
 
 	treeOID, err := repo.ResolveRevision(ctx, rev)
 	if err != nil {
+		if errors.Is(err, git.ErrReferenceNotFound) {
+			return "", structerr.NewInvalidArgument("submodule: %s", legacyErrPrefixInvalidSubmodulePath)
+		}
 		return nil, fmt.Errorf("getting revision: %w", err)
 	}
 

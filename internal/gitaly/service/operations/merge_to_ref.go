@@ -36,12 +36,18 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 
 	oid, err := repo.ResolveRevision(ctx, revision)
 	if err != nil {
-		return nil, structerr.NewInvalidArgument("Invalid merge source")
+		if errors.Is(err, git.ErrReferenceNotFound) {
+			return nil, structerr.NewInvalidArgument("Invalid merge source")
+		}
+		return nil, fmt.Errorf("Invalid merge source")
 	}
 
 	sourceOID, err := repo.ResolveRevision(ctx, git.Revision(request.SourceSha))
 	if err != nil {
-		return nil, structerr.NewInvalidArgument("Invalid merge source")
+		if errors.Is(err,git.ErrReferenceNotFound) {
+			return nil, structerr.NewInvalidArgument("Invalid merge source")
+		}
+		return nil, fmt.Errorf("Invalid merge source")
 	}
 
 	authorSignature, err := git.SignatureFromRequest(request)
