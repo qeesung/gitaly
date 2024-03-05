@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -8,8 +9,13 @@ import (
 	"testing/fstest"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
+	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
 func setupTestDirectory(t *testing.T, path string) {
@@ -298,6 +304,313 @@ func TestRecordAlternateUnlink(t *testing.T) {
 			require.NoError(t, entry.RecordAlternateUnlink(storageRoot, "target", "../../source/objects"))
 
 			testhelper.ProtoEqual(t, tc.expectedOperations, entry.operations)
+		})
+	}
+}
+
+func TestRecordReferenceUpdates(t *testing.T) {
+	testhelper.SkipWithReftable(t, "TransactionManager doesn't support reftables yet. See: https://gitlab.com/gitlab-org/gitaly/-/issues/5867")
+
+	t.Parallel()
+
+	type referenceTransaction map[git.ReferenceName]git.ObjectID
+
+	referenceTransactionToProto := func(refTX referenceTransaction) *gitalypb.LogEntry_ReferenceTransaction {
+		var protoRefTX gitalypb.LogEntry_ReferenceTransaction
+		for reference, newOID := range refTX {
+			protoRefTX.Changes = append(protoRefTX.Changes, &gitalypb.LogEntry_ReferenceTransaction_Change{
+				ReferenceName: []byte(reference),
+				NewOid:        []byte(newOID),
+			})
+		}
+		return &protoRefTX
+	}
+
+	performChanges := func(t *testing.T, updater *updateref.Updater, changes []*gitalypb.LogEntry_ReferenceTransaction_Change) {
+		t.Helper()
+
+		require.NoError(t, updater.Start())
+		for _, change := range changes {
+			require.NoError(t,
+				updater.Update(
+					git.ReferenceName(change.ReferenceName),
+					git.ObjectID(change.NewOid),
+					"",
+				),
+			)
+		}
+		require.NoError(t, updater.Commit())
+	}
+
+	type setupData struct {
+		existingReferences    referenceTransaction
+		referenceTransactions []referenceTransaction
+		expectedOperations    operations
+		expectedDirectory     testhelper.DirectoryState
+		expectedError         error
+	}
+
+	for _, tc := range []struct {
+		desc  string
+		setup func(t *testing.T, oids []git.ObjectID) setupData
+	}{
+		{
+			desc: "empty transaction",
+			setup: func(t *testing.T, oids []git.ObjectID) setupData {
+				return setupData{
+					referenceTransactions: []referenceTransaction{{}},
+					expectedDirectory: testhelper.DirectoryState{
+						"/": {Mode: fs.ModeDir | perm.SharedDir},
+					},
+				}
+			},
+		},
+		{
+			desc: "various references created",
+			setup: func(t *testing.T, oids []git.ObjectID) setupData {
+				return setupData{
+					referenceTransactions: []referenceTransaction{
+						{"refs/heads/branch-1": oids[0]},
+						{"refs/heads/branch-2": oids[1]},
+						{"refs/heads/subdir/branch-3": oids[2]},
+						{"refs/heads/subdir/branch-4": oids[3]},
+						{"refs/heads/subdir/no-refs/branch-5": oids[4]},
+					},
+					expectedOperations: func() operations {
+						var ops operations
+						ops.createHardLink("1", "relative-path/refs/heads/branch-1", false)
+						ops.createHardLink("2", "relative-path/refs/heads/branch-2", false)
+						ops.createDirectory("relative-path/refs/heads/subdir", perm.SharedDir)
+						ops.createHardLink("3", "relative-path/refs/heads/subdir/branch-3", false)
+						ops.createHardLink("4", "relative-path/refs/heads/subdir/branch-4", false)
+						ops.createDirectory("relative-path/refs/heads/subdir/no-refs", perm.SharedDir)
+						ops.createHardLink("5", "relative-path/refs/heads/subdir/no-refs/branch-5", false)
+						return ops
+					}(),
+					expectedDirectory: testhelper.DirectoryState{
+						"/":  {Mode: fs.ModeDir | perm.SharedDir},
+						"/1": {Mode: perm.SharedFile, Content: []byte(oids[0] + "\n")},
+						"/2": {Mode: perm.SharedFile, Content: []byte(oids[1] + "\n")},
+						"/3": {Mode: perm.SharedFile, Content: []byte(oids[2] + "\n")},
+						"/4": {Mode: perm.SharedFile, Content: []byte(oids[3] + "\n")},
+						"/5": {Mode: perm.SharedFile, Content: []byte(oids[4] + "\n")},
+					},
+				}
+			},
+		},
+		{
+			desc: "heads and tags remain empty",
+			setup: func(t *testing.T, oids []git.ObjectID) setupData {
+				return setupData{
+					existingReferences: referenceTransaction{
+						"refs/heads/branch-1": oids[0],
+						"refs/tags/tag-1":     oids[1],
+					},
+					referenceTransactions: []referenceTransaction{
+						{
+							"refs/heads/branch-1": gittest.DefaultObjectHash.ZeroOID,
+							"refs/tags/tag-1":     gittest.DefaultObjectHash.ZeroOID,
+						},
+					},
+					expectedOperations: func() operations {
+						var ops operations
+						// Git does not remove the heads and tags directories even if they are empty.
+						// Since we just record what Git is doing, we don't remove them either.
+						ops.removeDirectoryEntry("relative-path/refs/heads/branch-1")
+						ops.removeDirectoryEntry("relative-path/refs/tags/tag-1")
+						return ops
+					}(),
+					expectedDirectory: testhelper.DirectoryState{
+						"/": {Mode: fs.ModeDir | perm.SharedDir},
+					},
+				}
+			},
+		},
+		{
+			desc: "various references changes",
+			setup: func(t *testing.T, oids []git.ObjectID) setupData {
+				return setupData{
+					existingReferences: referenceTransaction{
+						"refs/heads/branch-1":                    oids[0],
+						"refs/heads/branch-2":                    oids[0],
+						"refs/heads/subdir/branch-3":             oids[0],
+						"refs/heads/subdir/branch-4":             oids[0],
+						"refs/heads/subdir/secondlevel/branch-5": oids[0],
+					},
+					referenceTransactions: []referenceTransaction{
+						{
+							"refs/heads/branch-1":                    gittest.DefaultObjectHash.ZeroOID,
+							"refs/heads/branch-2":                    oids[1],
+							"refs/heads/branch-6":                    oids[2],
+							"refs/heads/subdir/branch-3":             oids[1],
+							"refs/heads/subdir/branch-4":             gittest.DefaultObjectHash.ZeroOID,
+							"refs/heads/subdir/branch-7":             oids[2],
+							"refs/heads/subdir/secondlevel/branch-5": gittest.DefaultObjectHash.ZeroOID,
+							"refs/heads/subdir/secondlevel/branch-8": oids[3],
+						},
+					},
+					expectedOperations: func() operations {
+						var ops operations
+						ops.removeDirectoryEntry("relative-path/refs/heads/branch-2")
+						ops.createHardLink("1", "relative-path/refs/heads/branch-2", false)
+						ops.createHardLink("2", "relative-path/refs/heads/branch-6", false)
+						ops.removeDirectoryEntry("relative-path/refs/heads/subdir/branch-3")
+						ops.createHardLink("3", "relative-path/refs/heads/subdir/branch-3", false)
+						ops.createHardLink("4", "relative-path/refs/heads/subdir/branch-7", false)
+						ops.createHardLink("5", "relative-path/refs/heads/subdir/secondlevel/branch-8", false)
+						ops.removeDirectoryEntry("relative-path/refs/heads/branch-1")
+						ops.removeDirectoryEntry("relative-path/refs/heads/subdir/branch-4")
+						ops.removeDirectoryEntry("relative-path/refs/heads/subdir/secondlevel/branch-5")
+						return ops
+					}(),
+					expectedDirectory: testhelper.DirectoryState{
+						"/":  {Mode: fs.ModeDir | perm.SharedDir},
+						"/1": {Mode: perm.SharedFile, Content: []byte(oids[1] + "\n")},
+						"/2": {Mode: perm.SharedFile, Content: []byte(oids[2] + "\n")},
+						"/3": {Mode: perm.SharedFile, Content: []byte(oids[1] + "\n")},
+						"/4": {Mode: perm.SharedFile, Content: []byte(oids[2] + "\n")},
+						"/5": {Mode: perm.SharedFile, Content: []byte(oids[3] + "\n")},
+					},
+				}
+			},
+		},
+		{
+			desc: "delete references",
+			setup: func(t *testing.T, oids []git.ObjectID) setupData {
+				return setupData{
+					existingReferences: referenceTransaction{
+						"refs/heads/branch-1":                oids[0],
+						"refs/heads/branch-2":                oids[1],
+						"refs/heads/subdir/branch-3":         oids[2],
+						"refs/heads/subdir/branch-4":         oids[3],
+						"refs/heads/subdir/no-refs/branch-5": oids[4],
+					},
+					referenceTransactions: []referenceTransaction{
+						{
+							"refs/heads/branch-1":        gittest.DefaultObjectHash.ZeroOID,
+							"refs/heads/branch-2":        gittest.DefaultObjectHash.ZeroOID,
+							"refs/heads/subdir/branch-3": gittest.DefaultObjectHash.ZeroOID,
+							// "refs/heads/subdir/branch-4" is not deleted so we expect the directory
+							// to not be deleted.
+							"refs/heads/subdir/no-refs/branch-5": gittest.DefaultObjectHash.ZeroOID,
+						},
+					},
+					expectedOperations: func() operations {
+						var ops operations
+						ops.removeDirectoryEntry("relative-path/refs/heads/branch-1")
+						ops.removeDirectoryEntry("relative-path/refs/heads/branch-2")
+						ops.removeDirectoryEntry("relative-path/refs/heads/subdir/branch-3")
+						ops.removeDirectoryEntry("relative-path/refs/heads/subdir/no-refs/branch-5")
+						ops.removeDirectoryEntry("relative-path/refs/heads/subdir/no-refs")
+						return ops
+					}(),
+					expectedDirectory: testhelper.DirectoryState{
+						"/": {Mode: fs.ModeDir | perm.SharedDir},
+					},
+				}
+			},
+		},
+		{
+			desc: "directory-file conflict resolved",
+			setup: func(t *testing.T, oids []git.ObjectID) setupData {
+				return setupData{
+					existingReferences: referenceTransaction{
+						"refs/heads/parent": oids[0],
+					},
+					referenceTransactions: []referenceTransaction{
+						{
+							"refs/heads/parent": gittest.DefaultObjectHash.ZeroOID,
+						},
+						{
+							"refs/heads/branch-1":               oids[0],
+							"refs/heads/parent/branch-2":        oids[1],
+							"refs/heads/parent/subdir/branch-3": oids[2],
+						},
+					},
+					expectedOperations: func() operations {
+						var ops operations
+						ops.removeDirectoryEntry("relative-path/refs/heads/parent")
+						ops.createHardLink("1", "relative-path/refs/heads/branch-1", false)
+						ops.createDirectory("relative-path/refs/heads/parent", perm.SharedDir)
+						ops.createHardLink("2", "relative-path/refs/heads/parent/branch-2", false)
+						ops.createDirectory("relative-path/refs/heads/parent/subdir", perm.SharedDir)
+						ops.createHardLink("3", "relative-path/refs/heads/parent/subdir/branch-3", false)
+						return ops
+					}(),
+					expectedDirectory: testhelper.DirectoryState{
+						"/":  {Mode: fs.ModeDir | perm.SharedDir},
+						"/1": {Mode: perm.SharedFile, Content: []byte(oids[0] + "\n")},
+						"/2": {Mode: perm.SharedFile, Content: []byte(oids[1] + "\n")},
+						"/3": {Mode: perm.SharedFile, Content: []byte(oids[2] + "\n")},
+					},
+				}
+			},
+		},
+		{
+			desc: "directory-file conflict",
+			setup: func(t *testing.T, oids []git.ObjectID) setupData {
+				return setupData{
+					existingReferences: referenceTransaction{
+						"refs/heads/parent": oids[0],
+					},
+					referenceTransactions: []referenceTransaction{
+						{
+							"refs/heads/parent/branch-1": oids[0],
+						},
+					},
+					expectedError: updateref.FileDirectoryConflictError{
+						ExistingReferenceName:    "refs/heads/parent",
+						ConflictingReferenceName: "refs/heads/parent/branch-1",
+					},
+				}
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := testhelper.Context(t)
+
+			cfg := testcfg.Build(t)
+			storageRoot := cfg.Storages[0].Path
+			snapshotPrefix := "snapshot"
+			relativePath := "relative-path"
+			require.NoError(t, os.Mkdir(filepath.Join(storageRoot, snapshotPrefix), perm.PrivateDir))
+
+			_, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+				SkipCreationViaService: true,
+				RelativePath:           filepath.Join(snapshotPrefix, relativePath),
+			})
+
+			commitIDs := make([]git.ObjectID, 5)
+			for i := range commitIDs {
+				commitIDs[i] = gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage(fmt.Sprintf("commit-%d", i)))
+			}
+
+			updater, err := updateref.New(ctx, gittest.NewRepositoryPathExecutor(t, cfg, repoPath))
+			require.NoError(t, err)
+			defer testhelper.MustClose(t, updater)
+
+			setupData := tc.setup(t, commitIDs)
+
+			performChanges(t, updater, referenceTransactionToProto(setupData.existingReferences).Changes)
+
+			stateDir := t.TempDir()
+			entry := NewEntry(stateDir)
+			for _, refTX := range setupData.referenceTransactions {
+				if err := entry.RecordReferenceUpdates(ctx, storageRoot, snapshotPrefix, relativePath, referenceTransactionToProto(refTX), gittest.DefaultObjectHash, func(changes []*gitalypb.LogEntry_ReferenceTransaction_Change) error {
+					performChanges(t, updater, changes)
+					return nil
+				}); err != nil {
+					require.ErrorIs(t, err, setupData.expectedError)
+					return
+				}
+			}
+
+			require.Nil(t, setupData.expectedError)
+			testhelper.ProtoEqual(t, setupData.expectedOperations, entry.operations)
+			testhelper.RequireDirectoryState(t, stateDir, "", setupData.expectedDirectory)
 		})
 	}
 }
