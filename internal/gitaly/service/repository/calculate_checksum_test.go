@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -155,21 +156,46 @@ func TestCalculateChecksum(t *testing.T) {
 		{
 			desc: "invalid reference",
 			setup: func(t *testing.T) setupData {
-				testhelper.SkipWithReftable(t, "writing an invalid packed-refs has no effect for the refstable backend")
-
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
-				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
+				if testhelper.IsReftableEnabled() {
+					// Individual reftable entries are written in a binary format that also includes
+					// prefix compression. However, no compression is applied to targets of
+					// symbolic references, so we're able to read the file here and replace
+					// `HEAD` with `NOPE` to create a broken reference.
+					//
+					// When `git log` is executed with the revised reftable entry below, Git reports
+					// the following:
+					//
+					// 	fatal: your current branch appears to be broken
+					tablesList := filepath.Join(repoPath, "reftable", "tables.list")
 
-				// We write a known-broken reference into the packed-refs file. We expect that this
-				// issue should be detected and reported to the caller. The existing behaviour is
-				// somewhat weird though as it's impossible for the caller to distinguish an empty
-				// repository from a corrupt repository given that both cases return the zero checksum.
-				require.NoError(t, os.WriteFile(
-					filepath.Join(repoPath, "packed-refs"),
-					[]byte(fmt.Sprintf("# pack-refs with: peeled fully-peeled sorted\n%s refs/heads/broken:reference\n", commitID)),
-					perm.PrivateFile,
-				))
+					reftableFilenames := strings.Split(strings.TrimSpace(string(testhelper.MustReadFile(t, tablesList))), "\n")
+					require.Equal(t, 1, len(reftableFilenames), "tables.list should contain one entry for a fresh repo")
+
+					reftableFilePath := filepath.Join(repoPath, "reftable", reftableFilenames[0])
+					reftableFileContent := testhelper.MustReadFile(t, reftableFilePath)
+
+					nope := []byte("NOPE")
+					for i := 0; i < len(nope); i++ {
+						// HEAD is 30 bytes into the reftable file.
+						reftableFileContent[i+30] = nope[i]
+					}
+
+					require.NoError(t, os.WriteFile(reftableFilePath, reftableFileContent, os.ModePerm))
+				} else {
+					commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
+
+					// We write a known-broken reference into the packed-refs file. We expect that this
+					// issue should be detected and reported to the caller. The existing behaviour is
+					// somewhat weird though as it's impossible for the caller to distinguish an empty
+					// repository from a corrupt repository given that both cases return the zero checksum.
+					require.NoError(t, os.WriteFile(
+						filepath.Join(repoPath, "packed-refs"),
+						[]byte(fmt.Sprintf("# pack-refs with: peeled fully-peeled sorted\n%s refs/heads/broken:reference\n", commitID)),
+						perm.PrivateFile,
+					))
+				}
 
 				return setupData{
 					request: &gitalypb.CalculateChecksumRequest{
