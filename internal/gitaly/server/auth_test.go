@@ -154,6 +154,57 @@ func TestAuthSuccess(t *testing.T) {
 	}
 }
 
+func TestUnauthenticatedHealthService(t *testing.T) {
+	ctx := testhelper.Context(t)
+
+	cfg := testcfg.Build(t)
+	cfg.Auth.Token = "secret-token"
+	serverSocketPath := runServer(t, cfg)
+
+	for _, tc := range []struct {
+		desc                    string
+		token                   string
+		expectedAuthFailureCode codes.Code
+	}{
+		{
+			desc:  "with correct token",
+			token: cfg.Auth.Token,
+		},
+		{
+			desc:                    "with wrong token",
+			token:                   "incorrect-token",
+			expectedAuthFailureCode: codes.PermissionDenied,
+		},
+		{
+			desc:                    "without token",
+			expectedAuthFailureCode: codes.Unauthenticated,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+			if tc.token != "" {
+				dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(tc.token)))
+			}
+
+			conn, err := dial(serverSocketPath, dialOpts)
+			require.NoError(t, err)
+			defer testhelper.MustClose(t, conn)
+
+			if err := performUnaryRequest(t, conn); tc.expectedAuthFailureCode != 0 {
+				testhelper.RequireGrpcCode(t, err, tc.expectedAuthFailureCode)
+			} else {
+				require.NoError(t, err)
+			}
+
+			resp, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
+			require.NoError(t, err)
+			testhelper.ProtoEqual(t, resp, &healthpb.HealthCheckResponse{
+				Status: healthpb.HealthCheckResponse_SERVING,
+			})
+		})
+	}
+}
+
 type brokenAuth struct{}
 
 func (brokenAuth) RequireTransportSecurity() bool { return false }

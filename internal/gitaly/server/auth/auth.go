@@ -11,6 +11,7 @@ import (
 	gitalycfgauth "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 )
 
@@ -21,6 +22,14 @@ var authCount = promauto.NewCounterVec(
 	},
 	[]string{"enforced", "status"},
 )
+
+// UnauthenticatedHealthService wraps the health server and disables authentication for all of its methods.
+type UnauthenticatedHealthService struct{ grpc_health_v1.HealthServer }
+
+// AuthFuncOverride disables authentication on the service's methods and just returns the passed in context.
+func (UnauthenticatedHealthService) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+	return ctx, nil
+}
 
 // StreamServerInterceptor checks for Gitaly bearer tokens.
 func StreamServerInterceptor(conf gitalycfgauth.Config) grpc.StreamServerInterceptor {
