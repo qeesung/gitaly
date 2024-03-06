@@ -130,6 +130,8 @@ func TestInjectGitalyServersEnv(t *testing.T) {
 			expectedInfo:     storage.GitalyServers{"default": storage.ServerInfo{Address: "unix:///tmp/sock", Token: "hunter1"}},
 		},
 	} {
+		tc := tc
+
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Setenv("GITALY_SERVERS", tc.gitalyServersEnv)
 

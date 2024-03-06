@@ -58,6 +58,8 @@ func TestNewSpawnTokenManagerFromEnv(t *testing.T) {
 			},
 		},
 	} {
+		tc := tc
+
 		t.Run(tc.desc, func(t *testing.T) {
 			for key, value := range tc.envs {
 				t.Setenv(key, value)

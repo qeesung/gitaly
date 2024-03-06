@@ -176,10 +176,10 @@ func (m matcher) findMatchingFields(prefix string, t *descriptorpb.DescriptorPro
 				continue
 			} else if m.subMatch == nil {
 				return nil, fmt.Errorf("wrong type of field %s, expected %s, got %s", fullName, m.expectedType, f.GetTypeName())
-			} else {
-				subMatcher.match = m.subMatch
-				subMatcher.subMatch = nil
 			}
+
+			subMatcher.match = m.subMatch
+			subMatcher.subMatch = nil
 		}
 
 		childMsg, err := findChildMsg(m.topLevelMsgs, t, f)

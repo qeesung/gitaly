@@ -13,13 +13,13 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-type requestWithLeftRightCommitIds interface {
+type requestWithLeftRightCommitIDs interface {
 	GetRepository() *gitalypb.Repository
 	GetLeftCommitId() string
 	GetRightCommitId() string
 }
 
-func validateRequest(locator storage.Locator, in requestWithLeftRightCommitIds) error {
+func validateRequest(locator storage.Locator, in requestWithLeftRightCommitIDs) error {
 	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
 		return err
 	}

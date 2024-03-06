@@ -115,6 +115,8 @@ func TestNew_exportedEnvironment(t *testing.T) {
 			value: "https://excluded:5000",
 		},
 	} {
+		tc := tc
+
 		t.Run(tc.key, func(t *testing.T) {
 			if tc.key == "LD_LIBRARY_PATH" && runtime.GOOS == "darwin" {
 				t.Skip("System Integrity Protection prevents using dynamic linker (dyld) environment variables on macOS. https://apple.co/2XDH4iC")
