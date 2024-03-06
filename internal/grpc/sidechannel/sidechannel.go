@@ -31,6 +31,10 @@ const (
 	sidechannelMetadataKey = "gitaly-sidechannel-id"
 )
 
+// RetryableError is an error for which we can instruct the client to retry the
+// whole RPC once more.
+type RetryableError struct{ error }
+
 // OpenSidechannel opens a sidechannel connection from the stream opener
 // extracted from the current peer connection.
 func OpenSidechannel(ctx context.Context) (_ *ServerConn, err error) {
@@ -54,7 +58,7 @@ func OpenSidechannel(ctx context.Context) (_ *ServerConn, err error) {
 
 	stream, err := muxSession.Open()
 	if err != nil {
-		return nil, fmt.Errorf("sidechannel: open stream: %w", err)
+		return nil, RetryableError{error: fmt.Errorf("sidechannel: open stream: %w", err)}
 	}
 	defer func() {
 		if err != nil {
@@ -67,16 +71,16 @@ func OpenSidechannel(ctx context.Context) (_ *ServerConn, err error) {
 	}
 
 	if _, err := stream.Write(magicBytes); err != nil {
-		return nil, fmt.Errorf("sidechannel: write magic bytes: %w", err)
+		return nil, RetryableError{error: fmt.Errorf("sidechannel: write magic bytes: %w", err)}
 	}
 
 	if err := binary.Write(stream, binary.BigEndian, sidechannelID); err != nil {
-		return nil, fmt.Errorf("sidechannel: write stream id: %w", err)
+		return nil, RetryableError{error: fmt.Errorf("sidechannel: write stream id: %w", err)}
 	}
 
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(stream, buf); err != nil {
-		return nil, fmt.Errorf("sidechannel: receive confirmation: %w", err)
+		return nil, RetryableError{error: fmt.Errorf("sidechannel: receive confirmation: %w", err)}
 	}
 	if string(buf) != "ok" {
 		return nil, fmt.Errorf("sidechannel: expected ok, got %q", buf)

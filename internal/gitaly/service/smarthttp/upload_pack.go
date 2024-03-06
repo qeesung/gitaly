@@ -3,6 +3,7 @@ package smarthttp
 import (
 	"context"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 
@@ -21,8 +22,15 @@ func (s *server) PostUploadPackWithSidechannel(ctx context.Context, req *gitalyp
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
+	var sidechannelRetryableError sidechannel.RetryableError
 	conn, err := sidechannel.OpenSidechannel(ctx)
 	if err != nil {
+		if errors.As(err, &sidechannelRetryableError) {
+			// Clients of PostUploadPackWithSidechannel are configured to retry the RPC upon receiving
+			// Unavailable, so it should be OK to return it in this case.
+			//nolint:gitaly-linters
+			return nil, structerr.NewUnavailable("open sidechannel: %w", err)
+		}
 		return nil, structerr.NewInternal("open sidechannel: %w", err)
 	}
 	defer conn.Close()
