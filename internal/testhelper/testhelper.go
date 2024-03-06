@@ -120,14 +120,6 @@ func WriteFiles(tb testing.TB, root string, files map[string]any) {
 	}
 }
 
-// GitlabTestStoragePath returns the storage path to the gitlab-test repo.
-func GitlabTestStoragePath() string {
-	if testDirectory == "" {
-		panic("you must call testhelper.Configure() before GitlabTestStoragePath()")
-	}
-	return filepath.Join(testDirectory, "storage")
-}
-
 // MustRunCommand runs a command with an optional standard input and returns the standard output, or fails.
 func MustRunCommand(tb testing.TB, stdin io.Reader, name string, args ...string) []byte {
 	tb.Helper()
