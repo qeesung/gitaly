@@ -24,6 +24,10 @@ No changes.
 
 - [proto: Deprecate RemoveAll](gitlab-org/gitaly@a9b8db1b0894b1d613c77b2736409563199d5e62) ([merge request](gitlab-org/gitaly!6614))
 
+## 16.8.4 (2024-03-06)
+
+No changes.
+
 ## 16.8.3 (2024-02-20)
 
 No changes.
