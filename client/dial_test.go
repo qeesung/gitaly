@@ -125,21 +125,23 @@ func TestDial(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range tests {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
 			if emitProxyWarning() {
 				t.Log("WARNING. Proxy configuration detected from environment settings. This test failure may be related to proxy configuration. Please process with caution")
 			}
 
-			if tt.envSSLCertFile != "" {
-				t.Setenv(gitalyx509.SSLCertFile, tt.envSSLCertFile)
+			if tc.envSSLCertFile != "" {
+				t.Setenv(gitalyx509.SSLCertFile, tc.envSSLCertFile)
 			}
 
 			ctx := testhelper.Context(t)
 
-			dialOpts := append(tt.dialOpts, WithGitalyDNSResolver(DefaultDNSResolverBuilderConfig()))
-			conn, err := Dial(tt.rawAddress, dialOpts)
-			if tt.expectDialFailure {
+			dialOpts := append(tc.dialOpts, WithGitalyDNSResolver(DefaultDNSResolverBuilderConfig()))
+			conn, err := Dial(tc.rawAddress, dialOpts)
+			if tc.expectDialFailure {
 				require.Error(t, err)
 				return
 			}
@@ -147,7 +149,7 @@ func TestDial(t *testing.T) {
 			defer testhelper.MustClose(t, conn)
 
 			_, err = healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
-			if tt.expectHealthFailure {
+			if tc.expectHealthFailure {
 				require.Error(t, err)
 				return
 			}
@@ -219,16 +221,18 @@ func TestDialSidechannel(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.envSSLCertFile != "" {
-				t.Setenv(gitalyx509.SSLCertFile, tt.envSSLCertFile)
+	for _, tc := range tests {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.envSSLCertFile != "" {
+				t.Setenv(gitalyx509.SSLCertFile, tc.envSSLCertFile)
 			}
 
 			ctx := testhelper.Context(t)
 
-			dialOpts := append(tt.dialOpts, WithGitalyDNSResolver(DefaultDNSResolverBuilderConfig()))
-			conn, err := DialSidechannel(ctx, tt.rawAddress, registry, dialOpts)
+			dialOpts := append(tc.dialOpts, WithGitalyDNSResolver(DefaultDNSResolverBuilderConfig()))
+			conn, err := DialSidechannel(ctx, tc.rawAddress, registry, dialOpts)
 			require.NoError(t, err)
 			defer testhelper.MustClose(t, conn)
 

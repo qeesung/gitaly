@@ -97,6 +97,8 @@ func TestResolveSink(t *testing.T) {
 			errMsg: `parse "some:invalid:path\x00": net/url: invalid control character in URL`,
 		},
 	} {
+		tc := tc
+
 		t.Run(tc.desc, func(t *testing.T) {
 			for k, v := range tc.envs {
 				t.Setenv(k, v)

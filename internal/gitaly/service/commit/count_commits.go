@@ -62,7 +62,6 @@ func (s *server) CountCommits(ctx context.Context, in *gitalypb.CountCommitsRequ
 		var err error
 		countStr = bytes.TrimSpace(countStr)
 		count, err = strconv.ParseInt(string(countStr), 10, 0)
-
 		if err != nil {
 			return nil, structerr.NewInternal("parse count: %w", err)
 		}

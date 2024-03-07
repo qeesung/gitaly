@@ -204,7 +204,6 @@ func (s *sqlElector) checkNodes(ctx context.Context) error {
 	wg.Wait()
 
 	err = s.validateAndUpdatePrimary(ctx, tx)
-
 	if err != nil {
 		s.log.WithError(err).Error("unable to validate primary")
 		return err
