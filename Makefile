@@ -128,7 +128,7 @@ GIT_EXECUTABLES += git-http-backend
 ## tags, branches, and commit ids.
 GIT_VERSION ?=
 ## The Git version used for bundled Git v2.43.
-GIT_VERSION_2_43 ?= v2.43.0
+GIT_VERSION_2_43 ?= v2.43.2
 
 ## Skip overriding the Git version and instead use the Git version as specified
 ## in the Git sources. This is required when building Git from a version that
