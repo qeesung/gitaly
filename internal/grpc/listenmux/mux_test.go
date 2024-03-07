@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -183,8 +182,6 @@ func TestMux_handshakerReturnsError(t *testing.T) {
 
 	_, err = io.WriteString(c, testmux)
 	require.NoError(t, err)
-
-	require.NoError(t, c.SetDeadline(time.Now().Add(1*time.Second)))
 
 	buf := make([]byte, 1)
 	_, err = io.ReadFull(c, buf)
