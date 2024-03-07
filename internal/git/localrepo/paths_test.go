@@ -77,6 +77,15 @@ func TestRepo_ObjectDirectoryPath(t *testing.T) {
 	require.NoError(t, err)
 	quarantinedRepo := quarantine.QuarantinedRepo()
 
+	// Transactions store their set a quarantine directory in the transaction's temporary
+	// directory with a path ending in `quarantine` directory. Emulate that by creating
+	// such a directory in the root of the storage.
+	transactionStateDir := filepath.Join(cfg.Storages[0].Path, "tx-tmp")
+	transactionQuarantineDir := filepath.Join(transactionStateDir, "quarantine")
+	require.NoError(t, os.MkdirAll(transactionQuarantineDir, perm.PrivateDir))
+	transactionQuarantineDirRelativePath, err := filepath.Rel(repoPath, transactionQuarantineDir)
+	require.NoError(t, err)
+
 	repoWithGitObjDir := func(repo *gitalypb.Repository, dir string) *gitalypb.Repository {
 		repo = proto.Clone(repo).(*gitalypb.Repository)
 		repo.GitObjectDirectory = dir
@@ -93,6 +102,20 @@ func TestRepo_ObjectDirectoryPath(t *testing.T) {
 			desc: "storages configured",
 			repo: repoWithGitObjDir(repoProto, "objects/"),
 			path: filepath.Join(repoPath, "objects/"),
+		},
+		{
+			desc: "repo quarantined by transaction manager",
+			repo: repoWithGitObjDir(quarantinedRepo, transactionQuarantineDirRelativePath),
+			path: transactionQuarantineDir,
+		},
+		{
+			desc: "object directory path points outside of storage",
+			repo: repoWithGitObjDir(quarantinedRepo, func() string {
+				escapingPath, err := filepath.Rel(repoPath, filepath.Dir(cfg.Storages[0].Path))
+				require.NoError(t, err)
+				return escapingPath
+			}()),
+			err: codes.InvalidArgument,
 		},
 		{
 			desc: "no GitObjectDirectoryPath",

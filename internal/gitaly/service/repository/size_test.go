@@ -211,6 +211,36 @@ func TestGetObjectDirectorySize_quarantine(t *testing.T) {
 		requireObjectDirectorySize(t, ctx, client, quarantinedRepo, 0)
 	})
 
+	t.Run("repository quarantined by transaction manager", func(t *testing.T) {
+		repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+		repo.GitObjectDirectory = "objects"
+		gittest.WriteBlob(t, cfg, repoPath, incompressibleData(16*1024))
+
+		// Rails sends the repository's relative path from the access checks as provided by Gitaly. If transactions are enabled,
+		// this is the snapshot's relative path. Include the metadata in the test as well as we're testing requests with quarantine
+		// as if they were coming from access checks. The RPC is also a special case as it only works with a quarantine set.
+		ctx := metadata.AppendToOutgoingContext(ctx, storagemgr.MetadataKeySnapshotRelativePath,
+			// Gitaly sends the snapshot's relative path to Rails from `pre-receive` and Rails
+			// sends it back to Gitaly when it performs requests in the access checks. The repository
+			// would have already been rewritten by Praefect, so we have to adjust for that as well.
+			gittest.RewrittenRepository(t, ctx, cfg, repo).RelativePath,
+		)
+
+		requireObjectDirectorySize(t, ctx, client, repo, 16)
+
+		quarantinePath := filepath.Join(cfg.Storages[0].Path, "tx-state", "quarantine")
+		require.NoError(t, os.MkdirAll(quarantinePath, perm.PrivateDir))
+
+		gitObjectDirectory, err := filepath.Rel(repoPath, quarantinePath)
+		require.NoError(t, err)
+
+		repo.GitObjectDirectory = gitObjectDirectory
+		repo.GitAlternateObjectDirectories = []string{"objects"}
+
+		// The size of the quarantine directory should be zero.
+		requireObjectDirectorySize(t, ctx, client, repo, 0)
+	})
+
 	t.Run("quarantined repo with different relative path", func(t *testing.T) {
 		repo1, _ := gittest.CreateRepository(t, ctx, cfg)
 		quarantine1, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo1), logger, locator)
