@@ -52,6 +52,7 @@ func (ts testService) HalfDuplexCall(stream grpc_testing.TestService_HalfDuplexC
 
 func TestPayloadBytes(t *testing.T) {
 	t.Parallel()
+	testhelper.SkipQuarantinedTest(t, "https://gitlab.com/gitlab-org/gitaly/-/issues/5898", "TestPayloadBytes")
 
 	ctx := testhelper.Context(t)
 	logger := testhelper.NewLogger(t)
