@@ -109,10 +109,13 @@ func TestPipeline(t *testing.T) {
 		p, err := NewPipeline(testhelper.SharedLogger(t))
 		require.NoError(t, err)
 
-		ctx, cancel := context.WithCancel(testhelper.Context(t))
+		// Override the channel used for jobs when the workers are not limited by storage.
+		// Setting a nil channel for the key ensures a worker to process the job is never
+		// created and that the channel can't be sent to.
+		p.workersByStorage[""] = nil
 
+		ctx, cancel := context.WithCancel(testhelper.Context(t))
 		cancel()
-		<-ctx.Done()
 
 		p.Handle(ctx, NewCreateCommand(strategy, CreateRequest{Repository: &gitalypb.Repository{StorageName: "default"}}))
 
