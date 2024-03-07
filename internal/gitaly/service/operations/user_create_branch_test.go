@@ -342,72 +342,80 @@ func TestUserCreateBranch_hookFailure(t *testing.T) {
 func TestUserCreateBranch_failure(t *testing.T) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
-	ctx, cfg, client := setupOperationsService(t, ctx)
-	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
-
-	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
-		gittest.TreeEntry{Mode: "100644", Path: "foo", Content: "bar"},
-	), gittest.WithBranch("master"))
-	gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/improve/awesome", commitID.String())
-
 	testCases := []struct {
-		desc       string
-		repo       *gitalypb.Repository
-		branchName string
-		startPoint string
-		user       *gitalypb.User
-		err        error
+		desc    string
+		request func(repo *gitalypb.Repository) *gitalypb.UserCreateBranchRequest
+		err     error
 	}{
 		{
-			desc:       "repository not provided",
-			repo:       nil,
-			branchName: "shiny-new-branch",
-			startPoint: "",
-			user:       gittest.TestUser,
-			err:        structerr.NewInvalidArgument("%w", storage.ErrRepositoryNotSet),
+			desc: "repository not provided",
+			request: func(repo *gitalypb.Repository) *gitalypb.UserCreateBranchRequest {
+				return &gitalypb.UserCreateBranchRequest{
+					BranchName: []byte("shiny-new-branch"),
+					User:       gittest.TestUser,
+				}
+			},
+			err: structerr.NewInvalidArgument("%w", storage.ErrRepositoryNotSet),
 		},
 		{
-			desc:       "empty start_point",
-			repo:       repo,
-			branchName: "shiny-new-branch",
-			startPoint: "",
-			user:       gittest.TestUser,
-			err:        status.Error(codes.InvalidArgument, "empty start point"),
+			desc: "empty start_point",
+			request: func(repo *gitalypb.Repository) *gitalypb.UserCreateBranchRequest {
+				return &gitalypb.UserCreateBranchRequest{
+					Repository: repo,
+					BranchName: []byte("shiny-new-branch"),
+					User:       gittest.TestUser,
+				}
+			},
+			err: status.Error(codes.InvalidArgument, "empty start point"),
 		},
 		{
-			desc:       "empty user",
-			repo:       repo,
-			branchName: "shiny-new-branch",
-			startPoint: "master",
-			user:       nil,
-			err:        status.Error(codes.InvalidArgument, "empty user"),
+			desc: "empty user",
+			request: func(repo *gitalypb.Repository) *gitalypb.UserCreateBranchRequest {
+				return &gitalypb.UserCreateBranchRequest{
+					Repository: repo,
+					BranchName: []byte("shiny-new-branch"),
+					StartPoint: []byte("master"),
+				}
+			},
+			err: status.Error(codes.InvalidArgument, "empty user"),
 		},
 		{
-			desc:       "non-existing starting point",
-			repo:       repo,
-			branchName: "new-branch",
-			startPoint: "i-dont-exist",
-			user:       gittest.TestUser,
-			err:        status.Errorf(codes.FailedPrecondition, "revspec '%s' not found", "i-dont-exist"),
+			desc: "non-existing starting point",
+			request: func(repo *gitalypb.Repository) *gitalypb.UserCreateBranchRequest {
+				return &gitalypb.UserCreateBranchRequest{
+					Repository: repo,
+					BranchName: []byte("new-branch"),
+					StartPoint: []byte("i-dont-exist"),
+					User:       gittest.TestUser,
+				}
+			},
+			err: status.Errorf(codes.FailedPrecondition, "revspec '%s' not found", "i-dont-exist"),
 		},
 		{
-			desc:       "branch exists",
-			repo:       repo,
-			branchName: "master",
-			startPoint: "master",
-			user:       gittest.TestUser,
+			desc: "branch exists",
+			request: func(repo *gitalypb.Repository) *gitalypb.UserCreateBranchRequest {
+				return &gitalypb.UserCreateBranchRequest{
+					Repository: repo,
+					BranchName: []byte("master"),
+					StartPoint: []byte("master"),
+					User:       gittest.TestUser,
+				}
+			},
 			err: testhelper.WithInterceptedMetadata(
 				structerr.NewFailedPrecondition("reference update: reference already exists"),
 				"reference", "refs/heads/master",
 			),
 		},
 		{
-			desc:       "conflicting with refs/heads/improve/awesome",
-			repo:       repo,
-			branchName: "improve",
-			startPoint: "master",
-			user:       gittest.TestUser,
+			desc: "conflicting with refs/heads/improve/awesome",
+			request: func(repo *gitalypb.Repository) *gitalypb.UserCreateBranchRequest {
+				return &gitalypb.UserCreateBranchRequest{
+					Repository: repo,
+					BranchName: []byte("improve"),
+					StartPoint: []byte("master"),
+					User:       gittest.TestUser,
+				}
+			},
 			err: testhelper.WithInterceptedMetadataItems(
 				structerr.NewFailedPrecondition("reference update: file directory conflict"),
 				structerr.MetadataItem{Key: "conflicting_reference", Value: "refs/heads/improve"},
@@ -422,14 +430,16 @@ func TestUserCreateBranch_failure(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
-			request := &gitalypb.UserCreateBranchRequest{
-				Repository: tc.repo,
-				BranchName: []byte(tc.branchName),
-				StartPoint: []byte(tc.startPoint),
-				User:       tc.user,
-			}
+			ctx := testhelper.Context(t)
+			ctx, cfg, client := setupOperationsService(t, ctx)
+			repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
-			response, err := client.UserCreateBranch(ctx, request)
+			commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
+				gittest.TreeEntry{Mode: "100644", Path: "foo", Content: "bar"},
+			), gittest.WithBranch("master"))
+			gittest.Exec(t, cfg, "-C", repoPath, "update-ref", "refs/heads/improve/awesome", commitID.String())
+
+			response, err := client.UserCreateBranch(ctx, tc.request(repo))
 			testhelper.RequireGrpcError(t, tc.err, err)
 			require.Empty(t, response)
 		})
