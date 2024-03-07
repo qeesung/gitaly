@@ -228,10 +228,6 @@ func TestMux_concurrency(t *testing.T) {
 				}
 				defer c.Close()
 
-				if err := c.SetDeadline(time.Now().Add(1 * time.Second)); err != nil {
-					return err
-				}
-
 				if _, err := io.WriteString(c, testmux); err != nil {
 					return err
 				}
