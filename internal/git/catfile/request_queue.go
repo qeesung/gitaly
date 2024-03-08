@@ -26,13 +26,6 @@ const (
 	// flushCommand is the command expected by the `--batch-command` mode of git-cat-file(1)
 	// for flushing out to stdout.
 	flushCommand = "flush"
-	// flushCommandHack is the command we send to git-cat-file(1) to cause it to flush its stdout.
-	// Note that this is a hack: git-cat-file(1) doesn't really support flushing, but it will
-	// flush whenever it encounters an object it doesn't know. The flush command we use is thus
-	// chosen such that it cannot ever refer to a valid object: refs may not contain whitespace,
-	// so this command cannot refer to a ref. Adding "FLUSH" is just for the sake of making it
-	// easier to spot what's going on in case we ever mistakenly see this output in the wild.
-	flushCommandHack = "\tFLUSH\t"
 )
 
 type queueCounters struct {

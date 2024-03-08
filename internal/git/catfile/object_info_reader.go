@@ -60,7 +60,6 @@ func (e NotFoundError) ErrorMetadata() []structerr.MetadataItem {
 // ParseObjectInfo reads from a reader and parses the data into an ObjectInfo struct with the given
 // object hash.
 func ParseObjectInfo(objectHash git.ObjectHash, stdout *bufio.Reader, nulTerminated bool) (*ObjectInfo, error) {
-restart:
 	var terminator byte = '\n'
 	if nulTerminated {
 		terminator = '\000'
@@ -73,14 +72,6 @@ restart:
 
 	infoLine = strings.TrimSuffix(infoLine, string(terminator))
 	if revision, isMissing := strings.CutSuffix(infoLine, " missing"); isMissing {
-		// We use a hack to flush stdout of git-cat-file(1), which is that we request an
-		// object that cannot exist. This causes Git to write an error and immediately flush
-		// stdout. The only downside is that we need to filter this error here, but that's
-		// acceptable while git-cat-file(1) doesn't yet have any way to natively flush.
-		if strings.HasPrefix(infoLine, flushCommandHack) {
-			goto restart
-		}
-
 		return nil, NotFoundError{
 			Revision: revision,
 		}
