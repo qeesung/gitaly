@@ -251,7 +251,7 @@ func testObjectReaderObject(t *testing.T, ctx context.Context) {
 				"-p", commitID.String())
 		}
 
-		reader, err := newObjectContentReader(ctx, newRepoExecutor(t, cfg, repoProto), nil)
+		reader, err := newObjectReader(ctx, newRepoExecutor(t, cfg, repoProto), nil)
 		require.NoError(t, err)
 
 		object, err := reader.Object(ctx, "refs/heads/main")
