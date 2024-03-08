@@ -61,10 +61,6 @@ type requestQueue struct {
 	// spawned for.
 	objectHash git.ObjectHash
 
-	// isObjectQueue is set to `true` when this is a request queue which can be used for reading
-	// objects. If set to `false`, then this can only be used to read object info.
-	isObjectQueue bool
-
 	stdout *bufio.Reader
 	stdin  *bufio.Writer
 
