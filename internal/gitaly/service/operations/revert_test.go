@@ -1036,8 +1036,6 @@ func testServerUserRevertFailedDueToCreateTreeErrorEmpty(t *testing.T, ctx conte
 
 	response, err := client.UserRevert(ctx, request)
 	if featureflag.ReturnStructuredErrorsInUserRevert.IsEnabled(ctx) {
-		_, err = client.UserRevert(ctx, request)
-
 		expectedError := structerr.NewFailedPrecondition("revert: could not apply because the result was empty").WithDetail(
 			&gitalypb.UserRevertError{
 				Error: &gitalypb.UserRevertError_ChangesAlreadyApplied{},
