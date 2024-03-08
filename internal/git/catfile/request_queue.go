@@ -65,10 +65,6 @@ type requestQueue struct {
 	// objects. If set to `false`, then this can only be used to read object info.
 	isObjectQueue bool
 
-	// isNulTerminated indicates whether `stdout` is NUL terminated or not. This corresponds to the `-Z`
-	// option that can be passed to git-cat-file(1).
-	isNulTerminated bool
-
 	stdout *bufio.Reader
 	stdin  *bufio.Writer
 
@@ -117,10 +113,6 @@ func (q *requestQueue) RequestInfo(ctx context.Context, revision git.Revision) e
 func (q *requestQueue) requestRevision(ctx context.Context, cmd string, revision git.Revision) error {
 	if strings.Contains(revision.String(), "\000") {
 		return structerr.NewInvalidArgument("revision must not contain NUL bytes")
-	}
-
-	if !q.isNulTerminated && strings.Contains(revision.String(), "\n") {
-		return structerr.NewInvalidArgument("Git too old to support requests with newlines")
 	}
 
 	if q.isClosed() {
@@ -266,7 +258,7 @@ func (q *requestQueue) readInfo() (*ObjectInfo, error) {
 		return nil, fmt.Errorf("concurrent read on request queue")
 	}
 
-	return ParseObjectInfo(q.objectHash, q.stdout, q.isNulTerminated)
+	return ParseObjectInfo(q.objectHash, q.stdout, true)
 }
 
 func logDuration(ctx context.Context, logFieldName string) func() {

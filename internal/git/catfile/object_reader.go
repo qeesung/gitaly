@@ -99,11 +99,9 @@ func newObjectReader(
 		cmd:     batchCmd,
 		counter: counter,
 		queue: requestQueue{
-			objectHash:      objectHash,
-			stdout:          bufio.NewReader(batchCmd),
-			stdin:           bufio.NewWriter(batchCmd),
-			isBatchCommand:  true,
-			isNulTerminated: true,
+			objectHash: objectHash,
+			stdout:     bufio.NewReader(batchCmd),
+			stdin:      bufio.NewWriter(batchCmd),
 		},
 	}
 
