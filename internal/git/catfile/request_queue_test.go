@@ -477,7 +477,7 @@ func newInterceptedQueue(t *testing.T, ctx context.Context, cfg config.Cfg, scri
 	require.NoError(t, err)
 	t.Cleanup(reader.close)
 
-	queue, cleanup, err := reader.objectQueue(ctx, "trace")
+	queue, cleanup, err := reader.queue(ctx, "trace")
 	require.NoError(t, err)
 	t.Cleanup(cleanup)
 

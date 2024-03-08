@@ -59,7 +59,7 @@ type objectReader struct {
 
 	counter *prometheus.CounterVec
 
-	queue      requestQueue
+	q          requestQueue
 	queueInUse int32
 }
 
@@ -98,7 +98,7 @@ func newObjectReader(
 	objectReader := &objectReader{
 		cmd:     batchCmd,
 		counter: counter,
-		queue: requestQueue{
+		q: requestQueue{
 			objectHash: objectHash,
 			stdout:     bufio.NewReader(batchCmd),
 			stdin:      bufio.NewWriter(batchCmd),
@@ -109,12 +109,12 @@ func newObjectReader(
 }
 
 func (o *objectReader) close() {
-	o.queue.close()
+	o.q.close()
 	_ = o.cmd.Wait()
 }
 
 func (o *objectReader) isClosed() bool {
-	return o.queue.isClosed()
+	return o.q.isClosed()
 }
 
 func (o *objectReader) isDirty() bool {
@@ -122,18 +122,18 @@ func (o *objectReader) isDirty() bool {
 		return true
 	}
 
-	return o.queue.isDirty()
+	return o.q.isDirty()
 }
 
-func (o *objectReader) objectQueue(ctx context.Context, tracedMethod string) (*requestQueue, func(), error) {
+func (o *objectReader) queue(ctx context.Context, tracedMethod string) (*requestQueue, func(), error) {
 	if !atomic.CompareAndSwapInt32(&o.queueInUse, 0, 1) {
 		return nil, nil, fmt.Errorf("object queue already in use")
 	}
 
 	trace := startTrace(ctx, o.counter, tracedMethod)
-	o.queue.trace = trace
+	o.q.trace = trace
 
-	return &o.queue, func() {
+	return &o.q, func() {
 		atomic.StoreInt32(&o.queueInUse, 0)
 		trace.finish()
 	}, nil
@@ -142,7 +142,7 @@ func (o *objectReader) objectQueue(ctx context.Context, tracedMethod string) (*r
 // Object returns a new Object for the given revision. The Object must be fully consumed
 // before another object is requested.
 func (o *objectReader) Object(ctx context.Context, revision git.Revision) (*Object, error) {
-	queue, finish, err := o.objectQueue(ctx, "catfile.Object")
+	queue, finish, err := o.queue(ctx, "catfile.Object")
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (o *objectReader) Object(ctx context.Context, revision git.Revision) (*Obje
 // finished. Object Content and information can be requested from the queue but their
 // respective ordering must be maintained.
 func (o *objectReader) ObjectQueue(ctx context.Context) (ObjectQueue, func(), error) {
-	queue, finish, err := o.objectQueue(ctx, "catfile.ObjectQueue")
+	queue, finish, err := o.queue(ctx, "catfile.ObjectQueue")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -179,7 +179,7 @@ func (o *objectReader) ObjectQueue(ctx context.Context) (ObjectQueue, func(), er
 
 // Info returns object information for the given revision.
 func (o *objectReader) Info(ctx context.Context, revision git.Revision) (*ObjectInfo, error) {
-	queue, cleanup, err := o.objectQueue(ctx, "catfile.Info")
+	queue, cleanup, err := o.queue(ctx, "catfile.Info")
 	if err != nil {
 		return nil, err
 	}
