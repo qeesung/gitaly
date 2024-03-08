@@ -1033,11 +1033,10 @@ func testServerUserRevertFailedDueToCreateTreeErrorEmpty(t *testing.T, ctx conte
 
 	response, err := client.UserRevert(ctx, request)
 	require.NoError(t, err)
+	require.Empty(t, response.CreateTreeError)
+	require.Equal(t, gitalypb.UserRevertResponse_NONE, response.CreateTreeErrorCode)
 
 	if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-		require.Empty(t, response.CreateTreeError)
-		require.Equal(t, gitalypb.UserRevertResponse_NONE, response.CreateTreeErrorCode)
-
 		response, err = client.UserRevert(ctx, request)
 		require.NoError(t, err)
 		require.NotEmpty(t, response.CreateTreeError)
