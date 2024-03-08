@@ -771,7 +771,7 @@ func testResolveConflicts(t *testing.T, ctx context.Context) {
 					expectedResponse:     &gitalypb.ResolveConflictsResponse{},
 					expectedContent: map[string]map[string][]byte{
 						"refs/heads/ours": {
-							"a": []byte("A\nB\nX\nD\nE\n"),
+							"a": []byte("A\r\nB\r\nX\r\nD\r\nE\r\n"),
 						},
 					},
 				}
