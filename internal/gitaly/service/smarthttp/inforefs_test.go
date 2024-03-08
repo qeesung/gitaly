@@ -582,18 +582,22 @@ func testInfoRefsUploadPackCache(t *testing.T, ctx context.Context) {
 	// replaced cache response is no longer valid
 	assertNormalResponse(gitalyServer.Address())
 
+	// Create a repository and break it by removing 'objects'.
+	invalidRepo, invalidRepoPath := gittest.CreateRepository(t, ctx, cfg)
+	require.NoError(t, os.RemoveAll(filepath.Join(invalidRepoPath, "objects")))
+
 	// failed requests should not cache response
-	invalidReq := &gitalypb.InfoRefsRequest{
-		Repository: &gitalypb.Repository{
-			RelativePath: "fake_repo",
-			StorageName:  repo.StorageName,
-		},
-	} // invalid request because repo is empty
-	invalidRepoCleanup := createInvalidRepo(t, filepath.Join(testhelper.GitlabTestStoragePath(), invalidReq.Repository.RelativePath))
-	defer invalidRepoCleanup()
+	invalidReq := &gitalypb.InfoRefsRequest{Repository: invalidRepo}
+
+	// The request is expected to fail with FailedPrecondition as the 'objects' directory has been removed.
+	expectedStatusCode := codes.FailedPrecondition
+	if testhelper.IsWALEnabled() {
+		// With transactions, the status code is internal as the transaction fails to be started.
+		expectedStatusCode = codes.Internal
+	}
 
 	_, err = makeInfoRefsUploadPackRequest(t, ctx, gitalyServer.Address(), cfg.Auth.Token, invalidReq)
-	testhelper.RequireGrpcCode(t, err, codes.NotFound)
+	testhelper.RequireGrpcCode(t, err, expectedStatusCode)
 	require.NoFileExists(t, pathToCachedResponse(t, ctx, cache, invalidReq))
 
 	// if an error occurs while putting stream, it should not interrupt
@@ -613,13 +617,6 @@ func withInfoRefCache(cache infoRefCache) ServerOpt {
 	return func(s *server) {
 		s.infoRefCache = cache
 	}
-}
-
-func createInvalidRepo(tb testing.TB, repoDir string) func() {
-	for _, subDir := range []string{"objects", "refs", "HEAD"} {
-		require.NoError(tb, os.MkdirAll(filepath.Join(repoDir, subDir), perm.SharedDir))
-	}
-	return func() { require.NoError(tb, os.RemoveAll(repoDir)) }
 }
 
 func replaceCachedResponse(tb testing.TB, ctx context.Context, cache *cache.DiskCache, req *gitalypb.InfoRefsRequest, newContents string) {
