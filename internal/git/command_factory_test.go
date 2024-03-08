@@ -594,8 +594,12 @@ func TestExecCommandFactory_GitVersion(t *testing.T) {
 
 func TestExecCommandFactory_config(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.AutocrlfConfig).Run(t, testExecCommandFactoryConfig)
+}
 
-	ctx := testhelper.Context(t)
+func testExecCommandFactoryConfig(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 
 	// Create a repository and remove its gitconfig to bring us into a known state where there
@@ -605,10 +609,17 @@ func TestExecCommandFactory_config(t *testing.T) {
 	})
 	require.NoError(t, os.Remove(filepath.Join(repoDir, "config")))
 
+	// Feature flag to change the default global configuration of autocrlf.
+	autocrlf := "input"
+	if featureflag.AutocrlfConfig.IsEnabled(ctx) {
+		autocrlf = "false"
+	}
+
 	expectedEnv := []string{
 		"gc.auto=0",
 		"maintenance.auto=0",
 		"core.autocrlf=input",
+		"core.autocrlf=" + autocrlf,
 		"core.usereplacerefs=false",
 		"core.fsync=objects,derived-metadata,reference",
 		"core.fsyncmethod=fsync",
