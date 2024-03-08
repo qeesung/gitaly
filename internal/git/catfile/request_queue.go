@@ -69,10 +69,6 @@ type requestQueue struct {
 	// option that can be passed to git-cat-file(1).
 	isNulTerminated bool
 
-	// isBatchCommand indicates whether `--batch-command` is used. We use this to determine if
-	// commands need to be passed to git-cat-file(1).
-	isBatchCommand bool
-
 	stdout *bufio.Reader
 	stdin  *bufio.Writer
 
@@ -133,10 +129,7 @@ func (q *requestQueue) requestRevision(ctx context.Context, cmd string, revision
 
 	atomic.AddInt64(&q.counters.outstandingRequests, 1)
 
-	input := revision.String()
-	if q.isBatchCommand {
-		input = cmd + " " + input
-	}
+	input := cmd + " " + revision.String()
 
 	if _, err := q.stdin.WriteString(input); err != nil {
 		atomic.AddInt64(&q.counters.outstandingRequests, -1)
@@ -158,12 +151,7 @@ func (q *requestQueue) Flush(ctx context.Context) error {
 		return fmt.Errorf("cannot flush: %w", os.ErrClosed)
 	}
 
-	cmd := flushCommandHack
-	if q.isBatchCommand {
-		cmd = flushCommand
-	}
-
-	if _, err := q.stdin.WriteString(cmd); err != nil {
+	if _, err := q.stdin.WriteString(flushCommand); err != nil {
 		return fmt.Errorf("writing flush command: %w", err)
 	}
 
@@ -184,10 +172,6 @@ func (fn readerFunc) Read(buf []byte) (int, error) { return fn(buf) }
 
 func (q *requestQueue) ReadObject(ctx context.Context) (*Object, error) {
 	defer logDuration(ctx, "read_object")()
-
-	if !q.isObjectQueue && !q.isBatchCommand {
-		panic("object queue used to read object info")
-	}
 
 	// We need to ensure that only a single call to `ReadObject()` can happen at the
 	// same point in time.
@@ -252,10 +236,6 @@ func (q *requestQueue) ReadObject(ctx context.Context) (*Object, error) {
 
 func (q *requestQueue) ReadInfo(ctx context.Context) (*ObjectInfo, error) {
 	defer logDuration(ctx, "read_info")()
-
-	if q.isObjectQueue && !q.isBatchCommand {
-		panic("object queue used to read object info")
-	}
 
 	objectInfo, err := q.readInfo()
 	if err != nil {
