@@ -34,7 +34,7 @@ func (s *server) CheckBlobsGenerated(stream gitalypb.AnalysisService_CheckBlobsG
 	}
 	defer readerCancel()
 
-	queue, queueCancel, err := reader.ObjectQueue(ctx)
+	queue, queueCancel, err := reader.Queue(ctx)
 	if err != nil {
 		return fmt.Errorf("retrieving object queue: %w", err)
 	}

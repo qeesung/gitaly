@@ -72,7 +72,7 @@ func CatfileInfo(
 		opt(&cfg)
 	}
 
-	queue, queueCleanup, err := objectInfoReader.ObjectQueue(ctx)
+	queue, queueCleanup, err := objectInfoReader.Queue(ctx)
 	if err != nil {
 		return nil, err
 	}

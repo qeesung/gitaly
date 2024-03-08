@@ -15,11 +15,11 @@ type ObjectContentReader interface {
 	// before another object is requested.
 	Object(context.Context, git.Revision) (*Object, error)
 
-	// ObjectQueue returns an ObjectQueue that can be used to batch multiple object requests.
+	// Queue returns an Queue that can be used to batch multiple object requests.
 	// Using the queue is more efficient than using `Object()` when requesting a bunch of
-	// objects. The returned function must be executed after use of the ObjectQueue has
+	// objects. The returned function must be executed after use of the Queue has
 	// finished.
-	ObjectQueue(context.Context) (ObjectQueue, func(), error)
+	Queue(context.Context) (Queue, func(), error)
 }
 
 // Object represents data returned by `git cat-file --batch`

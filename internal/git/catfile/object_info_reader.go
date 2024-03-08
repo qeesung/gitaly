@@ -107,9 +107,9 @@ type ObjectInfoReader interface {
 	// Info requests information about the revision pointed to by the given revision.
 	Info(context.Context, git.Revision) (*ObjectInfo, error)
 
-	// ObjectQueue returns an ObjectQueue that can be used to batch multiple object info
+	// Queue returns an Queue that can be used to batch multiple object info
 	// requests. Using the queue is more efficient than using `Info()` when requesting a bunch
-	// of objects. The returned function must be executed after use of the ObjectQueue has
+	// of objects. The returned function must be executed after use of the Queue has
 	// finished.
-	ObjectQueue(context.Context) (ObjectQueue, func(), error)
+	Queue(context.Context) (Queue, func(), error)
 }
