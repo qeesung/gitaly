@@ -2,66 +2,14 @@ package log
 
 import (
 	"context"
-	"regexp"
 
-	grpcmwlogging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
 	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpcmwloggingv2 "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/env"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/stats"
 )
-
-const (
-	defaultLogRequestMethodAllowPattern = ""
-	defaultLogRequestMethodDenyPattern  = "^/grpc.health.v1.Health/Check$"
-)
-
-// DeciderOption returns a Option to support log filtering.
-// If "GITALY_LOG_REQUEST_METHOD_DENY_PATTERN" ENV variable is set, logger will filter out the log whose "fullMethodName" matches it;
-// If "GITALY_LOG_REQUEST_METHOD_ALLOW_PATTERN" ENV variable is set, logger will only keep the log whose "fullMethodName" matches it;
-// Under any conditions, the error log will not be filtered out;
-// If the ENV variables are not set, there will be no additional effects.
-func DeciderOption() grpcmwlogrus.Option {
-	matcher := methodNameMatcherFromEnv()
-
-	if matcher == nil {
-		return grpcmwlogrus.WithDecider(grpcmwlogging.DefaultDeciderMethod)
-	}
-
-	decider := func(fullMethodName string, err error) bool {
-		if err != nil {
-			return true
-		}
-		return matcher(fullMethodName)
-	}
-
-	return grpcmwlogrus.WithDecider(decider)
-}
-
-func methodNameMatcherFromEnv() func(string) bool {
-	if pattern := env.GetString("GITALY_LOG_REQUEST_METHOD_ALLOW_PATTERN",
-		defaultLogRequestMethodAllowPattern); pattern != "" {
-		methodRegex := regexp.MustCompile(pattern)
-
-		return func(fullMethodName string) bool {
-			return methodRegex.MatchString(fullMethodName)
-		}
-	}
-
-	if pattern := env.GetString("GITALY_LOG_REQUEST_METHOD_DENY_PATTERN",
-		defaultLogRequestMethodDenyPattern); pattern != "" {
-		methodRegex := regexp.MustCompile(pattern)
-
-		return func(fullMethodName string) bool {
-			return !methodRegex.MatchString(fullMethodName)
-		}
-	}
-
-	return nil
-}
 
 // FieldsProducer returns fields that need to be added into the logging context. error argument is
 // the result of RPC handling.

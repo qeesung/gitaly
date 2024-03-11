@@ -8,6 +8,7 @@ import (
 	"time"
 
 	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/server/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
@@ -69,11 +70,10 @@ func commonUnaryServerInterceptors(logger log.Logger, messageProducer grpcmwlogr
 		grpccorrelation.UnaryServerCorrelationInterceptor(), // Must be above the metadata handler
 		requestinfohandler.UnaryInterceptor,
 		grpcprometheus.UnaryServerInterceptor,
-		logger.UnaryServerInterceptor(
+		selector.UnaryServerInterceptor(logger.UnaryServerInterceptor(
 			grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
 			grpcmwlogrus.WithMessageProducer(messageProducer),
-			log.DeciderOption(),
-		),
+		), log.NewLogMatcher()),
 		sentryhandler.UnaryLogHandler(),
 		statushandler.Unary, // Should be below LogHandler
 		grpctracing.UnaryServerTracingInterceptor(),
@@ -134,11 +134,10 @@ func NewGRPCServer(
 		middleware.MethodTypeStreamInterceptor(deps.Registry, deps.Logger),
 		requestinfohandler.StreamInterceptor,
 		grpcprometheus.StreamServerInterceptor,
-		deps.Logger.WithField("component", "praefect.StreamServerInterceptor").StreamServerInterceptor(
+		selector.StreamServerInterceptor(deps.Logger.WithField("component", "praefect.StreamServerInterceptor").StreamServerInterceptor(
 			grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
 			grpcmwlogrus.WithMessageProducer(logMsgProducer),
-			log.DeciderOption(),
-		),
+		), log.NewLogMatcher()),
 		sentryhandler.StreamLogHandler(),
 		statushandler.Stream, // Should be below LogHandler
 		grpctracing.StreamServerTracingInterceptor(),
