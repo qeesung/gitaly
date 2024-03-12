@@ -54,6 +54,8 @@ type RepositoryState struct {
 	// packfiles, loose objects, invisible objects, index files, etc. Most test cases don't need to be concerned
 	// with Packfile structure, though. So, we keep both, but Packfiles takes higher precedence.
 	Packfiles *PackfilesState
+	// FullRepackTimestamp tells if the repository has full-repack timestamp file.
+	FullRepackTimestamp *FullRepackTimestamp
 }
 
 // ReferencesState describes the asserted state of packed-refs and loose references. It's mostly used for verifying
@@ -88,6 +90,13 @@ type PackfileState struct {
 	HasBitmap bool
 	// HasReverseIndex asserts whether the packfile includes a corresponding reverse index (*.rev).
 	HasReverseIndex bool
+}
+
+// FullRepackTimestamp asserts the state of the full repack timestamp file (.gitaly-full-repack-timestamp). It's not
+// easy to assert the actual point of time now. Hence, we can only assert its existence.
+type FullRepackTimestamp struct {
+	// Exists
+	Exists bool
 }
 
 // sortObjects sorts objects lexically by their oid.
@@ -214,20 +223,29 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 	sortPackfilesState(expectedPackfiles)
 	sortPackfilesState(actualPackfiles)
 
+	var actualFullRepackTimestamp *FullRepackTimestamp
+	if expected.FullRepackTimestamp != nil {
+		repackTimestamp, err := stats.FullRepackTimestamp(repoPath)
+		require.NoError(tb, err)
+		actualFullRepackTimestamp = &FullRepackTimestamp{Exists: !repackTimestamp.IsZero()}
+	}
+
 	require.Equal(tb,
 		RepositoryState{
-			DefaultBranch: expected.DefaultBranch,
-			Objects:       expectedObjects,
-			Alternate:     expected.Alternate,
-			References:    expected.References,
-			Packfiles:     expectedPackfiles,
+			DefaultBranch:       expected.DefaultBranch,
+			Objects:             expectedObjects,
+			Alternate:           expected.Alternate,
+			References:          expected.References,
+			Packfiles:           expectedPackfiles,
+			FullRepackTimestamp: expected.FullRepackTimestamp,
 		},
 		RepositoryState{
-			DefaultBranch: headReference,
-			Objects:       actualObjects,
-			Alternate:     string(alternate),
-			References:    actualReferencesState,
-			Packfiles:     actualPackfiles,
+			DefaultBranch:       headReference,
+			Objects:             actualObjects,
+			Alternate:           string(alternate),
+			References:          actualReferencesState,
+			Packfiles:           actualPackfiles,
+			FullRepackTimestamp: actualFullRepackTimestamp,
 		},
 	)
 	testhelper.RequireDirectoryState(tb, filepath.Join(repoPath, repoutil.CustomHooksDir), "", expected.CustomHooks)
