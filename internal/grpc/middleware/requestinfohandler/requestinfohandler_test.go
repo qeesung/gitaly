@@ -731,6 +731,7 @@ func TestInterceptors(t *testing.T) {
 type mockServer struct {
 	gitalypb.RepositoryServiceServer
 	gitalypb.ObjectPoolServiceServer
+	gitalypb.OperationServiceServer
 	tags map[string]any
 	info *RequestInfo
 }
@@ -738,6 +739,7 @@ type mockServer struct {
 type mockClient struct {
 	gitalypb.RepositoryServiceClient
 	gitalypb.ObjectPoolServiceClient
+	gitalypb.OperationServiceClient
 }
 
 func setupServer(tb testing.TB, ctx context.Context) (*mockServer, mockClient) {
@@ -771,6 +773,7 @@ func setupServer(tb testing.TB, ctx context.Context) (*mockServer, mockClient) {
 	tb.Cleanup(server.Stop)
 	gitalypb.RegisterRepositoryServiceServer(server, &mockServer)
 	gitalypb.RegisterObjectPoolServiceServer(server, &mockServer)
+	gitalypb.RegisterOperationServiceServer(server, &mockServer)
 
 	listener := bufconn.Listen(1)
 	go testhelper.MustServe(tb, server, listener)
@@ -787,6 +790,7 @@ func setupServer(tb testing.TB, ctx context.Context) (*mockServer, mockClient) {
 	return &mockServer, mockClient{
 		RepositoryServiceClient: gitalypb.NewRepositoryServiceClient(conn),
 		ObjectPoolServiceClient: gitalypb.NewObjectPoolServiceClient(conn),
+		OperationServiceClient:  gitalypb.NewOperationServiceClient(conn),
 	}
 }
 
@@ -796,6 +800,11 @@ func (s *mockServer) RepositoryInfo(ctx context.Context, _ *gitalypb.RepositoryI
 
 func (s *mockServer) FetchIntoObjectPool(ctx context.Context, _ *gitalypb.FetchIntoObjectPoolRequest) (*gitalypb.FetchIntoObjectPoolResponse, error) {
 	return &gitalypb.FetchIntoObjectPoolResponse{}, nil
+}
+
+func (s *mockServer) UserCommitFiles(stream gitalypb.OperationService_UserCommitFilesServer) error {
+	_, err := stream.Recv()
+	return err
 }
 
 func (s *mockServer) CreateBundleFromRefList(stream gitalypb.RepositoryService_CreateBundleFromRefListServer) error {
