@@ -4,9 +4,10 @@ go 1.21
 
 toolchain go1.21.0
 
-require github.com/yoheimuta/protolint v0.48.0
+require github.com/yoheimuta/protolint v0.49.0
 
 require (
+	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/chavacava/garif v0.1.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/gertd/go-pluralize v0.2.1 // indirect
