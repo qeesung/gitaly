@@ -12,7 +12,7 @@ require (
 	github.com/containerd/cgroups/v3 v3.0.3
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/getsentry/sentry-go v0.27.0
-	github.com/git-lfs/git-lfs/v3 v3.4.0
+	github.com/git-lfs/git-lfs/v3 v3.5.1
 	github.com/go-enry/go-enry/v2 v2.8.6
 	github.com/go-enry/go-license-detector/v4 v4.3.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -150,6 +150,7 @@ require (
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/jdkato/prose v1.2.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/jmhodges/clock v1.2.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.17.1 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
