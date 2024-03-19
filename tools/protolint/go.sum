@@ -1,3 +1,5 @@
+github.com/BurntSushi/toml v1.3.2 h1:o7IhLm0Msx3BaB+n3Ag7L8EVlByGnpq14C4YWiu/gL8=
+github.com/BurntSushi/toml v1.3.2/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/bufbuild/protocompile v0.4.0 h1:LbFKd2XowZvQ/kajzguUp2DC9UEIQhIq77fZZlaQsNA=
 github.com/bufbuild/protocompile v0.4.0/go.mod h1:3v93+mbWn/v3xzN+31nwkJfrEpAUwp+BagBSZWx+TP8=
 github.com/chavacava/garif v0.1.0 h1:2JHa3hbYf5D9dsgseMKAmc/MZ109otzgNFk5s87H9Pc=
@@ -56,8 +58,8 @@ github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcU
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 github.com/yoheimuta/go-protoparser/v4 v4.9.0 h1:zHRXzRjkOamwMkPu7bpiCtOpxHkM9c8zxQOvW99eWlo=
 github.com/yoheimuta/go-protoparser/v4 v4.9.0/go.mod h1:AHNNnSWnb0UoL4QgHPiOAg2BniQceFscPI5X/BZNHl8=
-github.com/yoheimuta/protolint v0.48.0 h1:qkPgwpgkHvqQxfnsb/RJKC8OXvgRd1MxVn/H25rMsks=
-github.com/yoheimuta/protolint v0.48.0/go.mod h1:aGmpTPddQVyWBaEK18eZhlNgWKWbs1qR5mM3C/ldY1E=
+github.com/yoheimuta/protolint v0.49.0 h1:mbZwPhlW3/tn7f6PCl6p3Hxg2Vp5tS3cAijRYOoDdl8=
+github.com/yoheimuta/protolint v0.49.0/go.mod h1:k/i56El7JrCoGhmZxsixPeVF+DLq03rsrfosH0oQJ/U=
 golang.org/x/net v0.20.0 h1:aCL9BSgETF1k+blQaYUBx9hJ9LOGP3gAVemcZlf1Kpo=
 golang.org/x/net v0.20.0/go.mod h1:z8BVo6PvndSri0LbOE3hAn0apkU+1YvI6E70E9jsnvY=
 golang.org/x/sys v0.0.0-20200116001909-b77594299b42/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
