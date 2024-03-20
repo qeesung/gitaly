@@ -325,7 +325,7 @@ func TestUserCreateBranch_hookFailure(t *testing.T) {
 
 		_, err := client.UserCreateBranch(ctx, request)
 
-		testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("creation denied by custom hooks").WithDetail(
+		testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("creation denied by custom hooks: running pre-receive hooks: GL_ID=user-123\n").WithDetail(
 			&gitalypb.UserCreateBranchError{
 				Error: &gitalypb.UserCreateBranchError_CustomHook{
 					CustomHook: &gitalypb.CustomHookError{
