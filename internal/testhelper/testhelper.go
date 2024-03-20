@@ -265,6 +265,8 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseResizableSemaphoreInConcurrencyLimiter, rand.Int()%2 == 0)
 	// Disable LogGitTraces
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.LogGitTraces, false)
+	// Globably disable autocrlf config in git.
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.AutocrlfConfig, true)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)
