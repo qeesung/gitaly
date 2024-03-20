@@ -1,5 +1,19 @@
 # Gitaly changelog
 
+## 16.10.0 (2024-03-20)
+
+### Added (2 changes)
+
+- [gitaly-backup: Allow manifest only backups to be configured](gitlab-org/gitaly@1eddbab0af4e6eec04f5004ec474394b7e48f62d) ([merge request](gitlab-org/gitaly!6563))
+- [panichandler: Log panic backtrace](gitlab-org/gitaly@edaaf37c57b36fe4520dbeb5b41f3f517fc15c3f) ([merge request](gitlab-org/gitaly!6664))
+
+### Fixed (4 changes)
+
+- [commit: Wait for the git-log(1) process to exit in FindCommits](gitlab-org/gitaly@588d901fae1109e3e4883fd21c8ac00aa1afd59b) ([merge request](gitlab-org/gitaly!6590))
+- [commit: Fix nil panic in LastCommitForPath](gitlab-org/gitaly@f1250677f3f3cacb575aad20bac22a3410ff5f40) ([merge request](gitlab-org/gitaly!6677))
+- [proxy: Register proxy codec](gitlab-org/gitaly@e16ef95d0e08e3144e67b63b4446b4996e44da1c) ([merge request](gitlab-org/gitaly!6662))
+- [Always use CLONE_INTO_CGROUP when supported](gitlab-org/gitaly@057f4e9d177c018774bf036cc952542f2e3ec833) ([merge request](gitlab-org/gitaly!6653))
+
 ## 16.9.2 (2024-03-06)
 
 No changes.
