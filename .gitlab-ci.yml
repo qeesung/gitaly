@@ -450,9 +450,6 @@ semgrep-sast:
   stage: analyze
   cache:
     - *cache_go_configuration
-  rules:
-    - if: $SAST_DISABLED
-      when: never
 
 license_scanning:
   needs: []
