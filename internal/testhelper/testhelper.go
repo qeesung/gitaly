@@ -266,6 +266,9 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// Disable LogGitTraces
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.LogGitTraces, false)
 
+	// Randomly enable either Git v2.43 or Git v2.44
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV244, rand.Int()%2 == 0)
+
 	for _, opt := range opts {
 		ctx = opt(ctx)
 	}
