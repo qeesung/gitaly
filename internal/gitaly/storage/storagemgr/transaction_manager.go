@@ -1862,7 +1862,7 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	//
 	// oldestLSN is initialized to appliedLSN + 1. If there are no log entries in the log, then everything has been
 	// pruned already or there has not been any log entries yet. Setting this +1 avoids trying to clean up log entries
-	// that do not exsti. If there are some, we'll set oldestLSN to the head of the log below.
+	// that do not exist. If there are some, we'll set oldestLSN to the head of the log below.
 	mgr.oldestLSN = mgr.appliedLSN + 1
 	// appendedLSN is initialized to appliedLSN. If there are no log entries, then there has been no transaction yet, or
 	// all log entries have been applied and have been already pruned. If there are some in the log, we'll update this
@@ -2187,7 +2187,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 	return referenceTransactions, nil
 }
 
-// vefifyReferencesWithGit verifies the reference updates with git by committing them against a snapshot of the target
+// verifyReferencesWithGit verifies the reference updates with git by committing them against a snapshot of the target
 // repository. This ensures the updates will go through when they are being applied from the log. This also catches any
 // invalid reference names and file/directory conflicts with Git's loose reference storage which can occur with references
 // like 'refs/heads/parent' and 'refs/heads/parent/child'.
@@ -2802,7 +2802,7 @@ func (mgr *TransactionManager) applyPackRefs(ctx context.Context, lsn LSN, logEn
 	syncer := safe.NewSyncer()
 	// Traverse all modified dirs back to the root "refs" dir of the repository. Remove any empty directory
 	// along the way. It prevents leaving empty dirs around after a loose ref is pruned. `git-pack-refs`
-	// command does dir removal for us, but in staginge repository during preparation stage. In the actual
+	// command does dir removal for us, but in staging repository during preparation stage. In the actual
 	// repository,  we need to do it ourselves.
 	rootRefDir := filepath.Join(repositoryPath, "refs")
 	for dir := range modifiedDirs {
@@ -3139,7 +3139,7 @@ func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) error 
 		if front.snapshotReaders > 0 {
 			// If the first entry had still some snapshot readers, that means
 			// our transaction was not the oldest reader. We can't remove any entries
-			// as they'll still be needed for conlict checking the older transactions.
+			// as they'll still be needed for conflict checking the older transactions.
 			return nil
 		}
 

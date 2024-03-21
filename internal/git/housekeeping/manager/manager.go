@@ -41,7 +41,7 @@ type repositoryState struct {
 	isRunning bool
 }
 
-// refCountedState keeps count of number of goroutines using a paritcular repository state, this is used
+// refCountedState keeps count of number of goroutines using a particular repository state, this is used
 // to ensure that we only delete a particular state of a repository when there are no goroutines which
 // are accessing it.
 type refCountedState struct {
@@ -51,7 +51,7 @@ type refCountedState struct {
 	rc uint32
 }
 
-// repositoryStates holds per-repsitory information to sync between different goroutines.
+// repositoryStates holds per-repository information to sync between different goroutines.
 // Access to the internal fields should be done via the methods provided by the struct.
 type repositoryStates struct {
 	sync.Mutex
