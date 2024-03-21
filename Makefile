@@ -129,6 +129,8 @@ GIT_EXECUTABLES += git-http-backend
 GIT_VERSION ?=
 ## The Git version used for bundled Git v2.43.
 GIT_VERSION_2_43 ?= v2.43.2
+## The Git version used for bundled Git v2.44.
+GIT_VERSION_2_44 ?= v2.44.0.gl1
 
 ## Skip overriding the Git version and instead use the Git version as specified
 ## in the Git sources. This is required when building Git from a version that
@@ -289,14 +291,16 @@ install: build
 
 .PHONY: build-bundled-git
 ## Build bundled Git binaries.
-build-bundled-git: build-bundled-git-v2.43
+build-bundled-git: build-bundled-git-v2.43 build-bundled-git-v2.44
 build-bundled-git-v2.43: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-v2.43,${GIT_EXECUTABLES})
+build-bundled-git-v2.44: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-v2.44,${GIT_EXECUTABLES})
 
 .PHONY: install-bundled-git
 ## Install bundled Git binaries. The target directory can be modified by
 ## setting PREFIX and DESTDIR.
-install-bundled-git: install-bundled-git-v2.43
+install-bundled-git: install-bundled-git-v2.43 install-bundled-git-v2.44
 install-bundled-git-v2.43: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-v2.43,${GIT_EXECUTABLES})
+install-bundled-git-v2.44: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-v2.44,${GIT_EXECUTABLES})
 
 ifdef WITH_BUNDLED_GIT
 build: build-bundled-git
@@ -553,6 +557,10 @@ ${DEPENDENCY_DIR}/git-distribution/git: ${DEPENDENCY_DIR}/git-distribution/Makef
 
 ${BUILD_DIR}/bin/gitaly-%-v2.43: override GIT_VERSION = ${GIT_VERSION_2_43}
 ${BUILD_DIR}/bin/gitaly-%-v2.43: ${DEPENDENCY_DIR}/git-v2.43/% | ${BUILD_DIR}/bin
+	${Q}install $< $@
+
+${BUILD_DIR}/bin/gitaly-%-v2.44: override GIT_VERSION = ${GIT_VERSION_2_44}
+${BUILD_DIR}/bin/gitaly-%-v2.44: ${DEPENDENCY_DIR}/git-v2.44/% | ${BUILD_DIR}/bin
 	${Q}install $< $@
 
 ${BUILD_DIR}/bin/%: ${BUILD_DIR}/intermediate/% | ${BUILD_DIR}/bin
