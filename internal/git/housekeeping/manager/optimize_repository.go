@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
@@ -120,12 +119,12 @@ func (m *RepositoryManager) optimizeRepository(
 		return err
 	}
 
-	totalTimer := prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("total"))
+	finishTotalTimer := m.metrics.ReportTaskLatency("total", "apply")
 	totalStatus := "failure"
 
 	optimizations := make(map[string]string)
 	defer func() {
-		totalTimer.ObserveDuration()
+		finishTotalTimer()
 		m.logger.WithField("optimizations", optimizations).Info("optimized repository")
 
 		for task, status := range optimizations {
@@ -135,19 +134,19 @@ func (m *RepositoryManager) optimizeRepository(
 		m.metrics.TasksTotal.WithLabelValues("total", totalStatus).Add(1)
 	}()
 
-	timer := prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("clean-stale-data"))
+	finishTimer := m.metrics.ReportTaskLatency("clean-stale-data", "apply")
 	if err := m.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()); err != nil {
 		return fmt.Errorf("could not execute housekeeping: %w", err)
 	}
-	timer.ObserveDuration()
+	finishTimer()
 
-	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("clean-worktrees"))
+	finishTimer = m.metrics.ReportTaskLatency("clean-worktrees", "apply")
 	if err := housekeeping.CleanupWorktrees(ctx, repo); err != nil {
 		return fmt.Errorf("could not clean up worktrees: %w", err)
 	}
-	timer.ObserveDuration()
+	finishTimer()
 
-	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("repack"))
+	finishTimer = m.metrics.ReportTaskLatency("repack", "apply")
 	didRepack, repackCfg, err := repackIfNeeded(ctx, repo, strategy)
 	if err != nil {
 		optimizations["packed_objects_"+string(repackCfg.Strategy)] = "failure"
@@ -170,9 +169,9 @@ func (m *RepositoryManager) optimizeRepository(
 			optimizations["written_multi_pack_index"] = "success"
 		}
 	}
-	timer.ObserveDuration()
+	finishTimer()
 
-	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("prune"))
+	finishTimer = m.metrics.ReportTaskLatency("prune", "apply")
 	didPrune, err := pruneIfNeeded(ctx, repo, strategy)
 	if err != nil {
 		optimizations["pruned_objects"] = "failure"
@@ -180,9 +179,9 @@ func (m *RepositoryManager) optimizeRepository(
 	} else if didPrune {
 		optimizations["pruned_objects"] = "success"
 	}
-	timer.ObserveDuration()
+	finishTimer()
 
-	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("pack-refs"))
+	finishTimer = m.metrics.ReportTaskLatency("pack-refs", "apply")
 	didPackRefs, err := m.packRefsIfNeeded(ctx, repo, strategy)
 	if err != nil {
 		optimizations["packed_refs"] = "failure"
@@ -190,9 +189,9 @@ func (m *RepositoryManager) optimizeRepository(
 	} else if didPackRefs {
 		optimizations["packed_refs"] = "success"
 	}
-	timer.ObserveDuration()
+	finishTimer()
 
-	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("commit-graph"))
+	finishTimer = m.metrics.ReportTaskLatency("commit-graph", "apply")
 	if didWriteCommitGraph, writeCommitGraphCfg, err := writeCommitGraphIfNeeded(ctx, repo, strategy); err != nil {
 		optimizations["written_commit_graph_full"] = "failure"
 		optimizations["written_commit_graph_incremental"] = "failure"
@@ -204,7 +203,7 @@ func (m *RepositoryManager) optimizeRepository(
 			optimizations["written_commit_graph_incremental"] = "success"
 		}
 	}
-	timer.ObserveDuration()
+	finishTimer()
 
 	totalStatus = "success"
 

@@ -36,7 +36,7 @@ func NewMetrics(promCfg gitalycfgprom.Config) *Metrics {
 				Help:    "Latency of the housekeeping tasks performed",
 				Buckets: promCfg.GRPCLatencyBuckets,
 			},
-			[]string{"housekeeping_task"},
+			[]string{"housekeeping_task", "stage"},
 		),
 		PrunedFilesTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -112,6 +112,17 @@ func (m *Metrics) Collect(metrics chan<- prometheus.Metric) {
 	m.DataStructureCount.Collect(metrics)
 	m.DataStructureSize.Collect(metrics)
 	m.DataStructureTimeSinceLastOptimization.Collect(metrics)
+}
+
+// ReportTaskLatency reports the latency of a housekeeping task at a specific
+// stage. The stage of a task is meaningful in the context of WAL transaction
+// where a task is split into "prepare", "verify", and "apply". When the task
+// runs in non-WAL context, it has "apply" stage only.  The caller calls this
+// function to mark the starting point of them. The returned function is
+// triggered when the task finishes.
+func (m *Metrics) ReportTaskLatency(task, stage string) func() time.Duration {
+	timer := prometheus.NewTimer(m.TasksLatency.WithLabelValues(task, stage))
+	return timer.ObserveDuration
 }
 
 // ReportRepositoryInfo reports the repository info in the form of prometheus metrics.
