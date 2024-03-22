@@ -16,6 +16,7 @@ import (
 	"reflect"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -250,6 +251,15 @@ func (c *timeoutContext) Err() error {
 func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx := context.Background()
 
+	// !!! Please don't delete the lines creating `rnd` below !!!
+	// We shouldn't use code like `rand.Int()%2` without the code
+	// below anymore. We did use that in the past but it created
+	// issues. Now please use `rnd.Int()%2` without removing the
+	// code below. See:
+	// https://gitlab.com/gitlab-org/gitaly/-/merge_requests/4568/diffs?commit_id=1bfd54e59d540100c90387f374e43458283290a3
+	t := time.Now()
+	rnd := rand.New(rand.NewSource(t.Unix() + int64(t.Nanosecond())))
+
 	// Enable use of explicit feature flags. Each feature flag which is checked must have been
 	// explicitly injected into the context, or otherwise we panic. This is a sanity check to
 	// verify that all feature flags we introduce are tested both with the flag enabled and
@@ -260,14 +270,14 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// context. The values of these flags should be randomized to increase the test coverage.
 
 	// Randomly enable mailmap
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.MailmapOptions, rand.Int()%2 == 0)
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.MailmapOptions, rnd.Int()%2 == 0)
 	// Randomly enable limiter.resizableSemaphore
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseResizableSemaphoreInConcurrencyLimiter, rand.Int()%2 == 0)
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseResizableSemaphoreInConcurrencyLimiter, rnd.Int()%2 == 0)
 	// Disable LogGitTraces
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.LogGitTraces, false)
 
 	// Randomly enable either Git v2.43 or Git v2.44
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV244, rand.Int()%2 == 0)
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV244, rnd.Int()%2 == 0)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)
