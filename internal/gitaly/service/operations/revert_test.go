@@ -19,6 +19,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testserver"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -427,6 +429,7 @@ func TestServer_UserRevert_quarantine(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
+		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertQuarantine)
 }
 
@@ -468,9 +471,21 @@ func testServerUserRevertQuarantine(t *testing.T, ctx context.Context) {
 		Message:    []byte("Reverting " + revertedCommit.Id),
 		Timestamp:  &timestamppb.Timestamp{Seconds: 12345},
 	})
-	require.NoError(t, err)
-	require.NotNil(t, response)
-	require.NotEmpty(t, response.PreReceiveError)
+	if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.NotEmpty(t, response.PreReceiveError)
+	} else {
+		expectedError := structerr.NewPermissionDenied("revert: custom hook error").WithDetail(
+			&gitalypb.UserRevertError{
+				Error: &gitalypb.UserRevertError_CustomHook{
+					CustomHook: &gitalypb.CustomHookError{
+						HookType: gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
+					},
+				},
+			})
+		testhelper.RequireGrpcError(t, expectedError, err)
+	}
 
 	objectHash, err := repo.ObjectHash(ctx)
 	require.NoError(t, err)
@@ -599,6 +614,7 @@ func TestServer_UserRevert_stableID(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
+		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertStableID)
 }
 
@@ -695,6 +711,7 @@ func TestServer_UserRevert_successfulIntoEmptyRepo(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
+		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertSuccessfulIntoEmptyRepo)
 }
 
@@ -754,6 +771,7 @@ func testServerUserRevertSuccessfulIntoEmptyRepo(t *testing.T, ctx context.Conte
 	require.Equal(t, expectedBranchUpdate, response.BranchUpdate)
 	require.Empty(t, response.CreateTreeError)
 	require.Empty(t, response.CreateTreeErrorCode)
+
 	require.Equal(t, request.Message, headCommit.Subject)
 	require.Equal(t, revertedCommit.Id, headCommit.ParentIds[0])
 	gittest.RequireTree(t, cfg, repoPath, response.BranchUpdate.CommitId,
@@ -767,6 +785,7 @@ func TestServer_UserRevert_successfulGitHooks(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
+		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertSuccessfulGitHooks)
 }
 
@@ -822,6 +841,7 @@ func TestServer_UserRevert_failedDueToPreReceiveError(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
+		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertFailedDueToPreReceiveError)
 }
 
@@ -859,9 +879,19 @@ func testServerUserRevertFailedDueToPreReceiveError(t *testing.T, ctx context.Co
 		t.Run(hookName, func(t *testing.T) {
 			gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
-			response, err := client.UserRevert(ctx, request)
-			require.NoError(t, err)
-			require.Contains(t, response.PreReceiveError, "GL_ID="+gittest.TestUser.GlId)
+			if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
+				response, err := client.UserRevert(ctx, request)
+				require.NoError(t, err)
+				require.Contains(t, response.PreReceiveError, "GL_ID="+gittest.TestUser.GlId)
+			} else {
+				_, err := client.UserRevert(ctx, request)
+				actualStatus, _ := status.FromError(err)
+				require.Equal(t, actualStatus.Code(), codes.PermissionDenied)
+				require.Equal(t, actualStatus.Message(), "revert: custom hook error")
+				revertError, ok := actualStatus.Details()[0].(*gitalypb.UserRevertError)
+				require.True(t, ok)
+				require.Contains(t, revertError.GetCustomHook().String(), "GL_ID="+gittest.TestUser.GlId)
+			}
 		})
 	}
 }
@@ -871,6 +901,7 @@ func TestServer_UserRevert_failedDueToCreateTreeErrorConflict(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
+		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertFailedDueToCreateTreeErrorConflict)
 }
 
@@ -917,10 +948,22 @@ func testServerUserRevertFailedDueToCreateTreeErrorConflict(t *testing.T, ctx co
 		Message:    []byte("Reverting " + revertedCommit.Id),
 	}
 
-	response, err := client.UserRevert(ctx, request)
-	require.NoError(t, err)
-	require.NotEmpty(t, response.CreateTreeError)
-	require.Equal(t, gitalypb.UserRevertResponse_CONFLICT, response.CreateTreeErrorCode)
+	if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
+		response, err := client.UserRevert(ctx, request)
+		require.NoError(t, err)
+		require.NotEmpty(t, response.CreateTreeError)
+		require.Equal(t, gitalypb.UserRevertResponse_CONFLICT, response.CreateTreeErrorCode)
+	} else {
+		_, err = client.UserRevert(ctx, request)
+		actualStatus, _ := status.FromError(err)
+		require.Equal(t, actualStatus.Code(), codes.FailedPrecondition)
+		require.Equal(t, actualStatus.Message(), "revert: there are conflicting files")
+		revertError, ok := actualStatus.Details()[0].(*gitalypb.UserRevertError)
+		require.True(t, ok)
+		testhelper.ProtoEqual(t, &gitalypb.MergeConflictError{
+			ConflictingFiles: [][]byte{[]byte("blob")},
+		}, revertError.GetMergeConflict())
+	}
 }
 
 func TestServer_UserRevert_failedDueToCreateTreeErrorEmpty(t *testing.T) {
@@ -928,6 +971,7 @@ func TestServer_UserRevert_failedDueToCreateTreeErrorEmpty(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
+		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertFailedDueToCreateTreeErrorEmpty)
 }
 
@@ -992,10 +1036,19 @@ func testServerUserRevertFailedDueToCreateTreeErrorEmpty(t *testing.T, ctx conte
 	require.Empty(t, response.CreateTreeError)
 	require.Equal(t, gitalypb.UserRevertResponse_NONE, response.CreateTreeErrorCode)
 
-	response, err = client.UserRevert(ctx, request)
-	require.NoError(t, err)
-	require.NotEmpty(t, response.CreateTreeError)
-	require.Equal(t, gitalypb.UserRevertResponse_EMPTY, response.CreateTreeErrorCode)
+	if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
+		response, err = client.UserRevert(ctx, request)
+		require.NoError(t, err)
+		require.NotEmpty(t, response.CreateTreeError)
+		require.Equal(t, gitalypb.UserRevertResponse_EMPTY, response.CreateTreeErrorCode)
+	} else {
+		_, err = client.UserRevert(ctx, request)
+		expectedError := structerr.NewFailedPrecondition("revert: could not apply because the result was empty").WithDetail(
+			&gitalypb.UserRevertError{
+				Error: &gitalypb.UserRevertError_ChangesAlreadyApplied{},
+			})
+		testhelper.RequireGrpcError(t, expectedError, err)
+	}
 }
 
 func TestServer_UserRevert_failedDueToCommitError(t *testing.T) {
@@ -1003,6 +1056,7 @@ func TestServer_UserRevert_failedDueToCommitError(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
+		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertFailedDueToCommitError)
 }
 
@@ -1047,6 +1101,16 @@ func testServerUserRevertFailedDueToCommitError(t *testing.T, ctx context.Contex
 	}
 
 	response, err := client.UserRevert(ctx, request)
-	require.NoError(t, err)
-	require.Equal(t, "Branch diverged", response.CommitError)
+
+	if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
+		require.NoError(t, err)
+		require.Equal(t, "Branch diverged", response.CommitError)
+	} else {
+		actualStatus, _ := status.FromError(err)
+		require.Equal(t, actualStatus.Code(), codes.FailedPrecondition)
+		require.Equal(t, actualStatus.Message(), "revert: branch diverged")
+		revertError, ok := actualStatus.Details()[0].(*gitalypb.UserRevertError)
+		require.True(t, ok)
+		require.NotNil(t, revertError.GetNotAncestor())
+	}
 }
