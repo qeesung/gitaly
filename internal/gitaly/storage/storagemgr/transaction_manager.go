@@ -191,6 +191,8 @@ type Transaction struct {
 	readOnly bool
 	// repositoryExists indicates whether the target repository existed when this transaction began.
 	repositoryExists bool
+	// metrics stores metric reporters inherited from the manager.
+	metrics *metrics
 
 	// state records whether the transaction is still open. Transaction is open until either Commit()
 	// or Rollback() is called on it.
@@ -251,8 +253,8 @@ type Transaction struct {
 	repositoryCreation       *repositoryCreation
 	deleteRepository         bool
 	includedObjects          map[git.ObjectID]struct{}
-	alternateUpdated         bool
 	runHousekeeping          *runHousekeeping
+	alternateUpdated         bool
 }
 
 // Begin opens a new transaction. The caller must call either Commit or Rollback to release
@@ -300,6 +302,7 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		snapshotLSN:  mgr.appendedLSN,
 		finished:     make(chan struct{}),
 		relativePath: relativePath,
+		metrics:      mgr.metrics,
 	}
 
 	mgr.snapshotLocks[txn.snapshotLSN].activeSnapshotters.Add(1)
@@ -857,6 +860,9 @@ type TransactionManager struct {
 	// testHooks are used in the tests to trigger logic at certain points in the execution.
 	// They are used to synchronize more complex test scenarios. Not used in production.
 	testHooks testHooks
+
+	// metrics stores reporters which facilitate metric recording of transactional operations.
+	metrics *metrics
 }
 
 type testHooks struct {
@@ -878,6 +884,7 @@ func NewTransactionManager(
 	stagingDir string,
 	cmdFactory git.CommandFactory,
 	repositoryFactory localrepo.StorageScopedFactory,
+	metrics *metrics,
 ) *TransactionManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &TransactionManager{
@@ -899,6 +906,7 @@ func NewTransactionManager(
 		stagingDirectory:     stagingDir,
 		awaitingTransactions: make(map[LSN]resultChannel),
 		committedEntries:     list.New(),
+		metrics:              metrics,
 
 		testHooks: testHooks{
 			beforeInitialization:      func() {},
@@ -1365,6 +1373,9 @@ func (mgr *TransactionManager) prepareHousekeeping(ctx context.Context, transact
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.prepareHousekeeping", nil)
 	defer span.Finish()
 
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("total", "prepare")
+	defer finishTimer()
+
 	if err := mgr.preparePackRefs(ctx, transaction); err != nil {
 		return err
 	}
@@ -1391,6 +1402,9 @@ func (mgr *TransactionManager) preparePackRefs(ctx context.Context, transaction 
 
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.preparePackRefs", nil)
 	defer span.Finish()
+
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("pack-refs", "prepare")
+	defer finishTimer()
 
 	runPackRefs := transaction.runHousekeeping.packRefs
 	repoPath := mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())
@@ -1472,6 +1486,9 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.prepareRepacking", nil)
 	defer span.Finish()
+
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("repack", "prepare")
+	defer finishTimer()
 
 	var err error
 	repack := transaction.runHousekeeping.repack
@@ -1587,6 +1604,9 @@ func (mgr *TransactionManager) prepareCommitGraphs(ctx context.Context, transact
 
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.prepareCommitGraphs", nil)
 	defer span.Finish()
+
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("commit-graph", "prepare")
+	defer finishTimer()
 
 	workingRepository := mgr.repositoryFactory.Build(transaction.snapshot.relativePath(transaction.relativePath))
 	repoPath := mgr.getAbsolutePath(workingRepository.GetRelativePath())
@@ -2280,6 +2300,9 @@ func (mgr *TransactionManager) verifyHousekeeping(ctx context.Context, transacti
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.verifyHousekeeping", nil)
 	defer span.Finish()
 
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("total", "verify")
+	defer finishTimer()
+
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
@@ -2343,6 +2366,9 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.verifyPackRefs", nil)
 	defer span.Finish()
 
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("pack-refs", "verify")
+	defer finishTimer()
+
 	objectHash, err := transaction.stagingRepository.ObjectHash(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("object hash: %w", err)
@@ -2402,6 +2428,9 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.verifyRepacking", nil)
 	defer span.Finish()
+
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("repack", "verify")
+	defer finishTimer()
 
 	// Other strategies re-organize packfiles without pruning unreachable objects. No need to run following
 	// expensive verification.
@@ -2549,6 +2578,10 @@ func (mgr *TransactionManager) verifyCommitGraphs(ctx context.Context, transacti
 	if transaction.runHousekeeping.writeCommitGraphs == nil {
 		return nil, nil
 	}
+
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("commit-graph", "verify")
+	defer finishTimer()
+
 	return &gitalypb.LogEntry_Housekeeping_WriteCommitGraphs{}, nil
 }
 
@@ -2742,6 +2775,9 @@ func (mgr *TransactionManager) applyHousekeeping(ctx context.Context, lsn LSN, l
 	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.applyHousekeeping", nil)
 	defer span.Finish()
 
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("total", "apply")
+	defer finishTimer()
+
 	if err := mgr.applyPackRefs(ctx, lsn, logEntry); err != nil {
 		return fmt.Errorf("applying pack refs: %w", err)
 	}
@@ -2764,6 +2800,9 @@ func (mgr *TransactionManager) applyPackRefs(ctx context.Context, lsn LSN, logEn
 
 	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.applyPackRefs", nil)
 	defer span.Finish()
+
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("pack-refs", "apply")
+	defer finishTimer()
 
 	repositoryPath := mgr.getAbsolutePath(logEntry.RelativePath)
 	// Remove packed-refs lock. While we shouldn't be producing any new stale locks, it makes sense to have
@@ -2851,6 +2890,9 @@ func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn LSN, logE
 	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.applyRepacking", nil)
 	defer span.Finish()
 
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("repack", "apply")
+	defer finishTimer()
+
 	repack := logEntry.Housekeeping.Repack
 	repoPath := mgr.getAbsolutePath(logEntry.RelativePath)
 
@@ -2894,6 +2936,9 @@ func (mgr *TransactionManager) applyCommitGraphs(ctx context.Context, lsn LSN, l
 
 	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.applyCommitGraphs", nil)
 	defer span.Finish()
+
+	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("commit-graph", "apply")
+	defer finishTimer()
 
 	repoPath := mgr.getAbsolutePath(logEntry.RelativePath)
 	if err := mgr.replaceCommitGraphs(repoPath, walFilesPathForLSN(mgr.stateDirectory, lsn)); err != nil {

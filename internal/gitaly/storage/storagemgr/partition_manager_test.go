@@ -395,6 +395,7 @@ func TestPartitionManager(t *testing.T) {
 								stagingDir,
 								commandFactory,
 								storageMgr.repoFactory,
+								nil,
 							),
 						}
 					},
@@ -439,6 +440,7 @@ func TestPartitionManager(t *testing.T) {
 							stagingDir,
 							commandFactory,
 							storageMgr.repoFactory,
+							nil,
 						)
 
 						// Unset the admission queue. This has the effect that we will block
@@ -777,7 +779,7 @@ func TestPartitionManager(t *testing.T) {
 				)
 			}
 
-			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory())
+			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory(), cfg.Prometheus)
 			require.NoError(t, err)
 
 			if setup.transactionManagerFactory != nil {
@@ -944,6 +946,7 @@ func TestPartitionManager_garbageCollection(t *testing.T) {
 				close(gcCompleted)
 			})
 		}),
+		cfg.Prometheus,
 	)
 	require.NoError(t, err)
 	defer partitionManager.Close()
@@ -1000,7 +1003,7 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 
 	localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
 
-	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory())
+	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory(), cfg.Prometheus)
 	require.NoError(t, err)
 	defer partitionManager.Close()
 
