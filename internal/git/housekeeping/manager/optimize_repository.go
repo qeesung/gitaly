@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -14,7 +12,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -99,7 +96,9 @@ func (m *RepositoryManager) validate(
 	if err != nil {
 		return nil, fmt.Errorf("deriving repository info: %w", err)
 	}
-	m.reportRepositoryInfo(ctx, m.logger, repositoryInfo)
+
+	repositoryInfo.Log(ctx, m.logger)
+	m.metrics.ReportRepositoryInfo(repositoryInfo)
 
 	var strategy housekeeping.OptimizationStrategy
 	if cfg.StrategyConstructor == nil {
@@ -109,56 +108,6 @@ func (m *RepositoryManager) validate(
 	}
 
 	return strategy, nil
-}
-
-func (m *RepositoryManager) reportRepositoryInfo(ctx context.Context, logger log.Logger, info stats.RepositoryInfo) {
-	info.Log(ctx, logger)
-
-	m.reportDataStructureExistence("commit_graph", info.CommitGraph.Exists)
-	m.reportDataStructureExistence("commit_graph_bloom_filters", info.CommitGraph.HasBloomFilters)
-	m.reportDataStructureExistence("commit_graph_generation_data", info.CommitGraph.HasGenerationData)
-	m.reportDataStructureExistence("commit_graph_generation_data_overflow", info.CommitGraph.HasGenerationDataOverflow)
-	m.reportDataStructureExistence("bitmap", info.Packfiles.Bitmap.Exists)
-	m.reportDataStructureExistence("bitmap_hash_cache", info.Packfiles.Bitmap.HasHashCache)
-	m.reportDataStructureExistence("bitmap_lookup_table", info.Packfiles.Bitmap.HasLookupTable)
-	m.reportDataStructureExistence("multi_pack_index", info.Packfiles.MultiPackIndex.Exists)
-	m.reportDataStructureExistence("multi_pack_index_bitmap", info.Packfiles.MultiPackIndexBitmap.Exists)
-	m.reportDataStructureExistence("multi_pack_index_bitmap_hash_cache", info.Packfiles.MultiPackIndexBitmap.HasHashCache)
-	m.reportDataStructureExistence("multi_pack_index_bitmap_lookup_table", info.Packfiles.MultiPackIndexBitmap.HasLookupTable)
-
-	m.reportDataStructureCount("loose_objects_recent", info.LooseObjects.Count-info.LooseObjects.StaleCount)
-	m.reportDataStructureCount("loose_objects_stale", info.LooseObjects.StaleCount)
-	m.reportDataStructureCount("commit_graph_chain", info.CommitGraph.CommitGraphChainLength)
-	m.reportDataStructureCount("packfiles", info.Packfiles.Count)
-	m.reportDataStructureCount("packfiles_cruft", info.Packfiles.CruftCount)
-	m.reportDataStructureCount("packfiles_keep", info.Packfiles.KeepCount)
-	m.reportDataStructureCount("packfiles_reverse_indices", info.Packfiles.ReverseIndexCount)
-	m.reportDataStructureCount("multi_pack_index_packfile_count", info.Packfiles.MultiPackIndex.PackfileCount)
-	m.reportDataStructureCount("loose_references", info.References.LooseReferencesCount)
-
-	m.reportDataStructureSize("loose_objects_recent", info.LooseObjects.Size-info.LooseObjects.StaleSize)
-	m.reportDataStructureSize("loose_objects_stale", info.LooseObjects.StaleSize)
-	m.reportDataStructureSize("packfiles", info.Packfiles.Size)
-	m.reportDataStructureSize("packfiles_cruft", info.Packfiles.CruftSize)
-	m.reportDataStructureSize("packfiles_keep", info.Packfiles.KeepSize)
-	m.reportDataStructureSize("packed_references", info.References.PackedReferencesSize)
-
-	now := time.Now()
-	m.dataStructureTimeSinceLastOptimization.WithLabelValues("packfiles_full_repack").Observe(now.Sub(info.Packfiles.LastFullRepack).Seconds())
-}
-
-func (m *RepositoryManager) reportDataStructureExistence(dataStructure string, exists bool) {
-	m.dataStructureExistence.WithLabelValues(dataStructure, strconv.FormatBool(exists)).Inc()
-	// We also report the inverse metric so that it will be visible to clients.
-	m.dataStructureExistence.WithLabelValues(dataStructure, strconv.FormatBool(!exists)).Add(0)
-}
-
-func (m *RepositoryManager) reportDataStructureCount(dataStructure string, count uint64) {
-	m.dataStructureCount.WithLabelValues(dataStructure).Observe(float64(count))
-}
-
-func (m *RepositoryManager) reportDataStructureSize(dataStructure string, size uint64) {
-	m.dataStructureSize.WithLabelValues(dataStructure).Observe(float64(size))
 }
 
 func (m *RepositoryManager) optimizeRepository(
@@ -171,7 +120,7 @@ func (m *RepositoryManager) optimizeRepository(
 		return err
 	}
 
-	totalTimer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("total"))
+	totalTimer := prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("total"))
 	totalStatus := "failure"
 
 	optimizations := make(map[string]string)
@@ -180,25 +129,25 @@ func (m *RepositoryManager) optimizeRepository(
 		m.logger.WithField("optimizations", optimizations).Info("optimized repository")
 
 		for task, status := range optimizations {
-			m.tasksTotal.WithLabelValues(task, status).Inc()
+			m.metrics.TasksTotal.WithLabelValues(task, status).Inc()
 		}
 
-		m.tasksTotal.WithLabelValues("total", totalStatus).Add(1)
+		m.metrics.TasksTotal.WithLabelValues("total", totalStatus).Add(1)
 	}()
 
-	timer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("clean-stale-data"))
+	timer := prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("clean-stale-data"))
 	if err := m.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()); err != nil {
 		return fmt.Errorf("could not execute housekeeping: %w", err)
 	}
 	timer.ObserveDuration()
 
-	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("clean-worktrees"))
+	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("clean-worktrees"))
 	if err := housekeeping.CleanupWorktrees(ctx, repo); err != nil {
 		return fmt.Errorf("could not clean up worktrees: %w", err)
 	}
 	timer.ObserveDuration()
 
-	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("repack"))
+	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("repack"))
 	didRepack, repackCfg, err := repackIfNeeded(ctx, repo, strategy)
 	if err != nil {
 		optimizations["packed_objects_"+string(repackCfg.Strategy)] = "failure"
@@ -223,7 +172,7 @@ func (m *RepositoryManager) optimizeRepository(
 	}
 	timer.ObserveDuration()
 
-	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("prune"))
+	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("prune"))
 	didPrune, err := pruneIfNeeded(ctx, repo, strategy)
 	if err != nil {
 		optimizations["pruned_objects"] = "failure"
@@ -233,7 +182,7 @@ func (m *RepositoryManager) optimizeRepository(
 	}
 	timer.ObserveDuration()
 
-	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("pack-refs"))
+	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("pack-refs"))
 	didPackRefs, err := m.packRefsIfNeeded(ctx, repo, strategy)
 	if err != nil {
 		optimizations["packed_refs"] = "failure"
@@ -243,7 +192,7 @@ func (m *RepositoryManager) optimizeRepository(
 	}
 	timer.ObserveDuration()
 
-	timer = prometheus.NewTimer(m.tasksLatency.WithLabelValues("commit-graph"))
+	timer = prometheus.NewTimer(m.metrics.TasksLatency.WithLabelValues("commit-graph"))
 	if didWriteCommitGraph, writeCommitGraphCfg, err := writeCommitGraphIfNeeded(ctx, repo, strategy); err != nil {
 		optimizations["written_commit_graph_full"] = "failure"
 		optimizations["written_commit_graph_incremental"] = "failure"
@@ -338,9 +287,9 @@ func (m *RepositoryManager) optimizeRepositoryWithTransaction(
 
 		m.logger.WithField("optimizations", optimizations).Info("optimized repository with WAL")
 		for task, status := range optimizations {
-			m.tasksTotal.WithLabelValues(task, status).Inc()
+			m.metrics.TasksTotal.WithLabelValues(task, status).Inc()
 		}
-		m.tasksTotal.WithLabelValues("total", status).Add(1)
+		m.metrics.TasksTotal.WithLabelValues("total", status).Add(1)
 	}
 
 	if err := transaction.Commit(ctx); err != nil {
@@ -448,7 +397,7 @@ func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.
 		logEntry := m.logger
 		for staleDataType, count := range staleDataByType {
 			logEntry = logEntry.WithField(fmt.Sprintf("stale_data.%s", staleDataType), count)
-			m.prunedFilesTotal.WithLabelValues(staleDataType).Add(float64(count))
+			m.metrics.PrunedFilesTotal.WithLabelValues(staleDataType).Add(float64(count))
 		}
 		logEntry.InfoContext(ctx, "removed files")
 	}()

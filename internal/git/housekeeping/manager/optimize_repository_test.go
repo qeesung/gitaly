@@ -1106,7 +1106,7 @@ func TestOptimizeRepository(t *testing.T) {
 				}
 
 				require.NoError(t, testutil.CollectAndCompare(
-					manager.tasksTotal, &buf, "gitaly_housekeeping_tasks_total",
+					manager.metrics.TasksTotal, &buf, "gitaly_housekeeping_tasks_total",
 				))
 
 				path, err := setup.repo.Path()
