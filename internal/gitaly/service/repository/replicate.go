@@ -97,10 +97,6 @@ func (s *server) replicateRepository(ctx context.Context, source, target *gitaly
 		return fmt.Errorf("synchronizing gitconfig: %w", err)
 	}
 
-	if err := s.syncInfoAttributes(ctx, source, target); err != nil {
-		return fmt.Errorf("synchronizing gitattributes: %w", err)
-	}
-
 	if replicateObjectDeduplicationNetworkMembership {
 		// Sync the repository object pool before fetching the repository to avoid additional
 		// duplication. If the object pool already exists on the target node, this will potentially
@@ -353,36 +349,6 @@ func (s *server) syncGitconfig(ctx context.Context, source, target *gitalypb.Rep
 	if err := s.writeFile(ctx, configPath, perm.SharedFile, streamio.NewReader(func() ([]byte, error) {
 		resp, err := stream.Recv()
 		return resp.GetData(), err
-	})); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *server) syncInfoAttributes(ctx context.Context, source, target *gitalypb.Repository) error {
-	repoClient, err := s.newRepoClient(ctx, source.GetStorageName())
-	if err != nil {
-		return err
-	}
-
-	repoPath, err := s.locator.GetRepoPath(target)
-	if err != nil {
-		return err
-	}
-
-	//nolint:staticcheck
-	stream, err := repoClient.GetInfoAttributes(ctx, &gitalypb.GetInfoAttributesRequest{
-		Repository: source,
-	})
-	if err != nil {
-		return err
-	}
-
-	attributesPath := filepath.Join(repoPath, "info", "attributes")
-	if err := s.writeFile(ctx, attributesPath, attributesFileMode, streamio.NewReader(func() ([]byte, error) {
-		resp, err := stream.Recv()
-		return resp.GetAttributes(), err
 	})); err != nil {
 		return err
 	}
