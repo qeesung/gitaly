@@ -275,6 +275,11 @@ func (s *server) sendTreeEntriesUnified(
 ) error {
 	ctx := stream.Context()
 
+	// Match the behaviour of sendTreeEntries.
+	if path == "." {
+		path = ""
+	}
+
 	readTreeOpts := []localrepo.ReadTreeOption{localrepo.WithRelativePath(path)}
 	if recursive {
 		readTreeOpts = append(readTreeOpts, localrepo.WithRecursive())
@@ -315,7 +320,18 @@ func (s *server) sendTreeEntriesUnified(
 		if errors.Is(err, git.ErrReferenceNotFound) {
 			// Since we rely on repo.ResolveRevision, it could either be an invalid revision
 			// or an invalid path.
-			return structerr.NewInvalidArgument("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
+			var grpcErr structerr.Error
+
+			// Return a different gRPC error code for each case to match the old implementation.
+			// We should probably change this to NewNotFound in a separate MR and FF once the
+			// UseUnifiedGetTreeEntries FF is fully rolled out.
+			if recursive {
+				grpcErr = structerr.NewNotFound("invalid revision or path")
+			} else {
+				grpcErr = structerr.NewInvalidArgument("invalid revision or path")
+			}
+
+			return grpcErr.WithDetail(&gitalypb.GetTreeEntriesError{
 				Error: &gitalypb.GetTreeEntriesError_ResolveTree{
 					ResolveTree: &gitalypb.ResolveRevisionError{
 						Revision: []byte(revision),
