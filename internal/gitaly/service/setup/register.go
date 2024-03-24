@@ -4,6 +4,7 @@ import (
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/server/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/analysis"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/blob"
@@ -73,7 +74,7 @@ func RegisterAll(srv *grpc.Server, deps *service.Dependencies) {
 	gitalypb.RegisterHookServiceServer(srv, hook.NewServer(deps))
 	gitalypb.RegisterInternalGitalyServer(srv, internalgitaly.NewServer(deps))
 
-	healthpb.RegisterHealthServer(srv, health.NewServer())
+	healthpb.RegisterHealthServer(srv, auth.UnauthenticatedHealthService{HealthServer: health.NewServer()})
 	reflection.Register(srv)
 	grpcprometheus.Register(srv)
 }

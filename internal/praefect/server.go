@@ -226,7 +226,7 @@ func registerServices(
 	gitalypb.RegisterServerServiceServer(srv, server.NewServer(conf, logger, conns, checks))
 	gitalypb.RegisterPraefectInfoServiceServer(srv, info.NewServer(conf, logger, rs, assignmentStore, conns, primaryGetter))
 	gitalypb.RegisterRefTransactionServer(srv, transaction.NewServer(tm))
-	healthpb.RegisterHealthServer(srv, health.NewServer())
+	healthpb.RegisterHealthServer(srv, auth.UnauthenticatedHealthService{HealthServer: health.NewServer()})
 	reflection.Register(srv)
 	grpcprometheus.Register(srv)
 }

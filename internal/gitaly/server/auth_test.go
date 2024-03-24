@@ -22,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/server"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
@@ -48,7 +49,7 @@ func TestSanity(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.Close() })
 
-	require.NoError(t, healthCheck(t, conn))
+	require.NoError(t, performUnaryRequest(t, conn))
 }
 
 func TestTLSSanity(t *testing.T) {
@@ -73,7 +74,7 @@ func TestTLSSanity(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.Close() })
 
-	require.NoError(t, healthCheck(t, conn))
+	require.NoError(t, performUnaryRequest(t, conn))
 }
 
 func TestAuthFailures(t *testing.T) {
@@ -105,7 +106,7 @@ func TestAuthFailures(t *testing.T) {
 			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			t.Cleanup(func() { conn.Close() })
-			testhelper.RequireGrpcCode(t, healthCheck(t, conn), tc.code)
+			testhelper.RequireGrpcCode(t, performUnaryRequest(t, conn), tc.code)
 		})
 	}
 }
@@ -148,7 +149,58 @@ func TestAuthSuccess(t *testing.T) {
 			conn, err := dial(serverSocketPath, connOpts)
 			require.NoError(t, err, tc.desc)
 			t.Cleanup(func() { conn.Close() })
-			assert.NoError(t, healthCheck(t, conn), tc.desc)
+			assert.NoError(t, performUnaryRequest(t, conn), tc.desc)
+		})
+	}
+}
+
+func TestUnauthenticatedHealthService(t *testing.T) {
+	ctx := testhelper.Context(t)
+
+	cfg := testcfg.Build(t)
+	cfg.Auth.Token = "secret-token"
+	serverSocketPath := runServer(t, cfg)
+
+	for _, tc := range []struct {
+		desc                    string
+		token                   string
+		expectedAuthFailureCode codes.Code
+	}{
+		{
+			desc:  "with correct token",
+			token: cfg.Auth.Token,
+		},
+		{
+			desc:                    "with wrong token",
+			token:                   "incorrect-token",
+			expectedAuthFailureCode: codes.PermissionDenied,
+		},
+		{
+			desc:                    "without token",
+			expectedAuthFailureCode: codes.Unauthenticated,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+			if tc.token != "" {
+				dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(gitalyauth.RPCCredentialsV2(tc.token)))
+			}
+
+			conn, err := dial(serverSocketPath, dialOpts)
+			require.NoError(t, err)
+			defer testhelper.MustClose(t, conn)
+
+			if err := performUnaryRequest(t, conn); tc.expectedAuthFailureCode != 0 {
+				testhelper.RequireGrpcCode(t, err, tc.expectedAuthFailureCode)
+			} else {
+				require.NoError(t, err)
+			}
+
+			resp, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
+			require.NoError(t, err)
+			testhelper.ProtoEqual(t, resp, &healthpb.HealthCheckResponse{
+				Status: healthpb.HealthCheckResponse_SERVING,
+			})
 		})
 	}
 }
@@ -164,10 +216,10 @@ func dial(serverSocketPath string, opts []grpc.DialOption) (*grpc.ClientConn, er
 	return grpc.Dial(serverSocketPath, opts...)
 }
 
-func healthCheck(tb testing.TB, conn *grpc.ClientConn) error {
+func performUnaryRequest(tb testing.TB, conn *grpc.ClientConn) error {
 	ctx := testhelper.Context(tb)
 
-	_, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
+	_, err := gitalypb.NewServerServiceClient(conn).ServerInfo(ctx, &gitalypb.ServerInfoRequest{})
 	return err
 }
 
@@ -251,6 +303,11 @@ func runSecureServer(t *testing.T, cfg config.Cfg) string {
 	).New(true, true)
 	require.NoError(t, err)
 
+	gitalypb.RegisterServerServiceServer(srv, server.NewServer(&service.Dependencies{
+		Logger:        testhelper.SharedLogger(t),
+		GitCmdFactory: gittest.NewCommandFactory(t, cfg),
+		Cfg:           cfg,
+	}))
 	healthpb.RegisterHealthServer(srv, health.NewServer())
 
 	listener, hostPort := testhelper.GetLocalhostListener(t)
