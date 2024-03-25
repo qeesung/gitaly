@@ -1812,6 +1812,89 @@ func TestRepositoryManager_CleanStaleData_references(t *testing.T) {
 	}
 }
 
+func TestRepositoryManager_CleanStaleData_infoattributes(t *testing.T) {
+	t.Parallel()
+	testcases := []struct {
+		name            string
+		entries         []entry
+		expectedMetrics cleanStaleDataMetrics
+	}{
+		{
+			name: "clean info/attributes file when there is one",
+			entries: []entry{
+				d("info", []entry{
+					f("attributes", expectDeletion, withData("*.go diff=go text\n*.md text\n*.jpg -text")),
+				}),
+			},
+			expectedMetrics: cleanStaleDataMetrics{
+				infoAttributes: 1,
+			},
+		},
+		{
+			name: "do not delete other files in the info directory",
+			entries: []entry{
+				d("info", []entry{
+					f("some_other_file", withData("I should not be deleted")),
+				}),
+			},
+			expectedMetrics: cleanStaleDataMetrics{
+				infoAttributes: 0,
+			},
+		},
+		{
+			name: "no error if info/attributes file is already gone",
+			entries: []entry{
+				d("info", []entry{}),
+			},
+			expectedMetrics: cleanStaleDataMetrics{
+				infoAttributes: 0,
+			},
+		},
+		{
+			name: "info/attributes file with empty permission",
+			entries: []entry{
+				d("info", []entry{
+					f("attributes", expectDeletion,
+						withData("*.go diff=go text\n*.md text\n*.jpg -text"), withMode(0o000)),
+				}),
+			},
+			expectedMetrics: cleanStaleDataMetrics{
+				infoAttributes: 1,
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := testhelper.Context(t)
+			cfg := testcfg.Build(t)
+
+			repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+				SkipCreationViaService: true,
+			})
+			repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+			for _, e := range tc.entries {
+				e.create(t, repoPath)
+			}
+
+			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+
+			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
+
+			for _, e := range tc.entries {
+				e.validate(t, repoPath)
+			}
+
+			requireCleanStaleDataMetrics(t, mgr, tc.expectedMetrics)
+		})
+	}
+}
+
 func TestRepositoryManager_CleanStaleData_emptyRefDirs(t *testing.T) {
 	t.Parallel()
 	testcases := []struct {
