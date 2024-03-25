@@ -88,6 +88,7 @@ func DefaultStaleDataCleanup() CleanStaleDataConfig {
 		RepoCleanups: map[string]CleanupRepoFunc{
 			"refsemptydir":   RemoveRefEmptyDirs,
 			"configsections": PruneEmptyConfigSections,
+			"infoattributes": RemoveInfoAttributes,
 		},
 		RepoCleanupWithTxManagers: map[string]cleanupRepoWithTxManagerFunc{
 			"configkeys": removeUnnecessaryConfig,
@@ -618,4 +619,24 @@ func removeEmptyDirs(ctx context.Context, target string) (int, error) {
 	}
 
 	return prunedDirsTotal + 1, nil
+}
+
+// RemoveInfoAttributes removes attributes file inside the info directory. This is because,
+// gitaly will use HEAD:.gitattributes to store git attributes from git 2.43 on. Old operation that copies
+// HEAD:.gitattributes into info/attributes will be deprecated. The old info/attributes file must be
+// removed because it has higher precedence than HEAD:.gitattributes.
+func RemoveInfoAttributes(ctx context.Context, repo *localrepo.Repo) (int, error) {
+	rPath, err := repo.Path()
+	if err != nil {
+		return 0, err
+	}
+	attrFile := filepath.Join(rPath, "info", "attributes")
+	err = os.Remove(attrFile)
+	switch {
+	case os.IsNotExist(err):
+		return 0, nil // it has been deleted it already
+	case err != nil:
+		return 0, err
+	}
+	return 1, nil
 }
