@@ -23,7 +23,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/yamux v0.1.2-0.20220728231024-8f49b6f63f18
-	github.com/jackc/pgx/v5 v5.4.3
+	github.com/jackc/pgx/v5 v5.5.5
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/miekg/dns v1.1.56
 	github.com/olekukonko/tablewriter v0.0.5
@@ -48,7 +48,7 @@ require (
 	golang.org/x/time v0.3.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231002182017-d307bd883b97
 	google.golang.org/grpc v1.60.1
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.33.0
 )
 
 require (
@@ -138,6 +138,7 @@ require (
 	github.com/hhatto/gorst v0.0.0-20181029133204-ca9f730cac5b // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
