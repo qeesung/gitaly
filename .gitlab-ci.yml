@@ -115,6 +115,8 @@ workflow:
     POSTGRES_HOST_AUTH_METHOD: trust
     TEST_JUNIT_REPORT: "${CI_PROJECT_DIR}/_build/reports/tests-junit.xml"
     TEST_COVERAGE_DIR: "${CI_PROJECT_DIR}/_build/reports/coverage"
+    TEST_COVERAGE_LIST: "${CI_PROJECT_DIR}/_build/reports/coverage-list.txt"
+    TEST_COVERAGE_REPORT: "${CI_PROJECT_DIR}/_build/reports/coverage-report.html"
     TEST_JSON_REPORT: "${CI_PROJECT_DIR}/_build/reports/test-report.json"
     TEST_LOG_DIR: "${CI_PROJECT_DIR}/_build/reports/test-logs"
     TEST_OPTIONS: "-count=1 -timeout=20m" # a number of tests may exceed the default 10m
@@ -140,13 +142,19 @@ workflow:
     - go run "${CI_PROJECT_DIR}/tools/panic-parser"
     - |
       echo -e "section_start:$(date +%s):coverage[collapsed=true]\r\e[0KCode Coverage"
-      go tool cover -func "${TEST_COVERAGE_DIR}/all.merged"
+      go tool cover -html "${TEST_COVERAGE_DIR}/all.merged" -o "${TEST_COVERAGE_REPORT}"
+      go tool cover -func "${TEST_COVERAGE_DIR}/all.merged" -o "${TEST_COVERAGE_LIST}"
+      echo "Code coverage reports are available at:"
+      echo "- ${TEST_COVERAGE_REPORT}"
+      echo "- ${TEST_COVERAGE_LIST}"
       echo -e "section_end:$(date +%s):coverage\r\e[0K"
 
   artifacts: &test_artifacts
     paths:
       - ${TEST_LOG_DIR}
       - ${TEST_JSON_REPORT}
+      - ${TEST_COVERAGE_REPORT}
+      - ${TEST_COVERAGE_LIST}
     reports:
       junit: ${TEST_JUNIT_REPORT}
       coverage_report:
