@@ -9,6 +9,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 )
@@ -206,8 +207,11 @@ func (s *repositoryStates) tryRunningPackRefs(repoPath string) (successful bool,
 
 // RepositoryManager is an implementation of the Manager interface.
 type RepositoryManager struct {
-	logger    log.Logger
+	logger log.Logger
+	// txManager is Praefect's transaction manager using voting mechanism. It will be deprecated soon.
 	txManager transaction.Manager
+	// walPartitionManager is the WAL partition manager. It is used to control housekeeping transactions.
+	walPartitionManager *storagemgr.PartitionManager
 
 	tasksTotal                             *prometheus.CounterVec
 	tasksLatency                           *prometheus.HistogramVec
@@ -221,10 +225,11 @@ type RepositoryManager struct {
 }
 
 // New creates a new RepositoryManager.
-func New(promCfg gitalycfgprom.Config, logger log.Logger, txManager transaction.Manager) *RepositoryManager {
+func New(promCfg gitalycfgprom.Config, logger log.Logger, txManager transaction.Manager, partitionManager *storagemgr.PartitionManager) *RepositoryManager {
 	return &RepositoryManager{
-		logger:    logger.WithField("system", "housekeeping"),
-		txManager: txManager,
+		logger:              logger.WithField("system", "housekeeping"),
+		txManager:           txManager,
+		walPartitionManager: partitionManager,
 
 		tasksTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{

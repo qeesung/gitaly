@@ -48,7 +48,7 @@ func TestCreate(t *testing.T) {
 			gittest.NewCommandFactory(t, cfg, git.WithSkipHooks()),
 			catfileCache,
 			txManager,
-			housekeepingmgr.New(cfg.Prometheus, logger, txManager),
+			housekeepingmgr.New(cfg.Prometheus, logger, txManager, nil),
 			poolProto,
 			repo,
 		)

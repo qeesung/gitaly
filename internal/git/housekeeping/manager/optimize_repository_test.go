@@ -439,7 +439,7 @@ func TestPackRefsIfNeeded(t *testing.T) {
 			packedRefsPath := filepath.Join(repoPath, "packed-refs")
 			looseRefPath := filepath.Join(repoPath, "refs", "heads", "main")
 
-			manager := New(gitalycfgprom.Config{}, logger, nil)
+			manager := New(gitalycfgprom.Config{}, logger, nil, nil)
 			data := tc.setup(t, ctx, manager, repoPath, &gitCmdFactory)
 
 			didRepack, err := manager.packRefsIfNeeded(ctx, repo, mockOptimizationStrategy{
@@ -1055,7 +1055,7 @@ func TestOptimizeRepository(t *testing.T) {
 
 			setup := tc.setup(t, relativePath)
 
-			manager := New(cfg.Prometheus, testhelper.SharedLogger(t), txManager)
+			manager := New(cfg.Prometheus, testhelper.SharedLogger(t), txManager, nil)
 
 			err := manager.OptimizeRepository(ctx, setup.repo, setup.options...)
 			require.Equal(t, setup.expectedErr, err)
@@ -1104,7 +1104,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		manager := New(gitalycfgprom.Config{}, testhelper.NewLogger(t), nil)
+		manager := New(gitalycfgprom.Config{}, testhelper.NewLogger(t), nil, nil)
 		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			reqReceivedCh <- struct{}{}
 			ch <- struct{}{}
@@ -1136,7 +1136,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil)
+		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, nil)
 		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			// This should only happen if housekeeping is running successfully.
 			// So by sending data on this channel we can notify the test that this
@@ -1170,7 +1170,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil)
+		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, nil)
 		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			require.FailNow(t, "housekeeping run should have been skipped")
 			return nil
@@ -1203,7 +1203,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 
 		reposOptimized := make(map[string]struct{})
 
-		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil)
+		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, nil)
 		manager.optimizeFunc = func(_ context.Context, _ *RepositoryManager, _ log.Logger, repo *localrepo.Repo, _ housekeeping.OptimizationStrategy) error {
 			reposOptimized[repo.GetRelativePath()] = struct{}{}
 
@@ -1240,7 +1240,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 		var optimizations int
 
-		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil)
+		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, nil)
 		manager.optimizeFunc = func(context.Context, *RepositoryManager, log.Logger, *localrepo.Repo, housekeeping.OptimizationStrategy) error {
 			optimizations++
 
@@ -1622,7 +1622,7 @@ func TestRepositoryManager_CleanStaleData(t *testing.T) {
 				e.create(t, repoPath)
 			}
 
-			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
@@ -1681,7 +1681,7 @@ func TestRepositoryManager_CleanStaleData_reftable(t *testing.T) {
 			filetime := time.Now().Add(-tc.age)
 			require.NoError(t, os.Chtimes(path, filetime, filetime))
 
-			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
 			exists := false
@@ -1792,7 +1792,7 @@ func TestRepositoryManager_CleanStaleData_references(t *testing.T) {
 				require.NoError(t, os.Chtimes(path, filetime, filetime))
 			}
 
-			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
@@ -1919,7 +1919,7 @@ func TestRepositoryManager_CleanStaleData_emptyRefDirs(t *testing.T) {
 				e.create(t, repoPath)
 			}
 
-			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
@@ -2055,7 +2055,7 @@ func TestRepositoryManager_CleanStaleData_withSpecificFile(t *testing.T) {
 				SkipCreationViaService: true,
 			})
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
-			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 			for _, subcase := range []struct {
@@ -2153,7 +2153,7 @@ func TestRepositoryManager_CleanStaleData_serverInfo(t *testing.T) {
 		filepath.Join(repoPath, "objects/info/packs_123456"),
 	}, staleFiles)
 
-	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
 	require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 
@@ -2286,7 +2286,7 @@ func TestRepositoryManager_CleanStaleData_referenceLocks(t *testing.T) {
 			require.NoError(t, err)
 			require.ElementsMatch(t, expectedReferenceLocks, staleLockfiles)
 
-			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+			mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
 			require.NoError(t, mgr.CleanStaleData(ctx, repo, tc.cfg))
 
@@ -2316,7 +2316,7 @@ func TestRepositoryManager_CleanStaleData_missingRepo(t *testing.T) {
 
 	require.NoError(t, os.RemoveAll(repoPath))
 
-	require.NoError(t, New(cfg.Prometheus, testhelper.SharedLogger(t), nil).CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
+	require.NoError(t, New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil).CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 }
 
 func TestRepositoryManager_CleanStaleData_unsetConfiguration(t *testing.T) {
@@ -2355,7 +2355,7 @@ func TestRepositoryManager_CleanStaleData_unsetConfiguration(t *testing.T) {
 	unrelated = untouched
 `), perm.SharedFile))
 
-	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
 	require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 	require.Equal(t,
@@ -2397,7 +2397,7 @@ func TestRepositoryManager_CleanStaleData_unsetConfigurationTransactional(t *tes
 		AuthInfo: backchannel.WithID(nil, 1234),
 	})
 
-	require.NoError(t, New(cfg.Prometheus, testhelper.SharedLogger(t), txManager).CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
+	require.NoError(t, New(cfg.Prometheus, testhelper.SharedLogger(t), txManager, nil).CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 	require.Equal(t, 2, len(txManager.Votes()))
 
 	configKeys := gittest.Exec(t, cfg, "-C", repoPath, "config", "--list", "--local", "--name-only")
@@ -2451,7 +2451,7 @@ func TestRepositoryManager_CleanStaleData_pruneEmptyConfigSections(t *testing.T)
 [remote "tmp-8c948ca94832c2725733e48cb2902287"]
 `), perm.SharedFile))
 
-	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil)
+	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
 	require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
 	require.Equal(t, `[core]

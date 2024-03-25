@@ -234,9 +234,6 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	transactionManager := transaction.NewManager(cfg, logger, registry)
 	prometheus.MustRegister(transactionManager)
 
-	housekeepingManager := housekeepingmgr.New(cfg.Prometheus, logger, transactionManager)
-	prometheus.MustRegister(housekeepingManager)
-
 	hookManager := hook.Manager(hook.DisabledManager{})
 
 	locator := config.NewLocator(cfg)
@@ -364,6 +361,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		defer stop()
 	}
 
+	var partitionMgr *storagemgr.PartitionManager
 	var txMiddleware server.TransactionMiddleware
 	if cfg.Transactions.Enabled {
 		logger.WarnContext(ctx, "Transactions enabled. Transactions are an experimental feature. The feature is not production ready yet and might lead to various issues including data loss.")
@@ -386,6 +384,9 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			StreamInterceptor: storagemgr.NewStreamInterceptor(logger, protoregistry.GitalyProtoPreregistered, txRegistry, partitionMgr, locator),
 		}
 	}
+
+	housekeepingManager := housekeepingmgr.New(cfg.Prometheus, logger, transactionManager, partitionMgr)
+	prometheus.MustRegister(housekeepingManager)
 
 	gitalyServerFactory := server.NewGitalyServerFactory(
 		cfg,
