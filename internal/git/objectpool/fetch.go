@@ -13,99 +13,150 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/voting"
+	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
 var objectPoolRefspec = fmt.Sprintf("+refs/*:%s/*", git.ObjectPoolRefNamespace)
 
 // FetchFromOrigin initializes the pool and fetches the objects from its origin repository
-func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *localrepo.Repo) error {
+func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *localrepo.Repo, partitionManager *storagemgr.PartitionManager) error {
 	if !o.Exists() {
 		return structerr.NewInvalidArgument("object pool does not exist")
 	}
 
-	originPath, err := origin.Path()
-	if err != nil {
-		return fmt.Errorf("computing origin repo's path: %w", err)
-	}
+	// This RPC fetches new objects from the origin repository into the object pool. Afterward, it
+	// triggers a full set of housekeeping tasks. If WAL transaction is enabled, the housekeeping
+	// manager initiates a transaction and executes all housekeeping tasks inside the transaction
+	// context. Normally, the transaction life cycle is managed by a gRPC middleware. RPC handlers
+	// extract the transaction from the context. Unfortunately, following that approach results in
+	// two non-nested transactions. The housekeeping transaction is committed before the main
+	// fetching one. The housekeeping task's effect is pushed to the next request. That's opposed to
+	// the initial intention of running housekeeping after fetching. As a result, this RPC needs to
+	// manage the transaction itself so that two transactions can be committed in the right order.
+	if err := o.executeMaybeWithTransaction(ctx, origin, partitionManager, func(origin *localrepo.Repo) error {
+		originPath, err := origin.Path()
+		if err != nil {
+			return fmt.Errorf("computing origin repo's path: %w", err)
+		}
 
-	if err := o.housekeepingManager.CleanStaleData(ctx, o.Repo, housekeeping.DefaultStaleDataCleanup()); err != nil {
-		return fmt.Errorf("cleaning stale data: %w", err)
-	}
+		if err := o.housekeepingManager.CleanStaleData(ctx, o.Repo, housekeeping.DefaultStaleDataCleanup()); err != nil {
+			return fmt.Errorf("cleaning stale data: %w", err)
+		}
 
-	if err := o.logStats(ctx, "before fetch"); err != nil {
-		return fmt.Errorf("computing stats before fetch: %w", err)
-	}
+		if err := o.logStats(ctx, "before fetch"); err != nil {
+			return fmt.Errorf("computing stats before fetch: %w", err)
+		}
 
-	// Ideally we wouldn't want to prune old references at all so that we can keep alive all
-	// objects without having to create loads of dangling references. But unfortunately keeping
-	// around old refs can lead to D/F conflicts between old references that have since
-	// been deleted in the pool and new references that have been added in the pool member we're
-	// fetching from. E.g. if we have the old reference `refs/heads/branch` and the pool member
-	// has replaced that since with a new reference `refs/heads/branch/conflict` then
-	// the fetch would now always fail because of that conflict.
-	//
-	// Due to the lack of an alternative to resolve that conflict we are thus forced to enable
-	// pruning. This isn't too bad given that we know to keep alive the old objects via dangling
-	// refs anyway, but I'd sleep easier if we didn't have to do this.
-	//
-	// Note that we need to perform the pruning separately from the fetch: if the fetch is using
-	// `--atomic` and `--prune` together then it still wouldn't be able to recover from the D/F
-	// conflict. So we first to a preliminary prune that only prunes refs without fetching
-	// objects yet to avoid that scenario.
-	if err := o.pruneReferences(ctx, origin); err != nil {
-		return fmt.Errorf("pruning references: %w", err)
-	}
+		// Ideally we wouldn't want to prune old references at all so that we can keep alive all
+		// objects without having to create loads of dangling references. But unfortunately keeping
+		// around old refs can lead to D/F conflicts between old references that have since
+		// been deleted in the pool and new references that have been added in the pool member we're
+		// fetching from. E.g. if we have the old reference `refs/heads/branch` and the pool member
+		// has replaced that since with a new reference `refs/heads/branch/conflict` then
+		// the fetch would now always fail because of that conflict.
+		//
+		// Due to the lack of an alternative to resolve that conflict we are thus forced to enable
+		// pruning. This isn't too bad given that we know to keep alive the old objects via dangling
+		// refs anyway, but I'd sleep easier if we didn't have to do this.
+		//
+		// Note that we need to perform the pruning separately from the fetch: if the fetch is using
+		// `--atomic` and `--prune` together then it still wouldn't be able to recover from the D/F
+		// conflict. So we first to a preliminary prune that only prunes refs without fetching
+		// objects yet to avoid that scenario.
+		if err := o.pruneReferences(ctx, origin); err != nil {
+			return fmt.Errorf("pruning references: %w", err)
+		}
 
-	var stderr bytes.Buffer
-	if err := o.Repo.ExecAndWait(ctx,
-		git.Command{
-			Name: "fetch",
-			Flags: []git.Option{
-				git.Flag{Name: "--quiet"},
-				git.Flag{Name: "--atomic"},
-				// We already fetch tags via our refspec, so we don't
-				// want to fetch them a second time via Git's default
-				// tag refspec.
-				git.Flag{Name: "--no-tags"},
-				// We don't need FETCH_HEAD, and it can potentially be hundreds of
-				// megabytes when doing a mirror-sync of repos with huge numbers of
-				// references.
-				git.Flag{Name: "--no-write-fetch-head"},
-				// Disable showing forced updates, which may take a considerable
-				// amount of time to compute. We don't display any output anyway,
-				// which makes this computation kind of moot.
-				git.Flag{Name: "--no-show-forced-updates"},
+		var stderr bytes.Buffer
+		if err := o.Repo.ExecAndWait(ctx,
+			git.Command{
+				Name: "fetch",
+				Flags: []git.Option{
+					git.Flag{Name: "--quiet"},
+					git.Flag{Name: "--atomic"},
+					// We already fetch tags via our refspec, so we don't
+					// want to fetch them a second time via Git's default
+					// tag refspec.
+					git.Flag{Name: "--no-tags"},
+					// We don't need FETCH_HEAD, and it can potentially be hundreds of
+					// megabytes when doing a mirror-sync of repos with huge numbers of
+					// references.
+					git.Flag{Name: "--no-write-fetch-head"},
+					// Disable showing forced updates, which may take a considerable
+					// amount of time to compute. We don't display any output anyway,
+					// which makes this computation kind of moot.
+					git.Flag{Name: "--no-show-forced-updates"},
+				},
+				Args: []string{originPath, objectPoolRefspec},
 			},
-			Args: []string{originPath, objectPoolRefspec},
-		},
-		git.WithRefTxHook(o.Repo),
-		git.WithStderr(&stderr),
-		git.WithConfig(git.ConfigPair{
-			// Git is so kind to point out that we asked it to not show forced updates
-			// by default, so we need to ask it not to do that.
-			Key: "advice.fetchShowForcedUpdates", Value: "false",
-		}),
-	); err != nil {
-		return fmt.Errorf("fetch into object pool: %w, stderr: %q", err,
-			stderr.String())
-	}
+			git.WithRefTxHook(o.Repo),
+			git.WithStderr(&stderr),
+			git.WithConfig(git.ConfigPair{
+				// Git is so kind to point out that we asked it to not show forced updates
+				// by default, so we need to ask it not to do that.
+				Key: "advice.fetchShowForcedUpdates", Value: "false",
+			}),
+		); err != nil {
+			return fmt.Errorf("fetch into object pool: %w, stderr: %q", err,
+				stderr.String())
+		}
 
-	if err := o.rescueDanglingObjects(ctx); err != nil {
-		return fmt.Errorf("rescuing dangling objects: %w", err)
-	}
+		if err := o.rescueDanglingObjects(ctx); err != nil {
+			return fmt.Errorf("rescuing dangling objects: %w", err)
+		}
 
-	if err := o.logStats(ctx, "after fetch"); err != nil {
-		return fmt.Errorf("computing stats after fetch: %w", err)
+		if err := o.logStats(ctx, "after fetch"); err != nil {
+			return fmt.Errorf("computing stats after fetch: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	if err := o.housekeepingManager.OptimizeRepository(ctx, o.Repo); err != nil {
 		return fmt.Errorf("optimizing pool repo: %w", err)
 	}
 
+	return nil
+}
+
+func (o *ObjectPool) executeMaybeWithTransaction(ctx context.Context, origin *localrepo.Repo, partitionManager *storagemgr.PartitionManager, execute func(*localrepo.Repo) error) (returnedErr error) {
+	if partitionManager == nil {
+		return execute(origin)
+	}
+	transaction, err := partitionManager.Begin(ctx, origin.GetStorageName(), origin.GetRelativePath(), "", false)
+	if err != nil {
+		return fmt.Errorf("fail to initiate WAL transaction: %w", err)
+	}
+
+	defer func() {
+		if returnedErr != nil {
+			if err := transaction.Rollback(); err != nil {
+				o.logger.WithError(err).Error("failed to rollback WAL transaction")
+			}
+		}
+	}()
+
+	snapshotRepo := transaction.RewriteRepository(&gitalypb.Repository{
+		StorageName:                   origin.GetStorageName(),
+		GitAlternateObjectDirectories: origin.GetGitAlternateObjectDirectories(),
+		GitObjectDirectory:            origin.GetGitObjectDirectory(),
+		RelativePath:                  origin.GetRelativePath(),
+	})
+
+	repo := localrepo.NewFrom(origin, snapshotRepo)
+	if err := execute(repo); err != nil {
+		return err
+	}
+
+	if err := transaction.Commit(ctx); err != nil {
+		return fmt.Errorf("fail to commit WAL transaction: %w", err)
+	}
 	return nil
 }
 

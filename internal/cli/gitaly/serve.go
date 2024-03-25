@@ -453,6 +453,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			PackObjectsLimiter:  packObjectsLimiter,
 			RepositoryCounter:   repoCounter,
 			UpdaterWithHooks:    updaterWithHooks,
+			PartitionManager:    partitionMgr,
 			HousekeepingManager: housekeepingManager,
 			BackupSink:          backupSink,
 			BackupLocator:       backupLocator,
