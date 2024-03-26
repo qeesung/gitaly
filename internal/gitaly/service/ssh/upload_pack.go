@@ -114,7 +114,7 @@ func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, st
 
 	config = append(config, bundleuri.CapabilitiesGitConfig(ctx)...)
 
-	uploadPackConfig, err := bundleuri.UploadPackGitConfig(ctx, s.backupLocator, s.backupSink, req.GetRepository())
+	uploadPackConfig, err := bundleuri.UploadPackGitConfig(ctx, s.bundleURISink, req.GetRepository())
 	if err != nil {
 		log.AddFields(ctx, log.Fields{"bundle_uri_error": err})
 	} else {

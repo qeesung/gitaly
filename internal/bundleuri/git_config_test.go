@@ -3,17 +3,17 @@ package bundleuri
 import (
 	"context"
 	"errors"
-	"io"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -28,95 +28,82 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
 	cfg := testcfg.Build(t)
-	repoProto, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
 	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
+	gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithTreeEntries(gittest.TreeEntry{Mode: "100644", Path: "README", Content: "much"}),
+		gittest.WithBranch("main"))
+
+	tempDir := testhelper.TempDir(t)
+	keyFile, err := os.Create(filepath.Join(tempDir, "secret.key"))
+	require.NoError(t, err)
+	_, err = keyFile.WriteString("super-secret-key")
+	require.NoError(t, err)
+	require.NoError(t, keyFile.Close())
+
+	type setupData struct {
+		sink *Sink
+	}
+
 	for _, tc := range []struct {
 		desc           string
-		findLatestFunc func(context.Context, storage.Repository) (*backup.Backup, error)
-		signedURLFunc  func(context.Context, string, time.Duration) (string, error)
+		setup          func(t *testing.T) setupData
 		expectedConfig []git.ConfigPair
 		expectedErr    error
 	}{
 		{
-			desc:           "no backup locator nor sink",
-			expectedConfig: nil,
-			expectedErr:    errors.New("backup locator missing"),
-		},
-		{
-			desc: "no backup locator",
-			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
-				return "", structerr.NewNotFound("not signed")
+			desc: "no sink",
+			setup: func(t *testing.T) setupData {
+				return setupData{}
 			},
 			expectedConfig: nil,
-			expectedErr:    errors.New("backup locator missing"),
+			expectedErr:    errors.New("bundle-URI sink missing"),
 		},
 		{
-			desc: "no backup sink",
-			findLatestFunc: func(context.Context, storage.Repository) (*backup.Backup, error) {
-				return nil, structerr.NewNotFound("no backup found")
+			desc: "no bundle found",
+			setup: func(t *testing.T) setupData {
+				sinkDir := t.TempDir()
+				sink, err := NewSink(ctx, "file://"+sinkDir+"?base_url=http://example.com&secret_key_path="+keyFile.Name())
+				require.NoError(t, err)
+
+				return setupData{
+					sink: sink,
+				}
 			},
 			expectedConfig: nil,
-			expectedErr:    errors.New("backup sink missing"),
+			expectedErr:    structerr.NewNotFound("no bundle available"),
 		},
 		{
-			desc: "no backup found",
-			findLatestFunc: func(context.Context, storage.Repository) (*backup.Backup, error) {
-				return nil, structerr.NewNotFound("no backup found")
-			},
-			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
-				return "", structerr.NewNotFound("not signed")
+			desc: "not signed",
+			setup: func(t *testing.T) setupData {
+				sinkDir := t.TempDir()
+				sink, err := NewSink(ctx, "file://"+sinkDir)
+				require.NoError(t, err)
+
+				require.NoError(t, sink.Generate(ctx, repo))
+
+				return setupData{
+					sink: sink,
+				}
 			},
 			expectedConfig: nil,
-			expectedErr:    structerr.NewNotFound("no backup found"),
-		},
-		{
-			desc: "backup has no steps",
-			findLatestFunc: func(context.Context, storage.Repository) (*backup.Backup, error) {
-				return &backup.Backup{}, nil
-			},
-			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
-				return "", structerr.NewNotFound("not signed")
-			},
-			expectedErr: errors.New("no valid backup found"),
-		},
-		{
-			desc: "backup step is incremental",
-			findLatestFunc: func(context.Context, storage.Repository) (*backup.Backup, error) {
-				return &backup.Backup{
-					Steps: []backup.Step{{PreviousRefPath: "not-nil"}},
-				}, nil
-			},
-			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
-				return "", structerr.NewNotFound("not signed")
-			},
-			expectedConfig: nil,
-			expectedErr:    errors.New("no valid backup found"),
-		},
-		{
-			desc: "sign failed",
-			findLatestFunc: func(context.Context, storage.Repository) (*backup.Backup, error) {
-				return &backup.Backup{
-					Steps: []backup.Step{{BundlePath: "not-nil"}},
-				}, nil
-			},
-			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
-				return "", structerr.NewNotFound("not signed")
-			},
-			expectedConfig: nil,
-			expectedErr:    structerr.NewNotFound("not signed"),
+			expectedErr:    fmt.Errorf("signed URL: fileblob.SignedURL: bucket does not have an Options.URLSigner (code=Unimplemented)"),
 		},
 		{
 			desc: "success",
-			findLatestFunc: func(context.Context, storage.Repository) (*backup.Backup, error) {
-				return &backup.Backup{
-					Steps: []backup.Step{{BundlePath: "not-nil"}},
-				}, nil
-			},
-			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
-				return "https://example.com/bundle.git?signed=ok", nil
+			setup: func(t *testing.T) setupData {
+				sinkDir := t.TempDir()
+				sink, err := NewSink(ctx, "file://"+sinkDir+"?base_url=http://example.com&secret_key_path="+keyFile.Name())
+				require.NoError(t, err)
+
+				require.NoError(t, sink.Generate(ctx, repo))
+
+				return setupData{
+					sink: sink,
+				}
 			},
 			expectedConfig: []git.ConfigPair{
 				{
@@ -132,7 +119,7 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 					Value: "any",
 				},
 				{
-					Key:   "bundle.some.uri",
+					Key:   "bundle.default.uri",
 					Value: "https://example.com/bundle.git?signed=ok",
 				},
 			},
@@ -143,78 +130,31 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
-			var locator backup.Locator
-			if tc.findLatestFunc != nil {
-				locator = dummyLocator{findLatestFunc: tc.findLatestFunc}
-			}
+			data := tc.setup(t)
+			sink := data.sink
 
-			var sink backup.Sink
-			if tc.signedURLFunc != nil {
-				sink = dummySink{signedURLFunc: tc.signedURLFunc}
-			}
-
-			actual, err := UploadPackGitConfig(ctx, locator, sink, repo)
+			actual, err := UploadPackGitConfig(ctx, sink, repoProto)
 
 			if featureflag.BundleURI.IsEnabled(ctx) {
-				require.Equal(t, tc.expectedConfig, actual)
 				require.Equal(t, tc.expectedErr, err)
+
+				if tc.expectedConfig != nil {
+					require.Equal(t, len(tc.expectedConfig), len(actual))
+
+					for i, c := range tc.expectedConfig {
+						if strings.HasSuffix(c.Key, ".uri") {
+							// We cannot predict the exact signed URL Value,
+							// so only check the Keys.
+							require.Equal(t, c.Key, actual[i].Key)
+						} else {
+							require.Equal(t, c, actual[i])
+						}
+					}
+				}
 			} else {
-				require.Empty(t, actual)
 				require.NoError(t, err)
+				require.Empty(t, actual)
 			}
 		})
 	}
-}
-
-type dummyLocator struct {
-	findLatestFunc func(context.Context, storage.Repository) (*backup.Backup, error)
-}
-
-// BeginFull is not supported by this dummyLocator.
-func (l dummyLocator) BeginFull(ctx context.Context, repo storage.Repository, backupID string) *backup.Backup {
-	return nil
-}
-
-// BeginIncremental is not supported by this dummyLocator.
-func (l dummyLocator) BeginIncremental(ctx context.Context, repo storage.Repository, backupID string) (*backup.Backup, error) {
-	return nil, structerr.NewUnimplemented("BeginIncremental not implemented for dummyLocator")
-}
-
-// Commit is not supported by this dummyLocator.
-func (l dummyLocator) Commit(ctx context.Context, backup *backup.Backup) error {
-	return structerr.NewUnimplemented("Commit not implemented for dummyLocator")
-}
-
-// FindLatest calls the findLatestFunc of the dummyLocator.
-func (l dummyLocator) FindLatest(ctx context.Context, repo storage.Repository) (*backup.Backup, error) {
-	return l.findLatestFunc(ctx, repo)
-}
-
-// Find is not supported by this dummyLocator.
-func (l dummyLocator) Find(ctx context.Context, repo storage.Repository, backupID string) (*backup.Backup, error) {
-	return nil, structerr.NewUnimplemented("Find not implemented for dummyLocator")
-}
-
-type dummySink struct {
-	signedURLFunc func(context.Context, string, time.Duration) (string, error)
-}
-
-// Close the dummySink.
-func (s dummySink) Close() error {
-	return nil
-}
-
-// GetWriter is not supported by this dummySink.
-func (s dummySink) GetWriter(ctx context.Context, relativePath string) (io.WriteCloser, error) {
-	return nil, structerr.NewUnimplemented("GetWriter not implemented for dummySink")
-}
-
-// GetReader is not supported by this dummySink.
-func (s dummySink) GetReader(ctx context.Context, relativePath string) (io.ReadCloser, error) {
-	return nil, structerr.NewUnimplemented("GetReader not implemented for dummySink")
-}
-
-// SignedURL calls the signedURLFunc of the dummySink.
-func (s dummySink) SignedURL(ctx context.Context, relativePath string, expiry time.Duration) (string, error) {
-	return s.signedURLFunc(ctx, relativePath, expiry)
 }

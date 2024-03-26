@@ -3,9 +3,8 @@ package bundleuri
 import (
 	"context"
 	"errors"
-	"time"
+	"fmt"
 
-	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
@@ -35,58 +34,40 @@ func CapabilitiesGitConfig(ctx context.Context) []git.ConfigPair {
 // who clones/fetches from the repository.
 func UploadPackGitConfig(
 	ctx context.Context,
-	backupLocator backup.Locator,
-	backupSink backup.Sink,
+	sink *Sink,
 	repo storage.Repository,
 ) ([]git.ConfigPair, error) {
 	if featureflag.BundleURI.IsDisabled(ctx) {
-		return nil, nil
+		return []git.ConfigPair{}, nil
 	}
 
-	if backupLocator == nil {
-		return nil, errors.New("backup locator missing")
+	if sink == nil {
+		return CapabilitiesGitConfig(ctx), errors.New("bundle-URI sink missing")
 	}
 
-	if backupSink == nil {
-		return nil, errors.New("backup sink missing")
-	}
-	theBackup, err := backupLocator.FindLatest(ctx, repo)
+	uri, err := sink.SignedURL(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, step := range theBackup.Steps {
-		// Skip non-existing & incremental backups
-		if len(step.BundlePath) == 0 || len(step.PreviousRefPath) > 0 {
-			continue
-		}
+	log.AddFields(ctx, log.Fields{"bundle_uri": true})
 
-		uri, err := backupSink.SignedURL(ctx, step.BundlePath, 10*time.Minute)
-		if err != nil {
-			return nil, err
-		}
-
-		log.AddFields(ctx, log.Fields{"bundle_uri": true})
-
-		return []git.ConfigPair{
-			{
-				Key:   "uploadpack.advertiseBundleURIs",
-				Value: "true",
-			},
-			{
-				Key:   "bundle.version",
-				Value: "1",
-			},
-			{
-				Key:   "bundle.mode",
-				Value: "any",
-			},
-			{
-				Key:   "bundle.some.uri",
-				Value: uri,
-			},
-		}, nil
-	}
-
-	return nil, errors.New("no valid backup found")
+	return []git.ConfigPair{
+		{
+			Key:   "uploadpack.advertiseBundleURIs",
+			Value: "true",
+		},
+		{
+			Key:   "bundle.version",
+			Value: "1",
+		},
+		{
+			Key:   "bundle.mode",
+			Value: "any",
+		},
+		{
+			Key:   fmt.Sprintf("bundle.%s.uri", defaultBundle),
+			Value: uri,
+		},
+	}, nil
 }
