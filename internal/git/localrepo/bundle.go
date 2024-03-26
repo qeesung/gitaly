@@ -122,7 +122,7 @@ func (repo *Repo) CloneBundle(ctx context.Context, reader io.Reader) error {
 		return fmt.Errorf("spawning git-remote: %w", err)
 	}
 
-	if err := remoteCmd.Wait(); err != nil {
+	if err := remoteCmd.Wait(); err != nil && !isExitWithCode(err, 2) {
 		return structerr.New("waiting for git-remote: %w", err).WithMetadata("stderr", remoteErr.String())
 	}
 
