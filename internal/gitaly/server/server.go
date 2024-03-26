@@ -6,6 +6,7 @@ import (
 	"time"
 
 	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/server/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
@@ -99,16 +100,17 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 		),
 	)
 
+	logMatcher := gitalylog.NewLogMatcher()
+
 	streamServerInterceptors := []grpc.StreamServerInterceptor{
 		grpccorrelation.StreamServerCorrelationInterceptor(), // Must be above the metadata handler
 		requestinfohandler.StreamInterceptor,
 		grpcprometheus.StreamServerInterceptor,
 		customfieldshandler.StreamInterceptor,
-		s.logger.WithField("component", "gitaly.StreamServerInterceptor").StreamServerInterceptor(
+		selector.StreamServerInterceptor(s.logger.WithField("component", "gitaly.StreamServerInterceptor").StreamServerInterceptor(
 			grpcmwlogrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
 			logMsgProducer,
-			gitalylog.DeciderOption(),
-		),
+		), logMatcher),
 		gitalylog.StreamLogDataCatcherServerInterceptor(),
 		sentryhandler.StreamLogHandler(),
 		statushandler.Stream, // Should be below LogHandler
@@ -119,11 +121,10 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 		requestinfohandler.UnaryInterceptor,
 		grpcprometheus.UnaryServerInterceptor,
 		customfieldshandler.UnaryInterceptor,
-		s.logger.WithField("component", "gitaly.UnaryServerInterceptor").UnaryServerInterceptor(
+		selector.UnaryServerInterceptor(s.logger.WithField("component", "gitaly.UnaryServerInterceptor").UnaryServerInterceptor(
 			grpcmwlogrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
 			logMsgProducer,
-			gitalylog.DeciderOption(),
-		),
+		), logMatcher),
 		gitalylog.UnaryLogDataCatcherServerInterceptor(),
 		sentryhandler.UnaryLogHandler(),
 		statushandler.Unary, // Should be below LogHandler

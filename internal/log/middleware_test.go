@@ -5,11 +5,9 @@ import (
 	"testing"
 
 	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	grpcmwloggingv2 "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -234,82 +232,6 @@ func TestStreamLogDataCatcherServerInterceptor(t *testing.T) {
 // this package and the `testhelper` package.
 func createContext() context.Context {
 	return context.Background()
-}
-
-func TestLogDeciderOption_logByRegexpMatch(t *testing.T) {
-	methodNames := []string{
-		"/grpc.health.v1.Health/Check",
-		"/gitaly.SmartHTTPService/InfoRefsUploadPack",
-		"/gitaly.SmartHTTPService/PostUploadPackWithSidechannel",
-	}
-	for _, tc := range []struct {
-		desc             string
-		skip             string
-		only             string
-		shouldLogMethods []string
-	}{
-		{
-			desc:             "default setting",
-			skip:             "",
-			only:             "",
-			shouldLogMethods: []string{"InfoRefsUploadPack", "PostUploadPackWithSidechannel"},
-		},
-		{
-			desc:             "allow all",
-			skip:             "",
-			only:             ".",
-			shouldLogMethods: []string{"Check", "InfoRefsUploadPack", "PostUploadPackWithSidechannel"},
-		},
-		{
-			desc:             "only log Check",
-			skip:             "",
-			only:             "^/grpc.health.v1.Health/Check$",
-			shouldLogMethods: []string{"Check"},
-		},
-		{
-			desc:             "skip log Check",
-			skip:             "^/grpc.health.v1.Health/Check$",
-			only:             "",
-			shouldLogMethods: []string{"InfoRefsUploadPack", "PostUploadPackWithSidechannel"},
-		},
-		{
-			// If condition 'only' exists, ignore condition 'skip'
-			desc:             "only log Check and ignore skip setting",
-			skip:             "^/grpc.health.v1.Health/Check$",
-			only:             "^/grpc.health.v1.Health/Check$",
-			shouldLogMethods: []string{"Check"},
-		},
-	} {
-		tc := tc
-
-		t.Run(tc.desc, func(t *testing.T) {
-			t.Setenv("GITALY_LOG_REQUEST_METHOD_DENY_PATTERN", tc.skip)
-			t.Setenv("GITALY_LOG_REQUEST_METHOD_ALLOW_PATTERN", tc.only)
-
-			logger, hook := test.NewNullLogger()
-			interceptor := grpcmwlogrus.UnaryServerInterceptor(logrus.NewEntry(logger), DeciderOption())
-
-			ctx := createContext()
-			for _, methodName := range methodNames {
-				_, err := interceptor(
-					ctx,
-					nil,
-					&grpc.UnaryServerInfo{FullMethod: methodName},
-					func(ctx context.Context, req interface{}) (interface{}, error) {
-						return nil, nil
-					},
-				)
-				require.NoError(t, err)
-			}
-
-			entries := hook.AllEntries()
-			require.Len(t, entries, len(tc.shouldLogMethods))
-			for idx, entry := range entries {
-				require.Equal(t, entry.Message, "finished unary call with code OK")
-				require.Equal(t, entry.Data["grpc.method"], tc.shouldLogMethods[idx])
-			}
-		})
-	}
 }
 
 func TestConvertLoggingFields(t *testing.T) {
