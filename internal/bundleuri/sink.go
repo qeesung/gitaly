@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -25,6 +26,7 @@ import (
 
 const (
 	defaultBundle = "default"
+	defaultExpiry = 10 * time.Minute
 )
 
 // Sink is a wrapper around the storage bucket used for accessing/writing
@@ -112,4 +114,36 @@ func (s Sink) Generate(ctx context.Context, repo *localrepo.Repo) (returnErr err
 	}
 
 	return nil
+}
+
+// SignedURL returns a public URL to give anyone access to download the bundle from.
+func (s Sink) SignedURL(ctx context.Context, repo storage.Repository) (string, error) {
+	relativePath := s.relativePath(repo, defaultBundle)
+
+	repoProto, ok := repo.(*gitalypb.Repository)
+	if !ok {
+		return "", fmt.Errorf("unexpected repository type %t", repo)
+	}
+
+	storagectx.RunWithTransaction(ctx, func(tx storagectx.Transaction) {
+		origRepo := tx.OriginalRepository(repoProto)
+		relativePath = s.relativePath(origRepo, defaultBundle)
+	})
+
+	if exists, err := s.bucket.Exists(ctx, relativePath); !exists {
+		if err == nil {
+			return "", structerr.NewNotFound("no bundle available")
+		}
+		return "", structerr.NewNotFound("no bundle available: %w", err)
+	}
+
+	uri, err := s.bucket.SignedURL(ctx, relativePath, &blob.SignedURLOptions{
+		Expiry: defaultExpiry,
+	})
+	if err != nil {
+		err = errors.Unwrap(err) // unwrap the filename from the error message
+		return "", fmt.Errorf("signed URL: %s", err.Error())
+	}
+
+	return uri, nil
 }
