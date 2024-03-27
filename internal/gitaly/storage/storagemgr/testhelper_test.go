@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/packfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
@@ -624,7 +624,7 @@ type RunRepack struct {
 	// TransactionID is the transaction for which the repack task runs.
 	TransactionID int
 	// Config is the desired repacking config for the task.
-	Config housekeeping.RepackObjectsConfig
+	Config housekeepingcfg.RepackObjectsConfig
 }
 
 // WriteCommitGraphs calls commit-graphs writing housekeeping task on a transaction.
@@ -632,7 +632,7 @@ type WriteCommitGraphs struct {
 	// TransactionID is the transaction for which the repack task runs.
 	TransactionID int
 	// Config is the desired commit-graphs config for the task.
-	Config housekeeping.WriteCommitGraphConfig
+	Config housekeepingcfg.WriteCommitGraphConfig
 }
 
 // CustomHooksUpdate models an update to the custom hooks.

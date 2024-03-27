@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
@@ -19,6 +21,14 @@ func (s *server) PruneUnreachableObjects(
 	ctx context.Context,
 	request *gitalypb.PruneUnreachableObjectsRequest,
 ) (*gitalypb.PruneUnreachableObjectsResponse, error) {
+	// If WAL transaction is enabled, there shouldn't be any loose objects in the repository. New objects are always
+	// packed and attached to a log entry. During the migration to WAL transaction, there might be some loose
+	// objects left. Eventually, they will go away after a full repack. Thus, this RPC is a no-op in the context of
+	// transaction.
+	if storagectx.HasTransaction(ctx) {
+		return &gitalypb.PruneUnreachableObjectsResponse{}, nil
+	}
+
 	repository := request.GetRepository()
 	if err := s.locator.ValidateRepository(repository); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
@@ -53,8 +63,8 @@ func (s *server) PruneUnreachableObjects(
 
 	// But we also have to prune unreachable objects part of cruft packs. The only way to do
 	// that is to do a full repack. So unfortunately, this is quite expensive.
-	if err := housekeeping.RepackObjects(ctx, repo, housekeeping.RepackObjectsConfig{
-		Strategy:            housekeeping.RepackObjectsStrategyFullWithCruft,
+	if err := housekeeping.RepackObjects(ctx, repo, housekeepingcfg.RepackObjectsConfig{
+		Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 		WriteMultiPackIndex: true,
 		WriteBitmap:         len(repoInfo.Alternates.ObjectDirectories) == 0,
 		CruftExpireBefore:   expireBefore,
@@ -64,7 +74,7 @@ func (s *server) PruneUnreachableObjects(
 
 	// Rewrite the commit-graph so that it doesn't contain references to pruned commits
 	// anymore.
-	if err := housekeeping.WriteCommitGraph(ctx, repo, housekeeping.WriteCommitGraphConfig{
+	if err := housekeeping.WriteCommitGraph(ctx, repo, housekeepingcfg.WriteCommitGraphConfig{
 		ReplaceChain: true,
 	}); err != nil {
 		return nil, structerr.NewInternal("rewriting commit-graph: %w", err)

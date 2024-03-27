@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
@@ -1066,8 +1066,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyIncrementalWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyIncrementalWithUnreachable,
 					},
 				},
 				Commit{
@@ -1116,8 +1116,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1165,8 +1165,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1214,8 +1214,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyGeometric,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyGeometric,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1266,8 +1266,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyGeometric,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyGeometric,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1322,8 +1322,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1377,8 +1377,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1428,8 +1428,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1482,8 +1482,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyGeometric,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyGeometric,
 						WriteBitmap:         false,
 						WriteMultiPackIndex: false,
 					},
@@ -1539,8 +1539,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1555,8 +1555,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 2,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1603,8 +1603,8 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy:            housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy:            housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 						WriteBitmap:         true,
 						WriteMultiPackIndex: true,
 					},
@@ -1650,8 +1650,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Commit{
@@ -1704,8 +1704,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 2,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Commit{
@@ -1770,8 +1770,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 2,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Commit{
@@ -1861,8 +1861,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 2,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Commit{
@@ -1946,8 +1946,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 2,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Commit{
@@ -2014,8 +2014,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 2,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Begin{
@@ -2153,8 +2153,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 3,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 					},
 				},
 				Commit{
@@ -2239,8 +2239,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 3,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyGeometric,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyGeometric,
 					},
 				},
 				Commit{
@@ -2324,8 +2324,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 3,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Commit{
@@ -2443,8 +2443,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 6,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 					},
 				},
 				Commit{
@@ -2584,8 +2584,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 5,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 					},
 				},
 				Commit{
@@ -2720,8 +2720,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 6,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyGeometric,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyGeometric,
 					},
 				},
 				Commit{
@@ -2866,8 +2866,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 5,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Commit{
@@ -2956,14 +2956,14 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 					},
 				},
 				RunRepack{
 					TransactionID: 2,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 					},
 				},
 				Commit{
@@ -3016,8 +3016,8 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				RunRepack{
 					TransactionID: 1,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithUnreachable,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
 					},
 				},
 				RunPackRefs{
@@ -3091,7 +3091,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				},
 				WriteCommitGraphs{
 					TransactionID: 2,
-					Config: housekeeping.WriteCommitGraphConfig{
+					Config: housekeepingcfg.WriteCommitGraphConfig{
 						ReplaceChain: true,
 					},
 				},
@@ -3144,7 +3144,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				},
 				WriteCommitGraphs{
 					TransactionID: 1,
-					Config: housekeeping.WriteCommitGraphConfig{
+					Config: housekeepingcfg.WriteCommitGraphConfig{
 						ReplaceChain: true,
 					},
 				},
@@ -3190,7 +3190,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				},
 				WriteCommitGraphs{
 					TransactionID: 1,
-					Config: housekeeping.WriteCommitGraphConfig{
+					Config: housekeepingcfg.WriteCommitGraphConfig{
 						ReplaceChain: true,
 					},
 				},
@@ -3249,7 +3249,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				},
 				WriteCommitGraphs{
 					TransactionID: 2,
-					Config: housekeeping.WriteCommitGraphConfig{
+					Config: housekeepingcfg.WriteCommitGraphConfig{
 						ReplaceChain: false,
 					},
 				},
@@ -3263,8 +3263,8 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				},
 				RunRepack{
 					TransactionID: 3,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Commit{
@@ -3291,7 +3291,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				},
 				WriteCommitGraphs{
 					TransactionID: 5,
-					Config: housekeeping.WriteCommitGraphConfig{
+					Config: housekeepingcfg.WriteCommitGraphConfig{
 						ReplaceChain: false,
 					},
 				},
@@ -3356,7 +3356,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				},
 				WriteCommitGraphs{
 					TransactionID: 1,
-					Config: housekeeping.WriteCommitGraphConfig{
+					Config: housekeepingcfg.WriteCommitGraphConfig{
 						ReplaceChain: true,
 					},
 				},

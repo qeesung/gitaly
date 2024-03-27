@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
@@ -20,7 +21,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 		desc           string
 		strategy       HeuristicalOptimizationStrategy
 		expectedNeeded bool
-		expectedConfig RepackObjectsConfig
+		expectedConfig config.RepackObjectsConfig
 	}{
 		{
 			desc:     "empty repo does nothing",
@@ -39,8 +40,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyGeometric,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyGeometric,
 				WriteBitmap:         true,
 				WriteMultiPackIndex: true,
 			},
@@ -67,8 +68,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 			// This changes though with multi-pack-indices, which allow for bitmaps to
 			// exist in pooled repositories.
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyGeometric,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyGeometric,
 				WriteMultiPackIndex: true,
 			},
 		},
@@ -85,8 +86,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyGeometric,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyGeometric,
 				WriteBitmap:         true,
 				WriteMultiPackIndex: true,
 			},
@@ -104,7 +105,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: false,
-			expectedConfig: RepackObjectsConfig{},
+			expectedConfig: config.RepackObjectsConfig{},
 		},
 		{
 			desc: "recently packed with tracked packfiles will not be repacked again",
@@ -124,7 +125,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: false,
-			expectedConfig: RepackObjectsConfig{},
+			expectedConfig: config.RepackObjectsConfig{},
 		},
 		{
 			desc: "old tracked packfiles will be repacked",
@@ -144,8 +145,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyFullWithCruft,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyFullWithCruft,
 				WriteBitmap:         true,
 				WriteMultiPackIndex: true,
 			},
@@ -169,7 +170,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: false,
-			expectedConfig: RepackObjectsConfig{},
+			expectedConfig: config.RepackObjectsConfig{},
 		},
 		{
 			desc: "recent tracked packfiles in pool repository will be repacked",
@@ -190,7 +191,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: false,
-			expectedConfig: RepackObjectsConfig{},
+			expectedConfig: config.RepackObjectsConfig{},
 		},
 		{
 			desc: "old tracked packfiles in pool repository will be repacked",
@@ -211,8 +212,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyFullWithUnreachable,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyFullWithUnreachable,
 				WriteBitmap:         true,
 				WriteMultiPackIndex: true,
 			},
@@ -236,7 +237,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: false,
-			expectedConfig: RepackObjectsConfig{},
+			expectedConfig: config.RepackObjectsConfig{},
 		},
 		{
 			desc: "many untracked packfiles will get repacked",
@@ -257,8 +258,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyGeometric,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyGeometric,
 				WriteBitmap:         true,
 				WriteMultiPackIndex: true,
 			},
@@ -281,7 +282,7 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: false,
-			expectedConfig: RepackObjectsConfig{},
+			expectedConfig: config.RepackObjectsConfig{},
 		},
 		{
 			desc: "larger packfiles with many untracked packfiles eventually repack",
@@ -301,8 +302,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyGeometric,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyGeometric,
 				WriteBitmap:         true,
 				WriteMultiPackIndex: true,
 			},
@@ -328,8 +329,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyGeometric,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyGeometric,
 				WriteBitmap:         true,
 				WriteMultiPackIndex: true,
 			},
@@ -353,8 +354,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyGeometric,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyGeometric,
 				WriteBitmap:         false,
 				WriteMultiPackIndex: true,
 			},
@@ -377,8 +378,8 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedConfig: RepackObjectsConfig{
-				Strategy:            RepackObjectsStrategyFullWithCruft,
+			expectedConfig: config.RepackObjectsConfig{
+				Strategy:            config.RepackObjectsStrategyFullWithCruft,
 				WriteBitmap:         true,
 				WriteMultiPackIndex: true,
 			},
@@ -471,10 +472,10 @@ func TestHeuristicalOptimizationStrategy_ShouldRepackObjects(t *testing.T) {
 
 				repackNeeded, repackCfg := strategy.ShouldRepackObjects(ctx)
 				require.Equal(t, outerTC.expectedRepack, repackNeeded)
-				require.Equal(t, RepackObjectsConfig{
-					Strategy: func() RepackObjectsStrategy {
+				require.Equal(t, config.RepackObjectsConfig{
+					Strategy: func() config.RepackObjectsStrategy {
 						if repackNeeded {
-							return RepackObjectsStrategyIncrementalWithUnreachable
+							return config.RepackObjectsStrategyIncrementalWithUnreachable
 						}
 						return ""
 					}(),
@@ -631,7 +632,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 		desc           string
 		strategy       HeuristicalOptimizationStrategy
 		expectedNeeded bool
-		expectedCfg    WriteCommitGraphConfig
+		expectedCfg    config.WriteCommitGraphConfig
 	}{
 		{
 			desc: "empty repository",
@@ -643,7 +644,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 				},
 			},
 			expectedNeeded: gittest.FilesOrReftables(false, true),
-			expectedCfg:    gittest.FilesOrReftables(WriteCommitGraphConfig{}, WriteCommitGraphConfig{ReplaceChain: true}),
+			expectedCfg:    gittest.FilesOrReftables(config.WriteCommitGraphConfig{}, config.WriteCommitGraphConfig{ReplaceChain: true}),
 		},
 		{
 			desc: "repository with objects but no refs",
@@ -658,7 +659,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 				},
 			},
 			expectedNeeded: gittest.FilesOrReftables(false, true),
-			expectedCfg:    gittest.FilesOrReftables(WriteCommitGraphConfig{}, WriteCommitGraphConfig{ReplaceChain: true}),
+			expectedCfg:    gittest.FilesOrReftables(config.WriteCommitGraphConfig{}, config.WriteCommitGraphConfig{ReplaceChain: true}),
 		},
 		{
 			desc: "repository without bloom filters",
@@ -671,7 +672,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 				},
 			},
 			expectedNeeded: true,
-			expectedCfg: WriteCommitGraphConfig{
+			expectedCfg: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -692,7 +693,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 			// assume that there are new objects in the repository. So consequentially,
 			// we should write the commit-graphs.
 			expectedNeeded: true,
-			expectedCfg: WriteCommitGraphConfig{
+			expectedCfg: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -713,7 +714,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 			// If we have no generation data then we want to rewrite the commit-graph,
 			// but only if the feature flag is enabled.
 			expectedNeeded: true,
-			expectedCfg: WriteCommitGraphConfig{
+			expectedCfg: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -757,7 +758,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 			// assume that there are new objects in the repository. So consequentially,
 			// we should write the commit-graphs.
 			expectedNeeded: true,
-			expectedCfg: WriteCommitGraphConfig{
+			expectedCfg: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -781,7 +782,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 			// assume that there are new objects in the repository. So consequentially,
 			// we should write the commit-graphs.
 			expectedNeeded: true,
-			expectedCfg: WriteCommitGraphConfig{
+			expectedCfg: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -808,7 +809,7 @@ func TestHeuristicalOptimizationStrategy_NeedsWriteCommitGraph(t *testing.T) {
 			// packs, then some objects may be deleted and thus cause us to end up with
 			// a stale commit-graph. We thus need to replace the whole chain.
 			expectedNeeded: true,
-			expectedCfg: WriteCommitGraphConfig{
+			expectedCfg: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -896,12 +897,12 @@ func TestEagerOptimizationStrategy(t *testing.T) {
 
 			shouldRepackObjects, repackObjectsCfg := tc.strategy.ShouldRepackObjects(ctx)
 			require.True(t, shouldRepackObjects)
-			require.Equal(t, RepackObjectsConfig{
-				Strategy: func() RepackObjectsStrategy {
+			require.Equal(t, config.RepackObjectsConfig{
+				Strategy: func() config.RepackObjectsStrategy {
 					if !tc.strategy.info.IsObjectPool {
-						return RepackObjectsStrategyFullWithCruft
+						return config.RepackObjectsStrategyFullWithCruft
 					}
-					return RepackObjectsStrategyFullWithUnreachable
+					return config.RepackObjectsStrategyFullWithUnreachable
 				}(),
 				WriteBitmap:         tc.expectWriteBitmap,
 				WriteMultiPackIndex: true,
@@ -911,7 +912,7 @@ func TestEagerOptimizationStrategy(t *testing.T) {
 			shouldWriteCommitGraph, writeCommitGraphCfg, err := tc.strategy.ShouldWriteCommitGraph(ctx)
 			require.NoError(t, err)
 			require.True(t, shouldWriteCommitGraph)
-			require.Equal(t, WriteCommitGraphConfig{
+			require.Equal(t, config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			}, writeCommitGraphCfg)
 

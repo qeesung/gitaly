@@ -377,10 +377,6 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 		gsd.updaterWithHooks = updateref.NewUpdaterWithHooks(cfg, gsd.logger, gsd.locator, gsd.hookMgr, gsd.gitCmdFactory, gsd.catfileCache)
 	}
 
-	if gsd.housekeepingManager == nil {
-		gsd.housekeepingManager = housekeepingmgr.New(cfg.Prometheus, gsd.logger, gsd.txMgr)
-	}
-
 	var partitionManager *storagemgr.PartitionManager
 	if testhelper.IsWALEnabled() {
 		var err error
@@ -394,6 +390,10 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 		)
 		require.NoError(tb, err)
 		tb.Cleanup(partitionManager.Close)
+	}
+
+	if gsd.housekeepingManager == nil {
+		gsd.housekeepingManager = housekeepingmgr.New(cfg.Prometheus, gsd.logger, gsd.txMgr, partitionManager)
 	}
 
 	if gsd.signingKey != "" {

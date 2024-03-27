@@ -234,9 +234,6 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	transactionManager := transaction.NewManager(cfg, logger, registry)
 	prometheus.MustRegister(transactionManager)
 
-	housekeepingManager := housekeepingmgr.New(cfg.Prometheus, logger, transactionManager)
-	prometheus.MustRegister(housekeepingManager)
-
 	hookManager := hook.Manager(hook.DisabledManager{})
 
 	locator := config.NewLocator(cfg)
@@ -365,10 +362,11 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	}
 
 	var txMiddleware server.TransactionMiddleware
+	var partitionMgr *storagemgr.PartitionManager
 	if cfg.Transactions.Enabled {
 		logger.WarnContext(ctx, "Transactions enabled. Transactions are an experimental feature. The feature is not production ready yet and might lead to various issues including data loss.")
 
-		partitionMgr, err := storagemgr.NewPartitionManager(
+		partitionMgr, err = storagemgr.NewPartitionManager(
 			cfg.Storages,
 			gitCmdFactory,
 			localrepo.NewFactory(logger, locator, gitCmdFactory, catfileCache),
@@ -386,6 +384,9 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			StreamInterceptor: storagemgr.NewStreamInterceptor(logger, protoregistry.GitalyProtoPreregistered, txRegistry, partitionMgr, locator),
 		}
 	}
+
+	housekeepingManager := housekeepingmgr.New(cfg.Prometheus, logger, transactionManager, partitionMgr)
+	prometheus.MustRegister(housekeepingManager)
 
 	gitalyServerFactory := server.NewGitalyServerFactory(
 		cfg,
@@ -509,9 +510,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	}
 	bootstrapSpan.Finish()
 
-	if !cfg.DailyMaintenance.IsDisabled() && cfg.Transactions.Enabled {
-		logger.WarnContext(ctx, "Forcibly disabling daily maintenance worker due to transactions being enabled. Daily maintenance is not supported with transactions.")
-	} else if !cfg.DailyMaintenance.IsDisabled() {
+	if !cfg.DailyMaintenance.IsDisabled() {
 		shutdownWorkers, err := maintenance.StartWorkers(
 			ctx,
 			logger,

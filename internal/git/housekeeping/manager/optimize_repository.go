@@ -11,11 +11,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
+	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"google.golang.org/grpc/codes"
 )
 
@@ -56,11 +58,6 @@ func (m *RepositoryManager) OptimizeRepository(
 		return err
 	}
 
-	gitVersion, err := repo.GitVersion(ctx)
-	if err != nil {
-		return err
-	}
-
 	ok, cleanup := m.repositoryStates.tryRunningHousekeeping(path)
 	// If we didn't succeed to set the state to "running" because of a concurrent housekeeping run
 	// we exit early.
@@ -69,6 +66,30 @@ func (m *RepositoryManager) OptimizeRepository(
 	}
 	defer cleanup()
 
+	if m.optimizeFunc != nil {
+		strategy, err := m.validate(ctx, repo, opts)
+		if err != nil {
+			return err
+		}
+		return m.optimizeFunc(ctx, repo, strategy)
+	}
+
+	if m.walPartitionManager != nil {
+		return m.optimizeRepositoryWithTransaction(ctx, repo, opts)
+	}
+	return m.optimizeRepository(ctx, repo, opts)
+}
+
+func (m *RepositoryManager) validate(
+	ctx context.Context,
+	repo *localrepo.Repo,
+	opts []OptimizeRepositoryOption,
+) (housekeeping.OptimizationStrategy, error) {
+	gitVersion, err := repo.GitVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var cfg OptimizeRepositoryConfig
 	for _, opt := range opts {
 		opt(&cfg)
@@ -76,7 +97,7 @@ func (m *RepositoryManager) OptimizeRepository(
 
 	repositoryInfo, err := stats.RepositoryInfoForRepository(ctx, repo)
 	if err != nil {
-		return fmt.Errorf("deriving repository info: %w", err)
+		return nil, fmt.Errorf("deriving repository info: %w", err)
 	}
 	m.reportRepositoryInfo(ctx, m.logger, repositoryInfo)
 
@@ -87,7 +108,7 @@ func (m *RepositoryManager) OptimizeRepository(
 		strategy = cfg.StrategyConstructor(repositoryInfo)
 	}
 
-	return m.optimizeFunc(ctx, m, m.logger, repo, strategy)
+	return strategy, nil
 }
 
 func (m *RepositoryManager) reportRepositoryInfo(ctx context.Context, logger log.Logger, info stats.RepositoryInfo) {
@@ -140,20 +161,23 @@ func (m *RepositoryManager) reportDataStructureSize(dataStructure string, size u
 	m.dataStructureSize.WithLabelValues(dataStructure).Observe(float64(size))
 }
 
-func optimizeRepository(
+func (m *RepositoryManager) optimizeRepository(
 	ctx context.Context,
-	m *RepositoryManager,
-	logger log.Logger,
 	repo *localrepo.Repo,
-	strategy housekeeping.OptimizationStrategy,
+	opts []OptimizeRepositoryOption,
 ) error {
+	strategy, err := m.validate(ctx, repo, opts)
+	if err != nil {
+		return err
+	}
+
 	totalTimer := prometheus.NewTimer(m.tasksLatency.WithLabelValues("total"))
 	totalStatus := "failure"
 
 	optimizations := make(map[string]string)
 	defer func() {
 		totalTimer.ObserveDuration()
-		logger.WithField("optimizations", optimizations).Info("optimized repository")
+		m.logger.WithField("optimizations", optimizations).Info("optimized repository")
 
 		for task, status := range optimizations {
 			m.tasksTotal.WithLabelValues(task, status).Inc()
@@ -238,11 +262,101 @@ func optimizeRepository(
 	return nil
 }
 
+// optimizeRepositoryWithTransaction performs optimizations in the context of WAL transaction.
+func (m *RepositoryManager) optimizeRepositoryWithTransaction(
+	ctx context.Context,
+	repo *localrepo.Repo,
+	opts []OptimizeRepositoryOption,
+) (returnedError error) {
+	transaction, err := m.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), "", false)
+	if err != nil {
+		return fmt.Errorf("initializing WAL transaction: %w", err)
+	}
+	defer func() {
+		if returnedError != nil {
+			// We prioritize actual housekeeping error and log rollback error.
+			if err := transaction.Rollback(); err != nil {
+				m.logger.Error(fmt.Sprintf("could not rollback housekeeping transaction: %s", err))
+			}
+		}
+	}()
+
+	snapshotRepo := localrepo.NewFrom(repo, transaction.RewriteRepository(&gitalypb.Repository{
+		StorageName:                   repo.GetStorageName(),
+		GitAlternateObjectDirectories: repo.GetGitAlternateObjectDirectories(),
+		GitObjectDirectory:            repo.GetGitObjectDirectory(),
+		RelativePath:                  repo.GetRelativePath(),
+	}))
+
+	strategy, err := m.validate(ctx, snapshotRepo, opts)
+	if err != nil {
+		return err
+	}
+
+	repackNeeded, repackCfg := strategy.ShouldRepackObjects(ctx)
+	if repackNeeded {
+		transaction.Repack(repackCfg)
+	}
+
+	packRefsNeeded := strategy.ShouldRepackReferences(ctx)
+	if packRefsNeeded {
+		transaction.PackRefs()
+	}
+
+	writeCommitGraphNeeded, writeCommitGraphCfg, err := strategy.ShouldWriteCommitGraph(ctx)
+	if err != nil {
+		return fmt.Errorf("checking commit graph writing eligibility: %w", err)
+	}
+	if writeCommitGraphNeeded {
+		transaction.WriteCommitGraphs(writeCommitGraphCfg)
+	}
+
+	logResult := func(status string) {
+		optimizations := make(map[string]string)
+
+		if repackNeeded {
+			optimizations["packed_objects_"+string(repackCfg.Strategy)] = status
+			if repackCfg.WriteBitmap {
+				optimizations["written_bitmap"] = status
+			}
+			if repackCfg.WriteMultiPackIndex {
+				optimizations["written_multi_pack_index"] = status
+			}
+		}
+
+		if packRefsNeeded {
+			optimizations["packed_refs"] = status
+		}
+
+		if writeCommitGraphNeeded {
+			if writeCommitGraphCfg.ReplaceChain {
+				optimizations["written_commit_graph_full"] = status
+			} else {
+				optimizations["written_commit_graph_incremental"] = status
+			}
+		}
+
+		m.logger.WithField("optimizations", optimizations).Info("optimized repository with WAL")
+		for task, status := range optimizations {
+			m.tasksTotal.WithLabelValues(task, status).Inc()
+		}
+		m.tasksTotal.WithLabelValues("total", status).Add(1)
+	}
+
+	if err := transaction.Commit(ctx); err != nil {
+		logResult("failure")
+		return fmt.Errorf("committing housekeeping transaction: %w", err)
+	}
+
+	logResult("success")
+	return nil
+}
+
 // repackIfNeeded repacks the repository according to the strategy.
-func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, housekeeping.RepackObjectsConfig, error) {
+func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, config.RepackObjectsConfig, error) {
 	repackNeeded, cfg := strategy.ShouldRepackObjects(ctx)
 	if !repackNeeded {
-		return false, housekeeping.RepackObjectsConfig{}, nil
+		return false, config.RepackObjectsConfig{}, nil
 	}
 
 	if err := housekeeping.RepackObjects(ctx, repo, cfg); err != nil {
@@ -253,10 +367,10 @@ func repackIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekee
 }
 
 // writeCommitGraphIfNeeded writes the commit-graph if required.
-func writeCommitGraphIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, housekeeping.WriteCommitGraphConfig, error) {
+func writeCommitGraphIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, config.WriteCommitGraphConfig, error) {
 	needed, cfg, err := strategy.ShouldWriteCommitGraph(ctx)
 	if !needed || err != nil {
-		return false, housekeeping.WriteCommitGraphConfig{}, err
+		return false, config.WriteCommitGraphConfig{}, err
 	}
 
 	if err := housekeeping.WriteCommitGraph(ctx, repo, cfg); err != nil {
