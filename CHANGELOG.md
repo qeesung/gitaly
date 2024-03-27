@@ -18,6 +18,10 @@ No changes.
 - [proxy: Register proxy codec](gitlab-org/gitaly@e16ef95d0e08e3144e67b63b4446b4996e44da1c) ([merge request](gitlab-org/gitaly!6662))
 - [Always use CLONE_INTO_CGROUP when supported](gitlab-org/gitaly@057f4e9d177c018774bf036cc952542f2e3ec833) ([merge request](gitlab-org/gitaly!6653))
 
+## 16.9.3 (2024-03-27)
+
+No changes.
+
 ## 16.9.2 (2024-03-06)
 
 No changes.
