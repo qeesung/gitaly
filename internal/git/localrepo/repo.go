@@ -52,6 +52,17 @@ func New(logger log.Logger, locator storage.Locator, gitCmdFactory git.CommandFa
 	}
 }
 
+// NewFrom creates a new Repo from its protobuf representation using dependencies of another Repo.
+func NewFrom(other *Repo, repo storage.Repository) *Repo {
+	return &Repo{
+		Repository:    repo,
+		logger:        other.logger,
+		locator:       other.locator,
+		gitCmdFactory: other.gitCmdFactory,
+		catfileCache:  other.catfileCache,
+	}
+}
+
 // Quarantine return the repository quarantined. The quarantine directory becomes the repository's
 // main object directory and the original object directory is configured as an alternate.
 func (repo *Repo) Quarantine(quarantineDirectory string) (*Repo, error) {

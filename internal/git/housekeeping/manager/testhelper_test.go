@@ -10,11 +10,16 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 )
 
 func TestMain(m *testing.M) {
@@ -58,6 +63,41 @@ func testRepoAndPool(t *testing.T, desc string, testFunc func(t *testing.T, rela
 
 		t.Run("object pool", func(t *testing.T) {
 			testFunc(t, gittest.NewObjectPoolName(t))
+		})
+	})
+}
+
+func testWithTransaction(t *testing.T, desc string, testFunc func(*testing.T, config.Cfg, *storagemgr.PartitionManager)) {
+	t.Helper()
+	t.Run(desc, func(t *testing.T) {
+		t.Run("with transaction", func(t *testing.T) {
+			testhelper.SkipWithReftable(t, "reftable is not supported in transactional housekeeping: https://gitlab.com/gitlab-org/gitaly/-/issues/5867")
+
+			cfg := testcfg.Build(t)
+
+			logger := testhelper.SharedLogger(t)
+			cmdFactory := gittest.NewCommandFactory(t, cfg)
+			catfileCache := catfile.NewCache(cfg)
+			t.Cleanup(catfileCache.Stop)
+
+			localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
+			partitionManager, err := storagemgr.NewPartitionManager(
+				cfg.Storages,
+				cmdFactory,
+				localRepoFactory,
+				logger,
+				storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
+				helper.NewNullTickerFactory(),
+			)
+			require.NoError(t, err)
+			defer partitionManager.Close()
+
+			testFunc(t, cfg, partitionManager)
+		})
+
+		t.Run("without transaction", func(t *testing.T) {
+			cfg := testcfg.Build(t)
+			testFunc(t, cfg, nil)
 		})
 	})
 }

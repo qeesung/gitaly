@@ -34,7 +34,7 @@ func (mo *mockOptimizer) OptimizeRepository(ctx context.Context, logger log.Logg
 	catfileCache := catfile.NewCache(mo.cfg)
 	mo.t.Cleanup(catfileCache.Stop)
 	txManager := transaction.NewManager(mo.cfg, logger, backchannel.NewRegistry())
-	housekeepingManager := housekeepingmgr.New(mo.cfg.Prometheus, logger, txManager)
+	housekeepingManager := housekeepingmgr.New(mo.cfg.Prometheus, logger, txManager, nil)
 
 	return housekeepingManager.OptimizeRepository(ctx, localrepo.New(logger, l, gitCmdFactory, catfileCache, repository))
 }

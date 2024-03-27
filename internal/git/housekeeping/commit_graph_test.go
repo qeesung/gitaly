@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -20,14 +21,14 @@ func TestWriteCommitGraphConfigForRepository(t *testing.T) {
 		desc           string
 		setup          func(t *testing.T, repoPath string)
 		expectedErr    error
-		expectedConfig WriteCommitGraphConfig
+		expectedConfig config.WriteCommitGraphConfig
 	}{
 		{
 			desc: "without commit-graph",
 			setup: func(t *testing.T, repoPath string) {
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 			},
-			expectedConfig: WriteCommitGraphConfig{
+			expectedConfig: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -37,7 +38,7 @@ func TestWriteCommitGraphConfigForRepository(t *testing.T) {
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--reachable")
 			},
-			expectedConfig: WriteCommitGraphConfig{
+			expectedConfig: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -47,7 +48,7 @@ func TestWriteCommitGraphConfigForRepository(t *testing.T) {
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--changed-paths")
 			},
-			expectedConfig: WriteCommitGraphConfig{
+			expectedConfig: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -57,7 +58,7 @@ func TestWriteCommitGraphConfigForRepository(t *testing.T) {
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
 				gittest.Exec(t, cfg, "-C", repoPath, "commit-graph", "write", "--reachable", "--split")
 			},
-			expectedConfig: WriteCommitGraphConfig{
+			expectedConfig: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -70,7 +71,7 @@ func TestWriteCommitGraphConfigForRepository(t *testing.T) {
 					"commit-graph", "write", "--reachable", "--split", "--changed-paths",
 				)
 			},
-			expectedConfig: WriteCommitGraphConfig{
+			expectedConfig: config.WriteCommitGraphConfig{
 				ReplaceChain: true,
 			},
 		},
@@ -83,7 +84,7 @@ func TestWriteCommitGraphConfigForRepository(t *testing.T) {
 					"commit-graph", "write", "--reachable", "--split", "--changed-paths",
 				)
 			},
-			expectedConfig: WriteCommitGraphConfig{
+			expectedConfig: config.WriteCommitGraphConfig{
 				ReplaceChain: false,
 			},
 		},

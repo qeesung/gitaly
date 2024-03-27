@@ -21,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
@@ -150,7 +151,7 @@ type runPackRefs struct {
 // is tracked in https://gitlab.com/gitlab-org/gitaly/-/issues/5709.
 type runRepack struct {
 	// config tells which strategy and baggaged options.
-	config       housekeeping.RepackObjectsConfig
+	config       housekeepingcfg.RepackObjectsConfig
 	isFullRepack bool
 	// newFiles contains the list of new packfiles to be applied into the destination repository.
 	newFiles []string
@@ -165,7 +166,7 @@ type runRepack struct {
 // writeCommitGraphs models a commit graph update.
 type writeCommitGraphs struct {
 	// config includes the configs for writing commit graph.
-	config housekeeping.WriteCommitGraphConfig
+	config housekeepingcfg.WriteCommitGraphConfig
 }
 
 // ReferenceUpdates contains references to update. Reference name is used as the key and the value
@@ -641,7 +642,7 @@ func (txn *Transaction) PackRefs() {
 }
 
 // Repack sets repacking housekeeping task as a part of the transaction.
-func (txn *Transaction) Repack(config housekeeping.RepackObjectsConfig) {
+func (txn *Transaction) Repack(config housekeepingcfg.RepackObjectsConfig) {
 	if txn.runHousekeeping == nil {
 		txn.runHousekeeping = &runHousekeeping{}
 	}
@@ -651,7 +652,7 @@ func (txn *Transaction) Repack(config housekeeping.RepackObjectsConfig) {
 }
 
 // WriteCommitGraphs enables the commit graph to be rewritten as part of the transaction.
-func (txn *Transaction) WriteCommitGraphs(config housekeeping.WriteCommitGraphConfig) {
+func (txn *Transaction) WriteCommitGraphs(config housekeepingcfg.WriteCommitGraphConfig) {
 	if txn.runHousekeeping == nil {
 		txn.runHousekeeping = &runHousekeeping{}
 	}
@@ -1423,7 +1424,7 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 		return fmt.Errorf("validating repacking: %w", err)
 	}
 
-	if repack.config.Strategy == housekeeping.RepackObjectsStrategyIncrementalWithUnreachable {
+	if repack.config.Strategy == housekeepingcfg.RepackObjectsStrategyIncrementalWithUnreachable {
 		// Once the transaction manager has been applied and at least one complete repack has occurred, there
 		// should be no loose unreachable objects remaining in the repository. When the transaction manager
 		// processes a change, it consolidates all unreachable objects and objects about to become reachable
@@ -1442,14 +1443,14 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 	}
 
 	switch repack.config.Strategy {
-	case housekeeping.RepackObjectsStrategyGeometric:
+	case housekeepingcfg.RepackObjectsStrategyGeometric:
 		// Geometric repacking rearranges the list of packfiles according to a geometric progression. This process
 		// does not consider object reachability. Since all unreachable objects remain within small packfiles,
 		// they become included in the newly created packfiles. Geometric repacking does not prune any objects.
 		if err := housekeeping.PerformGeometricRepacking(ctx, workingRepository, repack.config); err != nil {
 			return fmt.Errorf("perform geometric repacking: %w", err)
 		}
-	case housekeeping.RepackObjectsStrategyFullWithUnreachable:
+	case housekeepingcfg.RepackObjectsStrategyFullWithUnreachable:
 		// This strategy merges all packfiles into a single packfile, simultaneously removing any loose objects
 		// if present. Unreachable objects are then appended to the end of this unified packfile. Although the
 		// `git-repack(1)` command does not offer an option to specifically pack loose unreachable objects, this
@@ -1460,7 +1461,7 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 		if err := housekeeping.PerformFullRepackingWithUnreachable(ctx, workingRepository, repack.config); err != nil {
 			return err
 		}
-	case housekeeping.RepackObjectsStrategyFullWithCruft:
+	case housekeepingcfg.RepackObjectsStrategyFullWithCruft:
 		// Both of above strategies don't prune unreachable objects. They re-organize the objects between
 		// packfiles. In the traditional housekeeping, the manager gets rid of unreachable objects via full
 		// repacking with cruft. It pushes all unreachable objects to a cruft packfile and keeps track of each
@@ -2267,7 +2268,7 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 	}
 	// Other strategies re-organize packfiles without pruning unreachable objects. No need to run following
 	// expensive verification.
-	if repack.config.Strategy != housekeeping.RepackObjectsStrategyFullWithCruft {
+	if repack.config.Strategy != housekeepingcfg.RepackObjectsStrategyFullWithCruft {
 		return &gitalypb.LogEntry_Housekeeping_Repack{
 			NewFiles:     repack.newFiles,
 			DeletedFiles: repack.deletedFiles,

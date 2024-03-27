@@ -6,7 +6,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
+	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 )
@@ -294,8 +294,8 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				RunRepack{
 					TransactionID: 3,
-					Config: housekeeping.RepackObjectsConfig{
-						Strategy: housekeeping.RepackObjectsStrategyFullWithCruft,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
 					},
 				},
 				Commit{
