@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -279,6 +280,8 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 		return transactionalizedRequest{}, ErrRepositoriesInDifferentStorages
 	}
 
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.transactionalizeRequest", nil)
+
 	tx, err := mgr.Begin(ctx, targetRepo.StorageName, targetRepo.RelativePath, additionalRepo.GetRelativePath(), methodInfo.Operation == protoregistry.OpAccessor)
 	if err != nil {
 		return transactionalizedRequest{}, fmt.Errorf("begin transaction: %w", err)
@@ -289,6 +292,7 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 	ctx = storage.ContextWithTransactionID(ctx, txID)
 
 	finishTX := func(handlerErr error) error {
+		defer span.Finish()
 		defer txRegistry.unregister(txID)
 
 		if handlerErr != nil {

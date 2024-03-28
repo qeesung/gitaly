@@ -32,6 +32,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/safe"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
@@ -284,6 +285,12 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		// Until support is implemented, error out.
 		return nil, errRelativePathNotSet
 	}
+
+	span, _ := tracing.StartSpanIfHasParent(ctx, "transaction.Begin", nil)
+	span.SetTag("readonly", readOnly)
+	span.SetTag("snapshotLSN", mgr.appendedLSN)
+	span.SetTag("relativePath", relativePath)
+	defer span.Finish()
 
 	mgr.mutex.Lock()
 
@@ -878,6 +885,9 @@ type resultChannel chan error
 
 // commit queues the transaction for processing and returns once the result has been determined.
 func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transaction) error {
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.Commit", nil)
+	defer span.Finish()
+
 	transaction.result = make(resultChannel, 1)
 
 	if !transaction.repositoryExists {
@@ -1088,6 +1098,9 @@ func (mgr *TransactionManager) replaceObjectDirectory(tx *Transaction) (returned
 // stageRepositoryCreation determines the repository's state following a creation. It reads the repository's
 // complete state and stages it into the transaction for committing.
 func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, transaction *Transaction) error {
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.stageRepositoryCreation", nil)
+	defer span.Finish()
+
 	objectHash, err := transaction.snapshotRepository.ObjectHash(ctx)
 	if err != nil {
 		return fmt.Errorf("object hash: %w", err)
@@ -1138,6 +1151,9 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 // setupStagingRepository sets a repository that is used to stage the transaction. The staging repository
 // has the quarantine applied so the objects are available for packing and verifying the references.
 func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, transaction *Transaction) error {
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.setupStagingRepository", nil)
+	defer span.Finish()
+
 	// If this is not a creation, the repository should already exist. Use it to stage the transaction.
 	stagingRepository := mgr.repositoryFactory.Build(transaction.relativePath)
 	if transaction.repositoryCreation != nil {
@@ -1215,6 +1231,9 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 	} else if !shouldPack {
 		return nil
 	}
+
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.packObjects", nil)
+	defer span.Finish()
 
 	// We should actually be figuring out the new objects to pack against the transaction's snapshot
 	// repository as the objects and references in the actual repository may change while we're doing
@@ -1310,6 +1329,10 @@ func (mgr *TransactionManager) prepareHousekeeping(ctx context.Context, transact
 	if transaction.runHousekeeping == nil {
 		return nil
 	}
+
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.prepareHousekeeping", nil)
+	defer span.Finish()
+
 	if err := mgr.preparePackRefs(ctx, transaction); err != nil {
 		return err
 	}
@@ -1333,6 +1356,9 @@ func (mgr *TransactionManager) preparePackRefs(ctx context.Context, transaction 
 	if transaction.runHousekeeping.packRefs == nil {
 		return nil
 	}
+
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.preparePackRefs", nil)
+	defer span.Finish()
 
 	runPackRefs := transaction.runHousekeeping.packRefs
 	repoPath := mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())
@@ -1411,6 +1437,9 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 	if transaction.runHousekeeping.repack == nil {
 		return nil
 	}
+
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.prepareRepacking", nil)
+	defer span.Finish()
 
 	var err error
 	repack := transaction.runHousekeeping.repack
@@ -1523,6 +1552,9 @@ func (mgr *TransactionManager) prepareCommitGraphs(ctx context.Context, transact
 	if transaction.runHousekeeping.writeCommitGraphs == nil {
 		return nil
 	}
+
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.prepareCommitGraphs", nil)
+	defer span.Finish()
 
 	workingRepository := mgr.repositoryFactory.Build(transaction.snapshot.relativePath(transaction.relativePath))
 	repoPath := mgr.getAbsolutePath(workingRepository.GetRelativePath())
@@ -1684,6 +1716,9 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 		return err
 	}
 
+	span, ctx := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.processTransaction", nil)
+	defer span.Finish()
+
 	if err := func() (commitErr error) {
 		repositoryExists, err := mgr.doesRepositoryExist(transaction.relativePath)
 		if err != nil {
@@ -1700,11 +1735,11 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			return ErrRepositoryNotFound
 		}
 
-		if err := mgr.verifyAlternateUpdate(transaction); err != nil {
+		if err := mgr.verifyAlternateUpdate(ctx, transaction); err != nil {
 			return fmt.Errorf("verify alternate update: %w", err)
 		}
 
-		logEntry.ReferenceTransactions, err = mgr.verifyReferences(mgr.ctx, transaction)
+		logEntry.ReferenceTransactions, err = mgr.verifyReferences(ctx, transaction)
 		if err != nil {
 			return fmt.Errorf("verify references: %w", err)
 		}
@@ -1732,7 +1767,7 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 		}
 
 		if transaction.runHousekeeping != nil {
-			housekeepingEntry, err := mgr.verifyHousekeeping(mgr.ctx, transaction)
+			housekeepingEntry, err := mgr.verifyHousekeeping(ctx, transaction)
 			if err != nil {
 				return fmt.Errorf("verifying pack refs: %w", err)
 			}
@@ -1963,10 +1998,13 @@ func packFilePath(walFiles string) string {
 }
 
 // verifyAlternateUpdate verifies the staged alternate update.
-func (mgr *TransactionManager) verifyAlternateUpdate(transaction *Transaction) error {
+func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transaction *Transaction) error {
 	if !transaction.alternateUpdated {
 		return nil
 	}
+
+	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.verifyAlternateUpdate", nil)
+	defer span.Finish()
 
 	repositoryPath := mgr.getAbsolutePath(transaction.relativePath)
 	existingAlternate, err := readAlternatesFile(repositoryPath)
@@ -2041,6 +2079,9 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 	if len(transaction.referenceUpdates) == 0 {
 		return nil, nil
 	}
+
+	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.verifyReferences", nil)
+	defer span.Finish()
 
 	conflictingReferenceUpdates := map[git.ReferenceName]struct{}{}
 	for referenceName, update := range transaction.flattenReferenceTransactions() {
@@ -2150,6 +2191,9 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 // housekeeping tasks running at the same time, it's not guaranteed they are conflict-free. So, we need to ensure there
 // is no other concurrent housekeeping task. Each sub-task also needs specific verification.
 func (mgr *TransactionManager) verifyHousekeeping(ctx context.Context, transaction *Transaction) (*gitalypb.LogEntry_Housekeeping, error) {
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.verifyHousekeeping", nil)
+	defer span.Finish()
+
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
@@ -2166,12 +2210,12 @@ func (mgr *TransactionManager) verifyHousekeeping(ctx context.Context, transacti
 		return nil, fmt.Errorf("walking committed entries: %w", err)
 	}
 
-	packRefsEntry, err := mgr.verifyPackRefs(mgr.ctx, transaction)
+	packRefsEntry, err := mgr.verifyPackRefs(ctx, transaction)
 	if err != nil {
 		return nil, fmt.Errorf("verifying pack refs: %w", err)
 	}
 
-	repackEntry, err := mgr.verifyRepacking(mgr.ctx, transaction)
+	repackEntry, err := mgr.verifyRepacking(ctx, transaction)
 	if err != nil {
 		return nil, fmt.Errorf("verifying repacking: %w", err)
 	}
@@ -2209,6 +2253,9 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 	if transaction.runHousekeeping.packRefs == nil {
 		return nil, nil
 	}
+
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.verifyPackRefs", nil)
+	defer span.Finish()
 
 	objectHash, err := transaction.stagingRepository.ObjectHash(ctx)
 	if err != nil {
@@ -2266,6 +2313,10 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 	if repack == nil {
 		return nil, nil
 	}
+
+	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.verifyRepacking", nil)
+	defer span.Finish()
+
 	// Other strategies re-organize packfiles without pruning unreachable objects. No need to run following
 	// expensive verification.
 	if repack.config.Strategy != housekeepingcfg.RepackObjectsStrategyFullWithCruft {
@@ -2616,6 +2667,9 @@ func (mgr *TransactionManager) applyHousekeeping(ctx context.Context, lsn LSN, l
 		return nil
 	}
 
+	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.applyHousekeeping", nil)
+	defer span.Finish()
+
 	if err := mgr.applyPackRefs(ctx, lsn, logEntry); err != nil {
 		return fmt.Errorf("applying pack refs: %w", err)
 	}
@@ -2635,6 +2689,9 @@ func (mgr *TransactionManager) applyPackRefs(ctx context.Context, lsn LSN, logEn
 	if logEntry.Housekeeping.PackRefs == nil {
 		return nil
 	}
+
+	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.applyPackRefs", nil)
+	defer span.Finish()
 
 	repositoryPath := mgr.getAbsolutePath(logEntry.RelativePath)
 	// Remove packed-refs lock. While we shouldn't be producing any new stale locks, it makes sense to have
@@ -2719,6 +2776,9 @@ func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn LSN, logE
 		return nil
 	}
 
+	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.applyRepacking", nil)
+	defer span.Finish()
+
 	repack := logEntry.Housekeeping.Repack
 	repoPath := mgr.getAbsolutePath(logEntry.RelativePath)
 
@@ -2759,6 +2819,9 @@ func (mgr *TransactionManager) applyCommitGraphs(ctx context.Context, lsn LSN, l
 	if logEntry.Housekeeping.WriteCommitGraphs == nil {
 		return nil
 	}
+
+	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.applyCommitGraphs", nil)
+	defer span.Finish()
 
 	repoPath := mgr.getAbsolutePath(logEntry.RelativePath)
 	if err := mgr.replaceCommitGraphs(repoPath, walFilesPathForLSN(mgr.stateDirectory, lsn)); err != nil {
