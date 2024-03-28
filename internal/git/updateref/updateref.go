@@ -257,6 +257,7 @@ type Updater struct {
 	stderr           *bytes.Buffer
 	objectHash       git.ObjectHash
 	referenceBackend git.ReferenceBackend
+	ctx              context.Context
 
 	// state tracks the current state of the updater to ensure correct calling semantics.
 	state state
@@ -341,6 +342,7 @@ func New(ctx context.Context, repo git.RepositoryExecutor, opts ...UpdaterOpt) (
 		objectHash:       objectHash,
 		referenceBackend: referenceBackend,
 		state:            stateIdle,
+		ctx:              ctx,
 	}, nil
 }
 
@@ -466,6 +468,11 @@ func (u *Updater) closeWithError(closeErr error) error {
 
 		u.closeErr = err
 		return err
+	}
+
+	if u.ctx.Err() != nil {
+		u.closeErr = u.ctx.Err()
+		return u.closeErr
 	}
 
 	if closeErr != nil {
