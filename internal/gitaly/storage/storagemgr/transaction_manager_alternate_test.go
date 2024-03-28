@@ -78,6 +78,91 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 		},
 		{
+			desc: "repository is created with dependencies in alternate",
+			steps: steps{
+				RemoveRepository{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  "pool",
+				},
+				CreateRepository{
+					TransactionID: 1,
+					References: map[git.ReferenceName]git.ObjectID{
+						"refs/heads/main": setup.Commits.First.OID,
+					},
+					Packs: [][]byte{setup.Commits.First.Pack},
+				},
+				Commit{
+					TransactionID: 1,
+				},
+				Begin{
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
+				},
+				CreateRepository{
+					TransactionID: 2,
+					Alternate:     "../../pool/objects",
+					Packs:         [][]byte{setup.Commits.Second.Pack},
+					References: map[git.ReferenceName]git.ObjectID{
+						"refs/heads/new-branch": setup.Commits.Second.OID,
+					},
+				},
+				Commit{
+					TransactionID: 2,
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+				},
+				Repositories: RepositoryStates{
+					"pool": {
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
+						Packfiles: &PackfilesState{
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+						},
+					},
+					"member": {
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/new-branch": setup.Commits.Second.OID,
+							},
+						},
+						Packfiles: &PackfilesState{
+							PooledObjects: []git.ObjectID{
+								setup.Commits.First.OID,
+							},
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
+										setup.Commits.Second.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+						},
+						Alternate: "../../pool/objects",
+					},
+				},
+			},
+		},
+		{
 			desc: "repository is linked to an alternate after creation",
 			steps: steps{
 				RemoveRepository{},
