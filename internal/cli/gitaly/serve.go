@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/bootstrap/starter"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/bundleuri"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -418,6 +419,14 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		}
 	}
 
+	var bundleURISink *bundleuri.Sink
+	if cfg.BundleURI.GoCloudURL != "" {
+		bundleURISink, err = bundleuri.NewSink(ctx, cfg.BundleURI.GoCloudURL)
+		if err != nil {
+			return fmt.Errorf("create bundle-URI sink: %w", err)
+		}
+	}
+
 	for _, c := range []starter.Config{
 		{Name: starter.Unix, Addr: cfg.SocketPath, HandoverOnUpgrade: true},
 		{Name: starter.Unix, Addr: cfg.InternalSocketPath(), HandoverOnUpgrade: false},
@@ -459,6 +468,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			HousekeepingManager: housekeepingManager,
 			BackupSink:          backupSink,
 			BackupLocator:       backupLocator,
+			BundleURISink:       bundleURISink,
 		})
 		b.RegisterStarter(starter.New(c, srv, logger))
 	}

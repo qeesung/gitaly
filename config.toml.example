@@ -159,6 +159,11 @@ self_signed_cert = false
 # # Optional: defaults to pointer
 # # layout = "pointer"
 
+# # Bundle-URI
+# [bundle_uri]
+# # The destination object-storage URL.
+# go_cloud_url = "gs://my-bundle-uri-bucket"
+
 # # Negotiation timeouts for remote Git operations
 # [timeout]
 # upload_pack_negotiation = "10m"
