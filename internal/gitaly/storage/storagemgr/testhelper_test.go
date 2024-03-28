@@ -928,6 +928,13 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 				if step.UpdateAlternate.content != "" {
 					require.NoError(t, os.WriteFile(stats.AlternatesFilePath(repoPath), []byte(step.UpdateAlternate.content), fs.ModePerm))
+
+					alternates, err := stats.ReadAlternatesFile(repoPath)
+					require.NoError(t, err)
+
+					for _, alternate := range alternates {
+						require.DirExists(t, filepath.Join(repoPath, "objects", alternate), "alternate must be pointed to a repository: %q", alternate)
+					}
 				} else {
 					// Ignore not exists errors as there are test cases testing removing alternate
 					// when one is not set.
@@ -1041,17 +1048,22 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.Contains(t, openTransactions, step.TransactionID, "test error: repository created in transaction before beginning it")
 
 			transaction := openTransactions[step.TransactionID]
+
+			rewrittenRepository := transaction.RewriteRepository(&gitalypb.Repository{
+				StorageName:  setup.Config.Storages[0].Name,
+				RelativePath: transaction.relativePath,
+			})
+
+			locator := config.NewLocator(setup.Config)
+
 			require.NoError(t, repoutil.Create(
 				ctx,
 				logger,
-				config.NewLocator(setup.Config),
+				locator,
 				setup.CommandFactory,
 				nil,
 				counter.NewRepositoryCounter(setup.Config.Storages),
-				transaction.RewriteRepository(&gitalypb.Repository{
-					StorageName:  setup.Config.Storages[0].Name,
-					RelativePath: transaction.relativePath,
-				}),
+				rewrittenRepository,
 				func(repoProto *gitalypb.Repository) error {
 					repo := setup.RepositoryFactory.Build(repoProto)
 
@@ -1073,17 +1085,25 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 						)
 					}
 
-					if step.Alternate != "" {
-						repoPath, err := repo.Path()
-						require.NoError(t, err)
-
-						require.NoError(t, os.WriteFile(stats.AlternatesFilePath(repoPath), []byte(step.Alternate), fs.ModePerm))
-					}
-
 					return nil
 				},
 				repoutil.WithObjectHash(setup.ObjectHash),
 			))
+
+			if step.Alternate != "" {
+				repoPath, err := locator.GetRepoPath(rewrittenRepository)
+				require.NoError(t, err)
+
+				alternatesPath := stats.AlternatesFilePath(repoPath)
+				require.NoError(t, os.WriteFile(alternatesPath, []byte(step.Alternate), fs.ModePerm))
+
+				alternates, err := stats.ReadAlternatesFile(repoPath)
+				require.NoError(t, err)
+
+				for _, alternate := range alternates {
+					require.DirExists(t, filepath.Join(repoPath, "objects", alternate), "alternate must be pointed to a repository: %q", alternate)
+				}
+			}
 		case RunPackRefs:
 			require.Contains(t, openTransactions, step.TransactionID, "test error: pack-refs housekeeping task aborted on committed before beginning it")
 
