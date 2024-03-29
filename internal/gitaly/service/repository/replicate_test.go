@@ -606,18 +606,6 @@ attributes from HEAD.`)
 				"config file must match",
 			)
 
-			// Verify info attributes matches.
-			sourceAttributesData, err := os.ReadFile(filepath.Join(sourcePath, "info", "attributes"))
-			if err != nil {
-				require.ErrorIs(t, err, os.ErrNotExist)
-			}
-
-			require.Equal(t,
-				string(sourceAttributesData),
-				string(testhelper.MustReadFile(t, filepath.Join(targetPath, "info", "attributes"))),
-				"info/attributes file must match",
-			)
-
 			// Verify custom hooks replicated.
 			var targetHooks []string
 			targetHooksPath := filepath.Join(targetPath, repoutil.CustomHooksDir)
@@ -716,8 +704,6 @@ func TestReplicateRepository_transactional(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// There is no gitattributes file, so we vote on the empty contents of that file.
-	gitattributesVote := voting.VoteFromData([]byte{})
 	// There is a gitconfig though, so the vote should reflect its contents.
 	gitconfigVote := voting.VoteFromData(testhelper.MustReadFile(t, filepath.Join(sourceRepoPath, "config")))
 
@@ -738,8 +724,6 @@ func TestReplicateRepository_transactional(t *testing.T) {
 		votes[0],
 		gitconfigVote,
 		gitconfigVote,
-		gitattributesVote,
-		gitattributesVote,
 		noHooksVote,
 		noHooksVote,
 	}
@@ -766,8 +750,6 @@ func TestReplicateRepository_transactional(t *testing.T) {
 	expectedVotes = []voting.Vote{
 		gitconfigVote,
 		gitconfigVote,
-		gitattributesVote,
-		gitattributesVote,
 		replicationVote,
 		replicationVote,
 		noHooksVote,
@@ -917,4 +899,16 @@ func listenGitalySSHCalls(t *testing.T, conf config.Cfg) func() gitalySSHParams 
 			environment: strings.Split(string(environment), "\n"),
 		}
 	}
+}
+
+type testTransactionServer struct {
+	gitalypb.UnimplementedRefTransactionServer
+	vote func(*gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error)
+}
+
+func (s *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalypb.VoteTransactionRequest) (*gitalypb.VoteTransactionResponse, error) {
+	if s.vote != nil {
+		return s.vote(in)
+	}
+	return nil, nil
 }

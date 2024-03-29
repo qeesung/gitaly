@@ -97,8 +97,19 @@ func (s *server) replicateRepository(ctx context.Context, source, target *gitaly
 		return fmt.Errorf("synchronizing gitconfig: %w", err)
 	}
 
-	if err := s.syncInfoAttributes(ctx, source, target); err != nil {
-		return fmt.Errorf("synchronizing gitattributes: %w", err)
+	// In git 2.43.0+, gitattributes supports reading from HEAD:.gitattributes,
+	// so info/attributes is no longer needed. To make sure info/attributes file is cleaned up,
+	// we delete it if it exists when reading from HEAD:.gitattributes is called.
+	// This logic can be removed when ApplyGitattributes and GetInfoAttributes RPC are totally removed from
+	// the code base.
+	if target != nil {
+		repoPath, err := s.locator.GetRepoPath(target)
+		if err != nil {
+			return structerr.NewInternal("get repo path: %w", err)
+		}
+		if deletionErr := deleteInfoAttributesFile(repoPath); deletionErr != nil {
+			return structerr.NewInternal("delete info/gitattributes file: %w", deletionErr).WithMetadata("path", repoPath)
+		}
 	}
 
 	if replicateObjectDeduplicationNetworkMembership {
@@ -353,36 +364,6 @@ func (s *server) syncGitconfig(ctx context.Context, source, target *gitalypb.Rep
 	if err := s.writeFile(ctx, configPath, perm.SharedFile, streamio.NewReader(func() ([]byte, error) {
 		resp, err := stream.Recv()
 		return resp.GetData(), err
-	})); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *server) syncInfoAttributes(ctx context.Context, source, target *gitalypb.Repository) error {
-	repoClient, err := s.newRepoClient(ctx, source.GetStorageName())
-	if err != nil {
-		return err
-	}
-
-	repoPath, err := s.locator.GetRepoPath(target)
-	if err != nil {
-		return err
-	}
-
-	//nolint:staticcheck
-	stream, err := repoClient.GetInfoAttributes(ctx, &gitalypb.GetInfoAttributesRequest{
-		Repository: source,
-	})
-	if err != nil {
-		return err
-	}
-
-	attributesPath := filepath.Join(repoPath, "info", "attributes")
-	if err := s.writeFile(ctx, attributesPath, attributesFileMode, streamio.NewReader(func() ([]byte, error) {
-		resp, err := stream.Recv()
-		return resp.GetAttributes(), err
 	})); err != nil {
 		return err
 	}
