@@ -276,7 +276,7 @@ func (m *RepositoryManager) optimizeRepositoryWithTransaction(
 		if returnedError != nil {
 			// We prioritize actual housekeeping error and log rollback error.
 			if err := transaction.Rollback(); err != nil {
-				m.logger.Error(fmt.Sprintf("could not rollback housekeeping transaction: %s", err))
+				m.logger.WithError(err).Error("could not rollback housekeeping transaction")
 			}
 		}
 	}()
