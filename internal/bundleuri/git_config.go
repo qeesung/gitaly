@@ -2,6 +2,7 @@ package bundleuri
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
@@ -37,14 +38,21 @@ func UploadPackGitConfig(
 	backupLocator backup.Locator,
 	backupSink backup.Sink,
 	repo storage.Repository,
-) []git.ConfigPair {
-	if backupLocator == nil || backupSink == nil || featureflag.BundleURI.IsDisabled(ctx) {
-		return CapabilitiesGitConfig(ctx)
+) ([]git.ConfigPair, error) {
+	if featureflag.BundleURI.IsDisabled(ctx) {
+		return nil, nil
 	}
 
+	if backupLocator == nil {
+		return nil, errors.New("backup locator missing")
+	}
+
+	if backupSink == nil {
+		return nil, errors.New("backup sink missing")
+	}
 	theBackup, err := backupLocator.FindLatest(ctx, repo)
 	if err != nil {
-		return CapabilitiesGitConfig(ctx)
+		return nil, err
 	}
 
 	for _, step := range theBackup.Steps {
@@ -55,7 +63,7 @@ func UploadPackGitConfig(
 
 		uri, err := backupSink.SignedURL(ctx, step.BundlePath, 10*time.Minute)
 		if err != nil {
-			return CapabilitiesGitConfig(ctx)
+			return nil, err
 		}
 
 		log.AddFields(ctx, log.Fields{"bundle_uri": true})
@@ -77,8 +85,8 @@ func UploadPackGitConfig(
 				Key:   "bundle.some.uri",
 				Value: uri,
 			},
-		}
+		}, nil
 	}
 
-	return CapabilitiesGitConfig(ctx)
+	return nil, errors.New("no valid backup found")
 }
