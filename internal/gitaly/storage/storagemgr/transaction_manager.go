@@ -1745,7 +1745,7 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			return fmt.Errorf("verify alternate update: %w", err)
 		}
 
-		if transaction.repositoryCreation == nil && transaction.runHousekeeping == nil {
+		if transaction.repositoryCreation == nil && transaction.runHousekeeping == nil && !transaction.deleteRepository {
 			logEntry.ReferenceTransactions, err = mgr.verifyReferences(ctx, transaction)
 			if err != nil {
 				return fmt.Errorf("verify references: %w", err)
