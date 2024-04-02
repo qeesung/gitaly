@@ -113,6 +113,7 @@ func (s *Server) UserCherryPick(ctx context.Context, req *gitalypb.UserCherryPic
 		CommitterEmail: committerSignature.Email,
 		CommitterDate:  committerSignature.When,
 		GitConfig:      s.gitConfig,
+		Sign:           true,
 	}
 
 	if len(req.CommitAuthorName) != 0 && len(req.CommitAuthorEmail) != 0 {

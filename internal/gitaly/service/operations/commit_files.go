@@ -487,6 +487,7 @@ func (s *Server) userCommitFilesGit(
 		Message:        string(header.CommitMessage),
 		TreeID:         treeish,
 		GitConfig:      s.gitConfig,
+		Sign:           header.Sign,
 	}
 
 	if cfg.AuthorName == "" {

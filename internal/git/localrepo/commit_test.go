@@ -346,89 +346,134 @@ func testWriteCommit(t *testing.T, ctx context.Context) {
 	}
 
 	t.Run("committer email and name are set", func(tb *testing.T) {
-		if !featureflag.GPGSigning.IsEnabled(ctx) {
-			tb.Skip()
-		}
-
-		cfg := WriteCommitConfig{
-			TreeID:         treeA.OID,
-			AuthorName:     gittest.DefaultCommitterName,
-			AuthorEmail:    gittest.DefaultCommitterMail,
-			CommitterName:  gittest.DefaultCommitterName,
-			CommitterEmail: gittest.DefaultCommitterMail,
-			AuthorDate:     gittest.DefaultCommitTime,
-			CommitterDate:  gittest.DefaultCommitTime,
-			Message:        "my custom message",
-			GitConfig: config.Git{
-				CommitterEmail: "noreply@gitlab.com",
-				CommitterName:  "GitLab",
+		testCases := []struct {
+			desc                   string
+			sign                   bool
+			expectedCommitterName  string
+			expectedCommitterEmail string
+		}{
+			{
+				desc:                   "With commit signing",
+				sign:                   true,
+				expectedCommitterName:  "GitLab",
+				expectedCommitterEmail: "noreply@gitlab.com",
+			},
+			{
+				desc:                   "Without commit signing",
+				sign:                   false,
+				expectedCommitterName:  gittest.DefaultCommitterName,
+				expectedCommitterEmail: gittest.DefaultCommitterMail,
 			},
 		}
 
-		oid, err := repo.WriteCommit(ctx, cfg)
-		require.Nil(t, err)
+		for _, tc := range testCases {
+			t.Run(tc.desc, func(t *testing.T) {
+				cfg := WriteCommitConfig{
+					TreeID:         treeA.OID,
+					AuthorName:     gittest.DefaultCommitterName,
+					AuthorEmail:    gittest.DefaultCommitterMail,
+					CommitterName:  gittest.DefaultCommitterName,
+					CommitterEmail: gittest.DefaultCommitterMail,
+					AuthorDate:     gittest.DefaultCommitTime,
+					CommitterDate:  gittest.DefaultCommitTime,
+					Message:        "my custom message",
+					GitConfig: config.Git{
+						CommitterEmail: "noreply@gitlab.com",
+						CommitterName:  "GitLab",
+					},
+					Sign: tc.sign,
+				}
 
-		commit, err := repo.ReadCommit(ctx, git.Revision(oid))
-		require.NoError(t, err)
+				oid, err := repo.WriteCommit(ctx, cfg)
+				require.Nil(t, err)
 
-		require.Equal(t, gittest.DefaultCommitAuthor, commit.Author)
-		require.Equal(t, "my custom message", string(commit.Body))
+				commit, err := repo.ReadCommit(ctx, git.Revision(oid))
+				require.NoError(t, err)
 
-		require.Equal(t, "noreply@gitlab.com", string(commit.Committer.Email))
-		require.Equal(t, "GitLab", string(commit.Committer.Name))
+				require.Equal(t, gittest.DefaultCommitAuthor, commit.Author)
+				require.Equal(t, "my custom message", string(commit.Body))
+
+				if featureflag.GPGSigning.IsEnabled(ctx) {
+					require.Equal(t, tc.expectedCommitterEmail, string(commit.Committer.Email))
+					require.Equal(t, tc.expectedCommitterName, string(commit.Committer.Name))
+				} else {
+					require.Equal(t, gittest.DefaultCommitterMail, string(commit.Committer.Email))
+					require.Equal(t, gittest.DefaultCommitterName, string(commit.Committer.Name))
+				}
+			})
+		}
 	})
 
 	t.Run("signed", func(tb *testing.T) {
-		if !featureflag.GPGSigning.IsEnabled(ctx) {
-			tb.Skip()
-		}
-
 		commitDate := time.Date(2023, time.November, 10, 23, 0, 0, 0, time.UTC)
 
-		cfg := WriteCommitConfig{
-			TreeID:         treeA.OID,
-			AuthorName:     gittest.DefaultCommitterName,
-			AuthorEmail:    gittest.DefaultCommitterMail,
-			CommitterName:  gittest.DefaultCommitterName,
-			CommitterEmail: gittest.DefaultCommitterMail,
-			AuthorDate:     commitDate,
-			CommitterDate:  commitDate,
-			Message:        "my custom message",
-			GitConfig: config.Git{
-				SigningKey: "testdata/signing_gpg_key",
+		testCases := []struct {
+			desc string
+			sign bool
+		}{
+			{
+				desc: "With commit signing",
+				sign: true,
+			},
+			{
+				desc: "Without commit signing",
+				sign: false,
 			},
 		}
 
-		oid, err := repo.WriteCommit(ctx, cfg)
-		require.Nil(t, err)
+		for _, tc := range testCases {
+			t.Run(tc.desc, func(t *testing.T) {
+				cfg := WriteCommitConfig{
+					TreeID:         treeA.OID,
+					AuthorName:     gittest.DefaultCommitterName,
+					AuthorEmail:    gittest.DefaultCommitterMail,
+					CommitterName:  gittest.DefaultCommitterName,
+					CommitterEmail: gittest.DefaultCommitterMail,
+					AuthorDate:     commitDate,
+					CommitterDate:  commitDate,
+					Message:        "my custom message",
+					GitConfig: config.Git{
+						SigningKey: "testdata/signing_gpg_key",
+					},
+					Sign: tc.sign,
+				}
 
-		commit, err := repo.ReadCommit(ctx, git.Revision(oid))
-		require.NoError(t, err)
+				oid, err := repo.WriteCommit(ctx, cfg)
+				require.Nil(t, err)
 
-		require.Equal(t, &gitalypb.CommitAuthor{
-			Name:     []byte(gittest.DefaultCommitterName),
-			Email:    []byte(gittest.DefaultCommitterMail),
-			Date:     timestamppb.New(commitDate),
-			Timezone: []byte("+0000"),
-		}, commit.Author)
-		require.Equal(t, "my custom message", string(commit.Body))
+				commit, err := repo.ReadCommit(ctx, git.Revision(oid))
+				require.NoError(t, err)
 
-		data, err := repo.ReadObject(ctx, oid)
-		require.NoError(t, err)
+				require.Equal(t, &gitalypb.CommitAuthor{
+					Name:     []byte(gittest.DefaultCommitterName),
+					Email:    []byte(gittest.DefaultCommitterMail),
+					Date:     timestamppb.New(commitDate),
+					Timezone: []byte("+0000"),
+				}, commit.Author)
+				require.Equal(t, "my custom message", string(commit.Body))
 
-		gpgsig, dataWithoutGpgSig := signature.ExtractSignature(t, ctx, data)
+				data, err := repo.ReadObject(ctx, oid)
+				require.NoError(t, err)
 
-		pubKey := testhelper.MustReadFile(tb, "testdata/signing_gpg_key.pub")
-		keyring, err := openpgp.ReadKeyRing(bytes.NewReader(pubKey))
-		require.NoError(tb, err)
+				gpgsig, dataWithoutGpgSig := signature.ExtractSignature(t, ctx, data)
 
-		_, err = openpgp.CheckArmoredDetachedSignature(
-			keyring,
-			strings.NewReader(dataWithoutGpgSig),
-			strings.NewReader(gpgsig),
-			&packet.Config{},
-		)
-		require.NoError(tb, err)
+				if featureflag.GPGSigning.IsEnabled(ctx) && tc.sign {
+					pubKey := testhelper.MustReadFile(tb, "testdata/signing_gpg_key.pub")
+					keyring, err := openpgp.ReadKeyRing(bytes.NewReader(pubKey))
+					require.NoError(tb, err)
+
+					_, err = openpgp.CheckArmoredDetachedSignature(
+						keyring,
+						strings.NewReader(dataWithoutGpgSig),
+						strings.NewReader(gpgsig),
+						&packet.Config{},
+					)
+					require.NoError(tb, err)
+				} else {
+					require.Empty(t, gpgsig)
+				}
+			})
+		}
 	})
 }
 

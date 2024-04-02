@@ -866,6 +866,9 @@ message UserCommitFilesRequestHeader {
   // zero object ID in case the branch should be created. Otherwise, this RPC
   // will return an error.
   string expected_old_oid = 12;
+  // sign controls whether a commit created by Gitaly must be signed using
+  // a signing key configured system-wide.
+  bool sign = 13;
 }
 
 // UserCommitFilesRequest is the request of UserCommitFiles.

@@ -41,16 +41,13 @@ func TestUserCommitFiles(t *testing.T) {
 }
 
 func testUserCommitFiles(t *testing.T, ctx context.Context) {
-	var opts []testserver.GitalyServerOpt
-	if featureflag.GPGSigning.IsEnabled(ctx) {
-		opts = append(opts, testserver.WithSigningKey("testdata/signing_gpg_key"))
+	opts := []testserver.GitalyServerOpt{
+		testserver.WithSigningKey("testdata/signing_gpg_key"),
 	}
 
 	ctx, cfg, client := setupOperationsService(t, ctx, opts...)
 
-	if featureflag.GPGSigning.IsEnabled(ctx) {
-		testcfg.BuildGitalyGPG(t, cfg)
-	}
+	testcfg.BuildGitalyGPG(t, cfg)
 
 	const (
 		DefaultMode    = "100644"
@@ -68,6 +65,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 		repoCreated     bool
 		branchCreated   bool
 		treeEntries     []gittest.TreeEntry
+		sign            bool
 	}
 
 	for _, tc := range []struct {
@@ -804,6 +802,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					},
 					branchCreated: true,
 					repoCreated:   true,
+					sign:          true,
 				},
 			},
 		},
@@ -859,6 +858,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					treeEntries: []gittest.TreeEntry{
 						{Mode: DefaultMode, Path: "file-1", Content: "content-1"},
 					},
+					sign: true,
 				},
 			},
 		},
@@ -876,6 +876,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					treeEntries: []gittest.TreeEntry{
 						{Mode: DefaultMode, Path: "file-1", Content: "content-1"},
 					},
+					sign: true,
 				},
 			},
 		},
@@ -894,6 +895,7 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					treeEntries: []gittest.TreeEntry{
 						{Mode: DefaultMode, Path: "file-1", Content: "content-1"},
 					},
+					sign: true,
 				},
 			},
 		},
@@ -930,6 +932,11 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 					setStartBranchName(headerRequest, []byte(step.startBranch))
 				}
 
+				if step.sign {
+					header := getHeader(headerRequest)
+					header.Sign = true
+				}
+
 				stream, err := client.UserCommitFiles(ctx)
 				require.NoError(t, err)
 				require.NoError(t, stream.Send(headerRequest))
@@ -953,13 +960,13 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 				authorDate := gittest.Exec(t, cfg, "-C", repoPath, "log", "--pretty='format:%ai'", "-1")
 				require.Contains(t, string(authorDate), gittest.TimezoneOffset)
 
-				if featureflag.GPGSigning.IsEnabled(ctx) {
-					repo := localrepo.NewTestRepo(t, cfg, repoProto)
-					data, err := repo.ReadObject(ctx, git.ObjectID(resp.BranchUpdate.CommitId))
-					require.NoError(t, err)
+				repo := localrepo.NewTestRepo(t, cfg, repoProto)
+				data, err := repo.ReadObject(ctx, git.ObjectID(resp.BranchUpdate.CommitId))
+				require.NoError(t, err)
 
-					gpgsig, dataWithoutGpgSig := signature.ExtractSignature(t, ctx, data)
+				gpgsig, dataWithoutGpgSig := signature.ExtractSignature(t, ctx, data)
 
+				if featureflag.GPGSigning.IsEnabled(ctx) && step.sign {
 					pubKey := testhelper.MustReadFile(t, "testdata/signing_gpg_key.pub")
 					keyring, err := openpgp.ReadKeyRing(bytes.NewReader(pubKey))
 					require.NoError(t, err)
@@ -971,6 +978,8 @@ func testUserCommitFiles(t *testing.T, ctx context.Context) {
 						&packet.Config{},
 					)
 					require.NoError(t, err)
+				} else {
+					require.Empty(t, gpgsig)
 				}
 			}
 		})
