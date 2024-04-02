@@ -610,12 +610,8 @@ func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]Config
 	//    `WithReftxHook()`.
 	// 4. Configuration as provided by the admin in Gitaly's config.toml.
 	config := []ConfigPair{
-		// Disable automatic garbage collection as we handle scheduling
-		// of it ourselves.
-		{Key: "gc.auto", Value: "0"},
-
-		// Disable automatic maintenance as we never enable any tasks.
-		{Key: "maintenance.auto", Value: "0"},
+		// Disable all advice strings since they're bound to change.
+		{Key: "advice.*", Value: "false"},
 
 		// CRLF line endings will get replaced with LF line endings when writing blobs to the
 		// object database. No conversion is done when reading blobs from the object database.
@@ -675,6 +671,13 @@ func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]Config
 		// packfile window anyway while it should on the other hand lead to lower memory consumption and faster
 		// computation of diffs when large blobs are involved.
 		{Key: "core.bigFileThreshold", Value: fmt.Sprintf("%dm", BigFileThresholdMB)},
+
+		// Disable automatic garbage collection as we handle scheduling
+		// of it ourselves.
+		{Key: "gc.auto", Value: "0"},
+
+		// Disable automatic maintenance as we never enable any tasks.
+		{Key: "maintenance.auto", Value: "0"},
 	}
 
 	return config, nil
