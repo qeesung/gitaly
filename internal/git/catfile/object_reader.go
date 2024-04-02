@@ -23,21 +23,21 @@ type ObjectReader interface {
 	// before another object is requested.
 	Object(context.Context, git.Revision) (*Object, error)
 
-	// ObjectQueue returns an ObjectQueue that can be used to batch multiple object requests.
-	// Using the queue is more efficient than using `Object()` when requesting a bunch of
-	// objects. The returned function must be executed after use of the ObjectQueue has
-	// finished. Object Content and information can be requested from the queue but their
-	// respective ordering must be maintained.
-	ObjectQueue(context.Context) (ObjectQueue, func(), error)
+	// Queue returns an Queue that can be used to batch multiple requests. Using the
+	// queue is more efficient than using `Object()` when requesting a bunch of requests.
+	// The returned function must be executed after use of the Queue has finished. Object
+	// Content and information can be requested from the queue but their respective
+	// ordering must be maintained.
+	Queue(context.Context) (Queue, func(), error)
 }
 
-// ObjectQueue allows for requesting and reading objects independently of each other. The number of
+// Queue allows for requesting and reading objects independently of each other. The number of
 // RequestObject+RequestInfo and ReadObject+RequestInfo calls must match and their ordering must be
 // maintained. ReadObject/ReadInfo must be executed after the object has been requested already.
 // The order of objects returned by ReadObject/ReadInfo is the same as the order in
 // which objects have been requested. Users of this interface must call `Flush()` after all requests
 // have been queued up such that all requested objects will be readable.
-type ObjectQueue interface {
+type Queue interface {
 	// RequestObject requests the given revision from git-cat-file(1).
 	RequestObject(context.Context, git.Revision) error
 	// ReadObject reads an object which has previously been requested.
@@ -59,7 +59,7 @@ type objectReader struct {
 
 	counter *prometheus.CounterVec
 
-	queue      requestQueue
+	q          requestQueue
 	queueInUse int32
 }
 
@@ -98,12 +98,10 @@ func newObjectReader(
 	objectReader := &objectReader{
 		cmd:     batchCmd,
 		counter: counter,
-		queue: requestQueue{
-			objectHash:      objectHash,
-			stdout:          bufio.NewReader(batchCmd),
-			stdin:           bufio.NewWriter(batchCmd),
-			isBatchCommand:  true,
-			isNulTerminated: true,
+		q: requestQueue{
+			objectHash: objectHash,
+			stdout:     bufio.NewReader(batchCmd),
+			stdin:      bufio.NewWriter(batchCmd),
 		},
 	}
 
@@ -111,12 +109,12 @@ func newObjectReader(
 }
 
 func (o *objectReader) close() {
-	o.queue.close()
+	o.q.close()
 	_ = o.cmd.Wait()
 }
 
 func (o *objectReader) isClosed() bool {
-	return o.queue.isClosed()
+	return o.q.isClosed()
 }
 
 func (o *objectReader) isDirty() bool {
@@ -124,18 +122,18 @@ func (o *objectReader) isDirty() bool {
 		return true
 	}
 
-	return o.queue.isDirty()
+	return o.q.isDirty()
 }
 
-func (o *objectReader) objectQueue(ctx context.Context, tracedMethod string) (*requestQueue, func(), error) {
+func (o *objectReader) queue(ctx context.Context, tracedMethod string) (*requestQueue, func(), error) {
 	if !atomic.CompareAndSwapInt32(&o.queueInUse, 0, 1) {
 		return nil, nil, fmt.Errorf("object queue already in use")
 	}
 
 	trace := startTrace(ctx, o.counter, tracedMethod)
-	o.queue.trace = trace
+	o.q.trace = trace
 
-	return &o.queue, func() {
+	return &o.q, func() {
 		atomic.StoreInt32(&o.queueInUse, 0)
 		trace.finish()
 	}, nil
@@ -144,7 +142,7 @@ func (o *objectReader) objectQueue(ctx context.Context, tracedMethod string) (*r
 // Object returns a new Object for the given revision. The Object must be fully consumed
 // before another object is requested.
 func (o *objectReader) Object(ctx context.Context, revision git.Revision) (*Object, error) {
-	queue, finish, err := o.objectQueue(ctx, "catfile.Object")
+	queue, finish, err := o.queue(ctx, "catfile.Object")
 	if err != nil {
 		return nil, err
 	}
@@ -166,13 +164,13 @@ func (o *objectReader) Object(ctx context.Context, revision git.Revision) (*Obje
 	return object, nil
 }
 
-// ObjectQueue returns an ObjectQueue that can be used to batch multiple object requests.
-// Using the queue is more efficient than using `Object()` when requesting a bunch of
-// objects. The returned function must be executed after use of the ObjectQueue has
-// finished. Object Content and information can be requested from the queue but their
-// respective ordering must be maintained.
-func (o *objectReader) ObjectQueue(ctx context.Context) (ObjectQueue, func(), error) {
-	queue, finish, err := o.objectQueue(ctx, "catfile.ObjectQueue")
+// Queue returns an Queue that can be used to batch multiple requests. Using the
+// queue is more efficient than using `Object()` when requesting a bunch of requests.
+// The returned function must be executed after use of the Queue has finished. Object
+// Content and information can be requested from the queue but their respective
+// ordering must be maintained.
+func (o *objectReader) Queue(ctx context.Context) (Queue, func(), error) {
+	queue, finish, err := o.queue(ctx, "catfile.Queue")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -181,7 +179,7 @@ func (o *objectReader) ObjectQueue(ctx context.Context) (ObjectQueue, func(), er
 
 // Info returns object information for the given revision.
 func (o *objectReader) Info(ctx context.Context, revision git.Revision) (*ObjectInfo, error) {
-	queue, cleanup, err := o.objectQueue(ctx, "catfile.Info")
+	queue, cleanup, err := o.queue(ctx, "catfile.Info")
 	if err != nil {
 		return nil, err
 	}

@@ -251,7 +251,7 @@ func testObjectReaderObject(t *testing.T, ctx context.Context) {
 				"-p", commitID.String())
 		}
 
-		reader, err := newObjectContentReader(ctx, newRepoExecutor(t, cfg, repoProto), nil)
+		reader, err := newObjectReader(ctx, newRepoExecutor(t, cfg, repoProto), nil)
 		require.NoError(t, err)
 
 		object, err := reader.Object(ctx, "refs/heads/main")
@@ -286,7 +286,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -298,7 +298,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -317,7 +317,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -341,7 +341,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -363,7 +363,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -387,7 +387,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -416,7 +416,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -446,7 +446,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -458,7 +458,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -480,7 +480,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -503,7 +503,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -517,7 +517,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -532,7 +532,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -558,17 +558,17 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		_, cleanup, err := reader.objectQueue(ctx, "trace")
+		_, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
-		_, _, err = reader.objectQueue(ctx, "trace")
+		_, _, err = reader.queue(ctx, "trace")
 		require.Equal(t, errors.New("object queue already in use"), err)
 
 		// After calling cleanup we should be able to create an object queue again.
 		cleanup()
 
-		_, cleanup, err = reader.objectQueue(ctx, "trace")
+		_, cleanup, err = reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 	})
@@ -579,7 +579,7 @@ func TestObjectReader_queue(t *testing.T) {
 
 		require.False(t, reader.isDirty())
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -615,7 +615,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -631,7 +631,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 
@@ -652,7 +652,7 @@ func TestObjectReader_queue(t *testing.T) {
 		reader, err := newObjectReader(ctx, cmdExecutor, nil)
 		require.NoError(t, err)
 
-		queue, cleanup, err := reader.objectQueue(ctx, "trace")
+		queue, cleanup, err := reader.queue(ctx, "trace")
 		require.NoError(t, err)
 		defer cleanup()
 

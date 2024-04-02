@@ -26,13 +26,6 @@ const (
 	// flushCommand is the command expected by the `--batch-command` mode of git-cat-file(1)
 	// for flushing out to stdout.
 	flushCommand = "flush"
-	// flushCommandHack is the command we send to git-cat-file(1) to cause it to flush its stdout.
-	// Note that this is a hack: git-cat-file(1) doesn't really support flushing, but it will
-	// flush whenever it encounters an object it doesn't know. The flush command we use is thus
-	// chosen such that it cannot ever refer to a valid object: refs may not contain whitespace,
-	// so this command cannot refer to a ref. Adding "FLUSH" is just for the sake of making it
-	// easier to spot what's going on in case we ever mistakenly see this output in the wild.
-	flushCommandHack = "\tFLUSH\t"
 )
 
 type queueCounters struct {
@@ -60,18 +53,6 @@ type requestQueue struct {
 	// objectHash is the object hash used by the repository the request queue has been
 	// spawned for.
 	objectHash git.ObjectHash
-
-	// isObjectQueue is set to `true` when this is a request queue which can be used for reading
-	// objects. If set to `false`, then this can only be used to read object info.
-	isObjectQueue bool
-
-	// isNulTerminated indicates whether `stdout` is NUL terminated or not. This corresponds to the `-Z`
-	// option that can be passed to git-cat-file(1).
-	isNulTerminated bool
-
-	// isBatchCommand indicates whether `--batch-command` is used. We use this to determine if
-	// commands need to be passed to git-cat-file(1).
-	isBatchCommand bool
 
 	stdout *bufio.Reader
 	stdin  *bufio.Writer
@@ -123,20 +104,13 @@ func (q *requestQueue) requestRevision(ctx context.Context, cmd string, revision
 		return structerr.NewInvalidArgument("revision must not contain NUL bytes")
 	}
 
-	if !q.isNulTerminated && strings.Contains(revision.String(), "\n") {
-		return structerr.NewInvalidArgument("Git too old to support requests with newlines")
-	}
-
 	if q.isClosed() {
 		return fmt.Errorf("cannot request revision: %w", os.ErrClosed)
 	}
 
 	atomic.AddInt64(&q.counters.outstandingRequests, 1)
 
-	input := revision.String()
-	if q.isBatchCommand {
-		input = cmd + " " + input
-	}
+	input := cmd + " " + revision.String()
 
 	if _, err := q.stdin.WriteString(input); err != nil {
 		atomic.AddInt64(&q.counters.outstandingRequests, -1)
@@ -158,12 +132,7 @@ func (q *requestQueue) Flush(ctx context.Context) error {
 		return fmt.Errorf("cannot flush: %w", os.ErrClosed)
 	}
 
-	cmd := flushCommandHack
-	if q.isBatchCommand {
-		cmd = flushCommand
-	}
-
-	if _, err := q.stdin.WriteString(cmd); err != nil {
+	if _, err := q.stdin.WriteString(flushCommand); err != nil {
 		return fmt.Errorf("writing flush command: %w", err)
 	}
 
@@ -184,10 +153,6 @@ func (fn readerFunc) Read(buf []byte) (int, error) { return fn(buf) }
 
 func (q *requestQueue) ReadObject(ctx context.Context) (*Object, error) {
 	defer logDuration(ctx, "read_object")()
-
-	if !q.isObjectQueue && !q.isBatchCommand {
-		panic("object queue used to read object info")
-	}
 
 	// We need to ensure that only a single call to `ReadObject()` can happen at the
 	// same point in time.
@@ -253,10 +218,6 @@ func (q *requestQueue) ReadObject(ctx context.Context) (*Object, error) {
 func (q *requestQueue) ReadInfo(ctx context.Context) (*ObjectInfo, error) {
 	defer logDuration(ctx, "read_info")()
 
-	if q.isObjectQueue && !q.isBatchCommand {
-		panic("object queue used to read object info")
-	}
-
 	objectInfo, err := q.readInfo()
 	if err != nil {
 		return nil, err
@@ -286,7 +247,7 @@ func (q *requestQueue) readInfo() (*ObjectInfo, error) {
 		return nil, fmt.Errorf("concurrent read on request queue")
 	}
 
-	return ParseObjectInfo(q.objectHash, q.stdout, q.isNulTerminated)
+	return ParseObjectInfo(q.objectHash, q.stdout, true)
 }
 
 func logDuration(ctx context.Context, logFieldName string) func() {

@@ -395,7 +395,7 @@ func mustCreateCacheable(t *testing.T, cfg config.Cfg, repo storage.Repository) 
 
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
-	batch, err := newObjectContentReader(ctx, newRepoExecutor(t, cfg, repo), nil)
+	batch, err := newObjectReader(ctx, newRepoExecutor(t, cfg, repo), nil)
 	require.NoError(t, err)
 
 	return batch, cancel
