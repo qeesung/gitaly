@@ -350,7 +350,18 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								},
 							},
 						},
+						Operations: []*gitalypb.LogEntry_Operation{
+							{
+								Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
+									CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
+										SourcePath:      "1",
+										DestinationPath: filepath.Join(setup.RelativePath, "refs/heads/main"),
+									},
+								},
+							},
+						},
 					}),
+					"/wal/0000000000001/1": {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 				},
 			},
 		},
@@ -1318,6 +1329,16 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 			},
+			Operations: []*gitalypb.LogEntry_Operation{
+				{
+					Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
+						CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
+							SourcePath:      "1",
+							DestinationPath: filepath.Join(setup.RelativePath, ref),
+						},
+					},
+				},
+			},
 		}
 	}
 
@@ -1599,8 +1620,10 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
+						"/0000000000002/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
+						"/0000000000003/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
 				StartManager{},
@@ -1685,6 +1708,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					// appended log entries at the same time.
 					logEntryPath := filepath.Join(t.TempDir(), "log_entry")
 					require.NoError(t, os.Mkdir(logEntryPath, perm.PrivateDir))
+					require.NoError(t, os.WriteFile(filepath.Join(logEntryPath, "1"), []byte(setup.Commits.First.OID+"\n"), perm.SharedFile))
 					require.NoError(t, tm.appendLogEntry(refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID), logEntryPath))
 
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
@@ -1695,10 +1719,13 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
+						"/0000000000002/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
+						"/0000000000003/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000004":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000004/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID)),
+						"/0000000000004/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
 				StartManager{},
