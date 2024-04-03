@@ -15,6 +15,8 @@ func TestOperations(t *testing.T) {
 	ops.createHardLink("path-in-log-entry", "path-in-storage/1", false)
 	ops.createHardLink("path-in-storage", "path-in-storage/2", true)
 	ops.removeDirectoryEntry("removed/relative/path")
+	ops.setKey([]byte("set-key"), []byte("value"))
+	ops.deleteKey([]byte("deleted-key"))
 
 	testhelper.ProtoEqual(t, operations{
 		{
@@ -46,6 +48,21 @@ func TestOperations(t *testing.T) {
 			Operation: &gitalypb.LogEntry_Operation_RemoveDirectoryEntry_{
 				RemoveDirectoryEntry: &gitalypb.LogEntry_Operation_RemoveDirectoryEntry{
 					Path: []byte("removed/relative/path"),
+				},
+			},
+		},
+		{
+			Operation: &gitalypb.LogEntry_Operation_SetKey_{
+				SetKey: &gitalypb.LogEntry_Operation_SetKey{
+					Key:   []byte("set-key"),
+					Value: []byte("value"),
+				},
+			},
+		},
+		&gitalypb.LogEntry_Operation{
+			Operation: &gitalypb.LogEntry_Operation_DeleteKey_{
+				DeleteKey: &gitalypb.LogEntry_Operation_DeleteKey{
+					Key: []byte("deleted-key"),
 				},
 			},
 		},
