@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
@@ -16,7 +17,10 @@ import (
 // during an earlier interrupted attempt to apply the log entry. Similarly ErrNotExist is ignored
 // when removing directory entries. We can be stricter once log entry application becomes atomic
 // through https://gitlab.com/gitlab-org/gitaly/-/issues/5765.
-func applyOperations(sync func(string) error, storageRoot, walEntryDirectory string, entry *gitalypb.LogEntry) error {
+func applyOperations(sync func(string) error, storageRoot, walEntryDirectory string, entry *gitalypb.LogEntry, db keyvalue.Transactioner) error {
+	wb := db.NewWriteBatch()
+	defer wb.Cancel()
+
 	// dirtyDirectories holds all directories that have been dirtied by the operations.
 	// As files have already been synced to the disk when the log entry was written, we
 	// only need to sync the operations on directories.
@@ -66,6 +70,18 @@ func applyOperations(sync func(string) error, storageRoot, walEntryDirectory str
 			delete(dirtyDirectories, path)
 			// Sync the parent directory where directory entry was removed from.
 			dirtyDirectories[filepath.Dir(path)] = struct{}{}
+		case *gitalypb.LogEntry_Operation_SetKey_:
+			op := wrapper.SetKey
+
+			if err := wb.Set(op.Key, op.Value); err != nil {
+				return fmt.Errorf("set key: %w", err)
+			}
+		case *gitalypb.LogEntry_Operation_DeleteKey_:
+			op := wrapper.DeleteKey
+
+			if err := wb.Delete(op.Key); err != nil {
+				return fmt.Errorf("delete key: %w", err)
+			}
 		default:
 			return fmt.Errorf("unhandled operation type: %T", wrappedOp)
 		}
@@ -76,6 +92,10 @@ func applyOperations(sync func(string) error, storageRoot, walEntryDirectory str
 		if err := sync(filepath.Join(storageRoot, relativePath)); err != nil {
 			return fmt.Errorf("sync: %w", err)
 		}
+	}
+
+	if err := wb.Flush(); err != nil {
+		return fmt.Errorf("flush write batch: %w", err)
 	}
 
 	return nil

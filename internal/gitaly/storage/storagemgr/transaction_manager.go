@@ -2909,7 +2909,7 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn storage.LS
 
 	mgr.testHooks.beforeApplyLogEntry()
 
-	if err := applyOperations(safe.NewSyncer().Sync, mgr.storagePath, walFilesPathForLSN(mgr.stateDirectory, lsn), logEntry); err != nil {
+	if err := applyOperations(safe.NewSyncer().Sync, mgr.storagePath, walFilesPathForLSN(mgr.stateDirectory, lsn), logEntry, mgr.db); err != nil {
 		return fmt.Errorf("apply operations: %w", err)
 	}
 
