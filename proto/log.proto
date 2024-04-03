@@ -114,6 +114,20 @@ message LogEntry {
       uint32 permissions = 2;
     }
 
+    // SetKey sets a key with a value in the key-value store.
+    message SetKey {
+      // key is the key to set.
+      bytes key = 1;
+      // value is the value to set for the key.
+      bytes value = 2;
+    }
+
+    // DeleteKey deletes a key from the key-value store.
+    message DeleteKey {
+      // key is the key to delete.
+      bytes key = 1;
+    }
+
     oneof operation {
       // create_hard_link creates a hard link in the storage.
       CreateHardLink       create_hard_link       = 1;
@@ -121,6 +135,10 @@ message LogEntry {
       RemoveDirectoryEntry remove_directory_entry = 2;
       // create_directory creates a directory in the storage.
       CreateDirectory      create_directory       = 3;
+      // set_key sets a key with a given value in the key-value store.
+      SetKey               set_key                = 4;
+      // delete_key deletes a given key from the key-value store.
+      DeleteKey            delete_key             = 5;
     };
   }
 
