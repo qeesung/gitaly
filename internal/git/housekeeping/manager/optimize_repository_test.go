@@ -1068,7 +1068,7 @@ func TestOptimizeRepository(t *testing.T) {
 		tc := tc
 
 		testRepoAndPool(t, tc.desc, func(t *testing.T, relativePath string) {
-			testWithTransaction(t, tc.desc, func(t *testing.T, cfg gitalycfg.Cfg, partitionMgr *storagemgr.PartitionManager) {
+			testWithAndWithoutTransaction(t, tc.desc, func(t *testing.T, cfg gitalycfg.Cfg, partitionMgr *storagemgr.PartitionManager) {
 				t.Parallel()
 
 				if tc.shouldNotRunInTransaction != "" && partitionMgr != nil {
@@ -1122,7 +1122,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 	t.Parallel()
 	ctx := testhelper.Context(t)
 
-	testWithTransaction(t, "subsequent calls get skipped", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, "subsequent calls get skipped", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		reqReceivedCh, ch := make(chan struct{}), make(chan struct{})
 
 		repoProto, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
@@ -1153,7 +1153,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 	// We want to confirm that even if a state exists, the housekeeping shall run as
 	// long as the state doesn't state that there is another housekeeping running
 	// i.e. `isRunning` is set to false.
-	testWithTransaction(t, "there is no other housekeeping running but state exists", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, "there is no other housekeeping running but state exists", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		ch := make(chan struct{})
 
 		repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
@@ -1189,7 +1189,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		<-ch
 	})
 
-	testWithTransaction(t, "there is a housekeeping running state", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, "there is a housekeeping running state", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 			SkipCreationViaService: true,
 		})
@@ -1214,7 +1214,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		require.NotContains(t, manager.repositoryStates.values, repoPath)
 	})
 
-	testWithTransaction(t, "multiple repositories concurrently", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, "multiple repositories concurrently", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		reqReceivedCh, ch := make(chan struct{}), make(chan struct{})
 
 		repoProtoFirst, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
@@ -1257,7 +1257,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		assert.Contains(t, reposOptimized, repoSecond.GetRelativePath())
 	})
 
-	testWithTransaction(t, "serialized optimizations", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, "serialized optimizations", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		reqReceivedCh, ch := make(chan struct{}), make(chan struct{})
 		repoProto, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 			SkipCreationViaService: true,

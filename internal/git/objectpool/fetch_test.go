@@ -24,7 +24,7 @@ import (
 )
 
 func TestFetchFromOrigin_dangling(t *testing.T) {
-	testWithTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
 		ctx := testhelper.Context(t)
 
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
@@ -85,7 +85,7 @@ func TestFetchFromOrigin_dangling(t *testing.T) {
 }
 
 func TestFetchFromOrigin_fsck(t *testing.T) {
-	testWithTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		repoPath, err := repo.Path()
@@ -110,7 +110,7 @@ func TestFetchFromOrigin_fsck(t *testing.T) {
 }
 
 func TestFetchFromOrigin_deltaIslands(t *testing.T) {
-	testWithTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		poolPath := gittest.RepositoryPath(t, pool)
@@ -136,7 +136,7 @@ func TestFetchFromOrigin_deltaIslands(t *testing.T) {
 }
 
 func TestFetchFromOrigin_bitmapHashCache(t *testing.T) {
-	testWithTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		repoPath, err := repo.Path()
@@ -162,7 +162,7 @@ func TestFetchFromOrigin_bitmapHashCache(t *testing.T) {
 }
 
 func TestFetchFromOrigin_refUpdates(t *testing.T) {
-	testWithTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		repoPath, err := repo.Path()
@@ -209,7 +209,7 @@ func TestFetchFromOrigin_refUpdates(t *testing.T) {
 }
 
 func TestFetchFromOrigin_refs(t *testing.T) {
-	testWithTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		repoPath, err := repo.Path()
@@ -248,7 +248,7 @@ func TestFetchFromOrigin_refs(t *testing.T) {
 }
 
 func TestFetchFromOrigin_missingPool(t *testing.T) {
-	testWithTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 
@@ -370,7 +370,7 @@ func TestObjectPool_logStats(t *testing.T) {
 	}
 }
 
-func testWithTransaction(t *testing.T, testFunc func(*testing.T, config.Cfg, *storagemgr.PartitionManager)) {
+func testWithAndWithoutTransaction(t *testing.T, testFunc func(*testing.T, config.Cfg, *storagemgr.PartitionManager)) {
 	t.Helper()
 
 	t.Run("with transaction", func(t *testing.T) {

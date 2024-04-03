@@ -67,7 +67,7 @@ func testRepoAndPool(t *testing.T, desc string, testFunc func(t *testing.T, rela
 	})
 }
 
-func testWithTransaction(t *testing.T, desc string, testFunc func(*testing.T, config.Cfg, *storagemgr.PartitionManager)) {
+func testWithAndWithoutTransaction(t *testing.T, desc string, testFunc func(*testing.T, config.Cfg, *storagemgr.PartitionManager)) {
 	t.Helper()
 	t.Run(desc, func(t *testing.T) {
 		t.Run("with transaction", func(t *testing.T) {
