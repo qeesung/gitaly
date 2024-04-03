@@ -264,8 +264,14 @@ being enabled.
 Then enable `X` on staging, run the following in the `#staging` Slack channel:
 
 ```shell
-/chatops run feature set gitaly_X --staging
+/chatops run feature set gitaly_X true --staging
 ```
+
+Use the [gitaly_feature_flag_checks_total](https://prometheus.gstg.gitlab.net/graph?g0.expr=sum%20by%20(flag)%20(rate(gitaly_feature_flag_checks_total%5B5m%5D))&g0.tab=1&g0.stacked=0&g0.range_input=1h)
+Prometheus metric to check if the feature flag is deployed.
+
+Use the [Gitaly:overview dashboard](https://dashboards.gitlab.net/d/gitaly-main/gitaly3a-overview?orgId=1&var-PROMETHEUS_DS=PA258B30F88C30650&var-environment=gstg&var-stage=main)
+to observe the overall status of Gitaly.
 
 #### Discussion
 
@@ -296,6 +302,12 @@ The following chatops commands must run in the `#production` channel.
 After the [Improve feature flags in Gitaly][improve-flag-epic] epic is addressed,
 Gitaly will support various strategies for us to pick from.
 
+Use the [gitaly_feature_flag_checks_total](https://prometheus.gprd.gitlab.net/graph?g0.expr=sum%20by%20(flag)%20(rate(gitaly_feature_flag_checks_total%5B5m%5D))&g0.tab=1&g0.stacked=0&g0.range_input=1h)
+Prometheus metric to check if the feature flag is deployed.
+
+Use the [Gitaly:overview dashboard](https://dashboards.gitlab.net/d/gitaly-main/gitaly3a-overview?orgId=1&var-PROMETHEUS_DS=PA258B30F88C30650&var-environment=gprd&var-stage=main)
+to observe the overall status of Gitaly.
+
 [improve-flag-epic]: https://gitlab.com/groups/gitlab-org/-/epics/8005
 
 #### Rollout to a set of users
@@ -305,7 +317,7 @@ our customers. Gitaly supports enabling a flag for a set of users by running
 the following command in chatops channels.
 
 ```shell
-/chatops run feature set --user=qmnguyen0711,toon gitaly_X
+/chatops run feature set --user=qmnguyen0711,toon gitaly_X true
 ```
 
 After enabling, the flag is turned on for the users listed when performing an
@@ -320,14 +332,14 @@ repositories have a huge impact on a particular Gitaly node. So, it's natural to
 roll out the flags for a set of repositories, typically internal ones.
 
 ```shell
-/chatops run feature set --repository=gitlab-org/gitlab.git,gitlab-com/www-gitlab-com.git gitaly_X
+/chatops run feature set --repository=gitlab-org/gitlab.git,gitlab-com/www-gitlab-com.git gitaly_X true
 ```
 
 The `--repository` flag supports all repository types, such as Wiki or Snippet.
 
 ```shell
-/chatops run feature set --repository=snippets/2427310.git gitaly_X
-/chatops run feature set --repository=gitlab-org.wiki.git gitaly_X
+/chatops run feature set --repository=snippets/2427310.git gitaly_X true
+/chatops run feature set --repository=gitlab-org.wiki.git gitaly_X true
 ```
 
 #### Rollout to a set of groups
@@ -337,7 +349,7 @@ makes a lot of sense for a feature to be visible to us for verification. Therefo
 to enable a flag for a set of groups, run the following command in chatops channels:
 
 ```shell
-/chatops run feature set --group=gitlab-org,gitlab-com gitaly_X
+/chatops run feature set --group=gitlab-org,gitlab-com gitaly_X true
 ```
 
 #### Rollout to a percentage of repositories
