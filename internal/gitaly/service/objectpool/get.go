@@ -2,6 +2,7 @@ package objectpool
 
 import (
 	"context"
+	"errors"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/objectpool"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
@@ -18,7 +19,7 @@ func (s *server) GetObjectPool(ctx context.Context, in *gitalypb.GetObjectPoolRe
 	repo := s.localrepo(repository)
 
 	objectPool, err := objectpool.FromRepo(s.logger, s.locator, s.gitCmdFactory, s.catfileCache, s.txManager, s.housekeepingManager, repo)
-	if err != nil {
+	if err != nil && !errors.Is(err, objectpool.ErrAlternateObjectDirNotExist) {
 		s.logger.
 			WithError(err).
 			WithField("storage", repository.GetStorageName()).
