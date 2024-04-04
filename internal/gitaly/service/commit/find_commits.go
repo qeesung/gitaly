@@ -402,7 +402,7 @@ func splitStat(data []byte, atEOF bool) (int, []byte, error) {
 }
 
 var (
-	ambiguousArgRegex         = regexp.MustCompile(`fatal: ambiguous argument '.+': unknown revision or path not in the working tree.`)
+	ambiguousArgRegex         = regexp.MustCompile(`fatal: ambiguous argument '.*': unknown revision or path not in the working tree.`)
 	badObjectRegex            = regexp.MustCompile(`fatal: bad object [0-9a-g]+`)
 	invalidRevisionRangeRegex = regexp.MustCompile(`fatal: Invalid revision range [0-9a-g]+\.\.[0-9a-g]+`)
 )
