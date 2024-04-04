@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/safe"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 )
 
@@ -57,8 +58,23 @@ func (fs *FilesystemSink) GetReader(ctx context.Context, relativePath string) (i
 	return f, nil
 }
 
-// Close is a no-op to implement the Sink interface
+// Close will fsync the written file and its parent directory.
 func (fs *FilesystemSink) Close() error {
+	_, err := os.Stat(fs.path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("stat sink path: %w", err)
+	}
+
+	syncer := safe.NewSyncer()
+	if err := syncer.Sync(fs.path); err != nil {
+		return fmt.Errorf("sync sink: %w", err)
+	}
+	if err := syncer.SyncParent(fs.path); err != nil {
+		return fmt.Errorf("sync sink parent: %w", err)
+	}
 	return nil
 }
 
