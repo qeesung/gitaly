@@ -56,6 +56,38 @@ func TestFindCommits(t *testing.T) {
 		setup func(t *testing.T) setupData
 	}{
 		{
+			desc: "empty repository",
+			setup: func(t *testing.T) setupData {
+				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository: repoProto,
+					},
+					expectedErr: structerr.NewNotFound("commits not found").WithDetail(&gitalypb.FindCommitsError{}),
+				}
+			},
+		},
+		{
+			desc: "repository with a branch and missing default branch",
+			setup: func(t *testing.T) setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("refs/heads/non-default"))
+				repo := localrepo.NewTestRepo(t, cfg, repoProto)
+				commitProto, err := repo.ReadCommit(ctx, commitID.Revision())
+				require.NoError(t, err)
+
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository: repoProto,
+						Limit:      2,
+					},
+					expectedCommits: []*gitalypb.GitCommit{commitProto},
+				}
+			},
+		},
+		{
 			desc: "unset repository",
 			setup: func(t *testing.T) setupData {
 				return setupData{
