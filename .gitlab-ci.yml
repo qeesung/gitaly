@@ -184,6 +184,16 @@ workflow:
     # custom CI variables via the Pipelines page.
     - if: $FORCE_GITALY_CI
 
+.rules_run_strictly_on_default_branch: &rules_run_strictly_on_default_branch
+  - if: $CI_PROJECT_PATH != "gitlab-org/gitaly"
+    when: manual
+    allow_failure: true
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    when: manual
+    allow_failure: true
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  - if: $FORCE_GITALY_CI
+
 danger-review:
   needs: []
   stage: build
@@ -434,6 +444,8 @@ vulnerability:
     - *cache_go_configuration
   script:
     - make govulncheck
+  rules:
+    - *rules_run_strictly_on_default_branch
 
 dbschema:
   needs: []
