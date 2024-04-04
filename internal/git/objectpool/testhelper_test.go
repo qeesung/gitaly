@@ -38,6 +38,14 @@ func withLogger(logger log.Logger) setupObjectPoolOption {
 func setupObjectPool(t *testing.T, ctx context.Context, opts ...setupObjectPoolOption) (config.Cfg, *ObjectPool, *localrepo.Repo) {
 	t.Helper()
 
+	cfg := testcfg.Build(t)
+	pool, repo := setupObjectPoolWithCfg(t, ctx, cfg, opts...)
+	return cfg, pool, repo
+}
+
+func setupObjectPoolWithCfg(t *testing.T, ctx context.Context, cfg config.Cfg, opts ...setupObjectPoolOption) (*ObjectPool, *localrepo.Repo) {
+	t.Helper()
+
 	var setupCfg setupObjectPoolConfig
 	for _, opt := range opts {
 		opt(&setupCfg)
@@ -46,7 +54,6 @@ func setupObjectPool(t *testing.T, ctx context.Context, opts ...setupObjectPoolO
 		setupCfg.logger = testhelper.NewLogger(t)
 	}
 
-	cfg := testcfg.Build(t)
 	repoProto, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
 	})
@@ -76,7 +83,7 @@ func setupObjectPool(t *testing.T, ctx context.Context, opts ...setupObjectPoolO
 	)
 	require.NoError(t, err)
 
-	return cfg, pool, repo
+	return pool, repo
 }
 
 func hashDependentSize(tb testing.TB, sha1Size, sha256Size uint64) uint64 {

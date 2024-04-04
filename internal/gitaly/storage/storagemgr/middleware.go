@@ -60,6 +60,9 @@ var NonTransactionalRPCs = map[string]struct{}{
 	// SetFullPath writes the full path into git config and is the last RPC that writes into the
 	// git config. Writing into the config won't be supported.
 	"/gitaly.RepositoryService/SetFullPath": {},
+
+	// FetchIntoObjectPool manages the life-cycle of WAL transaction itself.
+	"/gitaly.ObjectPool/FetchIntoObjectPool": {},
 }
 
 // NewUnaryInterceptor returns an unary interceptor that manages a unary RPC's transaction. It starts a transaction
@@ -254,7 +257,7 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 	// Object pools need to be placed in the same partition as their members. Below we figure out which repository,
 	// if any, the target repository of the RPC must be partitioned with. We figure this out using two strategies:
 	//
-	// The general case is handled by extracting the additional repository from the RPC, and paritioning the target
+	// The general case is handled by extracting the additional repository from the RPC, and partitioning the target
 	// repository of the RPC with the additional repository. Many of the ObjectPoolService's RPCs operate on two
 	// repositories. Depending on the RPC, the additional repository is either the object pool itself or a member
 	// of the pool.

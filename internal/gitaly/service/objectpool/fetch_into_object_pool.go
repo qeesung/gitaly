@@ -22,7 +22,7 @@ func (s *server) FetchIntoObjectPool(ctx context.Context, req *gitalypb.FetchInt
 
 	origin := s.localrepo(req.GetOrigin())
 
-	if err := objectPool.FetchFromOrigin(ctx, origin); err != nil {
+	if err := objectPool.FetchFromOrigin(ctx, origin, s.walPartitionManager); err != nil {
 		return nil, structerr.NewInternal("%w", err)
 	}
 
