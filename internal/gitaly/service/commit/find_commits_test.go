@@ -18,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
+	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb/testproto"
 	"golang.org/x/text/encoding/charmap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -55,6 +56,41 @@ func TestFindCommits(t *testing.T) {
 		desc  string
 		setup func(t *testing.T) setupData
 	}{
+		{
+			desc: "empty repository",
+			setup: func(t *testing.T) setupData {
+				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository: repoProto,
+					},
+					expectedErr: structerr.NewInternal("listing commits failed").WithDetail(&testproto.ErrorMetadata{
+						Key:   []byte("stderr"),
+						Value: []byte("fatal: ambiguous argument '': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n"),
+					}),
+				}
+			},
+		},
+		{
+			desc: "repository with a branch and missing default branch",
+			setup: func(t *testing.T) setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("non-default"))
+				repo := localrepo.NewTestRepo(t, cfg, repoProto)
+				commitProto, err := repo.ReadCommit(ctx, commitID.Revision())
+				require.NoError(t, err)
+
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository: repoProto,
+						Limit:      2,
+					},
+					expectedCommits: []*gitalypb.GitCommit{commitProto},
+				}
+			},
+		},
 		{
 			desc: "unset repository",
 			setup: func(t *testing.T) setupData {
