@@ -2,7 +2,6 @@ package objectpool
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/safe"
@@ -159,14 +159,21 @@ func (o *ObjectPool) LinkedToRepository(repo *localrepo.Repo) (bool, error) {
 		return false, fmt.Errorf("getting object pool path: %w", err)
 	}
 
-	relPath, err := getAlternateObjectDir(repo)
+	repoPath, err := repo.Path()
 	if err != nil {
-		if errors.Is(err, ErrAlternateObjectDirNotExist) {
-			return false, nil
-		}
-		return false, err
+		return false, fmt.Errorf("getting repo path: %w", err)
 	}
 
+	altInfo, err := stats.AlternatesInfoForRepository(repoPath)
+	if err != nil {
+		return false, fmt.Errorf("getting alternates info: %w", err)
+	}
+
+	if !altInfo.Exists || len(altInfo.ObjectDirectories) == 0 {
+		return false, nil
+	}
+
+	relPath := altInfo.ObjectDirectories[0]
 	expectedRelPath, err := o.getRelativeObjectPath(repo)
 	if err != nil {
 		return false, err

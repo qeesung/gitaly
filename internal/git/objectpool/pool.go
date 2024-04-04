@@ -1,12 +1,9 @@
 package objectpool
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -163,15 +161,16 @@ func FromRepo(
 		return nil, err
 	}
 
-	relativeAlternateObjectDirPath, err := getAlternateObjectDir(repo)
+	altInfo, err := stats.AlternatesInfoForRepository(repoPath)
 	if err != nil {
-		return nil, err
-	}
-	if relativeAlternateObjectDirPath == "" {
-		return nil, nil
+		return nil, fmt.Errorf("getting alternates info: %w", err)
 	}
 
-	absolutePoolObjectDirPath := filepath.Join(repoPath, "objects", relativeAlternateObjectDirPath)
+	if !altInfo.Exists || len(altInfo.ObjectDirectories) == 0 {
+		return nil, ErrAlternateObjectDirNotExist
+	}
+
+	absolutePoolObjectDirPath := altInfo.AbsoluteObjectDirectories()[0]
 	relativePoolObjectDirPath, err := filepath.Rel(storagePath, absolutePoolObjectDirPath)
 	if err != nil {
 		return nil, err
@@ -189,42 +188,4 @@ func FromRepo(
 	}
 
 	return FromProto(logger, locator, gitCmdFactory, catfileCache, txManager, housekeepingManager, objectPoolProto)
-}
-
-// getAlternateObjectDir returns the entry in the objects/info/attributes file if it exists
-// it will only return the first line of the file if there are multiple lines.
-func getAlternateObjectDir(repo *localrepo.Repo) (string, error) {
-	altPath, err := repo.InfoAlternatesPath()
-	if err != nil {
-		return "", err
-	}
-
-	if _, err = os.Stat(altPath); err != nil {
-		if os.IsNotExist(err) {
-			return "", ErrAlternateObjectDirNotExist
-		}
-		return "", err
-	}
-
-	altFile, err := os.Open(altPath)
-	if err != nil {
-		return "", err
-	}
-	defer altFile.Close()
-
-	r := bufio.NewReader(altFile)
-	b, err := r.ReadBytes('\n')
-	if err != nil && !errors.Is(err, io.EOF) {
-		return "", fmt.Errorf("reading alternates file: %w", err)
-	}
-
-	if err == nil {
-		b = b[:len(b)-1]
-	}
-
-	if bytes.HasPrefix(b, []byte("#")) {
-		return "", ErrAlternateObjectDirNotExist
-	}
-
-	return string(b), nil
 }

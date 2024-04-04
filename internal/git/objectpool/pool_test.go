@@ -97,7 +97,7 @@ func TestFromRepo_failures(t *testing.T) {
 		{
 			desc:        "alternates is empty",
 			fileContent: nil,
-			expectedErr: nil,
+			expectedErr: ErrAlternateObjectDirNotExist,
 		},
 		{
 			desc:        "alternates is commented",
