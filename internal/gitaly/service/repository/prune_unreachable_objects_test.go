@@ -102,10 +102,15 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "rev-parse", "--verify", commitID.String()+"^{commit}")
-		output, err := cmd.CombinedOutput()
-		require.Error(t, err)
-		require.Equal(t, "fatal: Needed a single revision\n", string(output))
+		shouldCleanCommit := testhelper.WithOrWithoutWAL(false, true)
+		if shouldCleanCommit {
+			cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "rev-parse", "--verify", commitID.String()+"^{commit}")
+			output, err := cmd.CombinedOutput()
+			require.Error(t, err)
+			require.Equal(t, "fatal: Needed a single revision\n", string(output))
+		} else {
+			gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "--verify", commitID.String()+"^{commit}")
+		}
 	})
 
 	t.Run("repository with mixed objects", func(t *testing.T) {
@@ -130,10 +135,15 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "--verify", unreachableRecentCommit.String()+"^{commit}")
 
 		// But the unreachable old commit should have been pruned.
-		cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "rev-parse", "--verify", unreachableOldCommit.String()+"^{commit}")
-		output, err := cmd.CombinedOutput()
-		require.Error(t, err)
-		require.Equal(t, "fatal: Needed a single revision\n", string(output))
+		shouldCleanCommit := testhelper.WithOrWithoutWAL(false, true)
+		if shouldCleanCommit {
+			cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "rev-parse", "--verify", unreachableOldCommit.String()+"^{commit}")
+			output, err := cmd.CombinedOutput()
+			require.Error(t, err)
+			require.Equal(t, "fatal: Needed a single revision\n", string(output))
+		} else {
+			gittest.Exec(t, cfg, "-C", repoPath, "rev-parse", "--verify", unreachableOldCommit.String()+"^{commit}")
+		}
 	})
 
 	t.Run("repository with commit-graph", func(t *testing.T) {
@@ -229,7 +239,13 @@ func TestPruneUnreachableObjects(t *testing.T) {
 
 		// The reachable commit should exist, but the unreachable one shouldn't.
 		gittest.RequireObjectExists(t, cfg, repoPath, reachableCommitID)
-		gittest.RequireObjectNotExists(t, cfg, repoPath, unreachableCommitID)
+
+		shouldCleanCommit := testhelper.WithOrWithoutWAL(false, true)
+		if shouldCleanCommit {
+			gittest.RequireObjectNotExists(t, cfg, repoPath, unreachableCommitID)
+		} else {
+			gittest.RequireObjectExists(t, cfg, repoPath, unreachableCommitID)
+		}
 	})
 
 	t.Run("object pool", func(t *testing.T) {
@@ -240,8 +256,14 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		_, err := client.PruneUnreachableObjects(ctx, &gitalypb.PruneUnreachableObjectsRequest{
 			Repository: repo,
 		})
-		testhelper.RequireGrpcError(t,
-			structerr.NewInvalidArgument("pruning objects for object pool"), err,
-		)
+
+		shouldValidateAgainstObjectPool := testhelper.WithOrWithoutWAL(false, true)
+		if shouldValidateAgainstObjectPool {
+			testhelper.RequireGrpcError(t,
+				structerr.NewInvalidArgument("pruning objects for object pool"), err,
+			)
+		} else {
+			require.NoError(t, err)
+		}
 	})
 }

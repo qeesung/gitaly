@@ -62,6 +62,14 @@ func SkipWithWAL(tb testing.TB, reason string) {
 	}
 }
 
+// WithOrWithoutWAL returns a value correspondingly to if WAL is enabled or not.
+func WithOrWithoutWAL[T any](walVal, noWalVal T) T {
+	if IsWALEnabled() {
+		return walVal
+	}
+	return noWalVal
+}
+
 // IsPraefectEnabled returns whether this testing run is done with Praefect in front of the Gitaly.
 func IsPraefectEnabled() bool {
 	_, enabled := os.LookupEnv("GITALY_TEST_WITH_PRAEFECT")
