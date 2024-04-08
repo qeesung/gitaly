@@ -126,12 +126,12 @@ func TestBootstrap_signal(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, self.Signal(sig))
 
-			require.Equal(t, fmt.Errorf("received signal %q", sig), <-waitCh)
+			require.EqualError(t, fmt.Errorf("received signal %q: wait: completed", sig), (<-waitCh).Error())
 		})
 	}
 }
 
-func TestBootstrap_gracefulTerminationStuck(t *testing.T) {
+func TestBootstrap_gracefulUpgradeStuck(t *testing.T) {
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
 	b, upgrader, _ := setup(t, ctx)
@@ -145,7 +145,7 @@ func TestBootstrap_gracefulTerminationStuck(t *testing.T) {
 		gracePeriodTicker.Tick()
 
 		// We block on context cancellation here, which essentially means that this won't
-		// terminate and thus the graceful termination will be stuck.
+		// terminate and thus the graceful upgrade will be stuck.
 		<-ctx.Done()
 	})
 	require.Equal(t, fmt.Errorf("graceful upgrade: %w", fmt.Errorf("grace period expired")), err)
@@ -154,7 +154,45 @@ func TestBootstrap_gracefulTerminationStuck(t *testing.T) {
 	<-doneCh
 }
 
-func TestBootstrap_gracefulTerminationWithSignals(t *testing.T) {
+func TestBootstrap_gracefulTerminationStuck(t *testing.T) {
+	for _, sig := range []syscall.Signal{syscall.SIGTERM, syscall.SIGINT} {
+		t.Run(sig.String(), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(testhelper.Context(t))
+
+			b, upgrader, _ := setup(t, ctx)
+
+			gracePeriodTicker := helper.NewManualTicker()
+			waitCh := make(chan error)
+
+			go func() {
+				waitCh <- b.Wait(gracePeriodTicker, func() {
+					gracePeriodTicker.Tick()
+
+					// We block on context cancellation here, which essentially means that this won't
+					// terminate and thus the graceful termination will be stuck.
+					<-ctx.Done()
+				})
+			}()
+
+			// Start the upgrade, but don't unblock `Exit()` such that we'll be blocked
+			// waiting on the parent.
+			upgrader.readyCh <- nil
+
+			// We can now kill ourselves. This signal should be retrieved by `Wait()`,
+			// which would then return an error.
+			self, err := os.FindProcess(os.Getpid())
+			require.NoError(t, err)
+			require.NoError(t, self.Signal(sig))
+
+			require.EqualError(t, fmt.Errorf("received signal %q: wait: grace period expired", sig), (<-waitCh).Error())
+
+			cancel()
+			<-b.allServersDone
+		})
+	}
+}
+
+func TestBootstrap_gracefulUpgradeWithSignals(t *testing.T) {
 	for _, sig := range []syscall.Signal{syscall.SIGTERM, syscall.SIGINT} {
 		t.Run(sig.String(), func(t *testing.T) {
 			ctx, cancel := context.WithCancel(testhelper.Context(t))
@@ -180,7 +218,7 @@ func TestBootstrap_gracefulTerminationWithSignals(t *testing.T) {
 	}
 }
 
-func TestBootstrap_gracefulTerminationTimeoutWithListenerError(t *testing.T) {
+func TestBootstrap_gracefulUpgradeTimeoutWithListenerError(t *testing.T) {
 	ctx, cancel := context.WithCancel(testhelper.Context(t))
 
 	b, upgrader, listeners := setup(t, ctx)
@@ -207,7 +245,7 @@ func TestBootstrap_gracefulTerminationTimeoutWithListenerError(t *testing.T) {
 	<-doneCh
 }
 
-func TestBootstrap_gracefulTermination(t *testing.T) {
+func TestBootstrap_gracefulUpgrade(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	b, upgrader, _ := setup(t, ctx)

@@ -35,12 +35,13 @@ type Listener interface {
 
 // Bootstrap handles graceful upgrades
 type Bootstrap struct {
-	logger     log.Logger
-	upgrader   upgrader
-	listenFunc ListenFunc
-	errChan    chan error
-	starters   []Starter
-	connTotal  *prometheus.CounterVec
+	logger         log.Logger
+	upgrader       upgrader
+	listenFunc     ListenFunc
+	errChan        chan error
+	starters       []Starter
+	connTotal      *prometheus.CounterVec
+	allServersDone chan struct{}
 }
 
 type upgrader interface {
@@ -169,8 +170,8 @@ func (b *Bootstrap) Start() error {
 // stopAction will be invoked during a graceful stop. It must wait until the shutdown is completed.
 func (b *Bootstrap) Wait(gracePeriodTicker helper.Ticker, stopAction func()) error {
 	signals := []os.Signal{syscall.SIGTERM, syscall.SIGINT}
-	immediateShutdown := make(chan os.Signal, len(signals))
-	signal.Notify(immediateShutdown, signals...)
+	shutdown := make(chan os.Signal, len(signals))
+	signal.Notify(shutdown, signals...)
 
 	if err := b.upgrader.Ready(); err != nil {
 		return err
@@ -183,11 +184,12 @@ func (b *Bootstrap) Wait(gracePeriodTicker helper.Ticker, stopAction func()) err
 		// the new process signaled its readiness and we started a graceful stop
 		// however no further upgrades can be started until this process is running
 		// we set a grace period and then we force a termination.
-		waitError := b.waitGracePeriod(gracePeriodTicker, immediateShutdown, stopAction)
+		waitError := b.waitGracePeriod(gracePeriodTicker, shutdown, stopAction)
 
 		err = fmt.Errorf("graceful upgrade: %w", waitError)
-	case s := <-immediateShutdown:
-		err = fmt.Errorf("received signal %q", s)
+	case s := <-shutdown:
+		waitError := b.waitGracePeriod(gracePeriodTicker, shutdown, stopAction)
+		err = fmt.Errorf("received signal %q: wait: %w", s, waitError)
 		b.upgrader.Stop()
 	case err = <-b.errChan:
 	}
@@ -198,12 +200,12 @@ func (b *Bootstrap) Wait(gracePeriodTicker helper.Ticker, stopAction func()) err
 func (b *Bootstrap) waitGracePeriod(gracePeriodTicker helper.Ticker, kill <-chan os.Signal, stopAction func()) error {
 	b.logger.Warn("starting grace period")
 
-	allServersDone := make(chan struct{})
+	b.allServersDone = make(chan struct{})
 	go func() {
 		if stopAction != nil {
 			stopAction()
 		}
-		close(allServersDone)
+		close(b.allServersDone)
 	}()
 
 	gracePeriodTicker.Reset()
@@ -213,7 +215,7 @@ func (b *Bootstrap) waitGracePeriod(gracePeriodTicker helper.Ticker, kill <-chan
 		return fmt.Errorf("grace period expired")
 	case <-kill:
 		return fmt.Errorf("force shutdown")
-	case <-allServersDone:
+	case <-b.allServersDone:
 		return fmt.Errorf("completed")
 	}
 }
