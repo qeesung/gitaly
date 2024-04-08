@@ -13,6 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/counter"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/client"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -27,6 +28,7 @@ type server struct {
 	conns               *client.Pool
 	locator             storage.Locator
 	txManager           transaction.Manager
+	walPartitionManager *storagemgr.PartitionManager
 	gitCmdFactory       git.CommandFactory
 	cfg                 config.Cfg
 	loggingCfg          config.Logging
@@ -45,6 +47,7 @@ func NewServer(deps *service.Dependencies) gitalypb.RepositoryServiceServer {
 		logger:              deps.GetLogger(),
 		locator:             deps.GetLocator(),
 		txManager:           deps.GetTxManager(),
+		walPartitionManager: deps.GetPartitionManager(),
 		gitCmdFactory:       deps.GetGitCmdFactory(),
 		conns:               deps.GetConnsPool(),
 		cfg:                 deps.GetCfg(),

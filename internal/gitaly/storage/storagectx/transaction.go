@@ -29,12 +29,6 @@ func ContextWithTransaction(ctx context.Context, tx Transaction) context.Context
 	return context.WithValue(ctx, keyTransaction{}, tx)
 }
 
-// HasTransaction returns if the transaction is present in the context.
-func HasTransaction(ctx context.Context) bool {
-	value := ctx.Value(keyTransaction{})
-	return value != nil
-}
-
 // RunWithTransaction runs the callback with the transaction in the context. If there is
 // no transaction in the context, the callback is not ran.
 func RunWithTransaction(ctx context.Context, callback func(tx Transaction)) {

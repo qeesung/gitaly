@@ -8,7 +8,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
@@ -21,14 +20,6 @@ func (s *server) PruneUnreachableObjects(
 	ctx context.Context,
 	request *gitalypb.PruneUnreachableObjectsRequest,
 ) (*gitalypb.PruneUnreachableObjectsResponse, error) {
-	// If WAL transaction is enabled, there shouldn't be any loose objects in the repository. New objects are always
-	// packed and attached to a log entry. During the migration to WAL transaction, there might be some loose
-	// objects left. Eventually, they will go away after a full repack. Thus, this RPC is a no-op in the context of
-	// transaction.
-	if storagectx.HasTransaction(ctx) {
-		return &gitalypb.PruneUnreachableObjectsResponse{}, nil
-	}
-
 	repository := request.GetRepository()
 	if err := s.locator.ValidateRepository(repository); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
@@ -40,6 +31,15 @@ func (s *server) PruneUnreachableObjects(
 	// case it doesn't.
 	if _, err := repo.Path(); err != nil {
 		return nil, err
+	}
+
+	// If WAL transaction is enabled, there shouldn't be any loose objects in the repository. New objects are always
+	// packed and attached to a log entry. During the migration to WAL transaction, there might be some loose
+	// objects left. Eventually, they will go away after a full repack. Thus, this RPC is a no-op in the context of
+	// transaction. We still need to perform repository validation. It doesn't make sense if it returns successful
+	// status code for a non-existent repository.
+	if s.walPartitionManager != nil {
+		return &gitalypb.PruneUnreachableObjectsResponse{}, nil
 	}
 
 	// Verify that the repository is not an object pool. Pruning objects in object pools is not

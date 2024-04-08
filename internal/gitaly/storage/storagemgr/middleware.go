@@ -63,6 +63,11 @@ var NonTransactionalRPCs = map[string]struct{}{
 
 	// FetchIntoObjectPool manages the life-cycle of WAL transaction itself.
 	"/gitaly.ObjectPool/FetchIntoObjectPool": {},
+
+	// OptimizeRepository manages the life-cycle of WAL transaction itself.
+	"/gitaly.RepositoryService/OptimizeRepository": {},
+	// PruneUnreachableObjects should be a no-op when WAL is enabled by default.
+	"/gitaly.RepositoryService/PruneUnreachableObjects": {},
 }
 
 // NewUnaryInterceptor returns an unary interceptor that manages a unary RPC's transaction. It starts a transaction
@@ -211,11 +216,6 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 		}
 
 		return transactionalizedRequest{}, fmt.Errorf("extract target repository: %w", err)
-	}
-
-	if methodInfo.Operation != protoregistry.OpAccessor && methodInfo.Operation != protoregistry.OpMutator {
-		// Transactions support only accessors and mutators.
-		return nonTransactionalRequest(ctx, req), nil
 	}
 
 	if targetRepo.GitObjectDirectory != "" || len(targetRepo.GitAlternateObjectDirectories) > 0 {
