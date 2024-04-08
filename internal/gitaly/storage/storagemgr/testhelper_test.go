@@ -15,6 +15,8 @@ import (
 	"testing"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/prometheus/client_golang/prometheus"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -534,6 +536,7 @@ type testTransactionSetup struct {
 	NonExistentOID    git.ObjectID
 	Commits           testTransactionCommits
 	AnnotatedTags     []testTransactionTag
+	Metrics           *metrics
 }
 
 type testTransactionHooks struct {
@@ -744,6 +747,22 @@ type StateAssertion struct {
 // AdhocAssertion allows a test to add some custom assertions apart from the built-in assertions above.
 type AdhocAssertion func(*testing.T, context.Context, *TransactionManager)
 
+type metricFamily interface {
+	metricName() string
+}
+
+// histogramMetric asserts a histogram metric. We could not rely on the recorded
+// values (latency/time/...). We assert the number of sample counts instead.
+type histogramMetric string
+
+func (m histogramMetric) metricName() string { return string(m) }
+
+// AssertMetrics assert metrics collected from transaction manager. Although
+// prometheus testutil provides some helpers for testing metrics, they are not
+// flexible enough. It's particularly true when we want to assert histogram
+// metrics.
+type AssertMetrics map[metricFamily]map[string]int
+
 // steps defines execution steps in a test. Each test case can define multiple steps to exercise
 // more complex behavior.
 type steps []any
@@ -793,7 +812,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 		// managerRunning tracks whether the manager is running or closed.
 		managerRunning bool
 		// transactionManager is the current TransactionManager instance.
-		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory)
+		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus))
 		// managerErr is used for synchronizing manager closing and returning
 		// the error from Run.
 		managerErr chan error
@@ -840,7 +859,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.NoError(t, os.RemoveAll(stagingDir))
 			require.NoError(t, os.Mkdir(stagingDir, perm.PrivateDir))
 
-			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory)
+			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus))
 			installHooks(transactionManager, &inflightTransactions, step.Hooks)
 
 			go func() {
@@ -1098,6 +1117,44 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 				}, step.Repositories)
 		case AdhocAssertion:
 			step(t, ctx, transactionManager)
+		case AssertMetrics:
+			reg := prometheus.NewPedanticRegistry()
+			err := reg.Register(transactionManager.metrics)
+			require.NoError(t, err)
+			promMetrics, err := reg.Gather()
+			require.NoError(t, err)
+
+			actualMetricAssertion := AssertMetrics{}
+			for family := range step {
+				for _, actualFamily := range promMetrics {
+					if actualFamily.GetName() != family.metricName() {
+						continue
+					}
+
+					switch family.(type) {
+					case histogramMetric:
+						require.Equal(t, io_prometheus_client.MetricType_HISTOGRAM, actualFamily.GetType())
+
+						familyName := histogramMetric(actualFamily.GetName())
+						actualMetricAssertion[familyName] = map[string]int{}
+						for _, actualMetric := range actualFamily.GetMetric() {
+							var labels []string
+							for _, actualLabel := range actualMetric.GetLabel() {
+								var label strings.Builder
+								label.WriteString(actualLabel.GetName())
+								label.WriteString("=")
+								label.WriteString(actualLabel.GetValue())
+								labels = append(labels, label.String())
+							}
+							actualMetricAssertion[familyName][strings.Join(labels, ",")] = int(actualMetric.GetHistogram().GetSampleCount())
+						}
+					default:
+						panic(fmt.Sprintf("metric assertion has not supported %s metric type", family))
+					}
+				}
+			}
+
+			require.Equal(t, step, actualMetricAssertion)
 		default:
 			t.Fatalf("unhandled step type: %T", step)
 		}

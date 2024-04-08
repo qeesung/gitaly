@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -128,6 +129,8 @@ func setupTest(t *testing.T, ctx context.Context, testPartitionID partitionID, r
 
 		return pack.Bytes()
 	}
+	metrics := newMetrics(cfg.Prometheus)
+	prometheus.MustRegister(metrics)
 
 	return testTransactionSetup{
 		PartitionID:       testPartitionID,
@@ -157,6 +160,7 @@ func setupTest(t *testing.T, ctx context.Context, testPartitionID partitionID, r
 				Pack: packCommit(divergingCommitOID),
 			},
 		},
+		Metrics: metrics,
 	}
 }
 
@@ -1877,7 +1881,7 @@ func BenchmarkTransactionManager(b *testing.B) {
 
 				// Valid partition IDs are >=1.
 				testPartitionID := partitionID(i + 1)
-				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory)
+				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory, nil)
 
 				managers = append(managers, manager)
 

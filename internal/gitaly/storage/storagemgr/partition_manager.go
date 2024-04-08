@@ -12,9 +12,11 @@ import (
 	"sync"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
@@ -51,6 +53,10 @@ type PartitionManager struct {
 	// transactionManagerFactory is a factory to create TransactionManagers. This shouldn't ever be changed
 	// during normal operation, but can be used to adjust the transaction manager's behaviour in tests.
 	transactionManagerFactory transactionManagerFactory
+	// metrics accounts for all metrics of transaction operations. It will be
+	// passed down to each transaction manager and is shared between them. The
+	// metrics must be registered to be collected by prometheus collector.
+	metrics *metrics
 }
 
 // DatabaseOpener is responsible for opening a database handle.
@@ -216,6 +222,7 @@ func NewPartitionManager(
 	logger log.Logger,
 	dbOpener DatabaseOpener,
 	gcTickerFactory helper.TickerFactory,
+	promCfg gitalycfgprom.Config,
 ) (*PartitionManager, error) {
 	storages := make(map[string]*storageManager, len(configuredStorages))
 	for _, storage := range configuredStorages {
@@ -321,6 +328,8 @@ func NewPartitionManager(
 		}
 	}
 
+	metrics := newMetrics(promCfg)
+
 	return &PartitionManager{
 		storages:       storages,
 		commandFactory: cmdFactory,
@@ -339,8 +348,10 @@ func NewPartitionManager(
 				stagingDir,
 				cmdFactory,
 				storageMgr.repoFactory,
+				metrics,
 			)
 		},
+		metrics: metrics,
 	}, nil
 }
 
@@ -518,4 +529,14 @@ func (pm *PartitionManager) Close() {
 	}
 
 	activeStorages.Wait()
+}
+
+// Describe is used to describe Prometheus metrics.
+func (pm *PartitionManager) Describe(metrics chan<- *prometheus.Desc) {
+	prometheus.DescribeByCollect(pm, metrics)
+}
+
+// Collect is used to collect Prometheus metrics.
+func (pm *PartitionManager) Collect(metrics chan<- prometheus.Metric) {
+	pm.metrics.Collect(metrics)
 }

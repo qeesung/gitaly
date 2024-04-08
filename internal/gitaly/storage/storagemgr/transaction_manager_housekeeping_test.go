@@ -45,6 +45,15 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 		"refs/tags/v2.0.0":    annotatedTag.OID,
 	}
 
+	assertPackRefsMetrics := AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+		"housekeeping_task=total,stage=prepare":     1,
+		"housekeeping_task=total,stage=verify":      1,
+		"housekeeping_task=total,stage=apply":       1,
+		"housekeeping_task=pack-refs,stage=prepare": 1,
+		"housekeeping_task=pack-refs,stage=verify":  1,
+		"housekeeping_task=pack-refs,stage=apply":   1,
+	}}
+
 	return []transactionTestCase{
 		{
 			desc:        "run pack-refs on a repository without packed-refs",
@@ -72,6 +81,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 						"refs/heads/main": {OldOID: setup.Commits.First.OID, NewOID: setup.Commits.Second.OID},
 					},
 				},
+				assertPackRefsMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -145,6 +155,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Commit{
 					TransactionID: 2,
 				},
+				assertPackRefsMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -196,6 +207,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Commit{
 					TransactionID: 2,
 				},
+				assertPackRefsMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -247,6 +259,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Commit{
 					TransactionID: 1,
 				},
+				assertPackRefsMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -301,6 +314,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 						"refs/keep-around/1":  {OldOID: gittest.DefaultObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
 				},
+				assertPackRefsMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -356,6 +370,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Commit{
 					TransactionID: 1,
 				},
+				assertPackRefsMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -412,6 +427,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 						"refs/tags/v1.0.0":    {OldOID: setup.Commits.Diverging.OID, NewOID: setup.Commits.First.OID},
 					},
 				},
+				assertPackRefsMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -466,6 +482,12 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 					TransactionID: 1,
 					ExpectedError: errPackRefsConflictRefDeletion,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":     1,
+					"housekeeping_task=total,stage=verify":      1,
+					"housekeeping_task=pack-refs,stage=prepare": 1,
+					"housekeeping_task=pack-refs,stage=verify":  1,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -523,6 +545,12 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 					TransactionID: 1,
 					ExpectedError: errPackRefsConflictRefDeletion,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":     1,
+					"housekeeping_task=total,stage=verify":      1,
+					"housekeeping_task=pack-refs,stage=prepare": 1,
+					"housekeeping_task=pack-refs,stage=verify":  1,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -607,6 +635,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Commit{
 					TransactionID: 5,
 				},
+				assertPackRefsMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -662,6 +691,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 						"refs/tags/v1.0.0":    {OldOID: lightweightTag, NewOID: gittest.DefaultObjectHash.ZeroOID},
 					},
 				},
+				assertPackRefsMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -731,6 +761,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 						))
 					},
 				},
+				AssertMetrics{},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -762,6 +793,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Commit{
 					ExpectedError: errReadOnlyHousekeeping,
 				},
+				AssertMetrics{},
 			},
 			expectedState: StateAssertion{
 				Repositories: RepositoryStates{
@@ -789,6 +821,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 					},
 					ExpectedError: errHousekeepingConflictOtherUpdates,
 				},
+				AssertMetrics{},
 			},
 			expectedState: StateAssertion{
 				Repositories: RepositoryStates{
@@ -827,6 +860,14 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 					TransactionID: 2,
 					ExpectedError: errHousekeepingConflictConcurrent,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":     2,
+					"housekeeping_task=total,stage=verify":      2,
+					"housekeeping_task=total,stage=apply":       1,
+					"housekeeping_task=pack-refs,stage=prepare": 2,
+					"housekeeping_task=pack-refs,stage=verify":  1,
+					"housekeeping_task=pack-refs,stage=apply":   1,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -896,6 +937,14 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Commit{
 					TransactionID: 4,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":     2,
+					"housekeeping_task=total,stage=verify":      2,
+					"housekeeping_task=total,stage=apply":       2,
+					"housekeeping_task=pack-refs,stage=prepare": 2,
+					"housekeeping_task=pack-refs,stage=verify":  2,
+					"housekeeping_task=pack-refs,stage=apply":   2,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -951,6 +1000,14 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 				Commit{
 					TransactionID: 2,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":     2,
+					"housekeeping_task=total,stage=verify":      2,
+					"housekeeping_task=total,stage=apply":       2,
+					"housekeeping_task=pack-refs,stage=prepare": 2,
+					"housekeeping_task=pack-refs,stage=verify":  2,
+					"housekeeping_task=pack-refs,stage=apply":   2,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1002,6 +1059,11 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 					TransactionID: 1,
 					ExpectedError: errConflictRepositoryDeletion,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":     1,
+					"housekeeping_task=total,stage=verify":      1,
+					"housekeeping_task=pack-refs,stage=prepare": 1,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1049,6 +1111,16 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 		setup.Commits.Third.OID,
 		setup.Commits.Diverging.OID,
 	}
+
+	assertRepackingMetrics := AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+		"housekeeping_task=total,stage=prepare":  1,
+		"housekeeping_task=total,stage=verify":   1,
+		"housekeeping_task=total,stage=apply":    1,
+		"housekeeping_task=repack,stage=prepare": 1,
+		"housekeeping_task=repack,stage=verify":  1,
+		"housekeeping_task=repack,stage=apply":   1,
+	}}
+
 	return []transactionTestCase{
 		{
 			desc:        "run repacking (IncrementalWithUnreachable)",
@@ -1074,6 +1146,10 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 					TransactionID: 1,
 					ExpectedError: errRepackNotSupportedStrategy,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":  1,
+					"housekeeping_task=repack,stage=prepare": 1,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{},
@@ -1125,6 +1201,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 1,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1174,6 +1251,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 1,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1223,6 +1301,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 1,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1275,6 +1354,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 1,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1331,6 +1411,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 1,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1386,6 +1467,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 1,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1437,6 +1519,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 1,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1491,6 +1574,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 1,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1564,6 +1648,14 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 				Commit{
 					TransactionID: 2,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":  2,
+					"housekeeping_task=total,stage=verify":   2,
+					"housekeeping_task=total,stage=apply":    2,
+					"housekeeping_task=repack,stage=prepare": 2,
+					"housekeeping_task=repack,stage=verify":  2,
+					"housekeeping_task=repack,stage=apply":   2,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1616,6 +1708,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 					},
 					ExpectedError: errHousekeepingConflictOtherUpdates,
 				},
+				AssertMetrics{},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{},
@@ -1638,6 +1731,15 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 // generateHousekeepingRepackingConcurrentTests returns a set of tests which run repacking before, after, or alongside
 // with other transactions.
 func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Context, setup testTransactionSetup) []transactionTestCase {
+	assertRepackingMetrics := AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+		"housekeeping_task=total,stage=prepare":  1,
+		"housekeeping_task=total,stage=verify":   1,
+		"housekeeping_task=total,stage=apply":    1,
+		"housekeeping_task=repack,stage=prepare": 1,
+		"housekeeping_task=repack,stage=verify":  1,
+		"housekeeping_task=repack,stage=apply":   1,
+	}}
+
 	return []transactionTestCase{
 		{
 			desc: "run repacking on an empty repository",
@@ -1657,6 +1759,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 1,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1711,6 +1814,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 2,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1791,6 +1895,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 						setup.Commits.Third.Pack,
 					},
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1877,6 +1982,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 2,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -1959,6 +2065,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 2,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -2063,6 +2170,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 2,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -2166,6 +2274,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 3,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -2252,6 +2361,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 3,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -2338,6 +2448,12 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					TransactionID: 3,
 					ExpectedError: errRepackConflictPrunedObject,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":  1,
+					"housekeeping_task=total,stage=verify":   1,
+					"housekeeping_task=repack,stage=prepare": 1,
+					"housekeeping_task=repack,stage=verify":  1,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -2450,6 +2566,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 6,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -2591,6 +2708,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 5,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -2727,6 +2845,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 6,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -2873,6 +2992,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Commit{
 					TransactionID: 5,
 				},
+				assertRepackingMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -2973,6 +3093,14 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					TransactionID: 1,
 					ExpectedError: errHousekeepingConflictConcurrent,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":  2,
+					"housekeeping_task=total,stage=verify":   2,
+					"housekeeping_task=total,stage=apply":    1,
+					"housekeeping_task=repack,stage=prepare": 2,
+					"housekeeping_task=repack,stage=verify":  1,
+					"housekeeping_task=repack,stage=apply":   1,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -3030,6 +3158,15 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					TransactionID: 1,
 					ExpectedError: errHousekeepingConflictConcurrent,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":     2,
+					"housekeeping_task=total,stage=verify":      2,
+					"housekeeping_task=total,stage=apply":       1,
+					"housekeeping_task=pack-refs,stage=prepare": 1,
+					"housekeeping_task=pack-refs,stage=verify":  1,
+					"housekeeping_task=pack-refs,stage=apply":   1,
+					"housekeeping_task=repack,stage=prepare":    1,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -3064,6 +3201,14 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 		setup.Commits.Diverging.OID,
 		setup.ObjectHash.EmptyTreeOID,
 	}
+	assertCommitGraphMetrics := AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+		"housekeeping_task=total,stage=prepare":        1,
+		"housekeeping_task=total,stage=verify":         1,
+		"housekeeping_task=total,stage=apply":          1,
+		"housekeeping_task=commit-graph,stage=prepare": 1,
+		"housekeeping_task=commit-graph,stage=verify":  1,
+		"housekeeping_task=commit-graph,stage=apply":   1,
+	}}
 	return []transactionTestCase{
 		{
 			desc: "run writing commit graph on a repository without existing commit graph",
@@ -3098,6 +3243,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				Commit{
 					TransactionID: 2,
 				},
+				assertCommitGraphMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -3151,6 +3297,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				Commit{
 					TransactionID: 1,
 				},
+				assertCommitGraphMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -3197,6 +3344,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				Commit{
 					TransactionID: 1,
 				},
+				assertCommitGraphMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -3298,6 +3446,17 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				Commit{
 					TransactionID: 5,
 				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":        3,
+					"housekeeping_task=total,stage=verify":         3,
+					"housekeeping_task=total,stage=apply":          3,
+					"housekeeping_task=commit-graph,stage=prepare": 2,
+					"housekeeping_task=commit-graph,stage=verify":  2,
+					"housekeeping_task=commit-graph,stage=apply":   2,
+					"housekeeping_task=repack,stage=prepare":       1,
+					"housekeeping_task=repack,stage=verify":        1,
+					"housekeeping_task=repack,stage=apply":         1,
+				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
@@ -3363,6 +3522,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				Commit{
 					TransactionID: 1,
 				},
+				assertCommitGraphMetrics,
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{

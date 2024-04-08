@@ -373,11 +373,14 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			logger,
 			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
 			helper.NewTimerTickerFactory(time.Minute),
+			cfg.Prometheus,
 		)
 		if err != nil {
 			return fmt.Errorf("new partition manager: %w", err)
 		}
 		defer partitionMgr.Close()
+
+		prometheus.MustRegister(partitionMgr)
 
 		txMiddleware = server.TransactionMiddleware{
 			UnaryInterceptor:  storagemgr.NewUnaryInterceptor(logger, protoregistry.GitalyProtoPreregistered, txRegistry, partitionMgr, locator),
