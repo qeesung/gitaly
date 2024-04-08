@@ -591,9 +591,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -904,9 +905,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -2503,9 +2505,10 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -2657,9 +2660,10 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -2780,9 +2784,10 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -2937,9 +2942,10 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,

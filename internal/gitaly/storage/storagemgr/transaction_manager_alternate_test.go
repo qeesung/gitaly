@@ -38,9 +38,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -107,9 +108,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 2,
 				},
 				Begin{
-					TransactionID:       3,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 2,
+					TransactionID:            3,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      2,
 				},
 				Commit{
 					TransactionID:   3,
@@ -174,9 +176,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					},
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -252,33 +255,120 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				RemoveRepository{},
 				StartManager{},
 				Begin{
-					RelativePath: "repository",
+					TransactionID: 1,
+					RelativePath:  "alternate-1",
 				},
 				CreateRepository{
-					Alternate: "../../alternate-1\n/../../alternate-2\n",
+					TransactionID: 1,
 				},
 				Commit{
+					TransactionID: 1,
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        "alternate-2",
+					ExpectedSnapshotLSN: 1,
+				},
+				CreateRepository{
+					TransactionID: 2,
+				},
+				Commit{
+					TransactionID: 2,
+				},
+				Begin{
+					TransactionID:            3,
+					RelativePath:             "repository",
+					SnapshottedRelativePaths: []string{"alternate-1", "alternate-2"},
+					ExpectedSnapshotLSN:      2,
+				},
+				CreateRepository{
+					TransactionID: 3,
+					Alternate:     "../../alternate-1/objects\n../../alternate-2/objects\n",
+				},
+				Commit{
+					TransactionID: 3,
 					ExpectedError: errMultipleAlternates,
 				},
 			},
 			expectedState: StateAssertion{
-				Repositories: RepositoryStates{},
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+				},
+				Repositories: RepositoryStates{
+					"alternate-1": {
+						Objects: []git.ObjectID{},
+					},
+					"alternate-2": {
+						Objects: []git.ObjectID{},
+					},
+				},
 			},
 		},
 		{
 			desc: "repository can't be connected to multiple alternates after creation",
 			steps: steps{
+				RemoveRepository{},
 				StartManager{},
 				Begin{
+					TransactionID: 1,
+					RelativePath:  "alternate-1",
+				},
+				CreateRepository{
+					TransactionID: 1,
+				},
+				Commit{
+					TransactionID: 1,
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        "alternate-2",
+					ExpectedSnapshotLSN: 1,
+				},
+				CreateRepository{
 					TransactionID: 2,
-					RelativePath:  setup.RelativePath,
 				},
 				Commit{
 					TransactionID: 2,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        "member",
+					ExpectedSnapshotLSN: 2,
+				},
+				CreateRepository{
+					TransactionID: 3,
+				},
+				Commit{
+					TransactionID: 3,
+				},
+				Begin{
+					TransactionID:            4,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"alternate-1", "alternate-2"},
+					ExpectedSnapshotLSN:      3,
+				},
+				Commit{
+					TransactionID: 4,
 					UpdateAlternate: &alternateUpdate{
-						content: "../../alternate-1\n/../../alternate-2\n",
+						content: "../../alternate-1/objects\n../../alternate-2/objects\n",
 					},
 					ExpectedError: errMultipleAlternates,
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+				},
+				Repositories: RepositoryStates{
+					"member": {
+						Objects: []git.ObjectID{},
+					},
+					"alternate-1": {
+						Objects: []git.ObjectID{},
+					},
+					"alternate-2": {
+						Objects: []git.ObjectID{},
+					},
 				},
 			},
 		},
@@ -288,8 +378,9 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				RemoveRepository{},
 				StartManager{},
 				Begin{
-					TransactionID: 1,
-					RelativePath:  "repository",
+					TransactionID:            1,
+					RelativePath:             "repository",
+					SnapshottedRelativePaths: []string{"pool"},
 				},
 				CreateRepository{
 					TransactionID: 1,
@@ -320,9 +411,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -332,9 +424,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 2,
 				},
 				Begin{
-					TransactionID:       3,
-					RelativePath:        "recursive-member",
-					ExpectedSnapshotLSN: 2,
+					TransactionID:            3,
+					RelativePath:             "recursive-member",
+					SnapshottedRelativePaths: []string{"member"},
+					ExpectedSnapshotLSN:      2,
 				},
 				CreateRepository{
 					TransactionID: 3,
@@ -387,18 +480,20 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 2,
 				},
 				Begin{
-					TransactionID:       3,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 2,
+					TransactionID:            3,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      2,
 				},
 				Commit{
 					TransactionID:   3,
 					UpdateAlternate: &alternateUpdate{content: "../../pool/objects"},
 				},
 				Begin{
-					TransactionID:       4,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 3,
+					TransactionID:            4,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      3,
 				},
 				Commit{
 					TransactionID:   4,
@@ -448,14 +543,16 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 2,
 				},
 				Begin{
-					TransactionID:       3,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 2,
+					TransactionID:            3,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      2,
 				},
 				Begin{
-					TransactionID:       4,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 2,
+					TransactionID:            4,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      2,
 				},
 				Commit{
 					TransactionID:   3,
@@ -535,9 +632,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -616,14 +714,18 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					ExpectedError: errSimulatedCrash,
 				},
 				Begin{
-					TransactionID:       3,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 2,
+					TransactionID:            3,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      2,
 				},
 				RepositoryAssertion{
 					TransactionID: 3,
 					Repositories: RepositoryStates{
 						"member": {
+							DefaultBranch: "refs/heads/main",
+						},
+						"pool": {
 							DefaultBranch: "refs/heads/main",
 						},
 					},
@@ -669,9 +771,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -750,9 +853,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -824,9 +928,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -900,9 +1005,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -1012,9 +1118,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 2,
 				},
 				Begin{
-					TransactionID:       3,
-					RelativePath:        "repository-3",
-					ExpectedSnapshotLSN: 2,
+					TransactionID:            3,
+					RelativePath:             "repository-3",
+					SnapshottedRelativePaths: []string{"repository-2"},
+					ExpectedSnapshotLSN:      2,
 				},
 				CreateRepository{
 					TransactionID: 3,
@@ -1172,9 +1279,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,
@@ -1287,9 +1395,10 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					TransactionID: 1,
 				},
 				Begin{
-					TransactionID:       2,
-					RelativePath:        "member",
-					ExpectedSnapshotLSN: 1,
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
 				},
 				CreateRepository{
 					TransactionID: 2,

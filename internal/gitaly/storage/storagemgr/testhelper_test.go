@@ -181,25 +181,53 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 		return nil
 	}))
 
-	var actualPackfiles, expectedPackfiles *PackfilesState
+	var (
+		// expectedObjects are the objects that are expected to be seen by Git.
+		expectedObjects = expected.Objects
+		// expectedPackfiles is set in tests that assert that the object structure
+		// on the disk specifically matches what is expected. This is exclusive to
+		// the above expectedObjects which just asserts that certain objects exist
+		// in the repository.
+		actualPackfiles   *PackfilesState
+		expectedPackfiles = expected.Packfiles
+	)
 
-	expectedObjects := []git.ObjectID{}
 	// If Packfiles assertion exists, we collect all objects from packfiles and loose objects. This list will be
 	// compared with the actual list of objects gathered by `git-cat-file(1)`. This is to ensure on-disk structure
 	// matches Git's perspective.
-	if expected.Packfiles != nil {
-		expectedPackfiles = expected.Packfiles
+	if expectedPackfiles != nil {
+		// Some of the pack files may contain duplicated objects.
+		// When we're asserting object existence in the repository,
+		// ignore the duplicated objects in the packfiles and just
+		// ensure they are present.
+		deduplicatedObjectIDs := map[git.ObjectID]struct{}{}
+		for _, oids := range [][]git.ObjectID{
+			expectedPackfiles.LooseObjects,
+			expectedPackfiles.PooledObjects,
+		} {
+			for _, oid := range oids {
+				deduplicatedObjectIDs[oid] = struct{}{}
+			}
+		}
+		sortObjects(expectedPackfiles.LooseObjects)
+		// The pooled objects are added to the general object existence assertion. If
+		// the pooled objects are missing, ListObjects below won't return them, and we'll
+		// ll see a failure as expected objects are missing.
+		//
+		// We thus do not have to separately assert which objects come from pools here.
+		expectedPackfiles.PooledObjects = nil
 
 		for _, packfile := range expected.Packfiles.Packfiles {
 			sortObjects(packfile.Objects)
-			expectedObjects = append(expectedObjects, packfile.Objects...)
+			for _, oid := range packfile.Objects {
+				deduplicatedObjectIDs[oid] = struct{}{}
+			}
 		}
-		sortObjects(expectedPackfiles.LooseObjects)
-		expectedObjects = append(expectedObjects, expectedPackfiles.LooseObjects...)
 
-		sortObjects(expectedPackfiles.PooledObjects)
-		expectedObjects = append(expectedObjects, expectedPackfiles.PooledObjects...)
-		expectedPackfiles.PooledObjects = nil
+		expectedObjects = make([]git.ObjectID, 0, len(deduplicatedObjectIDs))
+		for oid := range deduplicatedObjectIDs {
+			expectedObjects = append(expectedObjects, oid)
+		}
 
 		objectHash, err := repo.ObjectHash(ctx)
 		require.NoError(tb, err)
@@ -209,13 +237,16 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 		for _, packfile := range actualPackfiles.Packfiles {
 			sortObjects(packfile.Objects)
 		}
-	} else if expected.Objects != nil {
-		expectedObjects = expected.Objects
 	}
-	sortObjects(expectedObjects)
 
 	actualObjects := gittest.ListObjects(tb, cfg, repoPath)
 	sortObjects(actualObjects)
+	sortObjects(expectedObjects)
+	if expectedObjects == nil {
+		// Normalize no objects to an empty slice. This way the equality check keeps working
+		// without having to explicitly assert empty slice in the tests.
+		expectedObjects = []git.ObjectID{}
+	}
 
 	alternate, err := os.ReadFile(stats.AlternatesFilePath(repoPath))
 	if err != nil {
@@ -928,6 +959,13 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 				if step.UpdateAlternate.content != "" {
 					require.NoError(t, os.WriteFile(stats.AlternatesFilePath(repoPath), []byte(step.UpdateAlternate.content), fs.ModePerm))
+
+					alternates, err := stats.ReadAlternatesFile(repoPath)
+					require.NoError(t, err)
+
+					for _, alternate := range alternates {
+						require.DirExists(t, filepath.Join(repoPath, "objects", alternate), "alternate must be pointed to a repository: %q", alternate)
+					}
 				} else {
 					// Ignore not exists errors as there are test cases testing removing alternate
 					// when one is not set.
@@ -1041,17 +1079,22 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.Contains(t, openTransactions, step.TransactionID, "test error: repository created in transaction before beginning it")
 
 			transaction := openTransactions[step.TransactionID]
+
+			rewrittenRepository := transaction.RewriteRepository(&gitalypb.Repository{
+				StorageName:  setup.Config.Storages[0].Name,
+				RelativePath: transaction.relativePath,
+			})
+
+			locator := config.NewLocator(setup.Config)
+
 			require.NoError(t, repoutil.Create(
 				ctx,
 				logger,
-				config.NewLocator(setup.Config),
+				locator,
 				setup.CommandFactory,
 				nil,
 				counter.NewRepositoryCounter(setup.Config.Storages),
-				transaction.RewriteRepository(&gitalypb.Repository{
-					StorageName:  setup.Config.Storages[0].Name,
-					RelativePath: transaction.relativePath,
-				}),
+				rewrittenRepository,
 				func(repoProto *gitalypb.Repository) error {
 					repo := setup.RepositoryFactory.Build(repoProto)
 
@@ -1073,17 +1116,25 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 						)
 					}
 
-					if step.Alternate != "" {
-						repoPath, err := repo.Path()
-						require.NoError(t, err)
-
-						require.NoError(t, os.WriteFile(stats.AlternatesFilePath(repoPath), []byte(step.Alternate), fs.ModePerm))
-					}
-
 					return nil
 				},
 				repoutil.WithObjectHash(setup.ObjectHash),
 			))
+
+			if step.Alternate != "" {
+				repoPath, err := locator.GetRepoPath(rewrittenRepository)
+				require.NoError(t, err)
+
+				alternatesPath := stats.AlternatesFilePath(repoPath)
+				require.NoError(t, os.WriteFile(alternatesPath, []byte(step.Alternate), fs.ModePerm))
+
+				alternates, err := stats.ReadAlternatesFile(repoPath)
+				require.NoError(t, err)
+
+				for _, alternate := range alternates {
+					require.DirExists(t, filepath.Join(repoPath, "objects", alternate), "alternate must be pointed to a repository: %q", alternate)
+				}
+			}
 		case RunPackRefs:
 			require.Contains(t, openTransactions, step.TransactionID, "test error: pack-refs housekeeping task aborted on committed before beginning it")
 
