@@ -285,7 +285,10 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.transactionalizeRequest", nil)
 
-	tx, err := mgr.Begin(ctx, targetRepo.StorageName, targetRepo.RelativePath, additionalRepo.GetRelativePath(), methodInfo.Operation == protoregistry.OpAccessor)
+	tx, err := mgr.Begin(ctx, targetRepo.StorageName, targetRepo.RelativePath, TransactionOptions{
+		ReadOnly:              methodInfo.Operation == protoregistry.OpAccessor,
+		AlternateRelativePath: additionalRepo.GetRelativePath(),
+	})
 	if err != nil {
 		return transactionalizedRequest{}, fmt.Errorf("begin transaction: %w", err)
 	}
