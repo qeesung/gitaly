@@ -112,8 +112,14 @@ func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, st
 		stats.UpdateMetrics(s.packfileNegotiationMetrics)
 	}()
 
-	config = append(config,
-		bundleuri.UploadPackGitConfig(ctx, s.backupLocator, s.backupSink, req.GetRepository())...)
+	config = append(config, bundleuri.CapabilitiesGitConfig(ctx)...)
+
+	uploadPackConfig, err := bundleuri.UploadPackGitConfig(ctx, s.backupLocator, s.backupSink, req.GetRepository())
+	if err != nil {
+		log.AddFields(ctx, log.Fields{"bundle_uri_error": err})
+	} else {
+		config = append(config, uploadPackConfig...)
+	}
 
 	commandOpts := []git.CmdOpt{
 		git.WithGitProtocol(s.logger, req),

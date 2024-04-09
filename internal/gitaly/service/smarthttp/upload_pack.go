@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/sidechannel"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
@@ -114,8 +115,14 @@ func (s *server) runUploadPack(ctx context.Context, req *gitalypb.PostUploadPack
 		}
 	}()
 
-	gitConfig = append(gitConfig,
-		bundleuri.UploadPackGitConfig(ctx, s.backupLocator, s.backupSink, req.GetRepository())...)
+	gitConfig = append(gitConfig, bundleuri.CapabilitiesGitConfig(ctx)...)
+
+	uploadPackConfig, err := bundleuri.UploadPackGitConfig(ctx, s.backupLocator, s.backupSink, req.GetRepository())
+	if err != nil {
+		log.AddFields(ctx, log.Fields{"bundle_uri_error": err})
+	} else {
+		gitConfig = append(gitConfig, uploadPackConfig...)
+	}
 
 	commandOpts := []git.CmdOpt{
 		git.WithStdin(stdin),

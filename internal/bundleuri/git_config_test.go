@@ -2,6 +2,7 @@ package bundleuri
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -37,39 +38,28 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 		findLatestFunc func(context.Context, storage.Repository) (*backup.Backup, error)
 		signedURLFunc  func(context.Context, string, time.Duration) (string, error)
 		expectedConfig []git.ConfigPair
+		expectedErr    error
 	}{
 		{
-			desc: "no backup locator nor sink",
-			expectedConfig: []git.ConfigPair{
-				{
-					Key:   "uploadpack.advertiseBundleURIs",
-					Value: "true",
-				},
-			},
+			desc:           "no backup locator nor sink",
+			expectedConfig: nil,
+			expectedErr:    errors.New("backup locator missing"),
 		},
 		{
 			desc: "no backup locator",
 			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
 				return "", structerr.NewNotFound("not signed")
 			},
-			expectedConfig: []git.ConfigPair{
-				{
-					Key:   "uploadpack.advertiseBundleURIs",
-					Value: "true",
-				},
-			},
+			expectedConfig: nil,
+			expectedErr:    errors.New("backup locator missing"),
 		},
 		{
 			desc: "no backup sink",
 			findLatestFunc: func(context.Context, storage.Repository) (*backup.Backup, error) {
 				return nil, structerr.NewNotFound("no backup found")
 			},
-			expectedConfig: []git.ConfigPair{
-				{
-					Key:   "uploadpack.advertiseBundleURIs",
-					Value: "true",
-				},
-			},
+			expectedConfig: nil,
+			expectedErr:    errors.New("backup sink missing"),
 		},
 		{
 			desc: "no backup found",
@@ -79,12 +69,8 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
 				return "", structerr.NewNotFound("not signed")
 			},
-			expectedConfig: []git.ConfigPair{
-				{
-					Key:   "uploadpack.advertiseBundleURIs",
-					Value: "true",
-				},
-			},
+			expectedConfig: nil,
+			expectedErr:    structerr.NewNotFound("no backup found"),
 		},
 		{
 			desc: "backup has no steps",
@@ -94,12 +80,7 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
 				return "", structerr.NewNotFound("not signed")
 			},
-			expectedConfig: []git.ConfigPair{
-				{
-					Key:   "uploadpack.advertiseBundleURIs",
-					Value: "true",
-				},
-			},
+			expectedErr: errors.New("no valid backup found"),
 		},
 		{
 			desc: "backup step is incremental",
@@ -111,12 +92,8 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
 				return "", structerr.NewNotFound("not signed")
 			},
-			expectedConfig: []git.ConfigPair{
-				{
-					Key:   "uploadpack.advertiseBundleURIs",
-					Value: "true",
-				},
-			},
+			expectedConfig: nil,
+			expectedErr:    errors.New("no valid backup found"),
 		},
 		{
 			desc: "sign failed",
@@ -128,12 +105,8 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 			signedURLFunc: func(context.Context, string, time.Duration) (string, error) {
 				return "", structerr.NewNotFound("not signed")
 			},
-			expectedConfig: []git.ConfigPair{
-				{
-					Key:   "uploadpack.advertiseBundleURIs",
-					Value: "true",
-				},
-			},
+			expectedConfig: nil,
+			expectedErr:    structerr.NewNotFound("not signed"),
 		},
 		{
 			desc: "success",
@@ -180,12 +153,14 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 				sink = dummySink{signedURLFunc: tc.signedURLFunc}
 			}
 
-			actual := UploadPackGitConfig(ctx, locator, sink, repo)
+			actual, err := UploadPackGitConfig(ctx, locator, sink, repo)
 
-			if featureflag.BundleURI.IsEnabled(ctx) && tc.expectedConfig != nil {
+			if featureflag.BundleURI.IsEnabled(ctx) {
 				require.Equal(t, tc.expectedConfig, actual)
+				require.Equal(t, tc.expectedErr, err)
 			} else {
 				require.Empty(t, actual)
+				require.NoError(t, err)
 			}
 		})
 	}
