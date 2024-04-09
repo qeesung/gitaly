@@ -30,6 +30,8 @@ var (
 	// ErrRepositoriesInDifferentStorages is returned when trying to access two repositories in different storages in the
 	// same transaction.
 	ErrRepositoriesInDifferentStorages = structerr.NewInvalidArgument("additional and target repositories are in different storages")
+	// ErrPartitioningHintAndAdditionalRepoProvided is raised when both an partitioning hint is provided with an additional repository.
+	ErrPartitioningHintAndAdditionalRepoProvided = structerr.NewInvalidArgument("both partitioning hint and additional repository were provided")
 )
 
 // NonTransactionalRPCs are the RPCs that do not support transactions.
@@ -254,6 +256,31 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 		return transactionalizedRequest{}, err
 	}
 
+	var (
+		alternateStorageName  string
+		alternateRelativePath string
+	)
+	if hint, err := storagectx.ExtractPartitioningHintFromIncomingContext(ctx); err != nil {
+		return transactionalizedRequest{}, fmt.Errorf("extract partitioning hint: %w", err)
+	} else if hint != "" {
+		// In some cases a repository needs to be partitioned with a repository that isn't set as an additional
+		// repository in the request. If so, a partitioning hint is sent through the gRPC metadata to provide
+		// the relative path of the repository the target repository should be partitioned with.
+		alternateStorageName = targetRepo.StorageName
+		alternateRelativePath = hint
+	} else if req, ok := req.(*gitalypb.CreateForkRequest); ok {
+		// We use the source repository of a CreateForkRequest implicitly as a partitioning hint as we know the source
+		// repository and the fork must be placed in the same partition in order to join them to the same pool. Source
+		// repository is not marked as an additional repository so it doesn't get rewritten by Praefect. The original
+		// form is needed in the handler as Gitaly fetches the source repository through Praefect's API which needs
+		// the original repository to route the request correctly.
+		//
+		// The implicit hinting here avoids having to add hints at every callsite. We only do this if no explicit
+		// partitioning hint was provided as Praefect provides an explicit hint with CreateForkRequest.
+		alternateStorageName = req.GetSourceRepository().GetStorageName()
+		alternateRelativePath = req.GetSourceRepository().GetRelativePath()
+	}
+
 	// Object pools need to be placed in the same partition as their members. Below we figure out which repository,
 	// if any, the target repository of the RPC must be partitioned with. We figure this out using two strategies:
 	//
@@ -266,20 +293,22 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 	// link it with the object pool later. The source repository is not tagged as additional repository in the
 	// CreateForkRequest. If the request is CreateForkRequest, we extract the source repository and partition the
 	// fork with it.
-	var additionalRepo *gitalypb.Repository
-	if additionalRepo, err = methodInfo.AdditionalRepo(req); err != nil {
+	if additionalRepo, err := methodInfo.AdditionalRepo(req); err != nil {
 		if !errors.Is(err, protoregistry.ErrRepositoryFieldNotFound) {
 			return transactionalizedRequest{}, fmt.Errorf("extract additional repository: %w", err)
 		}
 
 		// There was no additional repository.
+	} else {
+		if alternateRelativePath != "" {
+			return transactionalizedRequest{}, ErrPartitioningHintAndAdditionalRepoProvided
+		}
+
+		alternateStorageName = additionalRepo.StorageName
+		alternateRelativePath = additionalRepo.RelativePath
 	}
 
-	if req, ok := req.(*gitalypb.CreateForkRequest); ok {
-		additionalRepo = req.GetSourceRepository()
-	}
-
-	if additionalRepo != nil && additionalRepo.StorageName != targetRepo.StorageName {
+	if alternateStorageName != "" && alternateStorageName != targetRepo.StorageName {
 		return transactionalizedRequest{}, ErrRepositoriesInDifferentStorages
 	}
 
@@ -287,7 +316,7 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 
 	tx, err := mgr.Begin(ctx, targetRepo.StorageName, targetRepo.RelativePath, TransactionOptions{
 		ReadOnly:              methodInfo.Operation == protoregistry.OpAccessor,
-		AlternateRelativePath: additionalRepo.GetRelativePath(),
+		AlternateRelativePath: alternateRelativePath,
 	})
 	if err != nil {
 		return transactionalizedRequest{}, fmt.Errorf("begin transaction: %w", err)
