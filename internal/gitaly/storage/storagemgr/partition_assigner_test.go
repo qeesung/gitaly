@@ -1,6 +1,7 @@
 package storagemgr
 
 import (
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -48,65 +50,127 @@ func getPartitionAssignments(tb testing.TB, db Database) partitionAssignments {
 }
 
 func TestPartitionAssigner(t *testing.T) {
-	db, err := OpenDatabase(testhelper.SharedLogger(t), t.TempDir())
-	require.NoError(t, err)
-	defer testhelper.MustClose(t, db)
+	t.Parallel()
 
-	cfg := testcfg.Build(t)
-	pa, err := newPartitionAssigner(db, cfg.Storages[0].Path)
-	require.NoError(t, err)
-	defer testhelper.MustClose(t, pa)
+	for _, tc := range []struct {
+		desc                string
+		run                 func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner)
+		expectedAssignments partitionAssignments
+	}{
+		{
+			desc: "repositories get assigned into partitions",
+			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
+				ptnID1, err := pa.getPartitionID(ctx, "repository-1", "")
+				require.NoError(t, err)
+				require.EqualValues(t, ptnID1, 1)
 
-	ctx := testhelper.Context(t)
+				ptnID2, err := pa.getPartitionID(ctx, "repository-2", "")
+				require.NoError(t, err)
+				require.EqualValues(t, ptnID2, 2)
+			},
+			expectedAssignments: partitionAssignments{
+				"repository-1": 1,
+				"repository-2": 2,
+			},
+		},
+		{
+			desc: "repository's assigned partition is returned",
+			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
+				assignedID, err := pa.getPartitionID(ctx, "repository-1", "")
+				require.NoError(t, err)
+				require.EqualValues(t, assignedID, 1)
 
-	relativePath1 := "relative-path-1"
-	// The relative path should get assigned into partition.
-	ptnID1, err := pa.getPartitionID(ctx, relativePath1, "")
-	require.NoError(t, err)
-	require.EqualValues(t, 1, ptnID1, "first allocated partition id should be 1")
+				retrievedID, err := pa.getPartitionID(ctx, "repository-1", "")
+				require.NoError(t, err)
+				require.Equal(t, assignedID, retrievedID)
+			},
+			expectedAssignments: partitionAssignments{
+				"repository-1": 1,
+			},
+		},
+		{
+			desc: "repository and alternate are assigned into same partition",
+			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
+				assignedID, err := pa.getPartitionID(ctx, "repository", "alternate")
+				require.NoError(t, err)
+				require.EqualValues(t, assignedID, 1)
+			},
+			expectedAssignments: partitionAssignments{
+				"repository": 1,
+				"alternate":  1,
+			},
+		},
+		{
+			desc: "repository is assigned into the same partition as alternate",
+			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
+				ptnID1, err := pa.getPartitionID(ctx, "alternate", "")
+				require.NoError(t, err)
+				require.EqualValues(t, ptnID1, 1)
 
-	// The second repository should land into its own partition.
-	ptnID2, err := pa.getPartitionID(ctx, "relative-path-2", "")
-	require.NoError(t, err)
-	require.EqualValues(t, 2, ptnID2)
+				ptnID2, err := pa.getPartitionID(ctx, "repository", "alternate")
+				require.NoError(t, err)
+				require.EqualValues(t, ptnID2, ptnID1)
+			},
+			expectedAssignments: partitionAssignments{
+				"repository": 1,
+				"alternate":  1,
+			},
+		},
+		{
+			desc: "alternate is assigned into the same partition as repository",
+			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
+				ptnID1, err := pa.getPartitionID(ctx, "repository", "")
+				require.NoError(t, err)
+				require.EqualValues(t, ptnID1, 1)
 
-	// Retrieving the first repository's partition should return the partition that
-	// was assigned earlier.
-	ptnID1, err = pa.getPartitionID(ctx, relativePath1, "")
-	require.NoError(t, err)
-	require.EqualValues(t, 1, ptnID1)
+				ptnID2, err := pa.getPartitionID(ctx, "repository", "alternate")
+				require.NoError(t, err)
+				require.EqualValues(t, ptnID2, ptnID1)
+			},
+			expectedAssignments: partitionAssignments{
+				"repository": 1,
+				"alternate":  1,
+			},
+		},
+		{
+			desc: "getting a partition fails is repositories are in different partitions",
+			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
+				ptnID1, err := pa.getPartitionID(ctx, "repository-1", "")
+				require.NoError(t, err)
+				require.EqualValues(t, ptnID1, 1)
 
-	// Repository should get assigned into the same partition as the alternate.
-	ptnID3, err := pa.getPartitionID(ctx, "relative-path-3", relativePath1)
-	require.NoError(t, err)
-	require.Equal(t, ptnID3, ptnID1)
+				ptnID2, err := pa.getPartitionID(ctx, "repository-2", "")
+				require.NoError(t, err)
+				require.EqualValues(t, ptnID2, 2)
 
-	// The alternate should get assigned into the same partition as the target repository
-	// if it already has a partition.
-	ptnID4, err := pa.getPartitionID(ctx, relativePath1, "relative-path-4")
-	require.NoError(t, err)
-	require.Equal(t, ptnID4, ptnID1)
+				ptnID, err := pa.getPartitionID(ctx, "repository-1", "repository-2")
+				require.Equal(t, ErrRepositoriesAreInDifferentPartitions, err)
+				require.Zero(t, ptnID)
+			},
+			expectedAssignments: partitionAssignments{
+				"repository-1": 1,
+				"repository-2": 2,
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
 
-	// If neither repository are yet assigned, they should both get assigned into the same
-	// partition.
-	const relativePath6 = "relative-path-6"
-	ptnID5, err := pa.getPartitionID(ctx, "relative-path-5", relativePath6)
-	require.NoError(t, err)
-	require.EqualValues(t, 3, ptnID5)
+			db, err := OpenDatabase(testhelper.SharedLogger(t), t.TempDir())
+			require.NoError(t, err)
+			defer testhelper.MustClose(t, db)
 
-	// Getting a partition fails if the repositories are in different partitions.
-	ptnID6, err := pa.getPartitionID(ctx, relativePath1, relativePath6)
-	require.Equal(t, ErrRepositoriesAreInDifferentPartitions, err)
-	require.EqualValues(t, 0, ptnID6)
+			cfg := testcfg.Build(t)
+			pa, err := newPartitionAssigner(db, cfg.Storages[0].Path)
+			require.NoError(t, err)
+			defer testhelper.MustClose(t, pa)
 
-	require.Equal(t, partitionAssignments{
-		relativePath1:     1,
-		"relative-path-2": 2,
-		"relative-path-3": 1,
-		"relative-path-4": 1,
-		"relative-path-5": 3,
-		relativePath6:     3,
-	}, getPartitionAssignments(t, db))
+			tc.run(t, testhelper.Context(t), cfg, pa)
+
+			require.Equal(t, tc.expectedAssignments, getPartitionAssignments(t, db))
+		})
+	}
 }
 
 func TestPartitionAssigner_alternates(t *testing.T) {
