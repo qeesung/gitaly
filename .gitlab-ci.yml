@@ -58,7 +58,7 @@ variables:
 
 include:
   - template: Security/License-Scanning.gitlab-ci.yml
-  - template: Security/SAST.gitlab-ci.yml
+  - template: Jobs/SAST.latest.gitlab-ci.yml
   - template: Security/Dependency-Scanning.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
   - project: 'gitlab-org/quality/pipeline-common'
@@ -459,9 +459,6 @@ semgrep-sast:
   stage: analyze
   cache:
     - *cache_go_configuration
-  rules:
-    - if: $SAST_DISABLED
-      when: never
 
 license_scanning:
   needs: []
