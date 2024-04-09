@@ -187,7 +187,6 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			Time: 5 * time.Minute,
 		}),
-		grpc.WaitForHandlers(true),
 	}
 
 	return grpc.NewServer(serverOptions...), nil
