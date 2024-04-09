@@ -84,6 +84,14 @@ service DiffService {
       op: ACCESSOR
     };
   };
+
+  // DiffBlobs computes diffs between pairs of blobs. A batch of blob pairs is sent to the server.
+  // The resulting patches are then chucked across response messages and streamed to the client.
+  rpc DiffBlobs(DiffBlobsRequest) returns (stream DiffBlobsResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
 }
 
 // CommitDiffRequest is a request for the CommitDiff RPC.
@@ -519,4 +527,73 @@ message RangeDiffResponse {
   bytes patch_data = 8;
   // end_of_patch check if the patch data is the last one response of this commit pair.
   bool end_of_patch = 9;
+}
+
+// DiffBlobsRequest is a request for the DiffBlobs RPC.
+message DiffBlobsRequest {
+  // DiffMode determines the type of diff that will be returned.
+  enum DiffMode {
+    // DIFF_MODE_UNSPECIFIED is the standard diff mode and results in a line diff for text files.
+    DIFF_MODE_UNSPECIFIED = 0;
+    // DIFF_MODE_WORD is a word diff and computes the diff for whitespace separated words instead of
+    // for whole lines by using the `--word-diff=porcelain` option.
+    DIFF_MODE_WORD = 1;
+  }
+
+  // WhitespaceChanges states which whitespace changes we should ignore. These options correlate to
+  // the ones present in git-diff(1).
+  enum WhitespaceChanges {
+    // WHITESPACE_CHANGES_UNSPECIFIED is used to not ignore any whitespace changes.
+    WHITESPACE_CHANGES_UNSPECIFIED = 0;
+    // WHITESPACE_CHANGES_IGNORE specifies to use the `--ignore-space-change` flag of git-diff(1).
+    // Only changes in amount of whitespace are ignored.
+    WHITESPACE_CHANGES_IGNORE = 1;
+    // WHITESPACE_CHANGES_IGNORE_ALL specifies to use the `--ignore-all-space` flag of git-diff(1).
+    // all whitespace characters are ignored when comparing lines.
+    WHITESPACE_CHANGES_IGNORE_ALL = 2;
+  }
+
+  // BlobPair defines a pair of blobs a patch is generated for.
+  message BlobPair {
+    // left_oid is the left blob ID in in <left blob>..<right blob>.
+    string left_oid = 1;
+    // right_oid is the right blob ID in in <left blob>..<right blob>.
+    string right_oid = 2;
+  }
+
+  // repository is the repository the blob diff is generated for.
+  Repository repository = 1 [(target_repository)=true];
+  // blob_pairs defines the set of blob pairs to generate diffs for.
+  repeated BlobPair blob_pairs = 2;
+  // diff_mode is the mode used for generating the diff. Refer to the enum declaration above for
+  // supported modes.
+  DiffMode diff_mode = 3;
+  // whitespace_changes states which whitespace changes should be included in the diff. Refer to the
+  // enum declaration above for supported modes.
+  WhitespaceChanges whitespace_changes = 4;
+}
+
+// DiffBlobsResponse is a response for the DiffBlobs RPC.
+message DiffBlobsResponse {
+  // Status defines the state of a patch at a given response message.
+  enum Status {
+    // STATUS_INCOMPLETE indicates the patch has not been completely transmitted. Subsequent
+    // response messages contain the remaining content of the patch.
+    STATUS_INCOMPLETE = 0; // protolint:disable:this ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
+    // STATUS_END_OF_PATCH indicates the patch was completely parsed and sent. Subsequent response
+    // messages contain the content of the next patch in the diff.
+    STATUS_END_OF_PATCH = 1;
+  }
+
+  // left_blob_id is the left blob ID in in <left blob>..<right blob> of the diffed blob.
+  string left_blob_id = 1;
+  // right_blob_id is the right blob ID in in <left blob>..<right blob> of the diffed blob.
+  string right_blob_id = 2;
+  // patch is the raw generated diff output.
+  bytes patch = 3;
+  // status is the current state of the patch being transmitted.
+  Status status = 4;
+  // binary indicates whether or not the diff compares binary data. If Git considers either blob to
+  // be binary, Git only reports whether the files differ.
+  bool binary = 5;
 }

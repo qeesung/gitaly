@@ -28,6 +28,7 @@ const (
 	DiffService_GetPatchID_FullMethodName       = "/gitaly.DiffService/GetPatchID"
 	DiffService_RawRangeDiff_FullMethodName     = "/gitaly.DiffService/RawRangeDiff"
 	DiffService_RangeDiff_FullMethodName        = "/gitaly.DiffService/RangeDiff"
+	DiffService_DiffBlobs_FullMethodName        = "/gitaly.DiffService/DiffBlobs"
 )
 
 // DiffServiceClient is the client API for DiffService service.
@@ -63,6 +64,9 @@ type DiffServiceClient interface {
 	RawRangeDiff(ctx context.Context, in *RawRangeDiffRequest, opts ...grpc.CallOption) (DiffService_RawRangeDiffClient, error)
 	// RangeDiff outputs the parsed commit pairs from range diff for a given range specification.
 	RangeDiff(ctx context.Context, in *RangeDiffRequest, opts ...grpc.CallOption) (DiffService_RangeDiffClient, error)
+	// DiffBlobs computes diffs between pairs of blobs. A batch of blob pairs is sent to the server.
+	// The resulting patches are then chucked across response messages and streamed to the client.
+	DiffBlobs(ctx context.Context, in *DiffBlobsRequest, opts ...grpc.CallOption) (DiffService_DiffBlobsClient, error)
 }
 
 type diffServiceClient struct {
@@ -338,6 +342,38 @@ func (x *diffServiceRangeDiffClient) Recv() (*RangeDiffResponse, error) {
 	return m, nil
 }
 
+func (c *diffServiceClient) DiffBlobs(ctx context.Context, in *DiffBlobsRequest, opts ...grpc.CallOption) (DiffService_DiffBlobsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DiffService_ServiceDesc.Streams[8], DiffService_DiffBlobs_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &diffServiceDiffBlobsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type DiffService_DiffBlobsClient interface {
+	Recv() (*DiffBlobsResponse, error)
+	grpc.ClientStream
+}
+
+type diffServiceDiffBlobsClient struct {
+	grpc.ClientStream
+}
+
+func (x *diffServiceDiffBlobsClient) Recv() (*DiffBlobsResponse, error) {
+	m := new(DiffBlobsResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // DiffServiceServer is the server API for DiffService service.
 // All implementations must embed UnimplementedDiffServiceServer
 // for forward compatibility
@@ -371,6 +407,9 @@ type DiffServiceServer interface {
 	RawRangeDiff(*RawRangeDiffRequest, DiffService_RawRangeDiffServer) error
 	// RangeDiff outputs the parsed commit pairs from range diff for a given range specification.
 	RangeDiff(*RangeDiffRequest, DiffService_RangeDiffServer) error
+	// DiffBlobs computes diffs between pairs of blobs. A batch of blob pairs is sent to the server.
+	// The resulting patches are then chucked across response messages and streamed to the client.
+	DiffBlobs(*DiffBlobsRequest, DiffService_DiffBlobsServer) error
 	mustEmbedUnimplementedDiffServiceServer()
 }
 
@@ -404,6 +443,9 @@ func (UnimplementedDiffServiceServer) RawRangeDiff(*RawRangeDiffRequest, DiffSer
 }
 func (UnimplementedDiffServiceServer) RangeDiff(*RangeDiffRequest, DiffService_RangeDiffServer) error {
 	return status.Errorf(codes.Unimplemented, "method RangeDiff not implemented")
+}
+func (UnimplementedDiffServiceServer) DiffBlobs(*DiffBlobsRequest, DiffService_DiffBlobsServer) error {
+	return status.Errorf(codes.Unimplemented, "method DiffBlobs not implemented")
 }
 func (UnimplementedDiffServiceServer) mustEmbedUnimplementedDiffServiceServer() {}
 
@@ -604,6 +646,27 @@ func (x *diffServiceRangeDiffServer) Send(m *RangeDiffResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _DiffService_DiffBlobs_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(DiffBlobsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DiffServiceServer).DiffBlobs(m, &diffServiceDiffBlobsServer{stream})
+}
+
+type DiffService_DiffBlobsServer interface {
+	Send(*DiffBlobsResponse) error
+	grpc.ServerStream
+}
+
+type diffServiceDiffBlobsServer struct {
+	grpc.ServerStream
+}
+
+func (x *diffServiceDiffBlobsServer) Send(m *DiffBlobsResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // DiffService_ServiceDesc is the grpc.ServiceDesc for DiffService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -655,6 +718,11 @@ var DiffService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "RangeDiff",
 			Handler:       _DiffService_RangeDiff_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "DiffBlobs",
+			Handler:       _DiffService_DiffBlobs_Handler,
 			ServerStreams: true,
 		},
 	},
