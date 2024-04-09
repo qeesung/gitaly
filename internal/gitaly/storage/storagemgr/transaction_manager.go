@@ -324,13 +324,25 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		defer close(txn.finished)
 		defer func() {
 			if !txn.readOnly {
+				var removedAnyEntry bool
+
+				mgr.mutex.Lock()
+				removedAnyEntry = mgr.cleanCommittedEntry(entry)
+				mgr.mutex.Unlock()
+
 				// Signal the manager this transaction finishes. The purpose of this signaling is to wake it up
-				// and clean up stale entries. If the manager is not listening to this channel, it is either
-				// processing other transaction or applying appended log entries. In either cases, it will
-				// circle back. So, no need to wait for the manager to pick up the signal.
-				select {
-				case mgr.completedQueue <- struct{}{}:
-				default:
+				// and clean up stale entries in the database. The manager scans and removes leading empty
+				// entries. We signal only if the transaction modifies the in-memory committed entry.
+				// This signal queue is buffered. If the queue is full, the manager hasn't woken up. The
+				// next scan will cover the work of the prior one. So, no need to let the transaction wait.
+				// ┌─ 1st signal        ┌─ The manager scans til here
+				// □ □ □ □ □ □ □ □ □ □ ■ ■ ⧅ ⧅ ⧅ ⧅ ⧅ ⧅ ■ ■ ⧅ ⧅ ⧅ ⧅ ■
+				//        └─ 2nd signal
+				if removedAnyEntry {
+					select {
+					case mgr.completedQueue <- struct{}{}:
+					default:
+					}
 				}
 			}
 		}()
@@ -338,14 +350,6 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		if txn.stagingDirectory != "" {
 			if err := os.RemoveAll(txn.stagingDirectory); err != nil {
 				return fmt.Errorf("remove staging directory: %w", err)
-			}
-		}
-
-		if !txn.readOnly {
-			mgr.mutex.Lock()
-			defer mgr.mutex.Unlock()
-			if err := mgr.cleanCommittedEntry(entry); err != nil {
-				return fmt.Errorf("cleaning committed entry: %w", err)
 			}
 		}
 
@@ -899,7 +903,7 @@ func NewTransactionManager(
 		partitionID:          ptnID,
 		db:                   db,
 		admissionQueue:       make(chan *Transaction),
-		completedQueue:       make(chan struct{}),
+		completedQueue:       make(chan struct{}, 1),
 		initialized:          make(chan struct{}),
 		snapshotLocks:        make(map[LSN]*snapshotLock),
 		stateDirectory:       stateDir,
@@ -3175,9 +3179,10 @@ func (mgr *TransactionManager) walkCommittedEntries(transaction *Transaction, ca
 
 // cleanCommittedEntry reduces the snapshot readers counter of the committed entry. It also removes entries with no more
 // readers at the head of the list.
-func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) error {
+func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) bool {
 	entry.snapshotReaders--
 
+	removedAnyEntry := false
 	elm := mgr.committedEntries.Front()
 	for elm != nil {
 		front := elm.Value.(*committedEntry)
@@ -3185,13 +3190,14 @@ func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) error 
 			// If the first entry had still some snapshot readers, that means
 			// our transaction was not the oldest reader. We can't remove any entries
 			// as they'll still be needed for conflict checking the older transactions.
-			return nil
+			return removedAnyEntry
 		}
 
 		mgr.committedEntries.Remove(elm)
+		removedAnyEntry = true
 		elm = mgr.committedEntries.Front()
 	}
-	return nil
+	return removedAnyEntry
 }
 
 // keyAppliedLSN returns the database key storing a partition's last applied log entry's LSN.
