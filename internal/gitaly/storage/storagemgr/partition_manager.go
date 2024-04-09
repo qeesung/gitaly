@@ -366,6 +366,9 @@ type TransactionOptions struct {
 	ReadOnly bool
 	// AlternateRelativePath specifies a repository to include in the transaction's snapshot as well.
 	AlternateRelativePath string
+	// AllowPartitionAssignmentWithoutRepository determines whether a partition assignment should be
+	// written out even if repository does not exist.
+	AllowPartitionAssignmentWithoutRepository bool
 }
 
 // Begin gets the TransactionManager for the specified repository and starts a transaction. If a
@@ -384,7 +387,7 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 		return nil, structerr.NewInvalidArgument("validate relative path: %w", err)
 	}
 
-	partitionID, err := storageMgr.partitionAssigner.getPartitionID(ctx, relativePath, opts.AlternateRelativePath)
+	partitionID, err := storageMgr.partitionAssigner.getPartitionID(ctx, relativePath, opts.AlternateRelativePath, opts.AllowPartitionAssignmentWithoutRepository)
 	if err != nil {
 		if errors.Is(err, badger.ErrDBClosed) {
 			// The database is closed when PartitionManager is closing. Return a more

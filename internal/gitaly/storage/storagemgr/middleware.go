@@ -72,6 +72,16 @@ var NonTransactionalRPCs = map[string]struct{}{
 	"/gitaly.RepositoryService/PruneUnreachableObjects": {},
 }
 
+// repositoryCreatingRPCs are all of the RPCs that may create a repository.
+var repositoryCreatingRPCs = map[string]struct{}{
+	"/gitaly.ObjectPoolService/CreateObjectPool":             {},
+	"/gitaly.RepositoryService/CreateFork":                   {},
+	"/gitaly.RepositoryService/CreateRepository":             {},
+	"/gitaly.RepositoryService/CreateRepositoryFromURL":      {},
+	"/gitaly.RepositoryService/CreateRepositoryFromBundle":   {},
+	"/gitaly.RepositoryService/CreateRepositoryFromSnapshot": {},
+}
+
 // NewUnaryInterceptor returns an unary interceptor that manages a unary RPC's transaction. It starts a transaction
 // on the target repository of the request and rewrites the request to point to the transaction's snapshot repository.
 // The transaction is committed if the handler doesn't return an error and rolled back otherwise.
@@ -88,6 +98,19 @@ func NewUnaryInterceptor(logger log.Logger, registry *protoregistry.Registry, tx
 
 		txReq, err := transactionalizeRequest(ctx, logger, txRegistry, mgr, locator, methodInfo, req.(proto.Message))
 		if err != nil {
+			// Beginning a transaction fails if a repository is not yet assigned into a partition, and the repository does not exist
+			// on the disk. As RepositoryExists may be used to check the existence of repositories before they've been assigned into
+			// a partition, the RPC would fail with a 'not found'. The RPC's interface however is a successful response with a boolean
+			// flag indicating whether or not the repository exists. Match that interface here if this is a RepositoryExists call.
+			//
+			// We can't delegate the handling to the `RepositoryExists` handler using a transaction as we have no partition to begin the
+			// transaction against. Running the handler non-transactionally could lead to racy access if someone else concurrently creates
+			// the repository as the non-transactional `RepositoryExists` would be concurrently accessing the state the newly created repository's
+			// partition's TransactionManager would be writing to.
+			if errors.Is(err, storage.ErrRepositoryNotFound) && methodInfo.FullMethodName() == "/gitaly.RepositoryService/RepositoryExists" {
+				return &gitalypb.RepositoryExistsResponse{}, nil
+			}
+
 			return nil, err
 		}
 		defer func() { returnedErr = txReq.finishTransaction(returnedErr) }()
@@ -314,11 +337,30 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.transactionalizeRequest", nil)
 
+	// Begin fails when attempting to access a repository that doesn't exist and doesn't have a partition
+	// assignment yet. Repository creating RPCs are an exception and are allowed to create the partition
+	// assignment so the transaction can begin, and the repository can be created. The partition assignments
+	// are created before the repository is created and are thus not atomic. Failed creations may leave stale
+	// partition assignments in the key-value store. We'll later make the repository and partition assignment
+	// creations atomic.
+	//
+	// See issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5957
+	_, isRepositoryCreation := repositoryCreatingRPCs[methodInfo.FullMethodName()]
+
 	tx, err := mgr.Begin(ctx, targetRepo.StorageName, targetRepo.RelativePath, TransactionOptions{
 		ReadOnly:              methodInfo.Operation == protoregistry.OpAccessor,
 		AlternateRelativePath: alternateRelativePath,
+		AllowPartitionAssignmentWithoutRepository: isRepositoryCreation,
 	})
 	if err != nil {
+		var relativePath relativePathNotFoundError
+		if errors.As(err, &relativePath) {
+			// The partition assigner does not have the storage available and returns thus just an error with the
+			// relative path. Convert the error to the usual repository not found error that the RPCs are returning
+			// to conform to the API.
+			return transactionalizedRequest{}, storage.NewRepositoryNotFoundError(targetRepo.StorageName, string(relativePath))
+		}
+
 		return transactionalizedRequest{}, fmt.Errorf("begin transaction: %w", err)
 	}
 	ctx = storagectx.ContextWithTransaction(ctx, tx)

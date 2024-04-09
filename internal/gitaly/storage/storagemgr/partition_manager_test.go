@@ -833,7 +833,7 @@ func TestPartitionManager(t *testing.T) {
 					storageMgr := partitionManager.storages[step.repo.GetStorageName()]
 					storageMgr.mu.Lock()
 
-					ptnID, err := storageMgr.partitionAssigner.getPartitionID(ctx, step.repo.GetRelativePath(), "")
+					ptnID, err := storageMgr.partitionAssigner.getPartitionID(ctx, step.repo.GetRelativePath(), "", false)
 					require.NoError(t, err)
 
 					ptn := storageMgr.partitions[ptnID]
@@ -1009,7 +1009,9 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 	require.NoError(t, err)
 	defer partitionManager.Close()
 
-	tx, err := partitionManager.Begin(ctx, cfg.Storages[0].Name, "relative-path", TransactionOptions{})
+	tx, err := partitionManager.Begin(ctx, cfg.Storages[0].Name, "relative-path", TransactionOptions{
+		AllowPartitionAssignmentWithoutRepository: true,
+	})
 	require.NoError(t, err)
 
 	start := make(chan struct{})
