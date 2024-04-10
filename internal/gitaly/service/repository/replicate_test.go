@@ -41,11 +41,6 @@ import (
 )
 
 func TestReplicateRepository(t *testing.T) {
-	testhelper.SkipWithWAL(t, `
-ReplicateRepository is replicating git attributes as a separate file. WAL doesn't
-support this as the separate attributes file is going to be replaced with reading the
-attributes from HEAD.`)
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -151,9 +146,13 @@ attributes from HEAD.`)
 				))
 
 				return setupData{
-					source:          source,
-					target:          target,
-					expectedObjects: []string{blobID},
+					source: source,
+					target: target,
+					expectedObjects: testhelper.WithOrWithoutWAL(
+						// TransactionManager discards unreachable objects and only keeps the reachable objects.
+						nil,
+						[]string{blobID},
+					),
 				}
 			},
 		},
@@ -277,6 +276,11 @@ attributes from HEAD.`)
 				return setupData{
 					source: source,
 					target: target,
+					expectedError: testhelper.WithOrWithoutWAL[error](
+						// Operating on invalid repositories is not supported with transactions.
+						structerr.NewInternal("begin transaction: new snapshot: create repository snapshots: validate git directory: invalid git directory"),
+						nil,
+					),
 				}
 			},
 		},
@@ -292,9 +296,16 @@ attributes from HEAD.`)
 				}
 
 				return setupData{
-					source:        source,
-					target:        target,
-					expectedError: ErrInvalidSourceRepository,
+					source: source,
+					target: target,
+					expectedError: testhelper.WithOrWithoutWAL[error](
+						// Operating on invalid repositories is not supported with transactions.
+						//
+						// Praefect deletes metdata record of a repository on ErrInvalidSourceRepository. While this functionality
+						// won't work, we have a more general replacement for the ad-hoc repair with the background metadata verifier.
+						structerr.NewInternal("could not create repository from snapshot: creating repository: extracting snapshot: first snapshot read: rpc error: code = Internal desc = begin transaction: new snapshot: create repository snapshots: validate git directory: invalid git directory"),
+						ErrInvalidSourceRepository,
+					),
 				}
 			},
 		},
@@ -312,9 +323,16 @@ attributes from HEAD.`)
 				}
 
 				return setupData{
-					source:        source,
-					target:        target,
-					expectedError: ErrInvalidSourceRepository,
+					source: source,
+					target: target,
+					expectedError: testhelper.WithOrWithoutWAL[error](
+						// Operating on invalid repositories is not supported with transactions.
+						//
+						// Praefect deletes metdata record of a repository on ErrInvalidSourceRepository. While this functionality
+						// won't work, we have a more general replacement for the ad-hoc repair with the background metadata verifier.
+						structerr.NewInternal("begin transaction: new snapshot: create repository snapshots: validate git directory: invalid git directory"),
+						ErrInvalidSourceRepository,
+					),
 				}
 			},
 		},
@@ -392,7 +410,7 @@ attributes from HEAD.`)
 			// Consequently, this test case is executed with Praefect disabled.
 			serverOpts: []testserver.GitalyServerOpt{testserver.WithDisablePraefect()},
 			setup: func(t *testing.T, cfg config.Cfg) setupData {
-				sourceProto, _, targetProto, _ := setupSourceAndTarget(t, cfg, true)
+				sourceProto, _, targetProto, targetPath := setupSourceAndTarget(t, cfg, true)
 
 				// If only the target repository is linked to an object pool, repository replication
 				// results in the target repository disconnecting from its object pool to match the
@@ -401,10 +419,15 @@ attributes from HEAD.`)
 					LinkRepositoryToObjectPool: true,
 				})
 
+				targetAltInfo, err := stats.AlternatesInfoForRepository(targetPath)
+				require.NoError(t, err)
+
 				return setupData{
-					source:              sourceProto,
-					target:              targetProto,
-					expectedAltInfo:     stats.AlternatesInfo{Exists: false},
+					source: sourceProto,
+					target: targetProto,
+					// Object pool membership isn't replicated with transactions. The target is not disconnected
+					// from the pool.
+					expectedAltInfo:     testhelper.WithOrWithoutWAL(targetAltInfo, stats.AlternatesInfo{Exists: false}),
 					replicateObjectPool: true,
 				}
 			},
@@ -448,7 +471,7 @@ attributes from HEAD.`)
 			// Consequently, this test case is executed with Praefect disabled.
 			serverOpts: []testserver.GitalyServerOpt{testserver.WithDisablePraefect()},
 			setup: func(t *testing.T, cfg config.Cfg) setupData {
-				sourceProto, _, targetProto, _ := setupSourceAndTarget(t, cfg, true)
+				sourceProto, _, targetProto, targetPath := setupSourceAndTarget(t, cfg, true)
 
 				// Both the source and target repositories being linked to different object pools is
 				// an unexpected state. If this occurs replication is aborted and an error returned.
@@ -460,11 +483,17 @@ attributes from HEAD.`)
 					LinkRepositoryToObjectPool: true,
 				})
 
+				targetAltInfo, err := stats.AlternatesInfoForRepository(targetPath)
+				require.NoError(t, err)
+
 				return setupData{
 					source:              sourceProto,
 					target:              targetProto,
 					replicateObjectPool: true,
-					expectedError:       structerr.NewFailedPrecondition("replicating repository: synchronizing object pools: target repository links to different object pool"),
+					// Object pool membership isn't replicated with transactions. The target is not disconnected
+					// from its original pool and doesn't join the source's pool.
+					expectedError:   testhelper.WithOrWithoutWAL[error](nil, structerr.NewFailedPrecondition("replicating repository: synchronizing object pools: target repository links to different object pool")),
+					expectedAltInfo: testhelper.WithOrWithoutWAL(targetAltInfo, stats.AlternatesInfo{}),
 				}
 			},
 		},
@@ -497,7 +526,7 @@ attributes from HEAD.`)
 				return setupData{
 					source:              sourceProto,
 					target:              targetProto,
-					expectedAltInfo:     expectedAltInfo,
+					expectedAltInfo:     testhelper.WithOrWithoutWAL(stats.AlternatesInfo{}, expectedAltInfo),
 					replicateObjectPool: true,
 				}
 			},
@@ -528,8 +557,8 @@ attributes from HEAD.`)
 					source:              sourceProto,
 					target:              targetProto,
 					replicateObjectPool: true,
-					expectedAltInfo:     expectedAltInfo,
-					expectedObjects:     []string{commitID.String()},
+					expectedAltInfo:     testhelper.WithOrWithoutWAL(stats.AlternatesInfo{}, expectedAltInfo),
+					expectedObjects:     testhelper.WithOrWithoutWAL(nil, []string{commitID.String()}),
 				}
 			},
 		},
