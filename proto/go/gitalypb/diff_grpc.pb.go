@@ -26,6 +26,8 @@ const (
 	DiffService_DiffStats_FullMethodName        = "/gitaly.DiffService/DiffStats"
 	DiffService_FindChangedPaths_FullMethodName = "/gitaly.DiffService/FindChangedPaths"
 	DiffService_GetPatchID_FullMethodName       = "/gitaly.DiffService/GetPatchID"
+	DiffService_RawRangeDiff_FullMethodName     = "/gitaly.DiffService/RawRangeDiff"
+	DiffService_RangeDiff_FullMethodName        = "/gitaly.DiffService/RangeDiff"
 )
 
 // DiffServiceClient is the client API for DiffService service.
@@ -57,6 +59,10 @@ type DiffServiceClient interface {
 	// whether diffs make the same change. Please refer to git-patch-id(1) for further information.
 	// If the difference between old and new change is empty then this RPC returns an error.
 	GetPatchID(ctx context.Context, in *GetPatchIDRequest, opts ...grpc.CallOption) (*GetPatchIDResponse, error)
+	// RawRangeDiff outputs the raw range diff data for a given range specification.
+	RawRangeDiff(ctx context.Context, in *RawRangeDiffRequest, opts ...grpc.CallOption) (DiffService_RawRangeDiffClient, error)
+	// RangeDiff outputs the parsed commit pairs from range diff for a given range specification.
+	RangeDiff(ctx context.Context, in *RangeDiffRequest, opts ...grpc.CallOption) (DiffService_RangeDiffClient, error)
 }
 
 type diffServiceClient struct {
@@ -268,6 +274,70 @@ func (c *diffServiceClient) GetPatchID(ctx context.Context, in *GetPatchIDReques
 	return out, nil
 }
 
+func (c *diffServiceClient) RawRangeDiff(ctx context.Context, in *RawRangeDiffRequest, opts ...grpc.CallOption) (DiffService_RawRangeDiffClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DiffService_ServiceDesc.Streams[6], DiffService_RawRangeDiff_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &diffServiceRawRangeDiffClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type DiffService_RawRangeDiffClient interface {
+	Recv() (*RawRangeDiffResponse, error)
+	grpc.ClientStream
+}
+
+type diffServiceRawRangeDiffClient struct {
+	grpc.ClientStream
+}
+
+func (x *diffServiceRawRangeDiffClient) Recv() (*RawRangeDiffResponse, error) {
+	m := new(RawRangeDiffResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *diffServiceClient) RangeDiff(ctx context.Context, in *RangeDiffRequest, opts ...grpc.CallOption) (DiffService_RangeDiffClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DiffService_ServiceDesc.Streams[7], DiffService_RangeDiff_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &diffServiceRangeDiffClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type DiffService_RangeDiffClient interface {
+	Recv() (*RangeDiffResponse, error)
+	grpc.ClientStream
+}
+
+type diffServiceRangeDiffClient struct {
+	grpc.ClientStream
+}
+
+func (x *diffServiceRangeDiffClient) Recv() (*RangeDiffResponse, error) {
+	m := new(RangeDiffResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // DiffServiceServer is the server API for DiffService service.
 // All implementations must embed UnimplementedDiffServiceServer
 // for forward compatibility
@@ -297,6 +367,10 @@ type DiffServiceServer interface {
 	// whether diffs make the same change. Please refer to git-patch-id(1) for further information.
 	// If the difference between old and new change is empty then this RPC returns an error.
 	GetPatchID(context.Context, *GetPatchIDRequest) (*GetPatchIDResponse, error)
+	// RawRangeDiff outputs the raw range diff data for a given range specification.
+	RawRangeDiff(*RawRangeDiffRequest, DiffService_RawRangeDiffServer) error
+	// RangeDiff outputs the parsed commit pairs from range diff for a given range specification.
+	RangeDiff(*RangeDiffRequest, DiffService_RangeDiffServer) error
 	mustEmbedUnimplementedDiffServiceServer()
 }
 
@@ -324,6 +398,12 @@ func (UnimplementedDiffServiceServer) FindChangedPaths(*FindChangedPathsRequest,
 }
 func (UnimplementedDiffServiceServer) GetPatchID(context.Context, *GetPatchIDRequest) (*GetPatchIDResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPatchID not implemented")
+}
+func (UnimplementedDiffServiceServer) RawRangeDiff(*RawRangeDiffRequest, DiffService_RawRangeDiffServer) error {
+	return status.Errorf(codes.Unimplemented, "method RawRangeDiff not implemented")
+}
+func (UnimplementedDiffServiceServer) RangeDiff(*RangeDiffRequest, DiffService_RangeDiffServer) error {
+	return status.Errorf(codes.Unimplemented, "method RangeDiff not implemented")
 }
 func (UnimplementedDiffServiceServer) mustEmbedUnimplementedDiffServiceServer() {}
 
@@ -482,6 +562,48 @@ func _DiffService_GetPatchID_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DiffService_RawRangeDiff_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(RawRangeDiffRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DiffServiceServer).RawRangeDiff(m, &diffServiceRawRangeDiffServer{stream})
+}
+
+type DiffService_RawRangeDiffServer interface {
+	Send(*RawRangeDiffResponse) error
+	grpc.ServerStream
+}
+
+type diffServiceRawRangeDiffServer struct {
+	grpc.ServerStream
+}
+
+func (x *diffServiceRawRangeDiffServer) Send(m *RawRangeDiffResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _DiffService_RangeDiff_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(RangeDiffRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DiffServiceServer).RangeDiff(m, &diffServiceRangeDiffServer{stream})
+}
+
+type DiffService_RangeDiffServer interface {
+	Send(*RangeDiffResponse) error
+	grpc.ServerStream
+}
+
+type diffServiceRangeDiffServer struct {
+	grpc.ServerStream
+}
+
+func (x *diffServiceRangeDiffServer) Send(m *RangeDiffResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // DiffService_ServiceDesc is the grpc.ServiceDesc for DiffService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -523,6 +645,16 @@ var DiffService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "FindChangedPaths",
 			Handler:       _DiffService_FindChangedPaths_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "RawRangeDiff",
+			Handler:       _DiffService_RawRangeDiff_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "RangeDiff",
+			Handler:       _DiffService_RangeDiff_Handler,
 			ServerStreams: true,
 		},
 	},

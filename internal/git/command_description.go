@@ -245,6 +245,9 @@ var commandDescriptions = map[string]commandDescription{
 			}
 		},
 	},
+	"range-diff": {
+		flags: scNoRefUpdates | scNoEndOfOptions,
+	},
 	"receive-pack": {
 		flags: 0,
 		opts: func(ctx context.Context) []GlobalOption {
