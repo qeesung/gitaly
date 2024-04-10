@@ -132,6 +132,14 @@ GIT_VERSION_MARIO ?= v2.43.2
 ## The Git version used for bundled Git Luigi
 GIT_VERSION_LUIGI ?= v2.44.0.gl1
 
+# Carefully borrowed from https://www.gnu.org/software/make/manual/make.html#Special-Characters
+dot:= .
+empty:=
+space:= ${empty} ${empty}
+major_minor=$(subst ${space},${dot},$(wordlist 1,2,$(subst ${dot},${space},$1)))
+GIT_VERSION_MARIO_M = $(call major_minor,${GIT_VERSION_MARIO})
+GIT_VERSION_LUIGI_M = $(call major_minor,${GIT_VERSION_LUIGI})
+
 ## Skip overriding the Git version and instead use the Git version as specified
 ## in the Git sources. This is required when building Git from a version that
 ## cannot be parsed by Gitaly.
@@ -292,15 +300,15 @@ install: build
 .PHONY: build-bundled-git
 ## Build bundled Git binaries.
 build-bundled-git: build-bundled-git-mario build-bundled-git-luigi
-build-bundled-git-mario: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_MARIO},${GIT_EXECUTABLES})
-build-bundled-git-luigi: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_LUIGI},${GIT_EXECUTABLES})
+build-bundled-git-mario: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_MARIO_M},${GIT_EXECUTABLES})
+build-bundled-git-luigi: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_LUIGI_M},${GIT_EXECUTABLES})
 
 .PHONY: install-bundled-git
 ## Install bundled Git binaries. The target directory can be modified by
 ## setting PREFIX and DESTDIR.
 install-bundled-git: install-bundled-git-mario install-bundled-git-luigi
-install-bundled-git-mario: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-${GIT_VERSION_MARIO},${GIT_EXECUTABLES})
-install-bundled-git-luigi: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-${GIT_VERSION_LUIGI},${GIT_EXECUTABLES})
+install-bundled-git-mario: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-${GIT_VERSION_MARIO_M},${GIT_EXECUTABLES})
+install-bundled-git-luigi: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-${GIT_VERSION_LUIGI_M},${GIT_EXECUTABLES})
 
 ifdef WITH_BUNDLED_GIT
 build: build-bundled-git
@@ -555,12 +563,12 @@ ${DEPENDENCY_DIR}/git-distribution/git: ${DEPENDENCY_DIR}/git-distribution/Makef
 	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "$(<D)" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS}
 	${Q}touch $@
 
-${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_MARIO}: override GIT_VERSION = ${GIT_VERSION_MARIO}
-${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_MARIO}: ${DEPENDENCY_DIR}/git-mario/% | ${BUILD_DIR}/bin
+${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_MARIO_M}: override GIT_VERSION = ${GIT_VERSION_MARIO}
+${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_MARIO_M}: ${DEPENDENCY_DIR}/git-mario/% | ${BUILD_DIR}/bin
 	${Q}install $< $@
 
-${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_LUIGI}: override GIT_VERSION = ${GIT_VERSION_LUIGI}
-${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_LUIGI}: ${DEPENDENCY_DIR}/git-luigi/% | ${BUILD_DIR}/bin
+${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_LUIGI_M}: override GIT_VERSION = ${GIT_VERSION_LUIGI}
+${BUILD_DIR}/bin/gitaly-%-${GIT_VERSION_LUIGI_M}: ${DEPENDENCY_DIR}/git-luigi/% | ${BUILD_DIR}/bin
 	${Q}install $< $@
 
 ${BUILD_DIR}/bin/%: ${BUILD_DIR}/intermediate/% | ${BUILD_DIR}/bin
