@@ -21,6 +21,14 @@ indent_style = tab
 indent_size = 8
 tab_width = 8
 
+# Test file with important trailing whitespaces in test data
+[internal/gitaly/service/diff/raw_range_diff_test.go]
+trim_trailing_whitespace = false
+
+# Test file with important trailing whitespaces in test data
+[**/range_diff_test.go]
+trim_trailing_whitespace = false
+
 [**.{md,proto,yml}]
 indent_style = space
 indent_size = 2
