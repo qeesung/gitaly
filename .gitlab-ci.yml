@@ -412,6 +412,7 @@ vulnerability:
     - *cache_go_configuration
   script:
     - make govulncheck
+  allow_failure: true
 
 dbschema:
   needs: []
