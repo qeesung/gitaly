@@ -633,6 +633,12 @@ message UserCherryPickRequest {
   // zero object ID in case the branch should be created. Otherwise, this RPC
   // will return an error.
   string expected_old_oid = 10;
+  // commit_author_name is the author to be applied to the cherry-picked commit. If not provided, the original commit's author name is
+  // used instead.
+  bytes commit_author_name = 11;
+  // commit_author_email is the author email to be applied to the cherry-picked commit. If not provided, the original commit's author email is
+  // used instead.
+  bytes commit_author_email = 12;
 }
 
 // UserCherryPickResponse is a response for the UserCherryPick RPC.

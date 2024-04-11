@@ -534,80 +534,117 @@ func testServerUserCherryPickStableID(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
 	ctx, cfg, client := setupOperationsService(t, ctx)
-	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
-	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	mainCommitID := gittest.WriteCommit(t, cfg, repoPath,
-		gittest.WithBranch(git.DefaultBranch),
-		gittest.WithTreeEntries(
-			gittest.TreeEntry{Mode: "100644", Path: "a", Content: "apple"},
-		),
-	)
-	cherryPickCommitID := gittest.WriteCommit(t, cfg, repoPath,
-		gittest.WithParents(mainCommitID),
-		gittest.WithTreeEntries(
-			gittest.TreeEntry{Mode: "100644", Path: "a", Content: "apple"},
-			gittest.TreeEntry{Mode: "100644", Path: "foo", Content: "bar"},
-		))
-	require.Equal(t,
-		git.ObjectID(gittest.ObjectHashDependent(t, map[string]string{
-			"sha1":   "9f5cd015ffce347a87946a31884d85c2d5ac76c6",
-			"sha256": "685ed70f40309daf137b214b116084bb3cb64948ffe21894da60cffdacb328d9",
-		})),
-		cherryPickCommitID)
-
-	cherryPickedCommit, err := repo.ReadCommit(ctx, cherryPickCommitID.Revision())
-	require.NoError(t, err)
-
-	destinationBranch := "cherry-picking-dst"
-	gittest.Exec(t, cfg, "-C", repoPath, "branch", destinationBranch, git.DefaultBranch)
-
-	request := &gitalypb.UserCherryPickRequest{
-		Repository: repoProto,
-		User:       gittest.TestUser,
-		Commit:     cherryPickedCommit,
-		BranchName: []byte(destinationBranch),
-		Message:    []byte("Cherry-picking " + cherryPickedCommit.Id),
-		Timestamp:  &timestamppb.Timestamp{Seconds: 12345},
+	tests := []struct {
+		desc                 string
+		commitAuthorName     []byte
+		commitAuthorEmail    []byte
+		expectedCommitID     string
+		expectedCommitAuthor *gitalypb.CommitAuthor
+	}{
+		{
+			desc: "when commit author name and email are not specified",
+			expectedCommitID: gittest.ObjectHashDependent(t, map[string]string{
+				"sha1":   "e4e27d5484b1862f887391fe3417fecb95ee4fef",
+				"sha256": "e0cc4d237718edca19b01bfe90d8742a940b82aa7596124d46f6ac02818bf232",
+			}),
+			expectedCommitAuthor: gittest.DefaultCommitAuthor,
+		},
+		{
+			desc:              "when commit author name and email are specified",
+			commitAuthorName:  gittest.TestUser.Name,
+			commitAuthorEmail: gittest.TestUser.Email,
+			expectedCommitID: gittest.ObjectHashDependent(t, map[string]string{
+				"sha1":   "6a7a5c497966ebabda9518c9271d73863288e047",
+				"sha256": "0074c3a0c3a1fe99b9eb2d1331e9716afcc15c08f477d19e66794950363dfebb",
+			}),
+			expectedCommitAuthor: &gitalypb.CommitAuthor{
+				Name:  gittest.TestUser.Name,
+				Email: gittest.TestUser.Email,
+				Date: &timestamppb.Timestamp{
+					Seconds: 12345,
+				},
+				Timezone: []byte(gittest.TimezoneOffset),
+			},
+		},
 	}
 
-	response, err := client.UserCherryPick(ctx, request)
-	require.NoError(t, err)
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	expectedCommitID := gittest.ObjectHashDependent(t, map[string]string{
-		"sha1":   "e4e27d5484b1862f887391fe3417fecb95ee4fef",
-		"sha256": "e0cc4d237718edca19b01bfe90d8742a940b82aa7596124d46f6ac02818bf232",
-	})
-	require.Equal(t, expectedCommitID, response.BranchUpdate.CommitId)
+			mainCommitID := gittest.WriteCommit(t, cfg, repoPath,
+				gittest.WithBranch(git.DefaultBranch),
+				gittest.WithTreeEntries(
+					gittest.TreeEntry{Mode: "100644", Path: "a", Content: "apple"},
+				),
+			)
+			cherryPickCommitID := gittest.WriteCommit(t, cfg, repoPath,
+				gittest.WithParents(mainCommitID),
+				gittest.WithTreeEntries(
+					gittest.TreeEntry{Mode: "100644", Path: "a", Content: "apple"},
+					gittest.TreeEntry{Mode: "100644", Path: "foo", Content: "bar"},
+				))
+			require.Equal(t,
+				git.ObjectID(gittest.ObjectHashDependent(t, map[string]string{
+					"sha1":   "9f5cd015ffce347a87946a31884d85c2d5ac76c6",
+					"sha256": "685ed70f40309daf137b214b116084bb3cb64948ffe21894da60cffdacb328d9",
+				})),
+				cherryPickCommitID)
 
-	pickCommit, err := repo.ReadCommit(ctx, git.Revision(response.BranchUpdate.CommitId))
-	require.NoError(t, err)
-	testhelper.ProtoEqual(t, &gitalypb.GitCommit{
-		Id:      expectedCommitID,
-		Subject: []byte("Cherry-picking " + cherryPickedCommit.Id),
-		Body:    []byte("Cherry-picking " + cherryPickedCommit.Id),
-		BodySize: gittest.ObjectHashDependent(t, map[string]int64{
-			"sha1":   55,
-			"sha256": 79,
-		}),
-		ParentIds: gittest.ObjectHashDependent(t, map[string][]string{
-			"sha1":   {"6bb1e1bbf6de505981564b780ca28dc31cd64838"},
-			"sha256": {"996522a8ec52ad134174a543b8679edd6e7759b5149b5bf99edb463283588dd8"},
-		}),
-		TreeId: gittest.ObjectHashDependent(t, map[string]string{
-			"sha1":   "0ff2fa5961cbe4fc6371bc5cb1a4eb3b314f308f",
-			"sha256": "bda92f49a13c07c80c816b7c9965c6c7e76f0f5f75aa9ee0453f7109bfb27f7b",
-		}),
-		Author: gittest.DefaultCommitAuthor,
-		Committer: &gitalypb.CommitAuthor{
-			Name:  gittest.TestUser.Name,
-			Email: gittest.TestUser.Email,
-			Date: &timestamppb.Timestamp{
-				Seconds: 12345,
-			},
-			Timezone: []byte(gittest.TimezoneOffset),
-		},
-	}, pickCommit)
+			cherryPickedCommit, err := repo.ReadCommit(ctx, cherryPickCommitID.Revision())
+			require.NoError(t, err)
+
+			destinationBranch := "cherry-picking-dst"
+			gittest.Exec(t, cfg, "-C", repoPath, "branch", destinationBranch, git.DefaultBranch)
+
+			request := &gitalypb.UserCherryPickRequest{
+				Repository:        repoProto,
+				User:              gittest.TestUser,
+				Commit:            cherryPickedCommit,
+				BranchName:        []byte(destinationBranch),
+				Message:           []byte("Cherry-picking " + cherryPickedCommit.Id),
+				Timestamp:         &timestamppb.Timestamp{Seconds: 12345},
+				CommitAuthorName:  tc.commitAuthorName,
+				CommitAuthorEmail: tc.commitAuthorEmail,
+			}
+
+			response, err := client.UserCherryPick(ctx, request)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.expectedCommitID, response.BranchUpdate.CommitId)
+
+			pickCommit, err := repo.ReadCommit(ctx, git.Revision(response.BranchUpdate.CommitId))
+			require.NoError(t, err)
+			testhelper.ProtoEqual(t, &gitalypb.GitCommit{
+				Id:      tc.expectedCommitID,
+				Subject: []byte("Cherry-picking " + cherryPickedCommit.Id),
+				Body:    []byte("Cherry-picking " + cherryPickedCommit.Id),
+				BodySize: gittest.ObjectHashDependent(t, map[string]int64{
+					"sha1":   55,
+					"sha256": 79,
+				}),
+				ParentIds: gittest.ObjectHashDependent(t, map[string][]string{
+					"sha1":   {"6bb1e1bbf6de505981564b780ca28dc31cd64838"},
+					"sha256": {"996522a8ec52ad134174a543b8679edd6e7759b5149b5bf99edb463283588dd8"},
+				}),
+				TreeId: gittest.ObjectHashDependent(t, map[string]string{
+					"sha1":   "0ff2fa5961cbe4fc6371bc5cb1a4eb3b314f308f",
+					"sha256": "bda92f49a13c07c80c816b7c9965c6c7e76f0f5f75aa9ee0453f7109bfb27f7b",
+				}),
+				Author: tc.expectedCommitAuthor,
+				Committer: &gitalypb.CommitAuthor{
+					Name:  gittest.TestUser.Name,
+					Email: gittest.TestUser.Email,
+					Date: &timestamppb.Timestamp{
+						Seconds: 12345,
+					},
+					Timezone: []byte(gittest.TimezoneOffset),
+				},
+			}, pickCommit)
+		})
+	}
 }
 
 func TestServer_UserCherryPick_failedValidations(t *testing.T) {
