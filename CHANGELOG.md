@@ -26,6 +26,12 @@ No changes.
 - [proxy: Register proxy codec](gitlab-org/gitaly@e16ef95d0e08e3144e67b63b4446b4996e44da1c) ([merge request](gitlab-org/gitaly!6662))
 - [Always use CLONE_INTO_CGROUP when supported](gitlab-org/gitaly@057f4e9d177c018774bf036cc952542f2e3ec833) ([merge request](gitlab-org/gitaly!6653))
 
+## 16.9.5 (2024-04-12)
+
+### Fixed (1 change)
+
+- [Make Gitaly no downtime upgrades work again in 16.9](gitlab-org/gitaly@d12e8ec5edbbf7228d43c45cede3863e5bbe47e1) ([merge request](gitlab-org/gitaly!6807))
+
 ## 16.9.4 (2024-04-09)
 
 No changes.
