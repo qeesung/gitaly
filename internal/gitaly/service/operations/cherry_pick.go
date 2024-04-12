@@ -102,21 +102,26 @@ func (s *Server) UserCherryPick(ctx context.Context, req *gitalypb.UserCherryPic
 		)
 	}
 
-	newrev, err := quarantineRepo.WriteCommit(
-		ctx,
-		localrepo.WriteCommitConfig{
-			TreeID:         treeOID,
-			Message:        string(req.Message),
-			Parents:        []git.ObjectID{startRevision},
-			AuthorName:     string(cherryCommit.Author.Name),
-			AuthorEmail:    string(cherryCommit.Author.Email),
-			AuthorDate:     cherryDate,
-			CommitterName:  committerSignature.Name,
-			CommitterEmail: committerSignature.Email,
-			CommitterDate:  committerSignature.When,
-			GitConfig:      s.gitConfig,
-		},
-	)
+	cfg := localrepo.WriteCommitConfig{
+		TreeID:         treeOID,
+		Message:        string(req.Message),
+		Parents:        []git.ObjectID{startRevision},
+		AuthorName:     string(cherryCommit.Author.Name),
+		AuthorEmail:    string(cherryCommit.Author.Email),
+		AuthorDate:     cherryDate,
+		CommitterName:  committerSignature.Name,
+		CommitterEmail: committerSignature.Email,
+		CommitterDate:  committerSignature.When,
+		GitConfig:      s.gitConfig,
+	}
+
+	if len(req.CommitAuthorName) != 0 && len(req.CommitAuthorEmail) != 0 {
+		cfg.AuthorName = strings.TrimSpace(string(req.CommitAuthorName))
+		cfg.AuthorEmail = strings.TrimSpace(string(req.CommitAuthorEmail))
+		cfg.AuthorDate = committerSignature.When
+	}
+
+	newrev, err := quarantineRepo.WriteCommit(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("write commit: %w", err)
 	}
