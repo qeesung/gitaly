@@ -1,5 +1,11 @@
 # Gitaly changelog
 
+## 16.9.5 (2024-04-12)
+
+### Fixed (1 change)
+
+- [Make Gitaly no downtime upgrades work again in 16.9](gitlab-org/gitaly@d12e8ec5edbbf7228d43c45cede3863e5bbe47e1) ([merge request](gitlab-org/gitaly!6807))
+
 ## 16.9.4 (2024-04-09)
 
 No changes.
