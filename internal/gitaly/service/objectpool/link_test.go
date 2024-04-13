@@ -39,6 +39,16 @@ func TestCompleteForkCreationFlow(t *testing.T) {
 	ctx = testhelper.MergeOutgoingMetadata(ctx, testcfg.GitalyServersMetadataFromCfg(t, cfg))
 	// Build GitalySSH as CreateFork uses to perform the fetch.
 	testcfg.BuildGitalySSH(t, cfg)
+
+	// Rails sends a RepositoryExists request before creating the fork as well.
+	repositoryExistsResponse, err := repositoryClient.RepositoryExists(ctx, &gitalypb.RepositoryExistsRequest{
+		Repository: forkRepository,
+	})
+	require.NoError(t, err)
+	testhelper.ProtoEqual(t, &gitalypb.RepositoryExistsResponse{
+		Exists: false,
+	}, repositoryExistsResponse)
+
 	createForkResponse, err := repositoryClient.CreateFork(ctx, &gitalypb.CreateForkRequest{
 		Repository:       forkRepository,
 		SourceRepository: sourceRepository,
@@ -208,8 +218,16 @@ func TestLink_noPool(t *testing.T) {
 			},
 		},
 	})
+
 	testhelper.RequireGrpcError(t, testhelper.GitalyOrPraefect(
-		structerr.NewFailedPrecondition("object pool is not a valid git repository"),
+		testhelper.WithOrWithoutWAL(
+			testhelper.WithInterceptedMetadataItems(
+				structerr.NewNotFound("repository not found"),
+				structerr.MetadataItem{Key: "relative_path", Value: poolRelativePath},
+				structerr.MetadataItem{Key: "storage_name", Value: cfg.Storages[0].Name},
+			),
+			structerr.NewFailedPrecondition("object pool is not a valid git repository"),
+		),
 		testhelper.WithInterceptedMetadataItems(
 			structerr.NewNotFound("mutator call: route repository mutator: resolve additional replica path: additional repository not found"),
 			structerr.MetadataItem{Key: "relative_path", Value: poolRelativePath},

@@ -479,9 +479,15 @@ func TestOptimizeRepository(t *testing.T) {
 
 		alternatesPath := filepath.Join(repoPath, "objects", "info", "alternates")
 
+		alternatesContent, err := filepath.Rel(
+			filepath.Join(repoPath, "objects"),
+			filepath.Join(poolPath, "objects"),
+		)
+		require.NoError(t, err)
+
 		require.NoError(t, os.WriteFile(
 			alternatesPath,
-			[]byte(filepath.Join(poolPath, "objects")),
+			[]byte(alternatesContent),
 			perm.PrivateFile,
 		))
 		require.NoError(t, os.Chtimes(alternatesPath, date, date))

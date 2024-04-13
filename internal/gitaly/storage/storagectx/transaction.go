@@ -2,10 +2,12 @@ package storagectx
 
 import (
 	"context"
+	"errors"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
+	grpc_metadata "google.golang.org/grpc/metadata"
 )
 
 // Transaction is the interface of the storagemgr.Transaction accessible through the context.
@@ -38,4 +40,36 @@ func RunWithTransaction(ctx context.Context, callback func(tx Transaction)) {
 	}
 
 	callback(value.(Transaction))
+}
+
+const keyPartitioningHint = "gitaly-partitioning-hint"
+
+// SetPartitioningHintToIncomingContext stores the relativePath as a partitioning hint into the incoming
+// gRPC metadata in the context.
+func SetPartitioningHintToIncomingContext(ctx context.Context, relativePath string) context.Context {
+	md, ok := grpc_metadata.FromIncomingContext(ctx)
+	if !ok {
+		md = grpc_metadata.New(nil)
+	} else {
+		md = md.Copy()
+	}
+	md.Set(keyPartitioningHint, relativePath)
+
+	return grpc_metadata.NewIncomingContext(ctx, md)
+}
+
+// ExtractPartitioningHintFromIncomingContext extracts the partitioning hint from the outgoing gRPC
+// metadata in the context. Empty string is returned if no partitoning hint was provided.
+func ExtractPartitioningHintFromIncomingContext(ctx context.Context) (string, error) {
+	relativePaths := grpc_metadata.ValueFromIncomingContext(ctx, keyPartitioningHint)
+	if len(relativePaths) > 1 {
+		return "", errors.New("multiple partitioning hints")
+	}
+
+	if len(relativePaths) == 0 {
+		// No partitioning hint was set.
+		return "", nil
+	}
+
+	return relativePaths[0], nil
 }

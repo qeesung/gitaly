@@ -30,6 +30,8 @@ var (
 	// ErrRepositoriesInDifferentStorages is returned when trying to access two repositories in different storages in the
 	// same transaction.
 	ErrRepositoriesInDifferentStorages = structerr.NewInvalidArgument("additional and target repositories are in different storages")
+	// ErrPartitioningHintAndAdditionalRepoProvided is raised when both an partitioning hint is provided with an additional repository.
+	ErrPartitioningHintAndAdditionalRepoProvided = structerr.NewInvalidArgument("both partitioning hint and additional repository were provided")
 )
 
 // NonTransactionalRPCs are the RPCs that do not support transactions.
@@ -70,6 +72,16 @@ var NonTransactionalRPCs = map[string]struct{}{
 	"/gitaly.RepositoryService/PruneUnreachableObjects": {},
 }
 
+// repositoryCreatingRPCs are all of the RPCs that may create a repository.
+var repositoryCreatingRPCs = map[string]struct{}{
+	"/gitaly.ObjectPoolService/CreateObjectPool":             {},
+	"/gitaly.RepositoryService/CreateFork":                   {},
+	"/gitaly.RepositoryService/CreateRepository":             {},
+	"/gitaly.RepositoryService/CreateRepositoryFromURL":      {},
+	"/gitaly.RepositoryService/CreateRepositoryFromBundle":   {},
+	"/gitaly.RepositoryService/CreateRepositoryFromSnapshot": {},
+}
+
 // NewUnaryInterceptor returns an unary interceptor that manages a unary RPC's transaction. It starts a transaction
 // on the target repository of the request and rewrites the request to point to the transaction's snapshot repository.
 // The transaction is committed if the handler doesn't return an error and rolled back otherwise.
@@ -86,6 +98,19 @@ func NewUnaryInterceptor(logger log.Logger, registry *protoregistry.Registry, tx
 
 		txReq, err := transactionalizeRequest(ctx, logger, txRegistry, mgr, locator, methodInfo, req.(proto.Message))
 		if err != nil {
+			// Beginning a transaction fails if a repository is not yet assigned into a partition, and the repository does not exist
+			// on the disk. As RepositoryExists may be used to check the existence of repositories before they've been assigned into
+			// a partition, the RPC would fail with a 'not found'. The RPC's interface however is a successful response with a boolean
+			// flag indicating whether or not the repository exists. Match that interface here if this is a RepositoryExists call.
+			//
+			// We can't delegate the handling to the `RepositoryExists` handler using a transaction as we have no partition to begin the
+			// transaction against. Running the handler non-transactionally could lead to racy access if someone else concurrently creates
+			// the repository as the non-transactional `RepositoryExists` would be concurrently accessing the state the newly created repository's
+			// partition's TransactionManager would be writing to.
+			if errors.Is(err, storage.ErrRepositoryNotFound) && methodInfo.FullMethodName() == "/gitaly.RepositoryService/RepositoryExists" {
+				return &gitalypb.RepositoryExistsResponse{}, nil
+			}
+
 			return nil, err
 		}
 		defer func() { returnedErr = txReq.finishTransaction(returnedErr) }()
@@ -254,6 +279,31 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 		return transactionalizedRequest{}, err
 	}
 
+	var (
+		alternateStorageName  string
+		alternateRelativePath string
+	)
+	if hint, err := storagectx.ExtractPartitioningHintFromIncomingContext(ctx); err != nil {
+		return transactionalizedRequest{}, fmt.Errorf("extract partitioning hint: %w", err)
+	} else if hint != "" {
+		// In some cases a repository needs to be partitioned with a repository that isn't set as an additional
+		// repository in the request. If so, a partitioning hint is sent through the gRPC metadata to provide
+		// the relative path of the repository the target repository should be partitioned with.
+		alternateStorageName = targetRepo.StorageName
+		alternateRelativePath = hint
+	} else if req, ok := req.(*gitalypb.CreateForkRequest); ok {
+		// We use the source repository of a CreateForkRequest implicitly as a partitioning hint as we know the source
+		// repository and the fork must be placed in the same partition in order to join them to the same pool. Source
+		// repository is not marked as an additional repository so it doesn't get rewritten by Praefect. The original
+		// form is needed in the handler as Gitaly fetches the source repository through Praefect's API which needs
+		// the original repository to route the request correctly.
+		//
+		// The implicit hinting here avoids having to add hints at every callsite. We only do this if no explicit
+		// partitioning hint was provided as Praefect provides an explicit hint with CreateForkRequest.
+		alternateStorageName = req.GetSourceRepository().GetStorageName()
+		alternateRelativePath = req.GetSourceRepository().GetRelativePath()
+	}
+
 	// Object pools need to be placed in the same partition as their members. Below we figure out which repository,
 	// if any, the target repository of the RPC must be partitioned with. We figure this out using two strategies:
 	//
@@ -266,27 +316,51 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 	// link it with the object pool later. The source repository is not tagged as additional repository in the
 	// CreateForkRequest. If the request is CreateForkRequest, we extract the source repository and partition the
 	// fork with it.
-	var additionalRepo *gitalypb.Repository
-	if additionalRepo, err = methodInfo.AdditionalRepo(req); err != nil {
+	if additionalRepo, err := methodInfo.AdditionalRepo(req); err != nil {
 		if !errors.Is(err, protoregistry.ErrRepositoryFieldNotFound) {
 			return transactionalizedRequest{}, fmt.Errorf("extract additional repository: %w", err)
 		}
 
 		// There was no additional repository.
+	} else {
+		if alternateRelativePath != "" {
+			return transactionalizedRequest{}, ErrPartitioningHintAndAdditionalRepoProvided
+		}
+
+		alternateStorageName = additionalRepo.StorageName
+		alternateRelativePath = additionalRepo.RelativePath
 	}
 
-	if req, ok := req.(*gitalypb.CreateForkRequest); ok {
-		additionalRepo = req.GetSourceRepository()
-	}
-
-	if additionalRepo != nil && additionalRepo.StorageName != targetRepo.StorageName {
+	if alternateStorageName != "" && alternateStorageName != targetRepo.StorageName {
 		return transactionalizedRequest{}, ErrRepositoriesInDifferentStorages
 	}
 
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.transactionalizeRequest", nil)
 
-	tx, err := mgr.Begin(ctx, targetRepo.StorageName, targetRepo.RelativePath, additionalRepo.GetRelativePath(), methodInfo.Operation == protoregistry.OpAccessor)
+	// Begin fails when attempting to access a repository that doesn't exist and doesn't have a partition
+	// assignment yet. Repository creating RPCs are an exception and are allowed to create the partition
+	// assignment so the transaction can begin, and the repository can be created. The partition assignments
+	// are created before the repository is created and are thus not atomic. Failed creations may leave stale
+	// partition assignments in the key-value store. We'll later make the repository and partition assignment
+	// creations atomic.
+	//
+	// See issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5957
+	_, isRepositoryCreation := repositoryCreatingRPCs[methodInfo.FullMethodName()]
+
+	tx, err := mgr.Begin(ctx, targetRepo.StorageName, targetRepo.RelativePath, TransactionOptions{
+		ReadOnly:              methodInfo.Operation == protoregistry.OpAccessor,
+		AlternateRelativePath: alternateRelativePath,
+		AllowPartitionAssignmentWithoutRepository: isRepositoryCreation,
+	})
 	if err != nil {
+		var relativePath relativePathNotFoundError
+		if errors.As(err, &relativePath) {
+			// The partition assigner does not have the storage available and returns thus just an error with the
+			// relative path. Convert the error to the usual repository not found error that the RPCs are returning
+			// to conform to the API.
+			return transactionalizedRequest{}, storage.NewRepositoryNotFoundError(targetRepo.StorageName, string(relativePath))
+		}
+
 		return transactionalizedRequest{}, fmt.Errorf("begin transaction: %w", err)
 	}
 	ctx = storagectx.ContextWithTransaction(ctx, tx)

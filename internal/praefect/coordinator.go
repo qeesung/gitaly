@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/metadata"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/protoregistry"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/proxy"
@@ -370,6 +371,12 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		// the latter case is fine, too, given that the additional repository may be an
 		// optional field for some RPC calls. The Gitaly-side RPC handlers should know to
 		// handle this case anyway, so we just leave the field unset in that case.
+
+		if call.methodInfo.FullMethodName() == "/gitaly.RepositoryService/CreateFork" {
+			// The source repository is not marked as an additional repository so extract it manually.
+			// Gitaly needs the rewritten relative path as a partitioning hint.
+			additionalRepoRelativePath = call.msg.(*gitalypb.CreateForkRequest).GetSourceRepository().GetRelativePath()
+		}
 	} else if err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	} else {
@@ -423,6 +430,18 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 	primaryMessage, err := rewrittenRepositoryMessage(call.methodInfo, call.msg, route.Primary.Storage, route.ReplicaPath, route.AdditionalReplicaPath)
 	if err != nil {
 		return nil, fmt.Errorf("mutator call: rewrite storage: %w", err)
+	}
+
+	if call.methodInfo.FullMethodName() == "/gitaly.RepositoryService/CreateFork" {
+		// The source repository itself is not rewritten by Praefect as the Gitaly processing the request
+		// fetches the origin repository through Praefect's API. That requires the relative path to be in
+		// its original form so Praefect can route it correctly. Gitaly's transactions require the fork and
+		// the source repository to be in the same partition. As the Gitaly has both of the repositories
+		// stored on the disk at the rewritten paths, Gitaly needs the rewritten path to identify the source
+		// repository on the disk and place the fork in the same partition with it.
+		//
+		// Send the rewritten path as partitioning hint to Gitaly.
+		ctx = storagectx.SetPartitioningHintToIncomingContext(ctx, route.AdditionalReplicaPath)
 	}
 
 	var finalizers []func() error

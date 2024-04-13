@@ -129,7 +129,7 @@ func (o *ObjectPool) executeMaybeWithTransaction(ctx context.Context, origin *lo
 	if partitionManager == nil {
 		return execute(origin)
 	}
-	transaction, err := partitionManager.Begin(ctx, origin.GetStorageName(), origin.GetRelativePath(), "", false)
+	transaction, err := partitionManager.Begin(ctx, origin.GetStorageName(), origin.GetRelativePath(), storagemgr.TransactionOptions{})
 	if err != nil {
 		return fmt.Errorf("fail to initiate WAL transaction: %w", err)
 	}

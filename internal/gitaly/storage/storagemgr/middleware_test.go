@@ -117,6 +117,7 @@ messages and behavior by erroring out the requests before they even hit this int
 	for _, tc := range []struct {
 		desc                       string
 		repository                 *gitalypb.Repository
+		repositoryCreation         bool
 		performRequest             func(*testing.T, context.Context, *grpc.ClientConn)
 		assertAdditionalRepository func(*testing.T, context.Context, *gitalypb.Repository)
 		handlerError               error
@@ -402,17 +403,18 @@ messages and behavior by erroring out the requests before they even hit this int
 			expectHandlerInvoked: true,
 		},
 		{
-			desc: "successful CreateFork request",
+			desc:               "successful CreateFork request",
+			repositoryCreation: true,
 			performRequest: func(t *testing.T, ctx context.Context, cc *grpc.ClientConn) {
 				resp, err := gitalypb.NewRepositoryServiceClient(cc).CreateFork(ctx, &gitalypb.CreateForkRequest{
-					Repository:       validAdditionalRepository(),
-					SourceRepository: validRepository(),
+					Repository:       validRepository(),
+					SourceRepository: validAdditionalRepository(),
 				})
 				require.NoError(t, err)
 				testhelper.ProtoEqual(t, &gitalypb.CreateForkResponse{}, resp)
 			},
 			assertAdditionalRepository: func(t *testing.T, ctx context.Context, actual *gitalypb.Repository) {
-				testhelper.ProtoEqual(t, validRepository(), actual)
+				testhelper.ProtoEqual(t, validAdditionalRepository(), actual)
 			},
 			expectHandlerInvoked: true,
 		},
@@ -435,9 +437,17 @@ messages and behavior by erroring out the requests before they even hit this int
 			cfg := testcfg.Build(t)
 
 			ctx := testhelper.Context(t)
+
+			if !tc.repositoryCreation {
+				gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+					SkipCreationViaService: true,
+					RelativePath:           validRepository().RelativePath,
+				})
+			}
+
 			gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 				SkipCreationViaService: true,
-				RelativePath:           validRepository().RelativePath,
+				RelativePath:           validAdditionalRepository().RelativePath,
 			})
 
 			txRegistry := storagemgr.NewTransactionRegistry()

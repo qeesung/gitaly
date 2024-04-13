@@ -359,17 +359,24 @@ func stagingDirectoryPath(storagePath string) string {
 	return filepath.Join(storagePath, "staging")
 }
 
+// TransactionOptions are used to pass transaction options into Begin.
+type TransactionOptions struct {
+	// ReadOnly indicates whether this is a read-only transaction. Read-only transactions are not
+	// configured with a quarantine directory and do not commit a log entry.
+	ReadOnly bool
+	// AlternateRelativePath specifies a repository to include in the transaction's snapshot as well.
+	AlternateRelativePath string
+	// AllowPartitionAssignmentWithoutRepository determines whether a partition assignment should be
+	// written out even if repository does not exist.
+	AllowPartitionAssignmentWithoutRepository bool
+}
+
 // Begin gets the TransactionManager for the specified repository and starts a transaction. If a
 // TransactionManager is not already running, a new one is created and used. The partition tracks
 // the number of pending transactions and this counter gets incremented when Begin is invoked.
 //
 // storageName and relativePath specify the target repository to begin a transaction against.
-//
-// alternateRelativePath specifies a repository to include in the transaction's snapshot as well.
-//
-// readOnly indicates whether this is a read-only transaction. Read-only transactions are not
-// configured with a quarantine directory and do not commit a log entry.
-func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath, alternateRelativePath string, readOnly bool) (*finalizableTransaction, error) {
+func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath string, opts TransactionOptions) (*finalizableTransaction, error) {
 	storageMgr, ok := pm.storages[storageName]
 	if !ok {
 		return nil, structerr.NewNotFound("unknown storage: %q", storageName)
@@ -380,7 +387,7 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 		return nil, structerr.NewInvalidArgument("validate relative path: %w", err)
 	}
 
-	partitionID, err := storageMgr.partitionAssigner.getPartitionID(ctx, relativePath, alternateRelativePath)
+	partitionID, err := storageMgr.partitionAssigner.getPartitionID(ctx, relativePath, opts.AlternateRelativePath, opts.AllowPartitionAssignmentWithoutRepository)
 	if err != nil {
 		if errors.Is(err, badger.ErrDBClosed) {
 			// The database is closed when PartitionManager is closing. Return a more
@@ -480,11 +487,11 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 		storageMgr.mu.Unlock()
 
 		var snapshottedRelativePaths []string
-		if alternateRelativePath != "" {
-			snapshottedRelativePaths = []string{alternateRelativePath}
+		if opts.AlternateRelativePath != "" {
+			snapshottedRelativePaths = []string{opts.AlternateRelativePath}
 		}
 
-		transaction, err := ptn.transactionManager.Begin(ctx, relativePath, snapshottedRelativePaths, readOnly)
+		transaction, err := ptn.transactionManager.Begin(ctx, relativePath, snapshottedRelativePaths, opts.ReadOnly)
 		if err != nil {
 			// The pending transaction count needs to be decremented since the transaction is no longer
 			// inflight. A transaction failing does not necessarily mean the transaction manager has
