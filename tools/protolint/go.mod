@@ -4,7 +4,7 @@ go 1.21
 
 toolchain go1.21.0
 
-require github.com/yoheimuta/protolint v0.49.4
+require github.com/yoheimuta/protolint v0.49.6
 
 require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
@@ -21,7 +21,7 @@ require (
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/oklog/run v1.1.0 // indirect
-	github.com/yoheimuta/go-protoparser/v4 v4.9.0 // indirect
+	github.com/yoheimuta/go-protoparser/v4 v4.10.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
