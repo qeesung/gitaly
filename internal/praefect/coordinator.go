@@ -82,7 +82,6 @@ var transactionRPCs = map[string]transactionsCondition{
 	"/gitaly.RepositoryService/RestoreCustomHooks":           transactionsEnabled,
 	"/gitaly.RepositoryService/RestoreRepository":            transactionsEnabled,
 	"/gitaly.RepositoryService/SetCustomHooks":               transactionsEnabled,
-	"/gitaly.RepositoryService/SetFullPath":                  transactionsEnabled,
 	"/gitaly.RepositoryService/WriteRef":                     transactionsEnabled,
 	"/gitaly.SSHService/SSHReceivePack":                      transactionsEnabled,
 	"/gitaly.SmartHTTPService/PostReceivePack":               transactionsEnabled,

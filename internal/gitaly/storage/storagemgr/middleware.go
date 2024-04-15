@@ -59,9 +59,6 @@ var NonTransactionalRPCs = map[string]struct{}{
 	// Attributes are going to be read from HEAD. Writing out a separate attributes file
 	// won't be supported.
 	"/gitaly.RepositoryService/ApplyGitattributes": {},
-	// SetFullPath writes the full path into git config and is the last RPC that writes into the
-	// git config. Writing into the config won't be supported.
-	"/gitaly.RepositoryService/SetFullPath": {},
 
 	// FetchIntoObjectPool manages the life-cycle of WAL transaction itself.
 	"/gitaly.ObjectPool/FetchIntoObjectPool": {},

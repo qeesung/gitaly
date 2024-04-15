@@ -362,26 +362,6 @@ service RepositoryService {
     };
   }
 
-  // SetFullPath writes the "gitlab.fullpath" configuration into the
-  // repository's gitconfig. This is mainly to help debugging purposes in case
-  // an admin inspects the repository's gitconfig such that he can easily see
-  // what the repository name is.
-  rpc SetFullPath(SetFullPathRequest) returns (SetFullPathResponse) {
-    option deprecated = true;
-    option (op_type)  = {
-      op: MUTATOR
-    };
-  }
-
-  // FullPath reads the "gitlab.fullpath" configuration from the repository's
-  // gitconfig. Returns an error in case the full path has not been configured.
-  rpc FullPath(FullPathRequest) returns (FullPathResponse) {
-    option deprecated = true;
-    option (op_type) = {
-      op: ACCESSOR
-    };
-  }
-
   // RemoveAll deletes all repositories on a specified storage.
   // Deprecated in favour of individually removing repositories with RemoveRepository.
   rpc RemoveAll(RemoveAllRequest) returns (RemoveAllResponse) {
@@ -1256,30 +1236,6 @@ message PruneUnreachableObjectsRequest {
 // PruneUnreachableObjectsResponse is a response for the
 // PruneUnreachableObjects RPC call.
 message PruneUnreachableObjectsResponse {
-}
-
-// SetFullPathRequest is a request for the SetFullPath RPC.
-message SetFullPathRequest {
-  // repository is the repository whose gitconfig should be written to.
-  Repository repository = 1 [(target_repository)=true];
-  // path is the path that shall be written into the "gitlab.fullpath" config key.
-  string path = 2;
-}
-
-// SetFullPathResponse is a response fqor the SetFullPath RPC.
-message SetFullPathResponse {
-}
-
-// FullPathRequest is a request for the FullPath RPC.
-message FullPathRequest {
-  // repository is the repository whose gitconfig should be read.
-  Repository repository = 1 [(target_repository)=true];
-}
-
-// FullPathResponse is a response for the SetFullPath RPC.
-message FullPathResponse {
-  // path read from the "gitlab.fullpath" config key.
-  string path = 1;
 }
 
 // RemoveAllRequest is a request for the RemoveAll RPC.

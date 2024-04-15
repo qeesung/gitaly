@@ -57,8 +57,6 @@ const (
 	RepositoryService_ReplicateRepository_FullMethodName          = "/gitaly.RepositoryService/ReplicateRepository"
 	RepositoryService_OptimizeRepository_FullMethodName           = "/gitaly.RepositoryService/OptimizeRepository"
 	RepositoryService_PruneUnreachableObjects_FullMethodName      = "/gitaly.RepositoryService/PruneUnreachableObjects"
-	RepositoryService_SetFullPath_FullMethodName                  = "/gitaly.RepositoryService/SetFullPath"
-	RepositoryService_FullPath_FullMethodName                     = "/gitaly.RepositoryService/FullPath"
 	RepositoryService_RemoveAll_FullMethodName                    = "/gitaly.RepositoryService/RemoveAll"
 	RepositoryService_BackupRepository_FullMethodName             = "/gitaly.RepositoryService/BackupRepository"
 	RepositoryService_RestoreRepository_FullMethodName            = "/gitaly.RepositoryService/RestoreRepository"
@@ -231,16 +229,6 @@ type RepositoryServiceClient interface {
 	// to make proper use of this RPC you thus need to call OptimizeRepository,
 	// wait 30 minutes, and then call PruneUnreachableObjects.
 	PruneUnreachableObjects(ctx context.Context, in *PruneUnreachableObjectsRequest, opts ...grpc.CallOption) (*PruneUnreachableObjectsResponse, error)
-	// Deprecated: Do not use.
-	// SetFullPath writes the "gitlab.fullpath" configuration into the
-	// repository's gitconfig. This is mainly to help debugging purposes in case
-	// an admin inspects the repository's gitconfig such that he can easily see
-	// what the repository name is.
-	SetFullPath(ctx context.Context, in *SetFullPathRequest, opts ...grpc.CallOption) (*SetFullPathResponse, error)
-	// Deprecated: Do not use.
-	// FullPath reads the "gitlab.fullpath" configuration from the repository's
-	// gitconfig. Returns an error in case the full path has not been configured.
-	FullPath(ctx context.Context, in *FullPathRequest, opts ...grpc.CallOption) (*FullPathResponse, error)
 	// Deprecated: Do not use.
 	// RemoveAll deletes all repositories on a specified storage.
 	// Deprecated in favour of individually removing repositories with RemoveRepository.
@@ -989,26 +977,6 @@ func (c *repositoryServiceClient) PruneUnreachableObjects(ctx context.Context, i
 }
 
 // Deprecated: Do not use.
-func (c *repositoryServiceClient) SetFullPath(ctx context.Context, in *SetFullPathRequest, opts ...grpc.CallOption) (*SetFullPathResponse, error) {
-	out := new(SetFullPathResponse)
-	err := c.cc.Invoke(ctx, RepositoryService_SetFullPath_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// Deprecated: Do not use.
-func (c *repositoryServiceClient) FullPath(ctx context.Context, in *FullPathRequest, opts ...grpc.CallOption) (*FullPathResponse, error) {
-	out := new(FullPathResponse)
-	err := c.cc.Invoke(ctx, RepositoryService_FullPath_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// Deprecated: Do not use.
 func (c *repositoryServiceClient) RemoveAll(ctx context.Context, in *RemoveAllRequest, opts ...grpc.CallOption) (*RemoveAllResponse, error) {
 	out := new(RemoveAllResponse)
 	err := c.cc.Invoke(ctx, RepositoryService_RemoveAll_FullMethodName, in, out, opts...)
@@ -1212,16 +1180,6 @@ type RepositoryServiceServer interface {
 	// wait 30 minutes, and then call PruneUnreachableObjects.
 	PruneUnreachableObjects(context.Context, *PruneUnreachableObjectsRequest) (*PruneUnreachableObjectsResponse, error)
 	// Deprecated: Do not use.
-	// SetFullPath writes the "gitlab.fullpath" configuration into the
-	// repository's gitconfig. This is mainly to help debugging purposes in case
-	// an admin inspects the repository's gitconfig such that he can easily see
-	// what the repository name is.
-	SetFullPath(context.Context, *SetFullPathRequest) (*SetFullPathResponse, error)
-	// Deprecated: Do not use.
-	// FullPath reads the "gitlab.fullpath" configuration from the repository's
-	// gitconfig. Returns an error in case the full path has not been configured.
-	FullPath(context.Context, *FullPathRequest) (*FullPathResponse, error)
-	// Deprecated: Do not use.
 	// RemoveAll deletes all repositories on a specified storage.
 	// Deprecated in favour of individually removing repositories with RemoveRepository.
 	RemoveAll(context.Context, *RemoveAllRequest) (*RemoveAllResponse, error)
@@ -1355,12 +1313,6 @@ func (UnimplementedRepositoryServiceServer) OptimizeRepository(context.Context, 
 }
 func (UnimplementedRepositoryServiceServer) PruneUnreachableObjects(context.Context, *PruneUnreachableObjectsRequest) (*PruneUnreachableObjectsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PruneUnreachableObjects not implemented")
-}
-func (UnimplementedRepositoryServiceServer) SetFullPath(context.Context, *SetFullPathRequest) (*SetFullPathResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetFullPath not implemented")
-}
-func (UnimplementedRepositoryServiceServer) FullPath(context.Context, *FullPathRequest) (*FullPathResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method FullPath not implemented")
 }
 func (UnimplementedRepositoryServiceServer) RemoveAll(context.Context, *RemoveAllRequest) (*RemoveAllResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveAll not implemented")
@@ -2149,42 +2101,6 @@ func _RepositoryService_PruneUnreachableObjects_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RepositoryService_SetFullPath_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetFullPathRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepositoryServiceServer).SetFullPath(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RepositoryService_SetFullPath_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepositoryServiceServer).SetFullPath(ctx, req.(*SetFullPathRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RepositoryService_FullPath_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FullPathRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepositoryServiceServer).FullPath(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RepositoryService_FullPath_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepositoryServiceServer).FullPath(ctx, req.(*FullPathRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _RepositoryService_RemoveAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RemoveAllRequest)
 	if err := dec(in); err != nil {
@@ -2351,14 +2267,6 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PruneUnreachableObjects",
 			Handler:    _RepositoryService_PruneUnreachableObjects_Handler,
-		},
-		{
-			MethodName: "SetFullPath",
-			Handler:    _RepositoryService_SetFullPath_Handler,
-		},
-		{
-			MethodName: "FullPath",
-			Handler:    _RepositoryService_FullPath_Handler,
 		},
 		{
 			MethodName: "RemoveAll",
