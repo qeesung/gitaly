@@ -286,8 +286,8 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	// Globably disable autocrlf config in git.
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.AutocrlfConfig, true)
 
-	// Randomly enable either Git v2.43 or Git v2.44
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV244, rnd.Int()%2 == 0)
+	// Always enable Git v2.44 as we depend on functionality patched in there for transactions.
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV244, true)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)

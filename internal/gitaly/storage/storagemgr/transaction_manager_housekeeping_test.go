@@ -1915,6 +1915,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							Packfiles: []*PackfileState{
 								{
 									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.Third.OID,
 									},
 									HasReverseIndex: true,
@@ -2010,6 +2011,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 								{
 									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
 										setup.Commits.Third.OID,
 									},
 									HasReverseIndex: true,
@@ -2197,18 +2199,21 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 								{
 									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.Diverging.OID,
 									},
 									HasReverseIndex: true,
 								},
 								{
 									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.Third.OID,
 									},
 									HasReverseIndex: true,
 								},
 								{
 									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.Second.OID,
 									},
 									HasReverseIndex: true,
@@ -2590,6 +2595,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 								{
 									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.Second.OID,
 									},
 									HasReverseIndex: true,
@@ -2822,7 +2828,9 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					},
 					QuarantinedPacks: [][]byte{
 						setup.Commits.Third.Pack,
+						setup.Commits.Diverging.Pack,
 					},
+					IncludeObjects: []git.ObjectID{setup.Commits.Diverging.OID},
 				},
 				Begin{
 					TransactionID:       5,
@@ -2870,6 +2878,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 								{
 									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.Second.OID,
 									},
 									HasReverseIndex: true,
@@ -2888,23 +2897,23 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 					"member": {
 						Packfiles: &PackfilesState{
 							LooseObjects: nil,
+							PooledObjects: []git.ObjectID{
+								setup.ObjectHash.EmptyTreeOID,
+								setup.Commits.First.OID,
+								// The geometric repack triggered merging of the packs
+								// produced by transactions 3 and 4. While they were rewritten,
+								// the objects in the alternate were deduplicated from the member.
+								setup.Commits.Second.OID,
+							},
 							Packfiles: []*PackfileState{
-								// This packfile matches the quarantined pack of
-								// transaction 3. Geometric repacking does not
-								// deduplicate second commit.
 								{
 									Objects: []git.ObjectID{
-										setup.ObjectHash.EmptyTreeOID,
-										setup.Commits.First.OID,
-										setup.Commits.Second.OID,
-									},
-									HasReverseIndex: true,
-								},
-								// This packfile matches the quarantined pack of
-								// transaction 4.
-								{
-									Objects: []git.ObjectID{
+										// This commit isn't present in the pool and was thus left
+										// in the member itself.
 										setup.Commits.Third.OID,
+										// This commit is unreachable. Geometric repacking does not
+										// prune unreachable objects.
+										setup.Commits.Diverging.OID,
 									},
 									HasReverseIndex: true,
 								},
@@ -3017,6 +3026,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 								},
 								{
 									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.Second.OID,
 									},
 									HasReverseIndex: true,
@@ -3489,6 +3499,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 								},
 								{
 									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
 										setup.Commits.Third.OID,
 									},
 									HasReverseIndex: true,

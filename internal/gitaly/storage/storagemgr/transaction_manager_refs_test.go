@@ -7,6 +7,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 )
@@ -306,10 +307,7 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					ReferenceUpdates: ReferenceUpdates{
 						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
 					},
-					ExpectedError: updateref.NonExistentObjectError{
-						ReferenceName: "refs/heads/main",
-						ObjectID:      setup.Commits.First.OID.String(),
-					},
+					ExpectedError: localrepo.InvalidObjectError(setup.Commits.First.OID),
 				},
 			},
 			expectedState: StateAssertion{
