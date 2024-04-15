@@ -877,7 +877,7 @@ func testResolveConflicts(t *testing.T, ctx context.Context) {
 					requestsFilesJSON: []*gitalypb.ResolveConflictsRequest_FilesJson{
 						{FilesJson: filesJSON},
 					},
-					expectedError:   structerr.NewInternal(`resolve: parse conflict for "a": unexpected conflict delimiter`),
+					expectedError:   structerr.NewInvalidArgument(`resolve: parse conflict for "a": unexpected conflict delimiter`),
 					skipCommitCheck: true,
 				}
 			},
