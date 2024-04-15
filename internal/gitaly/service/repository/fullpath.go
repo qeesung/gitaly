@@ -17,6 +17,10 @@ func (s *server) SetFullPath(
 	ctx context.Context,
 	request *gitalypb.SetFullPathRequest,
 ) (*gitalypb.SetFullPathResponse, error) {
+	if s.walPartitionManager != nil {
+		return nil, structerr.NewUnimplemented("SetFullPath RPC is not supported by WAL")
+	}
+
 	repository := request.GetRepository()
 	if err := s.locator.ValidateRepository(repository); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)

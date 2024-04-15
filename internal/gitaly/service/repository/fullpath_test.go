@@ -28,8 +28,13 @@ func TestSetFullPath(t *testing.T) {
 			Repository: nil,
 			Path:       "my/repo",
 		})
+
 		require.Nil(t, response)
-		testhelper.RequireGrpcError(t, structerr.NewInvalidArgument("%w", storage.ErrRepositoryNotSet), err)
+		if testhelper.IsWALEnabled() {
+			testhelper.RequireGrpcError(t, structerr.NewUnimplemented("SetFullPath RPC is not supported by WAL"), err)
+		} else {
+			testhelper.RequireGrpcError(t, structerr.NewInvalidArgument("%w", storage.ErrRepositoryNotSet), err)
+		}
 	})
 
 	t.Run("missing path", func(t *testing.T) {
@@ -40,7 +45,11 @@ func TestSetFullPath(t *testing.T) {
 			Path:       "",
 		})
 		require.Nil(t, response)
-		testhelper.RequireGrpcError(t, structerr.NewInvalidArgument("no path provided"), err)
+		if testhelper.IsWALEnabled() {
+			testhelper.RequireGrpcError(t, structerr.NewUnimplemented("SetFullPath RPC is not supported by WAL"), err)
+		} else {
+			testhelper.RequireGrpcError(t, structerr.NewInvalidArgument("no path provided"), err)
+		}
 	})
 
 	t.Run("invalid storage", func(t *testing.T) {
@@ -68,9 +77,14 @@ func TestSetFullPath(t *testing.T) {
 			Path:       "my/repo",
 		})
 		require.Nil(t, response)
-		testhelper.RequireGrpcError(t, testhelper.ToInterceptedMetadata(
-			structerr.New("%w", storage.NewRepositoryNotFoundError(repo.StorageName, repo.RelativePath)),
-		), err)
+
+		if testhelper.IsWALEnabled() {
+			testhelper.RequireGrpcError(t, structerr.NewUnimplemented("SetFullPath RPC is not supported by WAL"), err)
+		} else {
+			testhelper.RequireGrpcError(t, testhelper.ToInterceptedMetadata(
+				structerr.New("%w", storage.NewRepositoryNotFoundError(repo.StorageName, repo.RelativePath)),
+			), err)
+		}
 	})
 
 	t.Run("normal repo", func(t *testing.T) {
@@ -80,11 +94,15 @@ func TestSetFullPath(t *testing.T) {
 			Repository: repo,
 			Path:       "foo/bar",
 		})
-		require.NoError(t, err)
-		testhelper.ProtoEqual(t, &gitalypb.SetFullPathResponse{}, response)
+		if testhelper.IsWALEnabled() {
+			testhelper.RequireGrpcError(t, structerr.NewUnimplemented("SetFullPath RPC is not supported by WAL"), err)
+		} else {
+			require.NoError(t, err)
+			testhelper.ProtoEqual(t, &gitalypb.SetFullPathResponse{}, response)
 
-		fullPath := gittest.Exec(t, cfg, "-C", repoPath, "config", fullPathKey)
-		require.Equal(t, "foo/bar", text.ChompBytes(fullPath))
+			fullPath := gittest.Exec(t, cfg, "-C", repoPath, "config", fullPathKey)
+			require.Equal(t, "foo/bar", text.ChompBytes(fullPath))
+		}
 	})
 
 	t.Run("missing config", func(t *testing.T) {
@@ -97,11 +115,16 @@ func TestSetFullPath(t *testing.T) {
 			Repository: repo,
 			Path:       "foo/bar",
 		})
-		require.NoError(t, err)
-		testhelper.ProtoEqual(t, &gitalypb.SetFullPathResponse{}, response)
 
-		fullPath := gittest.Exec(t, cfg, "-C", repoPath, "config", fullPathKey)
-		require.Equal(t, "foo/bar", text.ChompBytes(fullPath))
+		if testhelper.IsWALEnabled() {
+			testhelper.RequireGrpcError(t, structerr.NewUnimplemented("SetFullPath RPC is not supported by WAL"), err)
+		} else {
+			require.NoError(t, err)
+			testhelper.ProtoEqual(t, &gitalypb.SetFullPathResponse{}, response)
+
+			fullPath := gittest.Exec(t, cfg, "-C", repoPath, "config", fullPathKey)
+			require.Equal(t, "foo/bar", text.ChompBytes(fullPath))
+		}
 	})
 
 	t.Run("multiple times", func(t *testing.T) {
@@ -112,12 +135,18 @@ func TestSetFullPath(t *testing.T) {
 				Repository: repo,
 				Path:       fmt.Sprintf("foo/%d", i),
 			})
-			require.NoError(t, err)
-			testhelper.ProtoEqual(t, &gitalypb.SetFullPathResponse{}, response)
+			if testhelper.IsWALEnabled() {
+				testhelper.RequireGrpcError(t, structerr.NewUnimplemented("SetFullPath RPC is not supported by WAL"), err)
+			} else {
+				require.NoError(t, err)
+				testhelper.ProtoEqual(t, &gitalypb.SetFullPathResponse{}, response)
+			}
 		}
 
-		fullPath := gittest.Exec(t, cfg, "-C", repoPath, "config", "--get-all", fullPathKey)
-		require.Equal(t, "foo/4", text.ChompBytes(fullPath))
+		if !testhelper.IsWALEnabled() {
+			fullPath := gittest.Exec(t, cfg, "-C", repoPath, "config", "--get-all", fullPathKey)
+			require.Equal(t, "foo/4", text.ChompBytes(fullPath))
+		}
 	})
 
 	t.Run("multiple preexisting paths", func(t *testing.T) {
@@ -131,11 +160,16 @@ func TestSetFullPath(t *testing.T) {
 			Repository: repo,
 			Path:       "replace",
 		})
-		require.NoError(t, err)
-		testhelper.ProtoEqual(t, &gitalypb.SetFullPathResponse{}, response)
 
-		fullPath := gittest.Exec(t, cfg, "-C", repoPath, "config", "--get-all", fullPathKey)
-		require.Equal(t, "replace", text.ChompBytes(fullPath))
+		if testhelper.IsWALEnabled() {
+			testhelper.RequireGrpcError(t, structerr.NewUnimplemented("SetFullPath RPC is not supported by WAL"), err)
+		} else {
+			require.NoError(t, err)
+			testhelper.ProtoEqual(t, &gitalypb.SetFullPathResponse{}, response)
+
+			fullPath := gittest.Exec(t, cfg, "-C", repoPath, "config", "--get-all", fullPathKey)
+			require.Equal(t, "replace", text.ChompBytes(fullPath))
+		}
 	})
 }
 
