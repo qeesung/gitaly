@@ -91,6 +91,10 @@ func DefaultStaleDataCleanup() CleanStaleDataConfig {
 		},
 		RepoCleanupWithTxManagers: map[string]cleanupRepoWithTxManagerFunc{
 			"configkeys": removeUnnecessaryConfig,
+			// Gitaly used to set `gitlab.fullpath` via the SetFullPath RPC.
+			// That RPC was removed in https://gitlab.com/groups/gitlab-org/-/epics/8953. This housekeeping
+			// task removes the now unused repository config entry.
+			"configfullpath": removeGitLabFullPathConfig,
 		},
 	}
 }
@@ -465,7 +469,7 @@ func removeUnnecessaryConfig(ctx context.Context, repository *localrepo.Repo, tx
 	unnecessaryConfigRegex := "^(http\\..+\\.extraheader|remote\\..+\\.(fetch|mirror|prune|url)|core\\.(commitgraph|sparsecheckout|splitindex))$"
 	if err := repository.UnsetMatchingConfig(ctx, unnecessaryConfigRegex, txManager); err != nil {
 		if !errors.Is(err, git.ErrNotFound) {
-			return 0, fmt.Errorf("housekeeping could not unset unnecessary config lines: %w", err)
+			return 0, fmt.Errorf("unsetting unnecessary config lines: %w", err)
 		}
 
 		return 0, nil
@@ -476,6 +480,18 @@ func removeUnnecessaryConfig(ctx context.Context, repository *localrepo.Repo, tx
 	// probably good enough: we only want to know whether we're still pruning such old
 	// configuration or not, but typically don't care how many there are so that we know
 	// when to delete this cleanup of legacy data.
+	return 1, nil
+}
+
+func removeGitLabFullPathConfig(ctx context.Context, repository *localrepo.Repo, txManager transaction.Manager) (int, error) {
+	if err := repository.UnsetMatchingConfig(ctx, "gitlab.fullpath", txManager); err != nil {
+		if !errors.Is(err, git.ErrNotFound) {
+			return 0, fmt.Errorf("unsetting `gitlab.fullpath` config: %w", err)
+		}
+
+		return 0, nil
+	}
+
 	return 1, nil
 }
 
