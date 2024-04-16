@@ -61,6 +61,7 @@ const (
 	RepositoryService_BackupRepository_FullMethodName             = "/gitaly.RepositoryService/BackupRepository"
 	RepositoryService_RestoreRepository_FullMethodName            = "/gitaly.RepositoryService/RestoreRepository"
 	RepositoryService_GetFileAttributes_FullMethodName            = "/gitaly.RepositoryService/GetFileAttributes"
+	RepositoryService_FastExport_FullMethodName                   = "/gitaly.RepositoryService/FastExport"
 )
 
 // RepositoryServiceClient is the client API for RepositoryService service.
@@ -241,6 +242,8 @@ type RepositoryServiceClient interface {
 	RestoreRepository(ctx context.Context, in *RestoreRepositoryRequest, opts ...grpc.CallOption) (*RestoreRepositoryResponse, error)
 	// GetFileAttributes queries given file attributes as specified in .gitattributes file
 	GetFileAttributes(ctx context.Context, in *GetFileAttributesRequest, opts ...grpc.CallOption) (*GetFileAttributesResponse, error)
+	// FastExport runs git-fast-export on the repository, streaming the data back through the response
+	FastExport(ctx context.Context, in *FastExportRequest, opts ...grpc.CallOption) (RepositoryService_FastExportClient, error)
 }
 
 type repositoryServiceClient struct {
@@ -1010,6 +1013,38 @@ func (c *repositoryServiceClient) GetFileAttributes(ctx context.Context, in *Get
 	return out, nil
 }
 
+func (c *repositoryServiceClient) FastExport(ctx context.Context, in *FastExportRequest, opts ...grpc.CallOption) (RepositoryService_FastExportClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[16], RepositoryService_FastExport_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &repositoryServiceFastExportClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RepositoryService_FastExportClient interface {
+	Recv() (*FastExportResponse, error)
+	grpc.ClientStream
+}
+
+type repositoryServiceFastExportClient struct {
+	grpc.ClientStream
+}
+
+func (x *repositoryServiceFastExportClient) Recv() (*FastExportResponse, error) {
+	m := new(FastExportResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // RepositoryServiceServer is the server API for RepositoryService service.
 // All implementations must embed UnimplementedRepositoryServiceServer
 // for forward compatibility
@@ -1188,6 +1223,8 @@ type RepositoryServiceServer interface {
 	RestoreRepository(context.Context, *RestoreRepositoryRequest) (*RestoreRepositoryResponse, error)
 	// GetFileAttributes queries given file attributes as specified in .gitattributes file
 	GetFileAttributes(context.Context, *GetFileAttributesRequest) (*GetFileAttributesResponse, error)
+	// FastExport runs git-fast-export on the repository, streaming the data back through the response
+	FastExport(*FastExportRequest, RepositoryService_FastExportServer) error
 	mustEmbedUnimplementedRepositoryServiceServer()
 }
 
@@ -1320,6 +1357,9 @@ func (UnimplementedRepositoryServiceServer) RestoreRepository(context.Context, *
 }
 func (UnimplementedRepositoryServiceServer) GetFileAttributes(context.Context, *GetFileAttributesRequest) (*GetFileAttributesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFileAttributes not implemented")
+}
+func (UnimplementedRepositoryServiceServer) FastExport(*FastExportRequest, RepositoryService_FastExportServer) error {
+	return status.Errorf(codes.Unimplemented, "method FastExport not implemented")
 }
 func (UnimplementedRepositoryServiceServer) mustEmbedUnimplementedRepositoryServiceServer() {}
 
@@ -2168,6 +2208,27 @@ func _RepositoryService_GetFileAttributes_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RepositoryService_FastExport_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(FastExportRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(RepositoryServiceServer).FastExport(m, &repositoryServiceFastExportServer{stream})
+}
+
+type RepositoryService_FastExportServer interface {
+	Send(*FastExportResponse) error
+	grpc.ServerStream
+}
+
+type repositoryServiceFastExportServer struct {
+	grpc.ServerStream
+}
+
+func (x *repositoryServiceFastExportServer) Send(m *FastExportResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // RepositoryService_ServiceDesc is the grpc.ServiceDesc for RepositoryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2360,6 +2421,11 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "GetCustomHooks",
 			Handler:       _RepositoryService_GetCustomHooks_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "FastExport",
+			Handler:       _RepositoryService_FastExport_Handler,
 			ServerStreams: true,
 		},
 	},
