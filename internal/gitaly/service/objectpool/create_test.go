@@ -113,6 +113,15 @@ func TestCreate_emptySource(t *testing.T) {
 		IsObjectPool: true,
 		References: stats.ReferencesInfo{
 			ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
+			ReftableTables: gittest.FilesOrReftables(
+				nil,
+				[]stats.ReftableTable{
+					{
+						Size:           124,
+						UpdateIndexMin: 1,
+						UpdateIndexMax: 1,
+					},
+				}),
 		},
 	}, info)
 

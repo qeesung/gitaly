@@ -11,6 +11,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -194,8 +196,25 @@ type ReferencesInfo struct {
 	LooseReferencesCount uint64 `json:"loose_references_count"`
 	// PackedReferencesSize is the size of the packed-refs file in bytes.
 	PackedReferencesSize uint64 `json:"packed_references_size"`
+	// ReftableTables contains details of individual table files.
+	ReftableTables []ReftableTable `json:"reftable_tables"`
+	// ReftableUnrecognizedFilesCount is the number of files under the `reftables/`
+	// directory that shouldn't exist, according to the entries in `tables.list`.
+	ReftableUnrecognizedFilesCount uint64 `json:"reftable_unrecognized_files"`
 	// ReferenceBackendName denotes the reference backend name of the repo.
 	ReferenceBackendName string `json:"reference_backend"`
+}
+
+// ReftableTable contains information about an individual reftable table.
+type ReftableTable struct {
+	// Size is the size in bytes.
+	Size uint64 `json:"size"`
+	// UpdateIndexMin is the min_update_index of the reftable table. This is derived
+	// from the filename only.
+	UpdateIndexMin uint64 `json:"update_index_min"`
+	// UpdateIndexMax is the max_update_index of the reftable table. This is derived
+	// from the filename only.
+	UpdateIndexMax uint64 `json:"update_index_max"`
 }
 
 // ReferencesInfoForRepository derives information about references in the repository.
@@ -204,7 +223,6 @@ func ReferencesInfoForRepository(ctx context.Context, repo *localrepo.Repo) (Ref
 	if err != nil {
 		return ReferencesInfo{}, fmt.Errorf("getting repository path: %w", err)
 	}
-	refsPath := filepath.Join(repoPath, "refs")
 
 	var info ReferencesInfo
 	referenceBackend, err := repo.ReferenceBackend(ctx)
@@ -215,6 +233,7 @@ func ReferencesInfoForRepository(ctx context.Context, repo *localrepo.Repo) (Ref
 
 	switch info.ReferenceBackendName {
 	case git.ReferenceBackendFiles.Name:
+		refsPath := filepath.Join(repoPath, "refs")
 		if err := filepath.WalkDir(refsPath, func(path string, entry fs.DirEntry, err error) error {
 			if err != nil {
 				// It may happen that references got deleted concurrently. This is fine and expected, so we just
@@ -243,11 +262,59 @@ func ReferencesInfoForRepository(ctx context.Context, repo *localrepo.Repo) (Ref
 			info.PackedReferencesSize = uint64(stat.Size())
 		}
 	case git.ReferenceBackendReftables.Name:
-		// TODO: Capture some metrics for the reftables backend
-		// 1. The length of `tables.list`
-		// 2. A list of tables, each with their minimum/maximum update index and file size.
-		// 3. The number of unrecognized garbage files.
-		// https://gitlab.com/gitlab-org/gitaly/-/issues/5870
+		refsPath := filepath.Join(repoPath, "reftable")
+
+		tablesList, err := os.Open(filepath.Join(refsPath, "tables.list"))
+		if err != nil {
+			return ReferencesInfo{}, fmt.Errorf("open tables.list: %w", err)
+		}
+		defer tablesList.Close()
+
+		// Track the expected files under the `reftable/` directory.
+		reftableRecognizedFiles := map[string]struct{}{
+			"tables.list":      {},
+			"tables.list.lock": {},
+		}
+
+		scanner := bufio.NewScanner(tablesList)
+		scanner.Split(bufio.ScanLines)
+		for scanner.Scan() {
+			reftableName := scanner.Text()
+
+			reftableRecognizedFiles[reftableName] = struct{}{}
+
+			reftableStat, err := os.Stat(filepath.Join(refsPath, reftableName))
+			if err != nil {
+				return ReferencesInfo{}, fmt.Errorf("stat reftable table file: %w", err)
+			}
+
+			rt := ReftableTable{
+				Size: uint64(reftableStat.Size()),
+			}
+
+			// See reftable documentation at https://www.git-scm.com/docs/reftable#_layout
+			matches := regexp.MustCompile("0x([0-9]{12})-").FindAllStringSubmatch(reftableName, 2)
+			if len(matches) != 2 || len(matches[0]) != 2 || len(matches[1]) != 2 {
+				return ReferencesInfo{}, fmt.Errorf("reftable name %q malformed", reftableName)
+			}
+
+			// Skip error checking due to regexp matching above.
+			rt.UpdateIndexMin, _ = strconv.ParseUint(matches[0][1], 10, 0)
+			rt.UpdateIndexMax, _ = strconv.ParseUint(matches[1][1], 10, 0)
+
+			info.ReftableTables = append(info.ReftableTables, rt)
+		}
+
+		reftableDir, err := os.ReadDir(refsPath)
+		if err != nil {
+			return ReferencesInfo{}, fmt.Errorf("read reftable dir: %w", err)
+		}
+
+		for _, fname := range reftableDir {
+			if _, ok := reftableRecognizedFiles[fname.Name()]; !ok {
+				info.ReftableUnrecognizedFilesCount++
+			}
+		}
 	}
 
 	return info, nil
