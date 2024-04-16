@@ -93,10 +93,7 @@ func TestFindCommits(t *testing.T) {
 						Revision:   []byte("non-existent"),
 						Paths:      [][]byte{[]byte("some path")},
 					},
-					expectedErr: testhelper.WithInterceptedMetadataItems(
-						structerr.NewInternal("listing commits failed"),
-						structerr.MetadataItem{Key: "stderr", Value: "fatal: bad revision 'non-existent'\n"},
-					),
+					expectedErr: structerr.NewNotFound("commits not found").WithDetail(&gitalypb.FindCommitsError{}),
 				}
 			},
 		},

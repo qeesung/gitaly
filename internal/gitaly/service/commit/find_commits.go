@@ -405,6 +405,7 @@ var (
 	ambiguousArgRegex         = regexp.MustCompile(`fatal: ambiguous argument '.*': unknown revision or path not in the working tree.`)
 	badObjectRegex            = regexp.MustCompile(`fatal: bad object [0-9a-g]+`)
 	invalidRevisionRangeRegex = regexp.MustCompile(`fatal: Invalid revision range [0-9a-g]+\.\.[0-9a-g]+`)
+	badRevisionRegex          = regexp.MustCompile(`^fatal: bad revision '.*'\n$`)
 )
 
 // wrapGitError wraps git log error with a structError.
@@ -413,6 +414,8 @@ func wrapGitLogCmdError(revision []byte, err error, stderr string) structerr.Err
 	case ambiguousArgRegex.MatchString(stderr):
 		fallthrough
 	case badObjectRegex.MatchString(stderr):
+		fallthrough
+	case badRevisionRegex.MatchString(stderr):
 		fallthrough
 	case invalidRevisionRangeRegex.MatchString(stderr):
 		// for example git log 37811987837aacbd3b1d8ceb8de669b33f7c7c0a..37811987837aacbd3b1d8ceb8de669b33f7c7c0b will cause
