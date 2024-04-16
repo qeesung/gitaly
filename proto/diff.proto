@@ -352,7 +352,7 @@ message FindChangedPathsRequest {
     }
   }
 
-  // repository ...
+  // repository is the repository the changed paths are computed in.
   Repository repository = 1 [(target_repository)=true];
   // commits is the list of commits to compare to their parents. This field is deprecated. To adapt to the new calling
   // convention you can create one `CommitRequest` per commit, where each `CommitRequest` has only the `commit_revision`
@@ -363,6 +363,8 @@ message FindChangedPathsRequest {
 
   // merge_commit_diff_mode controls how merge commits are treated.
   MergeCommitDiffMode merge_commit_diff_mode = 4;
+  // find_renames toggles rename detection on the files in the diff.
+  bool find_renames = 5;
 }
 
 // FindChangedPathsResponse is the response for the FindChangedPaths RPC.
@@ -385,10 +387,12 @@ message ChangedPaths {
     MODIFIED = 1; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
     // DELETED indicates a file was deleted.
     DELETED = 2; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
-    // TYPE_CHANGE ...
+    // TYPE_CHANGE indicates change in the type of the file (regular file, symbolic link or submodule).
     TYPE_CHANGE = 3; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
-    // COPIED ...
+    // COPIED indicates Git determined the file was copied.
     COPIED = 4; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
+    // RENAMED indicates Git determined the file was renamed.
+    RENAMED = 5; // protolint:disable:this ENUM_FIELD_NAMES_PREFIX
   }
 
   // path is the path of the change in question.

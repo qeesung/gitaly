@@ -31,6 +31,7 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 	type setupData struct {
 		repo          *gitalypb.Repository
 		diffMode      gitalypb.FindChangedPathsRequest_MergeCommitDiffMode
+		findRenames   bool
 		commits       []commitRequest
 		trees         []treeRequest
 		expectedPaths []*gitalypb.ChangedPaths
@@ -244,7 +245,7 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			},
 		},
 		{
-			desc: "Returns the expected results when a file is renamed",
+			desc: "Returns the expected results with find renames disabled",
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
@@ -295,6 +296,56 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 
 				return setupData{
 					repo:          repo,
+					commits:       []commitRequest{{commit: newCommit.String()}},
+					expectedPaths: expectedPaths,
+				}
+			},
+		},
+		{
+			desc: "Returns the expected results with find renames enabled",
+			setup: func(t *testing.T) setupData {
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				renameBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("hello"))
+				beforeBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("before"))
+				afterBlobID := gittest.WriteBlob(t, cfg, repoPath, []byte("after"))
+
+				oldCommit := gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "rename-me.txt", Mode: "100644", OID: renameBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: beforeBlobID},
+					),
+				)
+				newCommit := gittest.WriteCommit(t, cfg, repoPath,
+					gittest.WithParents(oldCommit),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{Path: "rename-you.txt", Mode: "100644", OID: renameBlobID},
+						gittest.TreeEntry{Path: "modified.txt", Mode: "100644", OID: afterBlobID},
+					),
+				)
+
+				expectedPaths := []*gitalypb.ChangedPaths{
+					{
+						Status:    gitalypb.ChangedPaths_MODIFIED,
+						Path:      []byte("modified.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: beforeBlobID.String(),
+						NewBlobId: afterBlobID.String(),
+					},
+					{
+						Status:    gitalypb.ChangedPaths_RENAMED,
+						Path:      []byte("rename-me.txt"),
+						OldMode:   0o100644,
+						NewMode:   0o100644,
+						OldBlobId: renameBlobID.String(),
+						NewBlobId: renameBlobID.String(),
+					},
+				}
+
+				return setupData{
+					repo:          repo,
+					findRenames:   true,
 					commits:       []commitRequest{{commit: newCommit.String()}},
 					expectedPaths: expectedPaths,
 				}
@@ -844,6 +895,7 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 			rpcRequest := &gitalypb.FindChangedPathsRequest{
 				Repository:          setupData.repo,
 				MergeCommitDiffMode: setupData.diffMode,
+				FindRenames:         setupData.findRenames,
 			}
 
 			for _, commitReq := range setupData.commits {
