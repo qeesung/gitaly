@@ -300,6 +300,163 @@ func (RangeDiffResponse_Comparator) EnumDescriptor() ([]byte, []int) {
 	return file_diff_proto_rawDescGZIP(), []int{23, 0}
 }
 
+// DiffMode determines the type of diff that will be returned.
+type DiffBlobsRequest_DiffMode int32
+
+const (
+	// DIFF_MODE_UNSPECIFIED is the standard diff mode and results in a line diff for text files.
+	DiffBlobsRequest_DIFF_MODE_UNSPECIFIED DiffBlobsRequest_DiffMode = 0
+	// DIFF_MODE_WORD is a word diff and computes the diff for whitespace separated words instead of
+	// for whole lines by using the `--word-diff=porcelain` option.
+	DiffBlobsRequest_DIFF_MODE_WORD DiffBlobsRequest_DiffMode = 1
+)
+
+// Enum value maps for DiffBlobsRequest_DiffMode.
+var (
+	DiffBlobsRequest_DiffMode_name = map[int32]string{
+		0: "DIFF_MODE_UNSPECIFIED",
+		1: "DIFF_MODE_WORD",
+	}
+	DiffBlobsRequest_DiffMode_value = map[string]int32{
+		"DIFF_MODE_UNSPECIFIED": 0,
+		"DIFF_MODE_WORD":        1,
+	}
+)
+
+func (x DiffBlobsRequest_DiffMode) Enum() *DiffBlobsRequest_DiffMode {
+	p := new(DiffBlobsRequest_DiffMode)
+	*p = x
+	return p
+}
+
+func (x DiffBlobsRequest_DiffMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DiffBlobsRequest_DiffMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_diff_proto_enumTypes[5].Descriptor()
+}
+
+func (DiffBlobsRequest_DiffMode) Type() protoreflect.EnumType {
+	return &file_diff_proto_enumTypes[5]
+}
+
+func (x DiffBlobsRequest_DiffMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DiffBlobsRequest_DiffMode.Descriptor instead.
+func (DiffBlobsRequest_DiffMode) EnumDescriptor() ([]byte, []int) {
+	return file_diff_proto_rawDescGZIP(), []int{24, 0}
+}
+
+// WhitespaceChanges states which whitespace changes we should ignore. These options correlate to
+// the ones present in git-diff(1).
+type DiffBlobsRequest_WhitespaceChanges int32
+
+const (
+	// WHITESPACE_CHANGES_UNSPECIFIED is used to not ignore any whitespace changes.
+	DiffBlobsRequest_WHITESPACE_CHANGES_UNSPECIFIED DiffBlobsRequest_WhitespaceChanges = 0
+	// WHITESPACE_CHANGES_IGNORE specifies to use the `--ignore-space-change` flag of git-diff(1).
+	// Only changes in amount of whitespace are ignored.
+	DiffBlobsRequest_WHITESPACE_CHANGES_IGNORE DiffBlobsRequest_WhitespaceChanges = 1
+	// WHITESPACE_CHANGES_IGNORE_ALL specifies to use the `--ignore-all-space` flag of git-diff(1).
+	// all whitespace characters are ignored when comparing lines.
+	DiffBlobsRequest_WHITESPACE_CHANGES_IGNORE_ALL DiffBlobsRequest_WhitespaceChanges = 2
+)
+
+// Enum value maps for DiffBlobsRequest_WhitespaceChanges.
+var (
+	DiffBlobsRequest_WhitespaceChanges_name = map[int32]string{
+		0: "WHITESPACE_CHANGES_UNSPECIFIED",
+		1: "WHITESPACE_CHANGES_IGNORE",
+		2: "WHITESPACE_CHANGES_IGNORE_ALL",
+	}
+	DiffBlobsRequest_WhitespaceChanges_value = map[string]int32{
+		"WHITESPACE_CHANGES_UNSPECIFIED": 0,
+		"WHITESPACE_CHANGES_IGNORE":      1,
+		"WHITESPACE_CHANGES_IGNORE_ALL":  2,
+	}
+)
+
+func (x DiffBlobsRequest_WhitespaceChanges) Enum() *DiffBlobsRequest_WhitespaceChanges {
+	p := new(DiffBlobsRequest_WhitespaceChanges)
+	*p = x
+	return p
+}
+
+func (x DiffBlobsRequest_WhitespaceChanges) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DiffBlobsRequest_WhitespaceChanges) Descriptor() protoreflect.EnumDescriptor {
+	return file_diff_proto_enumTypes[6].Descriptor()
+}
+
+func (DiffBlobsRequest_WhitespaceChanges) Type() protoreflect.EnumType {
+	return &file_diff_proto_enumTypes[6]
+}
+
+func (x DiffBlobsRequest_WhitespaceChanges) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DiffBlobsRequest_WhitespaceChanges.Descriptor instead.
+func (DiffBlobsRequest_WhitespaceChanges) EnumDescriptor() ([]byte, []int) {
+	return file_diff_proto_rawDescGZIP(), []int{24, 1}
+}
+
+// Status defines the state of a patch at a given response message.
+type DiffBlobsResponse_Status int32
+
+const (
+	// STATUS_INCOMPLETE indicates the patch has not been completely transmitted. Subsequent
+	// response messages contain the remaining content of the patch.
+	DiffBlobsResponse_STATUS_INCOMPLETE DiffBlobsResponse_Status = 0 // protolint:disable:this ENUM_FIELD_NAMES_ZERO_VALUE_END_WITH
+	// STATUS_END_OF_PATCH indicates the patch was completely parsed and sent. Subsequent response
+	// messages contain the content of the next patch in the diff.
+	DiffBlobsResponse_STATUS_END_OF_PATCH DiffBlobsResponse_Status = 1
+)
+
+// Enum value maps for DiffBlobsResponse_Status.
+var (
+	DiffBlobsResponse_Status_name = map[int32]string{
+		0: "STATUS_INCOMPLETE",
+		1: "STATUS_END_OF_PATCH",
+	}
+	DiffBlobsResponse_Status_value = map[string]int32{
+		"STATUS_INCOMPLETE":   0,
+		"STATUS_END_OF_PATCH": 1,
+	}
+)
+
+func (x DiffBlobsResponse_Status) Enum() *DiffBlobsResponse_Status {
+	p := new(DiffBlobsResponse_Status)
+	*p = x
+	return p
+}
+
+func (x DiffBlobsResponse_Status) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DiffBlobsResponse_Status) Descriptor() protoreflect.EnumDescriptor {
+	return file_diff_proto_enumTypes[7].Descriptor()
+}
+
+func (DiffBlobsResponse_Status) Type() protoreflect.EnumType {
+	return &file_diff_proto_enumTypes[7]
+}
+
+func (x DiffBlobsResponse_Status) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DiffBlobsResponse_Status.Descriptor instead.
+func (DiffBlobsResponse_Status) EnumDescriptor() ([]byte, []int) {
+	return file_diff_proto_rawDescGZIP(), []int{25, 0}
+}
+
 // CommitDiffRequest is a request for the CommitDiff RPC.
 type CommitDiffRequest struct {
 	state         protoimpl.MessageState
@@ -2209,6 +2366,170 @@ func (x *RangeDiffResponse) GetEndOfPatch() bool {
 	return false
 }
 
+// DiffBlobsRequest is a request for the DiffBlobs RPC.
+type DiffBlobsRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// repository is the repository the blob diff is generated for.
+	Repository *Repository `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	// blob_pairs defines the set of blob pairs to generate diffs for.
+	BlobPairs []*DiffBlobsRequest_BlobPair `protobuf:"bytes,2,rep,name=blob_pairs,json=blobPairs,proto3" json:"blob_pairs,omitempty"`
+	// diff_mode is the mode used for generating the diff. Refer to the enum declaration above for
+	// supported modes.
+	DiffMode DiffBlobsRequest_DiffMode `protobuf:"varint,3,opt,name=diff_mode,json=diffMode,proto3,enum=gitaly.DiffBlobsRequest_DiffMode" json:"diff_mode,omitempty"`
+	// whitespace_changes states which whitespace changes should be included in the diff. Refer to the
+	// enum declaration above for supported modes.
+	WhitespaceChanges DiffBlobsRequest_WhitespaceChanges `protobuf:"varint,4,opt,name=whitespace_changes,json=whitespaceChanges,proto3,enum=gitaly.DiffBlobsRequest_WhitespaceChanges" json:"whitespace_changes,omitempty"`
+}
+
+func (x *DiffBlobsRequest) Reset() {
+	*x = DiffBlobsRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_diff_proto_msgTypes[24]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DiffBlobsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiffBlobsRequest) ProtoMessage() {}
+
+func (x *DiffBlobsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_diff_proto_msgTypes[24]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiffBlobsRequest.ProtoReflect.Descriptor instead.
+func (*DiffBlobsRequest) Descriptor() ([]byte, []int) {
+	return file_diff_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *DiffBlobsRequest) GetRepository() *Repository {
+	if x != nil {
+		return x.Repository
+	}
+	return nil
+}
+
+func (x *DiffBlobsRequest) GetBlobPairs() []*DiffBlobsRequest_BlobPair {
+	if x != nil {
+		return x.BlobPairs
+	}
+	return nil
+}
+
+func (x *DiffBlobsRequest) GetDiffMode() DiffBlobsRequest_DiffMode {
+	if x != nil {
+		return x.DiffMode
+	}
+	return DiffBlobsRequest_DIFF_MODE_UNSPECIFIED
+}
+
+func (x *DiffBlobsRequest) GetWhitespaceChanges() DiffBlobsRequest_WhitespaceChanges {
+	if x != nil {
+		return x.WhitespaceChanges
+	}
+	return DiffBlobsRequest_WHITESPACE_CHANGES_UNSPECIFIED
+}
+
+// DiffBlobsResponse is a response for the DiffBlobs RPC.
+type DiffBlobsResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// left_blob_id is the left blob ID in in <left blob>..<right blob> of the diffed blob.
+	LeftBlobId string `protobuf:"bytes,1,opt,name=left_blob_id,json=leftBlobId,proto3" json:"left_blob_id,omitempty"`
+	// right_blob_id is the right blob ID in in <left blob>..<right blob> of the diffed blob.
+	RightBlobId string `protobuf:"bytes,2,opt,name=right_blob_id,json=rightBlobId,proto3" json:"right_blob_id,omitempty"`
+	// patch is the raw generated diff output.
+	Patch []byte `protobuf:"bytes,3,opt,name=patch,proto3" json:"patch,omitempty"`
+	// status is the current state of the patch being transmitted.
+	Status DiffBlobsResponse_Status `protobuf:"varint,4,opt,name=status,proto3,enum=gitaly.DiffBlobsResponse_Status" json:"status,omitempty"`
+	// binary indicates whether or not the diff compares binary data. If Git considers either blob to
+	// be binary, Git only reports whether the files differ.
+	Binary bool `protobuf:"varint,5,opt,name=binary,proto3" json:"binary,omitempty"`
+}
+
+func (x *DiffBlobsResponse) Reset() {
+	*x = DiffBlobsResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_diff_proto_msgTypes[25]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DiffBlobsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiffBlobsResponse) ProtoMessage() {}
+
+func (x *DiffBlobsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_diff_proto_msgTypes[25]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiffBlobsResponse.ProtoReflect.Descriptor instead.
+func (*DiffBlobsResponse) Descriptor() ([]byte, []int) {
+	return file_diff_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *DiffBlobsResponse) GetLeftBlobId() string {
+	if x != nil {
+		return x.LeftBlobId
+	}
+	return ""
+}
+
+func (x *DiffBlobsResponse) GetRightBlobId() string {
+	if x != nil {
+		return x.RightBlobId
+	}
+	return ""
+}
+
+func (x *DiffBlobsResponse) GetPatch() []byte {
+	if x != nil {
+		return x.Patch
+	}
+	return nil
+}
+
+func (x *DiffBlobsResponse) GetStatus() DiffBlobsResponse_Status {
+	if x != nil {
+		return x.Status
+	}
+	return DiffBlobsResponse_STATUS_INCOMPLETE
+}
+
+func (x *DiffBlobsResponse) GetBinary() bool {
+	if x != nil {
+		return x.Binary
+	}
+	return false
+}
+
 // Request is a single request to pass to git diff-tree.
 type FindChangedPathsRequest_Request struct {
 	state         protoimpl.MessageState
@@ -2225,7 +2546,7 @@ type FindChangedPathsRequest_Request struct {
 func (x *FindChangedPathsRequest_Request) Reset() {
 	*x = FindChangedPathsRequest_Request{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_diff_proto_msgTypes[25]
+		mi := &file_diff_proto_msgTypes[27]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2238,7 +2559,7 @@ func (x *FindChangedPathsRequest_Request) String() string {
 func (*FindChangedPathsRequest_Request) ProtoMessage() {}
 
 func (x *FindChangedPathsRequest_Request) ProtoReflect() protoreflect.Message {
-	mi := &file_diff_proto_msgTypes[25]
+	mi := &file_diff_proto_msgTypes[27]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2310,7 +2631,7 @@ type FindChangedPathsRequest_Request_TreeRequest struct {
 func (x *FindChangedPathsRequest_Request_TreeRequest) Reset() {
 	*x = FindChangedPathsRequest_Request_TreeRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_diff_proto_msgTypes[26]
+		mi := &file_diff_proto_msgTypes[28]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2323,7 +2644,7 @@ func (x *FindChangedPathsRequest_Request_TreeRequest) String() string {
 func (*FindChangedPathsRequest_Request_TreeRequest) ProtoMessage() {}
 
 func (x *FindChangedPathsRequest_Request_TreeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_diff_proto_msgTypes[26]
+	mi := &file_diff_proto_msgTypes[28]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2372,7 +2693,7 @@ type FindChangedPathsRequest_Request_CommitRequest struct {
 func (x *FindChangedPathsRequest_Request_CommitRequest) Reset() {
 	*x = FindChangedPathsRequest_Request_CommitRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_diff_proto_msgTypes[27]
+		mi := &file_diff_proto_msgTypes[29]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2385,7 +2706,7 @@ func (x *FindChangedPathsRequest_Request_CommitRequest) String() string {
 func (*FindChangedPathsRequest_Request_CommitRequest) ProtoMessage() {}
 
 func (x *FindChangedPathsRequest_Request_CommitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_diff_proto_msgTypes[27]
+	mi := &file_diff_proto_msgTypes[29]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2413,6 +2734,64 @@ func (x *FindChangedPathsRequest_Request_CommitRequest) GetParentCommitRevisions
 		return x.ParentCommitRevisions
 	}
 	return nil
+}
+
+// BlobPair defines a pair of blobs a patch is generated for.
+type DiffBlobsRequest_BlobPair struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// left_oid is the left blob ID in in <left blob>..<right blob>.
+	LeftOid string `protobuf:"bytes,1,opt,name=left_oid,json=leftOid,proto3" json:"left_oid,omitempty"`
+	// right_oid is the right blob ID in in <left blob>..<right blob>.
+	RightOid string `protobuf:"bytes,2,opt,name=right_oid,json=rightOid,proto3" json:"right_oid,omitempty"`
+}
+
+func (x *DiffBlobsRequest_BlobPair) Reset() {
+	*x = DiffBlobsRequest_BlobPair{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_diff_proto_msgTypes[30]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DiffBlobsRequest_BlobPair) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiffBlobsRequest_BlobPair) ProtoMessage() {}
+
+func (x *DiffBlobsRequest_BlobPair) ProtoReflect() protoreflect.Message {
+	mi := &file_diff_proto_msgTypes[30]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiffBlobsRequest_BlobPair.ProtoReflect.Descriptor instead.
+func (*DiffBlobsRequest_BlobPair) Descriptor() ([]byte, []int) {
+	return file_diff_proto_rawDescGZIP(), []int{24, 0}
+}
+
+func (x *DiffBlobsRequest_BlobPair) GetLeftOid() string {
+	if x != nil {
+		return x.LeftOid
+	}
+	return ""
+}
+
+func (x *DiffBlobsRequest_BlobPair) GetRightOid() string {
+	if x != nil {
+		return x.RightOid
+	}
+	return ""
 }
 
 var File_diff_proto protoreflect.FileDescriptor
@@ -2751,52 +3130,107 @@ var file_diff_proto_rawDesc = []byte{
 	0x41, 0x4e, 0x10, 0x01, 0x12, 0x18, 0x0a, 0x14, 0x43, 0x4f, 0x4d, 0x50, 0x41, 0x52, 0x41, 0x54,
 	0x4f, 0x52, 0x5f, 0x4c, 0x45, 0x53, 0x53, 0x5f, 0x54, 0x48, 0x41, 0x4e, 0x10, 0x02, 0x12, 0x18,
 	0x0a, 0x14, 0x43, 0x4f, 0x4d, 0x50, 0x41, 0x52, 0x41, 0x54, 0x4f, 0x52, 0x5f, 0x4e, 0x4f, 0x54,
-	0x5f, 0x45, 0x51, 0x55, 0x41, 0x4c, 0x10, 0x03, 0x32, 0xd8, 0x05, 0x0a, 0x0b, 0x44, 0x69, 0x66,
-	0x66, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4d, 0x0a, 0x0a, 0x43, 0x6f, 0x6d, 0x6d,
-	0x69, 0x74, 0x44, 0x69, 0x66, 0x66, 0x12, 0x19, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e,
-	0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x1a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x69,
-	0x74, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa,
-	0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x50, 0x0a, 0x0b, 0x43, 0x6f, 0x6d, 0x6d, 0x69,
-	0x74, 0x44, 0x65, 0x6c, 0x74, 0x61, 0x12, 0x1a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e,
-	0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x44, 0x65, 0x6c, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x43, 0x6f, 0x6d, 0x6d,
-	0x69, 0x74, 0x44, 0x65, 0x6c, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
-	0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x44, 0x0a, 0x07, 0x52, 0x61, 0x77,
-	0x44, 0x69, 0x66, 0x66, 0x12, 0x16, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61,
-	0x77, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x17, 0x2e, 0x67,
-	0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61, 0x77, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12,
-	0x47, 0x0a, 0x08, 0x52, 0x61, 0x77, 0x50, 0x61, 0x74, 0x63, 0x68, 0x12, 0x17, 0x2e, 0x67, 0x69,
-	0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61, 0x77, 0x50, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61,
-	0x77, 0x50, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06,
-	0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x4a, 0x0a, 0x09, 0x44, 0x69, 0x66, 0x66,
-	0x53, 0x74, 0x61, 0x74, 0x73, 0x12, 0x18, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44,
-	0x69, 0x66, 0x66, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x19, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44, 0x69, 0x66, 0x66, 0x53, 0x74, 0x61,
-	0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02,
-	0x08, 0x02, 0x30, 0x01, 0x12, 0x5f, 0x0a, 0x10, 0x46, 0x69, 0x6e, 0x64, 0x43, 0x68, 0x61, 0x6e,
-	0x67, 0x65, 0x64, 0x50, 0x61, 0x74, 0x68, 0x73, 0x12, 0x1f, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c,
-	0x79, 0x2e, 0x46, 0x69, 0x6e, 0x64, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x64, 0x50, 0x61, 0x74,
-	0x68, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x67, 0x69, 0x74, 0x61,
-	0x6c, 0x79, 0x2e, 0x46, 0x69, 0x6e, 0x64, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x64, 0x50, 0x61,
-	0x74, 0x68, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28,
-	0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x4b, 0x0a, 0x0a, 0x47, 0x65, 0x74, 0x50, 0x61, 0x74, 0x63,
-	0x68, 0x49, 0x44, 0x12, 0x19, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x47, 0x65, 0x74,
-	0x50, 0x61, 0x74, 0x63, 0x68, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a,
-	0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x47, 0x65, 0x74, 0x50, 0x61, 0x74, 0x63, 0x68,
-	0x49, 0x44, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02,
-	0x08, 0x02, 0x12, 0x53, 0x0a, 0x0c, 0x52, 0x61, 0x77, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x44, 0x69,
-	0x66, 0x66, 0x12, 0x1b, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61, 0x77, 0x52,
-	0x61, 0x6e, 0x67, 0x65, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x1c, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61, 0x77, 0x52, 0x61, 0x6e, 0x67,
-	0x65, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa,
-	0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x4a, 0x0a, 0x09, 0x52, 0x61, 0x6e, 0x67, 0x65,
-	0x44, 0x69, 0x66, 0x66, 0x12, 0x18, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61,
-	0x6e, 0x67, 0x65, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19,
-	0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x44, 0x69, 0x66,
+	0x5f, 0x45, 0x51, 0x55, 0x41, 0x4c, 0x10, 0x03, 0x22, 0xa3, 0x04, 0x0a, 0x10, 0x44, 0x69, 0x66,
+	0x66, 0x42, 0x6c, 0x6f, 0x62, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x38, 0x0a,
+	0x0a, 0x72, 0x65, 0x70, 0x6f, 0x73, 0x69, 0x74, 0x6f, 0x72, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x12, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x65, 0x70, 0x6f, 0x73,
+	0x69, 0x74, 0x6f, 0x72, 0x79, 0x42, 0x04, 0x98, 0xc6, 0x2c, 0x01, 0x52, 0x0a, 0x72, 0x65, 0x70,
+	0x6f, 0x73, 0x69, 0x74, 0x6f, 0x72, 0x79, 0x12, 0x40, 0x0a, 0x0a, 0x62, 0x6c, 0x6f, 0x62, 0x5f,
+	0x70, 0x61, 0x69, 0x72, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x21, 0x2e, 0x67, 0x69,
+	0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44, 0x69, 0x66, 0x66, 0x42, 0x6c, 0x6f, 0x62, 0x73, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x42, 0x6c, 0x6f, 0x62, 0x50, 0x61, 0x69, 0x72, 0x52, 0x09,
+	0x62, 0x6c, 0x6f, 0x62, 0x50, 0x61, 0x69, 0x72, 0x73, 0x12, 0x3e, 0x0a, 0x09, 0x64, 0x69, 0x66,
+	0x66, 0x5f, 0x6d, 0x6f, 0x64, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x21, 0x2e, 0x67,
+	0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44, 0x69, 0x66, 0x66, 0x42, 0x6c, 0x6f, 0x62, 0x73, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x69, 0x66, 0x66, 0x4d, 0x6f, 0x64, 0x65, 0x52,
+	0x08, 0x64, 0x69, 0x66, 0x66, 0x4d, 0x6f, 0x64, 0x65, 0x12, 0x59, 0x0a, 0x12, 0x77, 0x68, 0x69,
+	0x74, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x5f, 0x63, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x73, 0x18,
+	0x04, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x2a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44,
+	0x69, 0x66, 0x66, 0x42, 0x6c, 0x6f, 0x62, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e,
+	0x57, 0x68, 0x69, 0x74, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65,
+	0x73, 0x52, 0x11, 0x77, 0x68, 0x69, 0x74, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x43, 0x68, 0x61,
+	0x6e, 0x67, 0x65, 0x73, 0x1a, 0x42, 0x0a, 0x08, 0x42, 0x6c, 0x6f, 0x62, 0x50, 0x61, 0x69, 0x72,
+	0x12, 0x19, 0x0a, 0x08, 0x6c, 0x65, 0x66, 0x74, 0x5f, 0x6f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x07, 0x6c, 0x65, 0x66, 0x74, 0x4f, 0x69, 0x64, 0x12, 0x1b, 0x0a, 0x09, 0x72,
+	0x69, 0x67, 0x68, 0x74, 0x5f, 0x6f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08,
+	0x72, 0x69, 0x67, 0x68, 0x74, 0x4f, 0x69, 0x64, 0x22, 0x39, 0x0a, 0x08, 0x44, 0x69, 0x66, 0x66,
+	0x4d, 0x6f, 0x64, 0x65, 0x12, 0x19, 0x0a, 0x15, 0x44, 0x49, 0x46, 0x46, 0x5f, 0x4d, 0x4f, 0x44,
+	0x45, 0x5f, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12,
+	0x12, 0x0a, 0x0e, 0x44, 0x49, 0x46, 0x46, 0x5f, 0x4d, 0x4f, 0x44, 0x45, 0x5f, 0x57, 0x4f, 0x52,
+	0x44, 0x10, 0x01, 0x22, 0x79, 0x0a, 0x11, 0x57, 0x68, 0x69, 0x74, 0x65, 0x73, 0x70, 0x61, 0x63,
+	0x65, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x73, 0x12, 0x22, 0x0a, 0x1e, 0x57, 0x48, 0x49, 0x54,
+	0x45, 0x53, 0x50, 0x41, 0x43, 0x45, 0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45, 0x53, 0x5f, 0x55,
+	0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x1d, 0x0a, 0x19,
+	0x57, 0x48, 0x49, 0x54, 0x45, 0x53, 0x50, 0x41, 0x43, 0x45, 0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47,
+	0x45, 0x53, 0x5f, 0x49, 0x47, 0x4e, 0x4f, 0x52, 0x45, 0x10, 0x01, 0x12, 0x21, 0x0a, 0x1d, 0x57,
+	0x48, 0x49, 0x54, 0x45, 0x53, 0x50, 0x41, 0x43, 0x45, 0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45,
+	0x53, 0x5f, 0x49, 0x47, 0x4e, 0x4f, 0x52, 0x45, 0x5f, 0x41, 0x4c, 0x4c, 0x10, 0x02, 0x22, 0xfb,
+	0x01, 0x0a, 0x11, 0x44, 0x69, 0x66, 0x66, 0x42, 0x6c, 0x6f, 0x62, 0x73, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x20, 0x0a, 0x0c, 0x6c, 0x65, 0x66, 0x74, 0x5f, 0x62, 0x6c, 0x6f,
+	0x62, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x6c, 0x65, 0x66, 0x74,
+	0x42, 0x6c, 0x6f, 0x62, 0x49, 0x64, 0x12, 0x22, 0x0a, 0x0d, 0x72, 0x69, 0x67, 0x68, 0x74, 0x5f,
+	0x62, 0x6c, 0x6f, 0x62, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x72,
+	0x69, 0x67, 0x68, 0x74, 0x42, 0x6c, 0x6f, 0x62, 0x49, 0x64, 0x12, 0x14, 0x0a, 0x05, 0x70, 0x61,
+	0x74, 0x63, 0x68, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x70, 0x61, 0x74, 0x63, 0x68,
+	0x12, 0x38, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0e,
+	0x32, 0x20, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44, 0x69, 0x66, 0x66, 0x42, 0x6c,
+	0x6f, 0x62, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x53, 0x74, 0x61, 0x74,
+	0x75, 0x73, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x16, 0x0a, 0x06, 0x62, 0x69,
+	0x6e, 0x61, 0x72, 0x79, 0x18, 0x05, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x62, 0x69, 0x6e, 0x61,
+	0x72, 0x79, 0x22, 0x38, 0x0a, 0x06, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x15, 0x0a, 0x11,
+	0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f, 0x49, 0x4e, 0x43, 0x4f, 0x4d, 0x50, 0x4c, 0x45, 0x54,
+	0x45, 0x10, 0x00, 0x12, 0x17, 0x0a, 0x13, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f, 0x45, 0x4e,
+	0x44, 0x5f, 0x4f, 0x46, 0x5f, 0x50, 0x41, 0x54, 0x43, 0x48, 0x10, 0x01, 0x32, 0xa4, 0x06, 0x0a,
+	0x0b, 0x44, 0x69, 0x66, 0x66, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4d, 0x0a, 0x0a,
+	0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x44, 0x69, 0x66, 0x66, 0x12, 0x19, 0x2e, 0x67, 0x69, 0x74,
+	0x61, 0x6c, 0x79, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x43,
+	0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x50, 0x0a, 0x0b, 0x43,
+	0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x44, 0x65, 0x6c, 0x74, 0x61, 0x12, 0x1a, 0x2e, 0x67, 0x69, 0x74,
+	0x61, 0x6c, 0x79, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x44, 0x65, 0x6c, 0x74, 0x61, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e,
+	0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x44, 0x65, 0x6c, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x44, 0x0a,
+	0x07, 0x52, 0x61, 0x77, 0x44, 0x69, 0x66, 0x66, 0x12, 0x16, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c,
+	0x79, 0x2e, 0x52, 0x61, 0x77, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x17, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61, 0x77, 0x44, 0x69, 0x66,
 	0x66, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08,
+	0x02, 0x30, 0x01, 0x12, 0x47, 0x0a, 0x08, 0x52, 0x61, 0x77, 0x50, 0x61, 0x74, 0x63, 0x68, 0x12,
+	0x17, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61, 0x77, 0x50, 0x61, 0x74, 0x63,
+	0x68, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c,
+	0x79, 0x2e, 0x52, 0x61, 0x77, 0x50, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x4a, 0x0a, 0x09,
+	0x44, 0x69, 0x66, 0x66, 0x53, 0x74, 0x61, 0x74, 0x73, 0x12, 0x18, 0x2e, 0x67, 0x69, 0x74, 0x61,
+	0x6c, 0x79, 0x2e, 0x44, 0x69, 0x66, 0x66, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44, 0x69, 0x66,
+	0x66, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06,
+	0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x5f, 0x0a, 0x10, 0x46, 0x69, 0x6e, 0x64,
+	0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x64, 0x50, 0x61, 0x74, 0x68, 0x73, 0x12, 0x1f, 0x2e, 0x67,
+	0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x46, 0x69, 0x6e, 0x64, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65,
+	0x64, 0x50, 0x61, 0x74, 0x68, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e,
+	0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x46, 0x69, 0x6e, 0x64, 0x43, 0x68, 0x61, 0x6e, 0x67,
+	0x65, 0x64, 0x50, 0x61, 0x74, 0x68, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x4b, 0x0a, 0x0a, 0x47, 0x65, 0x74,
+	0x50, 0x61, 0x74, 0x63, 0x68, 0x49, 0x44, 0x12, 0x19, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79,
+	0x2e, 0x47, 0x65, 0x74, 0x50, 0x61, 0x74, 0x63, 0x68, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x47, 0x65, 0x74, 0x50,
+	0x61, 0x74, 0x63, 0x68, 0x49, 0x44, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06,
+	0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x12, 0x53, 0x0a, 0x0c, 0x52, 0x61, 0x77, 0x52, 0x61, 0x6e,
+	0x67, 0x65, 0x44, 0x69, 0x66, 0x66, 0x12, 0x1b, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e,
+	0x52, 0x61, 0x77, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61, 0x77,
+	0x52, 0x61, 0x6e, 0x67, 0x65, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x4a, 0x0a, 0x09, 0x52,
+	0x61, 0x6e, 0x67, 0x65, 0x44, 0x69, 0x66, 0x66, 0x12, 0x18, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c,
+	0x79, 0x2e, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x19, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x52, 0x61, 0x6e, 0x67,
+	0x65, 0x44, 0x69, 0x66, 0x66, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa,
+	0x97, 0x28, 0x02, 0x08, 0x02, 0x30, 0x01, 0x12, 0x4a, 0x0a, 0x09, 0x44, 0x69, 0x66, 0x66, 0x42,
+	0x6c, 0x6f, 0x62, 0x73, 0x12, 0x18, 0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44, 0x69,
+	0x66, 0x66, 0x42, 0x6c, 0x6f, 0x62, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19,
+	0x2e, 0x67, 0x69, 0x74, 0x61, 0x6c, 0x79, 0x2e, 0x44, 0x69, 0x66, 0x66, 0x42, 0x6c, 0x6f, 0x62,
+	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x06, 0xfa, 0x97, 0x28, 0x02, 0x08,
 	0x02, 0x30, 0x01, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2e, 0x63, 0x6f,
 	0x6d, 0x2f, 0x67, 0x69, 0x74, 0x6c, 0x61, 0x62, 0x2d, 0x6f, 0x72, 0x67, 0x2f, 0x67, 0x69, 0x74,
 	0x61, 0x6c, 0x79, 0x2f, 0x76, 0x31, 0x36, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f,
@@ -2816,95 +3250,108 @@ func file_diff_proto_rawDescGZIP() []byte {
 	return file_diff_proto_rawDescData
 }
 
-var file_diff_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_diff_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_diff_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_diff_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_diff_proto_goTypes = []interface{}{
 	(CommitDiffRequest_DiffMode)(0),                       // 0: gitaly.CommitDiffRequest.DiffMode
 	(CommitDiffRequest_WhitespaceChanges)(0),              // 1: gitaly.CommitDiffRequest.WhitespaceChanges
 	(FindChangedPathsRequest_MergeCommitDiffMode)(0),      // 2: gitaly.FindChangedPathsRequest.MergeCommitDiffMode
 	(ChangedPaths_Status)(0),                              // 3: gitaly.ChangedPaths.Status
 	(RangeDiffResponse_Comparator)(0),                     // 4: gitaly.RangeDiffResponse.Comparator
-	(*CommitDiffRequest)(nil),                             // 5: gitaly.CommitDiffRequest
-	(*CommitDiffResponse)(nil),                            // 6: gitaly.CommitDiffResponse
-	(*CommitDeltaRequest)(nil),                            // 7: gitaly.CommitDeltaRequest
-	(*CommitDelta)(nil),                                   // 8: gitaly.CommitDelta
-	(*CommitDeltaResponse)(nil),                           // 9: gitaly.CommitDeltaResponse
-	(*RawDiffRequest)(nil),                                // 10: gitaly.RawDiffRequest
-	(*RawDiffResponse)(nil),                               // 11: gitaly.RawDiffResponse
-	(*RawPatchRequest)(nil),                               // 12: gitaly.RawPatchRequest
-	(*RawPatchResponse)(nil),                              // 13: gitaly.RawPatchResponse
-	(*DiffStatsRequest)(nil),                              // 14: gitaly.DiffStatsRequest
-	(*DiffStats)(nil),                                     // 15: gitaly.DiffStats
-	(*DiffStatsResponse)(nil),                             // 16: gitaly.DiffStatsResponse
-	(*FindChangedPathsRequest)(nil),                       // 17: gitaly.FindChangedPathsRequest
-	(*FindChangedPathsResponse)(nil),                      // 18: gitaly.FindChangedPathsResponse
-	(*ChangedPaths)(nil),                                  // 19: gitaly.ChangedPaths
-	(*GetPatchIDRequest)(nil),                             // 20: gitaly.GetPatchIDRequest
-	(*GetPatchIDResponse)(nil),                            // 21: gitaly.GetPatchIDResponse
-	(*RangePair)(nil),                                     // 22: gitaly.RangePair
-	(*RevisionRange)(nil),                                 // 23: gitaly.RevisionRange
-	(*BaseWithRevisions)(nil),                             // 24: gitaly.BaseWithRevisions
-	(*RawRangeDiffRequest)(nil),                           // 25: gitaly.RawRangeDiffRequest
-	(*RawRangeDiffResponse)(nil),                          // 26: gitaly.RawRangeDiffResponse
-	(*RangeDiffRequest)(nil),                              // 27: gitaly.RangeDiffRequest
-	(*RangeDiffResponse)(nil),                             // 28: gitaly.RangeDiffResponse
-	nil,                                                   // 29: gitaly.CommitDiffRequest.MaxPatchBytesForFileExtensionEntry
-	(*FindChangedPathsRequest_Request)(nil),               // 30: gitaly.FindChangedPathsRequest.Request
-	(*FindChangedPathsRequest_Request_TreeRequest)(nil),   // 31: gitaly.FindChangedPathsRequest.Request.TreeRequest
-	(*FindChangedPathsRequest_Request_CommitRequest)(nil), // 32: gitaly.FindChangedPathsRequest.Request.CommitRequest
-	(*Repository)(nil),                                    // 33: gitaly.Repository
+	(DiffBlobsRequest_DiffMode)(0),                        // 5: gitaly.DiffBlobsRequest.DiffMode
+	(DiffBlobsRequest_WhitespaceChanges)(0),               // 6: gitaly.DiffBlobsRequest.WhitespaceChanges
+	(DiffBlobsResponse_Status)(0),                         // 7: gitaly.DiffBlobsResponse.Status
+	(*CommitDiffRequest)(nil),                             // 8: gitaly.CommitDiffRequest
+	(*CommitDiffResponse)(nil),                            // 9: gitaly.CommitDiffResponse
+	(*CommitDeltaRequest)(nil),                            // 10: gitaly.CommitDeltaRequest
+	(*CommitDelta)(nil),                                   // 11: gitaly.CommitDelta
+	(*CommitDeltaResponse)(nil),                           // 12: gitaly.CommitDeltaResponse
+	(*RawDiffRequest)(nil),                                // 13: gitaly.RawDiffRequest
+	(*RawDiffResponse)(nil),                               // 14: gitaly.RawDiffResponse
+	(*RawPatchRequest)(nil),                               // 15: gitaly.RawPatchRequest
+	(*RawPatchResponse)(nil),                              // 16: gitaly.RawPatchResponse
+	(*DiffStatsRequest)(nil),                              // 17: gitaly.DiffStatsRequest
+	(*DiffStats)(nil),                                     // 18: gitaly.DiffStats
+	(*DiffStatsResponse)(nil),                             // 19: gitaly.DiffStatsResponse
+	(*FindChangedPathsRequest)(nil),                       // 20: gitaly.FindChangedPathsRequest
+	(*FindChangedPathsResponse)(nil),                      // 21: gitaly.FindChangedPathsResponse
+	(*ChangedPaths)(nil),                                  // 22: gitaly.ChangedPaths
+	(*GetPatchIDRequest)(nil),                             // 23: gitaly.GetPatchIDRequest
+	(*GetPatchIDResponse)(nil),                            // 24: gitaly.GetPatchIDResponse
+	(*RangePair)(nil),                                     // 25: gitaly.RangePair
+	(*RevisionRange)(nil),                                 // 26: gitaly.RevisionRange
+	(*BaseWithRevisions)(nil),                             // 27: gitaly.BaseWithRevisions
+	(*RawRangeDiffRequest)(nil),                           // 28: gitaly.RawRangeDiffRequest
+	(*RawRangeDiffResponse)(nil),                          // 29: gitaly.RawRangeDiffResponse
+	(*RangeDiffRequest)(nil),                              // 30: gitaly.RangeDiffRequest
+	(*RangeDiffResponse)(nil),                             // 31: gitaly.RangeDiffResponse
+	(*DiffBlobsRequest)(nil),                              // 32: gitaly.DiffBlobsRequest
+	(*DiffBlobsResponse)(nil),                             // 33: gitaly.DiffBlobsResponse
+	nil,                                                   // 34: gitaly.CommitDiffRequest.MaxPatchBytesForFileExtensionEntry
+	(*FindChangedPathsRequest_Request)(nil),               // 35: gitaly.FindChangedPathsRequest.Request
+	(*FindChangedPathsRequest_Request_TreeRequest)(nil),   // 36: gitaly.FindChangedPathsRequest.Request.TreeRequest
+	(*FindChangedPathsRequest_Request_CommitRequest)(nil), // 37: gitaly.FindChangedPathsRequest.Request.CommitRequest
+	(*DiffBlobsRequest_BlobPair)(nil),                     // 38: gitaly.DiffBlobsRequest.BlobPair
+	(*Repository)(nil),                                    // 39: gitaly.Repository
 }
 var file_diff_proto_depIdxs = []int32{
-	33, // 0: gitaly.CommitDiffRequest.repository:type_name -> gitaly.Repository
+	39, // 0: gitaly.CommitDiffRequest.repository:type_name -> gitaly.Repository
 	0,  // 1: gitaly.CommitDiffRequest.diff_mode:type_name -> gitaly.CommitDiffRequest.DiffMode
-	29, // 2: gitaly.CommitDiffRequest.max_patch_bytes_for_file_extension:type_name -> gitaly.CommitDiffRequest.MaxPatchBytesForFileExtensionEntry
+	34, // 2: gitaly.CommitDiffRequest.max_patch_bytes_for_file_extension:type_name -> gitaly.CommitDiffRequest.MaxPatchBytesForFileExtensionEntry
 	1,  // 3: gitaly.CommitDiffRequest.whitespace_changes:type_name -> gitaly.CommitDiffRequest.WhitespaceChanges
-	33, // 4: gitaly.CommitDeltaRequest.repository:type_name -> gitaly.Repository
-	8,  // 5: gitaly.CommitDeltaResponse.deltas:type_name -> gitaly.CommitDelta
-	33, // 6: gitaly.RawDiffRequest.repository:type_name -> gitaly.Repository
-	33, // 7: gitaly.RawPatchRequest.repository:type_name -> gitaly.Repository
-	33, // 8: gitaly.DiffStatsRequest.repository:type_name -> gitaly.Repository
-	15, // 9: gitaly.DiffStatsResponse.stats:type_name -> gitaly.DiffStats
-	33, // 10: gitaly.FindChangedPathsRequest.repository:type_name -> gitaly.Repository
-	30, // 11: gitaly.FindChangedPathsRequest.requests:type_name -> gitaly.FindChangedPathsRequest.Request
+	39, // 4: gitaly.CommitDeltaRequest.repository:type_name -> gitaly.Repository
+	11, // 5: gitaly.CommitDeltaResponse.deltas:type_name -> gitaly.CommitDelta
+	39, // 6: gitaly.RawDiffRequest.repository:type_name -> gitaly.Repository
+	39, // 7: gitaly.RawPatchRequest.repository:type_name -> gitaly.Repository
+	39, // 8: gitaly.DiffStatsRequest.repository:type_name -> gitaly.Repository
+	18, // 9: gitaly.DiffStatsResponse.stats:type_name -> gitaly.DiffStats
+	39, // 10: gitaly.FindChangedPathsRequest.repository:type_name -> gitaly.Repository
+	35, // 11: gitaly.FindChangedPathsRequest.requests:type_name -> gitaly.FindChangedPathsRequest.Request
 	2,  // 12: gitaly.FindChangedPathsRequest.merge_commit_diff_mode:type_name -> gitaly.FindChangedPathsRequest.MergeCommitDiffMode
-	19, // 13: gitaly.FindChangedPathsResponse.paths:type_name -> gitaly.ChangedPaths
+	22, // 13: gitaly.FindChangedPathsResponse.paths:type_name -> gitaly.ChangedPaths
 	3,  // 14: gitaly.ChangedPaths.status:type_name -> gitaly.ChangedPaths.Status
-	33, // 15: gitaly.GetPatchIDRequest.repository:type_name -> gitaly.Repository
-	33, // 16: gitaly.RawRangeDiffRequest.repository:type_name -> gitaly.Repository
-	22, // 17: gitaly.RawRangeDiffRequest.range_pair:type_name -> gitaly.RangePair
-	23, // 18: gitaly.RawRangeDiffRequest.revision_range:type_name -> gitaly.RevisionRange
-	24, // 19: gitaly.RawRangeDiffRequest.base_with_revisions:type_name -> gitaly.BaseWithRevisions
-	33, // 20: gitaly.RangeDiffRequest.repository:type_name -> gitaly.Repository
-	22, // 21: gitaly.RangeDiffRequest.range_pair:type_name -> gitaly.RangePair
-	23, // 22: gitaly.RangeDiffRequest.revision_range:type_name -> gitaly.RevisionRange
-	24, // 23: gitaly.RangeDiffRequest.base_with_revisions:type_name -> gitaly.BaseWithRevisions
+	39, // 15: gitaly.GetPatchIDRequest.repository:type_name -> gitaly.Repository
+	39, // 16: gitaly.RawRangeDiffRequest.repository:type_name -> gitaly.Repository
+	25, // 17: gitaly.RawRangeDiffRequest.range_pair:type_name -> gitaly.RangePair
+	26, // 18: gitaly.RawRangeDiffRequest.revision_range:type_name -> gitaly.RevisionRange
+	27, // 19: gitaly.RawRangeDiffRequest.base_with_revisions:type_name -> gitaly.BaseWithRevisions
+	39, // 20: gitaly.RangeDiffRequest.repository:type_name -> gitaly.Repository
+	25, // 21: gitaly.RangeDiffRequest.range_pair:type_name -> gitaly.RangePair
+	26, // 22: gitaly.RangeDiffRequest.revision_range:type_name -> gitaly.RevisionRange
+	27, // 23: gitaly.RangeDiffRequest.base_with_revisions:type_name -> gitaly.BaseWithRevisions
 	4,  // 24: gitaly.RangeDiffResponse.comparison:type_name -> gitaly.RangeDiffResponse.Comparator
-	31, // 25: gitaly.FindChangedPathsRequest.Request.tree_request:type_name -> gitaly.FindChangedPathsRequest.Request.TreeRequest
-	32, // 26: gitaly.FindChangedPathsRequest.Request.commit_request:type_name -> gitaly.FindChangedPathsRequest.Request.CommitRequest
-	5,  // 27: gitaly.DiffService.CommitDiff:input_type -> gitaly.CommitDiffRequest
-	7,  // 28: gitaly.DiffService.CommitDelta:input_type -> gitaly.CommitDeltaRequest
-	10, // 29: gitaly.DiffService.RawDiff:input_type -> gitaly.RawDiffRequest
-	12, // 30: gitaly.DiffService.RawPatch:input_type -> gitaly.RawPatchRequest
-	14, // 31: gitaly.DiffService.DiffStats:input_type -> gitaly.DiffStatsRequest
-	17, // 32: gitaly.DiffService.FindChangedPaths:input_type -> gitaly.FindChangedPathsRequest
-	20, // 33: gitaly.DiffService.GetPatchID:input_type -> gitaly.GetPatchIDRequest
-	25, // 34: gitaly.DiffService.RawRangeDiff:input_type -> gitaly.RawRangeDiffRequest
-	27, // 35: gitaly.DiffService.RangeDiff:input_type -> gitaly.RangeDiffRequest
-	6,  // 36: gitaly.DiffService.CommitDiff:output_type -> gitaly.CommitDiffResponse
-	9,  // 37: gitaly.DiffService.CommitDelta:output_type -> gitaly.CommitDeltaResponse
-	11, // 38: gitaly.DiffService.RawDiff:output_type -> gitaly.RawDiffResponse
-	13, // 39: gitaly.DiffService.RawPatch:output_type -> gitaly.RawPatchResponse
-	16, // 40: gitaly.DiffService.DiffStats:output_type -> gitaly.DiffStatsResponse
-	18, // 41: gitaly.DiffService.FindChangedPaths:output_type -> gitaly.FindChangedPathsResponse
-	21, // 42: gitaly.DiffService.GetPatchID:output_type -> gitaly.GetPatchIDResponse
-	26, // 43: gitaly.DiffService.RawRangeDiff:output_type -> gitaly.RawRangeDiffResponse
-	28, // 44: gitaly.DiffService.RangeDiff:output_type -> gitaly.RangeDiffResponse
-	36, // [36:45] is the sub-list for method output_type
-	27, // [27:36] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	39, // 25: gitaly.DiffBlobsRequest.repository:type_name -> gitaly.Repository
+	38, // 26: gitaly.DiffBlobsRequest.blob_pairs:type_name -> gitaly.DiffBlobsRequest.BlobPair
+	5,  // 27: gitaly.DiffBlobsRequest.diff_mode:type_name -> gitaly.DiffBlobsRequest.DiffMode
+	6,  // 28: gitaly.DiffBlobsRequest.whitespace_changes:type_name -> gitaly.DiffBlobsRequest.WhitespaceChanges
+	7,  // 29: gitaly.DiffBlobsResponse.status:type_name -> gitaly.DiffBlobsResponse.Status
+	36, // 30: gitaly.FindChangedPathsRequest.Request.tree_request:type_name -> gitaly.FindChangedPathsRequest.Request.TreeRequest
+	37, // 31: gitaly.FindChangedPathsRequest.Request.commit_request:type_name -> gitaly.FindChangedPathsRequest.Request.CommitRequest
+	8,  // 32: gitaly.DiffService.CommitDiff:input_type -> gitaly.CommitDiffRequest
+	10, // 33: gitaly.DiffService.CommitDelta:input_type -> gitaly.CommitDeltaRequest
+	13, // 34: gitaly.DiffService.RawDiff:input_type -> gitaly.RawDiffRequest
+	15, // 35: gitaly.DiffService.RawPatch:input_type -> gitaly.RawPatchRequest
+	17, // 36: gitaly.DiffService.DiffStats:input_type -> gitaly.DiffStatsRequest
+	20, // 37: gitaly.DiffService.FindChangedPaths:input_type -> gitaly.FindChangedPathsRequest
+	23, // 38: gitaly.DiffService.GetPatchID:input_type -> gitaly.GetPatchIDRequest
+	28, // 39: gitaly.DiffService.RawRangeDiff:input_type -> gitaly.RawRangeDiffRequest
+	30, // 40: gitaly.DiffService.RangeDiff:input_type -> gitaly.RangeDiffRequest
+	32, // 41: gitaly.DiffService.DiffBlobs:input_type -> gitaly.DiffBlobsRequest
+	9,  // 42: gitaly.DiffService.CommitDiff:output_type -> gitaly.CommitDiffResponse
+	12, // 43: gitaly.DiffService.CommitDelta:output_type -> gitaly.CommitDeltaResponse
+	14, // 44: gitaly.DiffService.RawDiff:output_type -> gitaly.RawDiffResponse
+	16, // 45: gitaly.DiffService.RawPatch:output_type -> gitaly.RawPatchResponse
+	19, // 46: gitaly.DiffService.DiffStats:output_type -> gitaly.DiffStatsResponse
+	21, // 47: gitaly.DiffService.FindChangedPaths:output_type -> gitaly.FindChangedPathsResponse
+	24, // 48: gitaly.DiffService.GetPatchID:output_type -> gitaly.GetPatchIDResponse
+	29, // 49: gitaly.DiffService.RawRangeDiff:output_type -> gitaly.RawRangeDiffResponse
+	31, // 50: gitaly.DiffService.RangeDiff:output_type -> gitaly.RangeDiffResponse
+	33, // 51: gitaly.DiffService.DiffBlobs:output_type -> gitaly.DiffBlobsResponse
+	42, // [42:52] is the sub-list for method output_type
+	32, // [32:42] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_diff_proto_init() }
@@ -3203,8 +3650,8 @@ func file_diff_proto_init() {
 				return nil
 			}
 		}
-		file_diff_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FindChangedPathsRequest_Request); i {
+		file_diff_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DiffBlobsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3215,8 +3662,8 @@ func file_diff_proto_init() {
 				return nil
 			}
 		}
-		file_diff_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FindChangedPathsRequest_Request_TreeRequest); i {
+		file_diff_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DiffBlobsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3228,7 +3675,43 @@ func file_diff_proto_init() {
 			}
 		}
 		file_diff_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*FindChangedPathsRequest_Request); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_diff_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*FindChangedPathsRequest_Request_TreeRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_diff_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*FindChangedPathsRequest_Request_CommitRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_diff_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DiffBlobsRequest_BlobPair); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3250,7 +3733,7 @@ func file_diff_proto_init() {
 		(*RangeDiffRequest_RevisionRange)(nil),
 		(*RangeDiffRequest_BaseWithRevisions)(nil),
 	}
-	file_diff_proto_msgTypes[25].OneofWrappers = []interface{}{
+	file_diff_proto_msgTypes[27].OneofWrappers = []interface{}{
 		(*FindChangedPathsRequest_Request_TreeRequest_)(nil),
 		(*FindChangedPathsRequest_Request_CommitRequest_)(nil),
 	}
@@ -3259,8 +3742,8 @@ func file_diff_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_diff_proto_rawDesc,
-			NumEnums:      5,
-			NumMessages:   28,
+			NumEnums:      8,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
