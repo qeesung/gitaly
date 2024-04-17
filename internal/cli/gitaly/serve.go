@@ -241,29 +241,6 @@ func run(cfg config.Cfg, logger log.Logger) error {
 
 	txRegistry := storagemgr.NewTransactionRegistry()
 
-	gitlabClient := gitlab.NewStubClient()
-	if skipHooks, _ := env.GetBool("GITALY_TESTING_NO_GIT_HOOKS", false); skipHooks {
-		logger.Warn("skipping GitLab API client creation since hooks are bypassed via GITALY_TESTING_NO_GIT_HOOKS")
-	} else {
-		httpClient, err := gitlab.NewHTTPClient(logger, cfg.Gitlab, cfg.TLS, cfg.Prometheus)
-		if err != nil {
-			return fmt.Errorf("could not create GitLab API client: %w", err)
-		}
-		prometheus.MustRegister(httpClient)
-		gitlabClient = httpClient
-	}
-
-	hookManager := hook.NewManager(
-		cfg,
-		locator,
-		logger,
-		gitCmdFactory,
-		transactionManager,
-		gitlabClient,
-		hook.NewTransactionRegistry(txRegistry),
-		hook.NewProcReceiveRegistry(),
-	)
-
 	conns := client.NewPool(
 		client.WithDialer(client.HealthCheckDialer(
 			func(ctx context.Context, address string, opts []grpc.DialOption) (*grpc.ClientConn, error) {
@@ -399,6 +376,29 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		txMiddleware,
 	)
 	defer gitalyServerFactory.Stop()
+
+	gitlabClient := gitlab.NewStubClient()
+	if skipHooks, _ := env.GetBool("GITALY_TESTING_NO_GIT_HOOKS", false); skipHooks {
+		logger.Warn("skipping GitLab API client creation since hooks are bypassed via GITALY_TESTING_NO_GIT_HOOKS")
+	} else {
+		httpClient, err := gitlab.NewHTTPClient(logger, cfg.Gitlab, cfg.TLS, cfg.Prometheus)
+		if err != nil {
+			return fmt.Errorf("could not create GitLab API client: %w", err)
+		}
+		prometheus.MustRegister(httpClient)
+		gitlabClient = httpClient
+	}
+
+	hookManager := hook.NewManager(
+		cfg,
+		locator,
+		logger,
+		gitCmdFactory,
+		transactionManager,
+		gitlabClient,
+		hook.NewTransactionRegistry(txRegistry),
+		hook.NewProcReceiveRegistry(),
+	)
 
 	updaterWithHooks := updateref.NewUpdaterWithHooks(cfg, logger, locator, hookManager, gitCmdFactory, catfileCache)
 
