@@ -98,8 +98,6 @@ func TestLogObjectInfo(t *testing.T) {
 	}
 
 	t.Run("shared repo with multiple alternates", func(t *testing.T) {
-		testhelper.SkipWithReftable(t, "checks for packed-refs directly on filesystem")
-
 		t.Parallel()
 
 		logger := testhelper.NewLogger(t)
@@ -128,14 +126,19 @@ func TestLogObjectInfo(t *testing.T) {
 			RelativePath: targetRepoName,
 		}))
 
-		packedRefsStat, err := os.Stat(filepath.Join(targetRepoPath, "packed-refs"))
-		require.NoError(t, err)
-
-		repoInfo := requireRepositoryInfo(hook.AllEntries())
-		require.Equal(t, RepositoryInfo{
+		expectedRepoInfo := RepositoryInfo{
 			References: ReferencesInfo{
 				ReferenceBackendName: gittest.DefaultReferenceBackend.Name,
-				PackedReferencesSize: uint64(packedRefsStat.Size()),
+				ReftableTables: gittest.FilesOrReftables(
+					nil,
+					[]ReftableTable{
+						{
+							Size:           165,
+							UpdateIndexMin: 1,
+							UpdateIndexMax: 2,
+						},
+					},
+				),
 			},
 			Alternates: AlternatesInfo{
 				Exists: true,
@@ -146,7 +149,17 @@ func TestLogObjectInfo(t *testing.T) {
 				LastModified: alternatesStat.ModTime(),
 				repoPath:     targetRepoPath,
 			},
-		}, repoInfo)
+		}
+
+		if !testhelper.IsReftableEnabled() {
+			// Assert packed-refs size if the "files" backend is used.
+			packedRefsStat, err := os.Stat(filepath.Join(targetRepoPath, "packed-refs"))
+			require.NoError(t, err)
+			expectedRepoInfo.References.PackedReferencesSize = uint64(packedRefsStat.Size())
+		}
+
+		repoInfo := requireRepositoryInfo(hook.AllEntries())
+		require.Equal(t, expectedRepoInfo, repoInfo)
 	})
 
 	t.Run("repo without alternates", func(t *testing.T) {
