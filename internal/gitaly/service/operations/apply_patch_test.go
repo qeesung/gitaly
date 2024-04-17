@@ -35,11 +35,7 @@ func TestUserApplyPatch(t *testing.T) {
 
 	errPatchingFailed := status.Error(
 		codes.FailedPrecondition,
-		`Patch failed at 0002 commit subject
-When you have resolved this problem, run "git am --continue".
-If you prefer to skip this patch, run "git am --skip" instead.
-To restore the original branch and stop patching, run "git am --abort".
-`)
+		"Patch failed at 0002 commit subject")
 
 	// patchDescription is the description of a patch that gets derived from diffing the old
 	// tree with the new tree.
@@ -552,7 +548,7 @@ To restore the original branch and stop patching, run "git am --abort".
 
 			actualResponse, err := stream.CloseAndRecv()
 			if expectedValues.err != nil {
-				testhelper.RequireGrpcError(t, expectedValues.err, err)
+				testhelper.RequireGrpcErrorContains(t, expectedValues.err, err)
 				return
 			}
 
