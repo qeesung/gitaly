@@ -205,14 +205,8 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	}
 	logger.WithField("duration_ms", time.Since(began).Milliseconds()).Info("finished initializing bootstrap")
 
-	skipHooks, _ := env.GetBool("GITALY_TESTING_NO_GIT_HOOKS", false)
-	var commandFactoryOpts []git.ExecCommandFactoryOption
-	if skipHooks {
-		commandFactoryOpts = append(commandFactoryOpts, git.WithSkipHooks())
-	}
-
 	began = time.Now()
-	gitCmdFactory, cleanup, err := git.NewExecCommandFactory(cfg, logger, commandFactoryOpts...)
+	gitCmdFactory, cleanup, err := git.NewExecCommandFactory(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("creating Git command factory: %w", err)
 	}
@@ -238,8 +232,6 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	transactionManager := transaction.NewManager(cfg, logger, registry)
 	prometheus.MustRegister(transactionManager)
 
-	hookManager := hook.Manager(hook.DisabledManager{})
-
 	locator := config.NewLocator(cfg)
 
 	repoCounter := counter.NewRepositoryCounter(cfg.Storages)
@@ -248,26 +240,29 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	prometheus.MustRegister(gitCmdFactory)
 
 	txRegistry := storagemgr.NewTransactionRegistry()
-	if skipHooks {
+
+	gitlabClient := gitlab.NewStubClient()
+	if skipHooks, _ := env.GetBool("GITALY_TESTING_NO_GIT_HOOKS", false); skipHooks {
 		logger.Warn("skipping GitLab API client creation since hooks are bypassed via GITALY_TESTING_NO_GIT_HOOKS")
 	} else {
-		gitlabClient, err := gitlab.NewHTTPClient(logger, cfg.Gitlab, cfg.TLS, cfg.Prometheus)
+		httpClient, err := gitlab.NewHTTPClient(logger, cfg.Gitlab, cfg.TLS, cfg.Prometheus)
 		if err != nil {
 			return fmt.Errorf("could not create GitLab API client: %w", err)
 		}
-		prometheus.MustRegister(gitlabClient)
-
-		hookManager = hook.NewManager(
-			cfg,
-			locator,
-			logger,
-			gitCmdFactory,
-			transactionManager,
-			gitlabClient,
-			hook.NewTransactionRegistry(txRegistry),
-			hook.NewProcReceiveRegistry(),
-		)
+		prometheus.MustRegister(httpClient)
+		gitlabClient = httpClient
 	}
+
+	hookManager := hook.NewManager(
+		cfg,
+		locator,
+		logger,
+		gitCmdFactory,
+		transactionManager,
+		gitlabClient,
+		hook.NewTransactionRegistry(txRegistry),
+		hook.NewProcReceiveRegistry(),
+	)
 
 	conns := client.NewPool(
 		client.WithDialer(client.HealthCheckDialer(
