@@ -69,6 +69,50 @@ func TestFindCommits(t *testing.T) {
 			},
 		},
 		{
+			desc: "empty repository with revision",
+			setup: func(t *testing.T) setupData {
+				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository: repoProto,
+						Revision:   []byte("non-existent"),
+					},
+					expectedErr: structerr.NewNotFound("commits not found").WithDetail(&gitalypb.FindCommitsError{}),
+				}
+			},
+		},
+		{
+			desc: "empty repository with revision and path",
+			setup: func(t *testing.T) setupData {
+				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository: repoProto,
+						Revision:   []byte("non-existent"),
+						Paths:      [][]byte{[]byte("some path")},
+					},
+					expectedErr: structerr.NewNotFound("commits not found").WithDetail(&gitalypb.FindCommitsError{}),
+				}
+			},
+		},
+		{
+			desc: "non-empty repository with nonexistent revision",
+			setup: func(t *testing.T) setupData {
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
+				writeCommit(t, repo, gittest.WithBranch("main"))
+
+				return setupData{
+					request: &gitalypb.FindCommitsRequest{
+						Repository: repo,
+						Revision:   []byte("non-existent"),
+					},
+					expectedErr: structerr.NewNotFound("commits not found").WithDetail(&gitalypb.FindCommitsError{}),
+				}
+			},
+		},
+		{
 			desc: "repository with a branch and missing default branch",
 			setup: func(t *testing.T) setupData {
 				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
