@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -176,10 +177,10 @@ func TestCalculateChecksum(t *testing.T) {
 					reftableFilePath := filepath.Join(repoPath, "reftable", reftableFilenames[0])
 					reftableFileContent := testhelper.MustReadFile(t, reftableFilePath)
 
+					headRefIdx := bytes.Index(reftableFileContent, []byte("HEAD"))
 					nope := []byte("NOPE")
 					for i := 0; i < len(nope); i++ {
-						// HEAD is 30 bytes into the reftable file.
-						reftableFileContent[i+30] = nope[i]
+						reftableFileContent[i+headRefIdx] = nope[i]
 					}
 
 					require.NoError(t, os.WriteFile(reftableFilePath, reftableFileContent, os.ModePerm))
