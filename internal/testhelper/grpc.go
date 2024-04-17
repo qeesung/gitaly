@@ -89,6 +89,19 @@ func RequireGrpcError(tb testing.TB, expected, actual error, opts ...cmp.Option)
 	ProtoEqual(tb, status.Convert(expected).Proto(), status.Convert(actual).Proto(), opts...)
 }
 
+// RequireGrpcErrorContains performs the same assertion as RequireGrpcCode, but also asserts that
+// the actual error message contains the expected error message as a substring.
+func RequireGrpcErrorContains(tb testing.TB, expected, actual error) {
+	tb.Helper()
+
+	expectedConverted := status.Convert(expected).Proto()
+	actualConverted := status.Convert(actual).Proto()
+
+	require.Equal(tb, expectedConverted.Code, actualConverted.Code)
+
+	require.Contains(tb, actualConverted.Message, expectedConverted.Message)
+}
+
 // RequireStatusWithErrorMetadataRegexp asserts that expected and actual error match each other. Both are expected to
 // be status errors. The error metadata in the status is matched against regular expressions defined in expectedMetadata.
 // expectedMetadata is keyed by error metadata key, and the value is a regex string that the value is expected to match.
