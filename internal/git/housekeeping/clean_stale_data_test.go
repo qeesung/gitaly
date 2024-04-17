@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -260,6 +261,115 @@ func TestPruneEmptyConfigSections(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedSkippedSections, skippedSections)
 
+			require.Equal(t, tc.expectedData, string(testhelper.MustReadFile(t, configPath)))
+		})
+	}
+}
+
+func TestRemoveGitLabFullPathConfig(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg := testcfg.Build(t)
+	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+	configPath := filepath.Join(repoPath, "config")
+
+	for _, tc := range []struct {
+		desc         string
+		configData   string
+		expectedData string
+		cleanupCount int
+	}{
+		{
+			desc:         "config file is empty",
+			configData:   "",
+			expectedData: "",
+		},
+		{
+			desc:         "config file contains newline only",
+			configData:   "\n",
+			expectedData: "\n",
+		},
+		{
+			desc:         "config file doesn't include gitlab.fullpath",
+			configData:   "[foo]\nbar = baz\n",
+			expectedData: "[foo]\nbar = baz\n",
+		},
+		{
+			desc:         "config file includes gitlab.fullpath",
+			cleanupCount: 1,
+			configData: `
+[foo]
+	bar = baz
+[gitlab]
+	fullpath = foo/bar
+`,
+			expectedData: `
+[foo]
+	bar = baz
+`,
+		},
+		{
+			desc:         "config file includes gitlab.fullpath and other gitlab.* configs",
+			cleanupCount: 1,
+			configData: `
+[foo]
+	bar = baz
+[gitlab]
+	fullpath = foo/bar
+	something = else
+`,
+			expectedData: `
+[foo]
+	bar = baz
+[gitlab]
+	something = else
+`,
+		},
+		{
+			desc: "config file includes gitlab.* configs except for gitlab.fullpath",
+			configData: `
+[foo]
+	bar = baz
+[gitlab]
+	something = else
+`,
+			expectedData: `
+[foo]
+	bar = baz
+[gitlab]
+	something = else
+`,
+		},
+		{
+			desc:         "config file includes empty gitlab.fullpath",
+			cleanupCount: 1,
+			configData: `
+[foo]
+	bar = baz
+[gitlab]
+	fullpath =
+	something = else
+`,
+			expectedData: `
+[foo]
+	bar = baz
+[gitlab]
+	something = else
+`,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			require.NoError(t, os.WriteFile(configPath, []byte(tc.configData), perm.SharedFile))
+
+			cleanupCount, err := removeGitLabFullPathConfig(ctx, repo, &transaction.MockManager{})
+			require.NoError(t, err)
+
+			require.Equal(t, tc.cleanupCount, cleanupCount)
 			require.Equal(t, tc.expectedData, string(testhelper.MustReadFile(t, configPath)))
 		})
 	}

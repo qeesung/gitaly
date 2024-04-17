@@ -2499,6 +2499,48 @@ func TestRepositoryManager_CleanStaleData_pruneEmptyConfigSections(t *testing.T)
 	})
 }
 
+func TestRepositoryManager_CleanStaleData_removeGitLabFullPathConfig(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg := testcfg.Build(t)
+	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+	configPath := filepath.Join(repoPath, "config")
+
+	require.NoError(t, os.WriteFile(configPath, []byte(
+		`[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = true
+[uploadpack]
+	allowAnySHA1InWant = true
+[gitlab]
+	fullpath = foo/bar
+	other = config
+`), perm.SharedFile))
+
+	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
+
+	require.NoError(t, mgr.CleanStaleData(ctx, repo, housekeeping.DefaultStaleDataCleanup()))
+	require.Equal(t, `[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = true
+[uploadpack]
+	allowAnySHA1InWant = true
+[gitlab]
+	other = config
+`, string(testhelper.MustReadFile(t, configPath)))
+
+	requireCleanStaleDataMetrics(t, mgr, cleanStaleDataMetrics{
+		configFullpath: 1,
+	})
+}
+
 // mockOptimizationStrategy is a mock strategy that can be used with OptimizeRepository.
 type mockOptimizationStrategy struct {
 	shouldRepackObjects    bool
