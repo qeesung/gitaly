@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -494,6 +495,100 @@ func testResolveConflicts(t *testing.T, ctx context.Context) {
 							"b": []byte("blueberry"),
 						},
 					},
+				}
+			},
+		},
+		{
+			// When we move a file to a new dir in the 'their' commit, our conflict
+			// resolution fails. This is because we use the `resolution.OldPath` as
+			// the path of the file, ideally we should use `resolution.NewPath`.
+			"multi file with move to dir",
+			func(tb testing.TB, ctx context.Context) setupData {
+				cfg, client := setupConflictsService(tb, nil)
+				repo, repoPath := gittest.CreateRepository(tb, ctx, cfg)
+
+				baseCommitID := gittest.WriteCommit(tb, cfg, repoPath, gittest.WithTreeEntries(
+					gittest.TreeEntry{Path: "a", Mode: "100644", Content: "apple\n" + strings.Repeat("filler\n", 10) + "banana"},
+					gittest.TreeEntry{Path: "b", Mode: "100644", Content: "strawberry"},
+					gittest.TreeEntry{Path: "c", Mode: "100644", Content: "blue\n" + strings.Repeat("filler\n", 10) + "apple\n"},
+				))
+
+				ourCommitID := gittest.WriteCommit(tb, cfg, repoPath, gittest.WithParents(baseCommitID), gittest.WithBranch("ours"),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{
+							Path: "a", Mode: "100644",
+							Content: "apricot\n" + strings.Repeat("filler\n", 10) + "berries",
+						},
+						gittest.TreeEntry{Path: "b", Mode: "100644", Content: "blueberry"},
+						gittest.TreeEntry{Path: "c", Mode: "100644", Content: "raw\n" + strings.Repeat("filler\n", 10) + "mango\n"},
+					))
+				theirCommitID := gittest.WriteCommit(tb, cfg, repoPath, gittest.WithParents(baseCommitID), gittest.WithBranch("theirs"),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{
+							Path: "a", Mode: "100644",
+							Content: "acai\n" + strings.Repeat("filler\n", 10) + "birne",
+						},
+						gittest.TreeEntry{Path: "b", Mode: "100644", Content: "raspberry"},
+						gittest.TreeEntry{Path: "subdir", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+							{Path: "c", Mode: "100644", Content: "kiwi\n" + strings.Repeat("filler\n", 10) + "orange\n"},
+						})},
+					))
+
+				files := []map[string]interface{}{
+					{
+						"old_path": "a",
+						"new_path": "a",
+						"sections": map[string]string{
+							fmt.Sprintf("%x_%d_%d", sha1.Sum([]byte("a")), 1, 1):   "head",
+							fmt.Sprintf("%x_%d_%d", sha1.Sum([]byte("a")), 12, 12): "origin",
+						},
+					},
+					{
+						"old_path": "b",
+						"new_path": "b",
+						"sections": map[string]string{
+							fmt.Sprintf("%x_%d_%d", sha1.Sum([]byte("b")), 1, 1): "head",
+						},
+					},
+					{
+						"old_path": "subdir/c",
+						"new_path": "subdir/c",
+						"content":  "new content",
+					},
+				}
+
+				filesJSON, err := json.Marshal(files)
+				require.NoError(t, err)
+
+				return setupData{
+					cfg:      cfg,
+					client:   client,
+					repoPath: repoPath,
+					repo:     repo,
+					requestHeader: &gitalypb.ResolveConflictsRequest_Header{
+						Header: &gitalypb.ResolveConflictsRequestHeader{
+							Repository:       repo,
+							TargetRepository: repo,
+							OurCommitOid:     ourCommitID.String(),
+							TheirCommitOid:   theirCommitID.String(),
+							TargetBranch:     []byte("theirs"),
+							SourceBranch:     []byte("ours"),
+							CommitMessage:    []byte(conflictResolutionCommitMessage),
+							User:             defaultUser,
+							Timestamp:        defaultTimestamp,
+						},
+					},
+					requestsFilesJSON: []*gitalypb.ResolveConflictsRequest_FilesJson{
+						{FilesJson: filesJSON[:50]},
+						{FilesJson: filesJSON[50:]},
+					},
+					expectedCommitAuthor: defaultCommitAuthor,
+					expectedError: testhelper.ToInterceptedMetadata(
+						structerr.NewInternal("retrieving object: %w",
+							catfile.NotFoundError{Revision: ourCommitID.String() + ":subdir/c"},
+						),
+					),
+					skipCommitCheck: true,
 				}
 			},
 		},
