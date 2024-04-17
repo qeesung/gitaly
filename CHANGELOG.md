@@ -1,5 +1,16 @@
 # Gitaly changelog
 
+## 16.11.0 (2024-04-17)
+
+### Added (1 change)
+
+- [git: Wire up Git v2.44 execution environment](gitlab-org/gitaly@2c62f7d0a6db7c5477d600d43c0198be62fd81c2) ([merge request](gitlab-org/gitaly!6770))
+
+### Fixed (2 changes)
+
+- [Fix FindCommits in repositories missing default branches](gitlab-org/gitaly@6e011ae3ecff6d8797de15df19b23c3000eea111) ([merge request](gitlab-org/gitaly!6801))
+- [Allow unauthenticated access to health checking service](gitlab-org/gitaly@fcdbc76dc24f946a84155d91c1a8a5a55de0e5a1) ([merge request](gitlab-org/gitaly!6715))
+
 ## 16.10.3 (2024-04-12)
 
 No changes.
