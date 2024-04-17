@@ -902,10 +902,6 @@ func testGetTreeEntries(t *testing.T, ctx context.Context) {
 					gittest.TreeEntry{OID: folderOID, Mode: "040000", Path: "foo"},
 				))
 
-				errorCode := testhelper.EnabledOrDisabledFlag(ctx, featureflag.UseUnifiedGetTreeEntries,
-					structerr.NewInvalidArgument,
-					structerr.NewNotFound)
-
 				return setupData{
 					request: &gitalypb.GetTreeEntriesRequest{
 						Repository: repo,
@@ -914,7 +910,7 @@ func testGetTreeEntries(t *testing.T, ctx context.Context) {
 						Recursive:  true,
 					},
 					expectedErr: testhelper.WithInterceptedMetadataItems(
-						errorCode("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
+						structerr.NewNotFound("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
 							Error: &gitalypb.GetTreeEntriesError_ResolveTree{
 								ResolveTree: &gitalypb.ResolveRevisionError{
 									Revision: []byte(commitID),
@@ -957,10 +953,8 @@ func testGetTreeEntries(t *testing.T, ctx context.Context) {
 							},
 						}),
 						structerr.MetadataItem{
-							Key: "path",
-							Value: testhelper.EnabledOrDisabledFlag(ctx, featureflag.UseUnifiedGetTreeEntries,
-								".",
-								""),
+							Key:   "path",
+							Value: "",
 						},
 						structerr.MetadataItem{Key: "revision", Value: "does-not-exist"},
 					),
@@ -982,14 +976,6 @@ func testGetTreeEntries(t *testing.T, ctx context.Context) {
 					gittest.TreeEntry{OID: folderOID, Mode: "040000", Path: "foo"},
 				))
 
-				errorCode := testhelper.EnabledOrDisabledFlag(ctx, featureflag.UseUnifiedGetTreeEntries,
-					structerr.NewInvalidArgument,
-					structerr.NewNotFound)
-
-				errorPath := testhelper.EnabledOrDisabledFlag(ctx, featureflag.UseUnifiedGetTreeEntries,
-					".",
-					"")
-
 				return setupData{
 					request: &gitalypb.GetTreeEntriesRequest{
 						Repository: repo,
@@ -998,14 +984,14 @@ func testGetTreeEntries(t *testing.T, ctx context.Context) {
 						Recursive:  true,
 					},
 					expectedErr: testhelper.WithInterceptedMetadataItems(
-						errorCode("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
+						structerr.NewNotFound("invalid revision or path").WithDetail(&gitalypb.GetTreeEntriesError{
 							Error: &gitalypb.GetTreeEntriesError_ResolveTree{
 								ResolveTree: &gitalypb.ResolveRevisionError{
 									Revision: []byte("does-not-exist"),
 								},
 							},
 						}),
-						structerr.MetadataItem{Key: "path", Value: errorPath},
+						structerr.MetadataItem{Key: "path", Value: ""},
 						structerr.MetadataItem{Key: "revision", Value: "does-not-exist"},
 					),
 				}
