@@ -124,7 +124,7 @@ func (ff FeatureFlag) FormatWithValue(enabled bool) string {
 // IsEnabled checks if the feature flag is enabled for the passed context.
 // Only returns true if the metadata for the feature flag is set to "true"
 func (ff FeatureFlag) IsEnabled(ctx context.Context) bool {
-	if featureFlagsOverride {
+	if featureFlagsOverride && ff != LogGitTraces {
 		return true
 	}
 
