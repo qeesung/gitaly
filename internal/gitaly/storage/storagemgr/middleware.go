@@ -53,16 +53,8 @@ var NonTransactionalRPCs = map[string]struct{}{
 	// through the WAL.
 	"/gitaly.RepositoryService/ReplicateRepository": {},
 
-	// Below RPCs implement functionality which isn't going to be supported by WAL.
-	// Handle these as non-transactional. Their usage must be removed prior to enabling WAL.
-	//
-	// Attributes are going to be read from HEAD. Writing out a separate attributes file
-	// won't be supported.
-	"/gitaly.RepositoryService/ApplyGitattributes": {},
-
 	// FetchIntoObjectPool manages the life-cycle of WAL transaction itself.
 	"/gitaly.ObjectPool/FetchIntoObjectPool": {},
-
 	// OptimizeRepository manages the life-cycle of WAL transaction itself.
 	"/gitaly.RepositoryService/OptimizeRepository": {},
 	// PruneUnreachableObjects should be a no-op when WAL is enabled by default.
