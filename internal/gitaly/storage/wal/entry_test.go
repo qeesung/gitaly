@@ -345,6 +345,7 @@ func TestRecordReferenceUpdates(t *testing.T) {
 	type setupData struct {
 		existingReferences    referenceTransaction
 		referenceTransactions []referenceTransaction
+		noopReferenceUpdates  map[git.ReferenceName]struct{}
 		expectedOperations    operations
 		expectedDirectory     testhelper.DirectoryState
 		expectedError         error
@@ -394,6 +395,29 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						"/3": {Mode: perm.SharedFile, Content: []byte(oids[2] + "\n")},
 						"/4": {Mode: perm.SharedFile, Content: []byte(oids[3] + "\n")},
 						"/5": {Mode: perm.SharedFile, Content: []byte(oids[4] + "\n")},
+					},
+				}
+			},
+		},
+		{
+			desc: "no-op reference update",
+			setup: func(t *testing.T, oids []git.ObjectID) setupData {
+				return setupData{
+					existingReferences: referenceTransaction{
+						"refs/heads/branch-1": oids[0],
+					},
+					referenceTransactions: []referenceTransaction{
+						{"refs/heads/branch-1": oids[0]},
+					},
+					noopReferenceUpdates: map[git.ReferenceName]struct{}{
+						"refs/heads/branch-1": {},
+					},
+					expectedOperations: func() operations {
+						var ops operations
+						return ops
+					}(),
+					expectedDirectory: testhelper.DirectoryState{
+						"/": {Mode: fs.ModeDir | perm.SharedDir},
 					},
 				}
 			},
@@ -599,7 +623,7 @@ func TestRecordReferenceUpdates(t *testing.T) {
 			stateDir := t.TempDir()
 			entry := NewEntry(stateDir)
 			for _, refTX := range setupData.referenceTransactions {
-				if err := entry.RecordReferenceUpdates(ctx, storageRoot, snapshotPrefix, relativePath, referenceTransactionToProto(refTX), gittest.DefaultObjectHash, func(changes []*gitalypb.LogEntry_ReferenceTransaction_Change) error {
+				if err := entry.RecordReferenceUpdates(ctx, storageRoot, snapshotPrefix, relativePath, referenceTransactionToProto(refTX), gittest.DefaultObjectHash, setupData.noopReferenceUpdates, func(changes []*gitalypb.LogEntry_ReferenceTransaction_Change) error {
 					performChanges(t, updater, changes)
 					return nil
 				}); err != nil {

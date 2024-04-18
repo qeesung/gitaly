@@ -2332,6 +2332,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 	}
 
 	conflictingReferenceUpdates := map[git.ReferenceName]struct{}{}
+	noopReferenceUpdates := map[git.ReferenceName]struct{}{}
 	for referenceName, update := range transaction.flattenReferenceTransactions() {
 		// Transactions should only stage references with valid names as otherwise Git would already
 		// fail when they try to stage them against their snapshot. `update-ref` happily accepts references
@@ -2365,6 +2366,13 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 				ActualOID:     actualOldTip,
 			}
 		}
+
+		if update.OldOID == update.NewOID {
+			// This was a no-op and doesn't need to be written out. The reference's old value has been
+			// verified now to match what is expected.
+			noopReferenceUpdates[referenceName] = struct{}{}
+			continue
+		}
 	}
 
 	var referenceTransactions []*gitalypb.LogEntry_ReferenceTransaction
@@ -2394,7 +2402,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 		})
 	}
 
-	if err := mgr.verifyReferencesWithGit(ctx, referenceTransactions, transaction); err != nil {
+	if err := mgr.verifyReferencesWithGit(ctx, referenceTransactions, transaction, noopReferenceUpdates); err != nil {
 		return nil, fmt.Errorf("verify references with git: %w", err)
 	}
 
@@ -2405,7 +2413,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 // repository. This ensures the updates will go through when they are being applied from the log. This also catches any
 // invalid reference names and file/directory conflicts with Git's loose reference storage which can occur with references
 // like 'refs/heads/parent' and 'refs/heads/parent/child'.
-func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, referenceTransactions []*gitalypb.LogEntry_ReferenceTransaction, tx *Transaction) error {
+func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, referenceTransactions []*gitalypb.LogEntry_ReferenceTransaction, tx *Transaction, noopReferenceUpdates map[git.ReferenceName]struct{}) error {
 	snapshotPackedRefsPath := mgr.getAbsolutePath(tx.stagingSnapshot.relativePath(tx.relativePath), "packed-refs")
 
 	// Record the original packed-refs file. We use it for determining whether the transaction has changed it and
@@ -2435,6 +2443,7 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 			tx.relativePath,
 			referenceTransaction,
 			objectHash,
+			noopReferenceUpdates,
 			func(changes []*gitalypb.LogEntry_ReferenceTransaction_Change) error {
 				return mgr.applyReferenceTransaction(ctx, changes, repo)
 			},

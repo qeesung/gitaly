@@ -283,15 +283,20 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 // The method assumes the reference directory is in good shape and doesn't have hierarchies of empty directories. It
 // thus doesn't record the deletion of such directories. If a directory such as `refs/heads/parent/child/subdir`
 // exists, and a reference called `refs/heads/parent` is created, we don't handle the deletions of empty directories.
-func (e *Entry) RecordReferenceUpdates(ctx context.Context, storageRoot, snapshotPrefix, relativePath string, refTX *gitalypb.LogEntry_ReferenceTransaction, objectHash git.ObjectHash, performReferenceUpdates func([]*gitalypb.LogEntry_ReferenceTransaction_Change) error) error {
-	if len(refTX.GetChanges()) == 0 {
-		return nil
-	}
-
+func (e *Entry) RecordReferenceUpdates(ctx context.Context, storageRoot, snapshotPrefix, relativePath string, refTX *gitalypb.LogEntry_ReferenceTransaction, objectHash git.ObjectHash, noopReferenceUpdates map[git.ReferenceName]struct{}, performReferenceUpdates func([]*gitalypb.LogEntry_ReferenceTransaction_Change) error) error {
 	creations := newReferenceTree()
 	deletions := newReferenceTree()
 	preImagePaths := map[string]struct{}{}
+	hasChangesToRecord := false
 	for _, change := range refTX.GetChanges() {
+		// If a reference was a no-op, we don't record its changes as there are no changes.
+		// We'll still perform the change just to ensure the change would be fine.
+		if _, ok := noopReferenceUpdates[git.ReferenceName(change.GetReferenceName())]; ok {
+			continue
+		}
+
+		hasChangesToRecord = true
+
 		tree := creations
 		if objectHash.IsZeroOID(git.ObjectID(change.NewOid)) {
 			tree = deletions
@@ -331,6 +336,10 @@ func (e *Entry) RecordReferenceUpdates(ctx context.Context, storageRoot, snapsho
 
 	if err := performReferenceUpdates(refTX.Changes); err != nil {
 		return fmt.Errorf("perform reference updates: %w", err)
+	}
+
+	if !hasChangesToRecord {
+		return nil
 	}
 
 	// Record creations
