@@ -10,10 +10,78 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
 
 func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
 	return []transactionTestCase{
+		{
+			desc: "create reference with non-utf-8 sequence",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithMacOS(t, "macOS does not support non-UTF-8 in file system paths")
+			},
+			steps: steps{
+				StartManager{},
+				Begin{
+					RelativePath: setup.RelativePath,
+				},
+				Commit{
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/non-\xE5-utf8-directory/non-\xE5-utf8-file": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/non-\xE5-utf8-directory/non-\xE5-utf8-file": setup.Commits.First.OID,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "delete reference with non-utf-8 sequence",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithMacOS(t, "macOS does not support non-UTF-8 in file system paths")
+			},
+			steps: steps{
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/non-\xE5-utf8-directory/non-\xE5-utf8-file": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/non-\xE5-utf8-directory/non-\xE5-utf8-file": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+				},
+			},
+		},
 		{
 			desc: "create reference",
 			steps: steps{
