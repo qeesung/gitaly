@@ -2333,7 +2333,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 		return nil, fmt.Errorf("quarantine: %w", err)
 	}
 
-	conflictingReferenceUpdates := map[git.ReferenceName]struct{}{}
+	droppedReferenceUpdates := map[git.ReferenceName]struct{}{}
 	for referenceName, update := range transaction.flattenReferenceTransactions() {
 		// Transactions should only stage references with valid names as otherwise Git would already
 		// fail when they try to stage them against their snapshot. `update-ref` happily accepts references
@@ -2357,7 +2357,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 
 		if update.OldOID != actualOldTip {
 			if transaction.skipVerificationFailures {
-				conflictingReferenceUpdates[referenceName] = struct{}{}
+				droppedReferenceUpdates[referenceName] = struct{}{}
 				continue
 			}
 
@@ -2368,13 +2368,20 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 				NewOID:         update.NewOID,
 			}
 		}
+
+		if update.OldOID == update.NewOID {
+			// This was a no-op and doesn't need to be written out. The reference's old value has been
+			// verified now to match what is expected.
+			droppedReferenceUpdates[referenceName] = struct{}{}
+			continue
+		}
 	}
 
 	var referenceTransactions []*gitalypb.LogEntry_ReferenceTransaction
 	for _, updates := range transaction.referenceUpdates {
 		changes := make([]*gitalypb.LogEntry_ReferenceTransaction_Change, 0, len(updates))
 		for reference, update := range updates {
-			if _, ok := conflictingReferenceUpdates[reference]; ok {
+			if _, ok := droppedReferenceUpdates[reference]; ok {
 				continue
 			}
 
