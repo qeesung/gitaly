@@ -516,6 +516,12 @@ func TestServer_PostUploadPackWithBundleURI(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.desc, func(t *testing.T) {
+			testhelper.SkipQuarantinedTest(
+				t,
+				"https://gitlab.com/gitlab-org/gitaly/-/issues/5982",
+				"TestServer_PostUploadPackWithBundleURI/backup_without_bundle_path",
+			)
+
 			t.Parallel()
 
 			cfg := testcfg.Build(t)
