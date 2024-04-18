@@ -800,6 +800,7 @@ type steps []any
 
 type transactionTestCase struct {
 	desc          string
+	skip          func(*testing.T)
 	steps         steps
 	customSetup   func(*testing.T, context.Context, partitionID, string) testTransactionSetup
 	expectedState StateAssertion

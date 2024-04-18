@@ -206,6 +206,10 @@ func TestTransactionManager(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
+			if tc.skip != nil {
+				tc.skip(t)
+			}
+
 			// Setup the repository with the exact same state as what was used to build the test cases.
 			var setup testTransactionSetup
 			if tc.customSetup != nil {
