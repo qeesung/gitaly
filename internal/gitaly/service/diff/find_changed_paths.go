@@ -23,6 +23,15 @@ const (
 	numStatDelimiter = 0
 )
 
+var statusTypeMap = map[byte]gitalypb.ChangedPaths_Status{
+	'M': gitalypb.ChangedPaths_MODIFIED,
+	'D': gitalypb.ChangedPaths_DELETED,
+	'T': gitalypb.ChangedPaths_TYPE_CHANGE,
+	'C': gitalypb.ChangedPaths_COPIED,
+	'A': gitalypb.ChangedPaths_ADDED,
+	'R': gitalypb.ChangedPaths_RENAMED,
+}
+
 // changedPathsRequestToString converts the given FindChangedPathsRequest to a string that can be passed to git-diff-tree(1). Note
 // that this function expects that all revisions have already been resolved to their respective object IDs.
 func changedPathsRequestToString(r *gitalypb.FindChangedPathsRequest_Request) (string, error) {
@@ -57,15 +66,20 @@ func (s *server) FindChangedPaths(in *gitalypb.FindChangedPathsRequest, stream g
 		git.Flag{Name: "-z"},
 		git.Flag{Name: "--stdin"},
 		git.Flag{Name: "-r"},
-		git.Flag{Name: "--root"},
-		git.Flag{Name: "--no-renames"},
 		git.Flag{Name: "--no-commit-id"},
 		// By default, git-diff-tree(1) does not report changes in the root commit.
 		// By adding below flag we ask Git to behave as when comparing to an empty
 		// tree in that case.
 		git.Flag{Name: "--root"},
-		git.Flag{Name: "--diff-filter=AMDTC"},
+		git.Flag{Name: "--diff-filter=AMDTCR"},
 	}
+
+	if in.FindRenames {
+		flags = append(flags, git.Flag{Name: "--find-renames=30%"})
+	} else {
+		flags = append(flags, git.Flag{Name: "--no-renames"})
+	}
+
 	switch in.MergeCommitDiffMode {
 	case gitalypb.FindChangedPathsRequest_MERGE_COMMIT_DIFF_MODE_INCLUDE_MERGES, gitalypb.FindChangedPathsRequest_MERGE_COMMIT_DIFF_MODE_UNSPECIFIED:
 		// By default, git diff-tree --stdin does not show differences
@@ -181,7 +195,10 @@ func nextPath(reader *bufio.Reader) ([]*gitalypb.ChangedPaths, error) {
 	srcCount := bytes.LastIndexByte(split[0], byte(':')) + 2
 	split[0] = split[0][srcCount-1:]
 
-	pathStatus := split[len(split)-1]
+	// Status letters C and R are always followed by a score denoting the percentage of similarity
+	// between the source and target of the move or copy. The scores are not needed, so they are
+	// removed to simplify the parsing operation.
+	pathStatus := removeStatusScores(split[len(split)-1])
 
 	// The new blob id of a changed path is the last object ID in the output.
 	// It's applied for a single source:
@@ -208,14 +225,6 @@ func nextPath(reader *bufio.Reader) ([]*gitalypb.ChangedPaths, error) {
 	}
 	path = path[:len(path)-1]
 
-	statusTypeMap := map[string]gitalypb.ChangedPaths_Status{
-		"M": gitalypb.ChangedPaths_MODIFIED,
-		"D": gitalypb.ChangedPaths_DELETED,
-		"T": gitalypb.ChangedPaths_TYPE_CHANGE,
-		"C": gitalypb.ChangedPaths_COPIED,
-		"A": gitalypb.ChangedPaths_ADDED,
-	}
-
 	// Produce a gitalypb.ChangedPaths for each source
 	changedPaths := make([]*gitalypb.ChangedPaths, srcCount)
 	for i := range changedPaths {
@@ -229,7 +238,7 @@ func nextPath(reader *bufio.Reader) ([]*gitalypb.ChangedPaths, error) {
 			return nil, fmt.Errorf("parsing new mode: %w", err)
 		}
 
-		parsedPath, ok := statusTypeMap[string(pathStatus[i:i+1])]
+		parsedPath, ok := statusTypeMap[pathStatus[i]]
 		if !ok {
 			return nil, structerr.NewInternal("unknown changed paths returned: %v", string(pathStatus))
 		}
@@ -245,6 +254,16 @@ func nextPath(reader *bufio.Reader) ([]*gitalypb.ChangedPaths, error) {
 	}
 
 	return changedPaths, nil
+}
+
+func removeStatusScores(s []byte) []byte {
+	var status []byte
+	for _, b := range s {
+		if _, ok := statusTypeMap[b]; ok {
+			status = append(status, b)
+		}
+	}
+	return status
 }
 
 // This sender implements the interface in the chunker class
