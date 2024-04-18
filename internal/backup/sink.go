@@ -10,6 +10,7 @@ import (
 
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
+	"gocloud.dev/blob/fileblob"
 	"gocloud.dev/blob/gcsblob"
 	"gocloud.dev/blob/memblob"
 	"gocloud.dev/blob/s3blob"
@@ -36,8 +37,11 @@ func ResolveSink(ctx context.Context, uri string) (Sink, error) {
 	switch scheme {
 	case s3blob.Scheme, azureblob.Scheme, gcsblob.Scheme, memblob.Scheme:
 		return newStorageServiceSink(ctx, uri)
+	case fileblob.Scheme, "":
+		// fileblob.OpenBucket requires a bare path without 'file://'.
+		return newFileblobSink(parsed.Path)
 	default:
-		return NewFilesystemSink(uri), nil
+		return nil, fmt.Errorf("unsupported sink URI scheme: %q", scheme)
 	}
 }
 
@@ -49,6 +53,17 @@ type StorageServiceSink struct {
 // newStorageServiceSink returns initialized instance of StorageServiceSink instance.
 func newStorageServiceSink(ctx context.Context, url string) (*StorageServiceSink, error) {
 	bucket, err := blob.OpenBucket(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("storage service sink: open bucket: %w", err)
+	}
+
+	return &StorageServiceSink{bucket: bucket}, nil
+}
+
+// newFileblobSink returns initialized instance of StorageServiceSink instance using the
+// fileblob backend.
+func newFileblobSink(path string) (*StorageServiceSink, error) {
+	bucket, err := fileblob.OpenBucket(path, &fileblob.Options{NoTempDir: true})
 	if err != nil {
 		return nil, fmt.Errorf("storage service sink: open bucket: %w", err)
 	}

@@ -95,8 +95,10 @@ func TestPointerLocator(t *testing.T) {
 		t.Parallel()
 
 		backupPath := testhelper.TempDir(t)
+		sink, err := ResolveSink(ctx, backupPath)
+		require.NoError(t, err)
 		var l Locator = PointerLocator{
-			Sink: NewFilesystemSink(backupPath),
+			Sink: sink,
 		}
 
 		const expectedIncrement = "001"
@@ -157,7 +159,8 @@ func TestPointerLocator(t *testing.T) {
 				t.Parallel()
 
 				backupPath := testhelper.TempDir(t)
-				sink := NewFilesystemSink(backupPath)
+				sink, err := ResolveSink(ctx, backupPath)
+				require.NoError(t, err)
 				var l Locator = PointerLocator{Sink: sink}
 
 				if tc.setup != nil {
@@ -207,11 +210,13 @@ func TestPointerLocator(t *testing.T) {
 			t.Parallel()
 
 			backupPath := testhelper.TempDir(t)
+			sink, err := ResolveSink(ctx, backupPath)
+			require.NoError(t, err)
 			var l Locator = PointerLocator{
-				Sink: NewFilesystemSink(backupPath),
+				Sink: sink,
 			}
 
-			_, err := l.FindLatest(ctx, repo)
+			_, err = l.FindLatest(ctx, repo)
 			require.ErrorIs(t, err, ErrDoesntExist)
 
 			require.NoError(t, os.MkdirAll(filepath.Join(backupPath, repo.RelativePath, backupID), perm.SharedDir))
@@ -251,8 +256,10 @@ func TestPointerLocator(t *testing.T) {
 			t.Parallel()
 
 			backupPath := testhelper.TempDir(t)
+			sink, err := ResolveSink(ctx, backupPath)
+			require.NoError(t, err)
 			var l Locator = PointerLocator{
-				Sink:     NewFilesystemSink(backupPath),
+				Sink:     sink,
 				Fallback: LegacyLocator{},
 			}
 
@@ -298,28 +305,32 @@ func TestPointerLocator(t *testing.T) {
 			t.Parallel()
 
 			backupPath := testhelper.TempDir(t)
+			sink, err := ResolveSink(ctx, backupPath)
+			require.NoError(t, err)
 			var l Locator = PointerLocator{
-				Sink: NewFilesystemSink(backupPath),
+				Sink: sink,
 			}
 
-			_, err := l.FindLatest(ctx, repo)
+			_, err = l.FindLatest(ctx, repo)
 			require.ErrorIs(t, err, ErrDoesntExist)
 
 			require.NoError(t, os.MkdirAll(filepath.Join(backupPath, repo.RelativePath), perm.SharedDir))
 			require.NoError(t, os.WriteFile(filepath.Join(backupPath, repo.RelativePath, "LATEST"), []byte("invalid"), perm.SharedFile))
 			_, err = l.FindLatest(ctx, repo)
-			require.EqualError(t, err, "pointer locator: find latest: find: find latest ID: doesn't exist")
+			require.EqualError(t, err, "pointer locator: find latest: find: find latest ID: storage service sink: new reader for \"TestPointerLocator/invalid/LATEST\": doesn't exist")
 		})
 
 		t.Run("invalid incremental LATEST", func(t *testing.T) {
 			t.Parallel()
 
 			backupPath := testhelper.TempDir(t)
+			sink, err := ResolveSink(ctx, backupPath)
+			require.NoError(t, err)
 			var l Locator = PointerLocator{
-				Sink: NewFilesystemSink(backupPath),
+				Sink: sink,
 			}
 
-			_, err := l.FindLatest(ctx, repo)
+			_, err = l.FindLatest(ctx, repo)
 			require.ErrorIs(t, err, ErrDoesntExist)
 
 			require.NoError(t, os.MkdirAll(filepath.Join(backupPath, repo.RelativePath, backupID), perm.SharedDir))
@@ -338,11 +349,13 @@ func TestPointerLocator(t *testing.T) {
 			t.Parallel()
 
 			backupPath := testhelper.TempDir(t)
+			sink, err := ResolveSink(ctx, backupPath)
+			require.NoError(t, err)
 			var l Locator = PointerLocator{
-				Sink: NewFilesystemSink(backupPath),
+				Sink: sink,
 			}
 
-			_, err := l.Find(ctx, repo, backupID)
+			_, err = l.Find(ctx, repo, backupID)
 			require.ErrorIs(t, err, ErrDoesntExist)
 		})
 
@@ -350,8 +363,10 @@ func TestPointerLocator(t *testing.T) {
 			t.Parallel()
 
 			backupPath := testhelper.TempDir(t)
+			sink, err := ResolveSink(ctx, backupPath)
+			require.NoError(t, err)
 			var l Locator = PointerLocator{
-				Sink: NewFilesystemSink(backupPath),
+				Sink: sink,
 			}
 
 			require.NoError(t, os.MkdirAll(filepath.Join(backupPath, repo.RelativePath, backupID), perm.SharedDir))
@@ -390,11 +405,13 @@ func TestPointerLocator(t *testing.T) {
 			t.Parallel()
 
 			backupPath := testhelper.TempDir(t)
+			sink, err := ResolveSink(ctx, backupPath)
+			require.NoError(t, err)
 			var l Locator = PointerLocator{
-				Sink: NewFilesystemSink(backupPath),
+				Sink: sink,
 			}
 
-			_, err := l.Find(ctx, repo, backupID)
+			_, err = l.Find(ctx, repo, backupID)
 			require.ErrorIs(t, err, ErrDoesntExist)
 
 			require.NoError(t, os.MkdirAll(filepath.Join(backupPath, repo.RelativePath, backupID), perm.SharedDir))
@@ -424,7 +441,8 @@ func TestManifestLocator_withFallback(t *testing.T) {
 		t.Parallel()
 
 		backupPath := testhelper.TempDir(t)
-		sink := NewFilesystemSink(backupPath)
+		sink, err := ResolveSink(ctx, backupPath)
+		require.NoError(t, err)
 		var l Locator = PointerLocator{
 			Sink: sink,
 		}
@@ -456,7 +474,8 @@ custom_hooks_path = '%[1]s/%[2]s/001.custom_hooks.tar'
 			filepath.Join(repo.RelativePath, "abc123", "LATEST"): "001",
 		})
 
-		sink := NewFilesystemSink(backupPath)
+		sink, err := ResolveSink(ctx, backupPath)
+		require.NoError(t, err)
 		var l Locator = PointerLocator{
 			Sink: sink,
 		}
@@ -509,7 +528,8 @@ func TestManifestLocator(t *testing.T) {
 		t.Parallel()
 
 		backupPath := testhelper.TempDir(t)
-		sink := NewFilesystemSink(backupPath)
+		sink, err := ResolveSink(ctx, backupPath)
+		require.NoError(t, err)
 		var l Locator = ManifestLocator{
 			Sink: sink,
 		}
@@ -543,7 +563,8 @@ custom_hooks_path = '%[1]s/%[2]s/%[3]s/001.custom_hooks.tar'
 `, repo.StorageName, repo.RelativePath, backupID),
 		})
 
-		sink := NewFilesystemSink(backupPath)
+		sink, err := ResolveSink(ctx, backupPath)
+		require.NoError(t, err)
 		var l Locator = ManifestLocator{
 			Sink: sink,
 		}
@@ -677,7 +698,8 @@ custom_hooks_path = 'path/to/002.custom_hooks.tar'
 
 			tc.setup(t, ctx, backupPath)
 
-			sink := NewFilesystemSink(backupPath)
+			sink, err := ResolveSink(ctx, backupPath)
+			require.NoError(t, err)
 			var l Locator = PointerLocator{
 				Sink: sink,
 			}
@@ -794,7 +816,8 @@ custom_hooks_path = 'manifest-path/to/002.custom_hooks.tar'
 
 			tc.setup(t, ctx, backupPath)
 
-			sink := NewFilesystemSink(backupPath)
+			sink, err := ResolveSink(ctx, backupPath)
+			require.NoError(t, err)
 			var l Locator = PointerLocator{
 				Sink: sink,
 			}

@@ -35,9 +35,10 @@ func TestResolveSink(t *testing.T) {
 	gsCreds := filepath.Join(tmpDir, "gs.creds")
 
 	var (
-		azureBucket *container.Client
-		gcsBucket   *storage.Client
-		s3Bucket    *s3.S3
+		azureBucket    *container.Client
+		gcsBucket      *storage.Client
+		s3Bucket       *s3.S3
+		fileblobBucket os.FileInfo
 	)
 
 	require.NoError(t, os.WriteFile(gsCreds, []byte(`
@@ -90,16 +91,24 @@ func TestResolveSink(t *testing.T) {
 			verify: isStorageServiceSink(&azureBucket),
 		},
 		{
-			desc: "Filesystem",
-			path: "/some/path",
-			verify: func(t *testing.T, sink Sink) {
-				require.IsType(t, &FilesystemSink{}, sink)
-			},
+			desc:   "Fileblob",
+			path:   "file://" + tmpDir,
+			verify: isStorageServiceSink(&fileblobBucket),
+		},
+		{
+			desc:   "Unspecified scheme uses fileblob",
+			path:   tmpDir,
+			verify: isStorageServiceSink(&fileblobBucket),
 		},
 		{
 			desc:   "undefined",
 			path:   "some:invalid:path\x00",
 			errMsg: `parse "some:invalid:path\x00": net/url: invalid control character in URL`,
+		},
+		{
+			desc:   "unrecognized scheme",
+			path:   "minio://bucket",
+			errMsg: `unsupported sink URI scheme: "minio"`,
 		},
 	} {
 		tc := tc
@@ -202,7 +211,7 @@ func TestStorageServiceSink_SignedURL_notImplemented(t *testing.T) {
 
 			_, err = sss.SignedURL(ctx, relativePath, 10*time.Minute)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "not implemented")
+			require.Contains(t, err.Error(), "Unimplemented")
 		})
 	}
 }

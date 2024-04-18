@@ -205,7 +205,8 @@ func TestManager_Create(t *testing.T) {
 				bundlePath := joinBackupPath(t, backupRoot, vanityRepo, backupID, "001.bundle")
 				customHooksPath := joinBackupPath(t, backupRoot, vanityRepo, backupID, "001.custom_hooks.tar")
 
-				sink := backup.NewFilesystemSink(backupRoot)
+				sink, err := backup.ResolveSink(ctx, backupRoot)
+				require.NoError(t, err)
 				defer testhelper.MustClose(t, sink)
 
 				locator, err := backup.ResolveLocator("manifest", sink)
@@ -230,11 +231,11 @@ func TestManager_Create(t *testing.T) {
 
 					dirInfo, err := os.Stat(filepath.Dir(bundlePath))
 					require.NoError(t, err)
-					require.Equal(t, perm.PrivateDir, dirInfo.Mode().Perm(), "expecting restricted directory permissions")
+					require.Equal(t, perm.SharedDir, dirInfo.Mode().Perm(), "expecting shared directory permissions")
 
 					bundleInfo, err := os.Stat(bundlePath)
 					require.NoError(t, err)
-					require.Equal(t, perm.PrivateFile, bundleInfo.Mode().Perm(), "expecting restricted file permissions")
+					require.Equal(t, perm.SharedFile, bundleInfo.Mode().Perm(), "expecting shared file permissions")
 
 					output := gittest.Exec(t, cfg, "-C", data.repoPath, "bundle", "verify", bundlePath)
 					require.Contains(t, string(output), "The bundle records a complete history")
@@ -391,7 +392,8 @@ custom_hooks_path = '%[2]s/001.custom_hooks.tar'
 				refsPath := joinBackupPath(t, backupRoot, repo, backupID, tc.expectedIncrement+".refs")
 				bundlePath := joinBackupPath(t, backupRoot, repo, backupID, tc.expectedIncrement+".bundle")
 
-				sink := backup.NewFilesystemSink(backupRoot)
+				sink, err := backup.ResolveSink(ctx, backupRoot)
+				require.NoError(t, err)
 				defer testhelper.MustClose(t, sink)
 
 				locator, err := backup.ResolveLocator("manifest", sink)
@@ -762,7 +764,8 @@ custom_hooks_path = '%[2]s/%[3]s/002.custom_hooks.tar'
 				t.Run(tc.desc, func(t *testing.T) {
 					repo, expectedChecksum := tc.setup(t)
 
-					sink := backup.NewFilesystemSink(backupRoot)
+					sink, err := backup.ResolveSink(ctx, backupRoot)
+					require.NoError(t, err)
 					defer testhelper.MustClose(t, sink)
 
 					locator, err := backup.ResolveLocator("manifest", sink)
@@ -1061,7 +1064,8 @@ custom_hooks_path = 'custom_hooks.tar'
 				t.Run(tc.desc, func(t *testing.T) {
 					repo, expectedChecksum := tc.setup(t)
 
-					sink := backup.NewFilesystemSink(backupRoot)
+					sink, err := backup.ResolveSink(ctx, backupRoot)
+					require.NoError(t, err)
 					defer testhelper.MustClose(t, sink)
 
 					locator, err := backup.ResolveLocator("manifest", sink)
@@ -1139,7 +1143,8 @@ func TestManager_CreateRestore_contextServerInfo(t *testing.T) {
 	pool := client.NewPool()
 	defer testhelper.MustClose(t, pool)
 
-	sink := backup.NewFilesystemSink(backupRoot)
+	sink, err := backup.ResolveSink(ctx, backupRoot)
+	require.NoError(t, err)
 	defer testhelper.MustClose(t, sink)
 
 	locator, err := backup.ResolveLocator("manifest", sink)

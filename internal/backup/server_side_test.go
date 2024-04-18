@@ -209,7 +209,7 @@ func TestServerSideAdapter_Restore(t *testing.T) {
 					backupID: "",
 				}
 			},
-			expectedErr: fmt.Errorf("server-side restore: %w: rpc error: code = FailedPrecondition desc = restore repository: manager: restore from bundle: repository skipped: read refs: doesn't exist", backup.ErrSkipped),
+			expectedErr: fmt.Errorf("server-side restore: %w: rpc error: code = FailedPrecondition desc = restore repository: manager: restore from bundle: repository skipped: read refs: storage service sink: new reader for \"@test/restore/latest/missing.refs\": doesn't exist", backup.ErrSkipped),
 		},
 	} {
 		tc := tc
