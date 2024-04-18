@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -499,9 +498,6 @@ func testResolveConflicts(t *testing.T, ctx context.Context) {
 			},
 		},
 		{
-			// When we move a file to a new dir in the 'their' commit, our conflict
-			// resolution fails. This is because we use the `resolution.OldPath` as
-			// the path of the file, ideally we should use `resolution.NewPath`.
 			"multi file with move to dir",
 			func(tb testing.TB, ctx context.Context) setupData {
 				cfg, client := setupConflictsService(tb, nil)
@@ -551,7 +547,7 @@ func testResolveConflicts(t *testing.T, ctx context.Context) {
 						},
 					},
 					{
-						"old_path": "subdir/c",
+						"old_path": "c",
 						"new_path": "subdir/c",
 						"content":  "new content",
 					},
@@ -583,12 +579,14 @@ func testResolveConflicts(t *testing.T, ctx context.Context) {
 						{FilesJson: filesJSON[50:]},
 					},
 					expectedCommitAuthor: defaultCommitAuthor,
-					expectedError: testhelper.ToInterceptedMetadata(
-						structerr.NewInternal("retrieving object: %w",
-							catfile.NotFoundError{Revision: ourCommitID.String() + ":subdir/c"},
-						),
-					),
-					skipCommitCheck: true,
+					expectedResponse:     &gitalypb.ResolveConflictsResponse{},
+					expectedContent: map[string]map[string][]byte{
+						"refs/heads/ours": {
+							"a":        []byte("apricot\n" + strings.Repeat("filler\n", 10) + "birne"),
+							"b":        []byte("blueberry"),
+							"subdir/c": []byte("new content"),
+						},
+					},
 				}
 			},
 		},
