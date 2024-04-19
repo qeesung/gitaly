@@ -89,6 +89,9 @@ var commandDescriptions = map[string]commandDescription{
 	"diff-tree": {
 		flags: scNoRefUpdates,
 	},
+	"fast-export": {
+		flags: scNoRefUpdates,
+	},
 	"fetch": {
 		flags: 0,
 
