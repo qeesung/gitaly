@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
@@ -37,17 +38,6 @@ func TestDelete(t *testing.T) {
 		return errInvalidPoolDir
 	}
 
-	errNotFound := func(relativePath string) structerr.Error {
-		return testhelper.GitalyOrPraefect(
-			testhelper.WithInterceptedMetadataItems(
-				structerr.NewNotFound("repository not found"),
-				structerr.MetadataItem{Key: "relative_path", Value: relativePath},
-				structerr.MetadataItem{Key: "storage_name", Value: cfg.Storages[0].Name},
-			),
-			errInvalidPoolDir,
-		)
-	}
-
 	for _, tc := range []struct {
 		desc         string
 		noPool       bool
@@ -75,12 +65,12 @@ func TestDelete(t *testing.T) {
 		{
 			desc:         "deleting first level subdirectory fails",
 			relativePath: "@pools/ab",
-			expectedErr:  testhelper.WithOrWithoutWAL(errNotFound("@pools/ab"), errInvalidPoolDir),
+			expectedErr:  errInvalidPoolDir,
 		},
 		{
 			desc:         "deleting second level subdirectory fails",
 			relativePath: "@pools/ab/cd",
-			expectedErr:  testhelper.WithOrWithoutWAL(errNotFound("@pools/ab"), errInvalidPoolDir),
+			expectedErr:  errInvalidPoolDir,
 		},
 		{
 			desc:         "deleting pool subdirectory fails",
@@ -104,7 +94,7 @@ func TestDelete(t *testing.T) {
 		},
 		{
 			desc:         "deleting non-existent pool succeeds",
-			relativePath: validPoolPath,
+			relativePath: gittest.NewObjectPoolName(t),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
