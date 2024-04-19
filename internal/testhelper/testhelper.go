@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -81,6 +82,13 @@ func IsPraefectEnabled() bool {
 func SkipWithPraefect(tb testing.TB, reason string) {
 	if IsPraefectEnabled() {
 		tb.Skipf(reason)
+	}
+}
+
+// SkipWithMacOS skips the test when running on macOS.
+func SkipWithMacOS(tb testing.TB, reason string) {
+	if runtime.GOOS == "darwin" {
+		tb.Skipf("Skipped on macOS: %s", reason)
 	}
 }
 

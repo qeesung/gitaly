@@ -20,7 +20,7 @@ func TestOperations(t *testing.T) {
 		{
 			Operation: &gitalypb.LogEntry_Operation_CreateDirectory_{
 				CreateDirectory: &gitalypb.LogEntry_Operation_CreateDirectory{
-					Path:        "parent/child",
+					Path:        []byte("parent/child"),
 					Permissions: uint32(perm.PrivateDir),
 				},
 			},
@@ -28,24 +28,24 @@ func TestOperations(t *testing.T) {
 		{
 			Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
 				CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
-					SourcePath:      "path-in-log-entry",
-					DestinationPath: "path-in-storage/1",
+					SourcePath:      []byte("path-in-log-entry"),
+					DestinationPath: []byte("path-in-storage/1"),
 				},
 			},
 		},
 		{
 			Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
 				CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
-					SourcePath:      "path-in-storage",
+					SourcePath:      []byte("path-in-storage"),
 					SourceInStorage: true,
-					DestinationPath: "path-in-storage/2",
+					DestinationPath: []byte("path-in-storage/2"),
 				},
 			},
 		},
 		{
 			Operation: &gitalypb.LogEntry_Operation_RemoveDirectoryEntry_{
 				RemoveDirectoryEntry: &gitalypb.LogEntry_Operation_RemoveDirectoryEntry{
-					Path: "removed/relative/path",
+					Path: []byte("removed/relative/path"),
 				},
 			},
 		},

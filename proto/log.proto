@@ -89,13 +89,13 @@ message LogEntry {
     // permissions, will be shared with all of the hard links to the same file.
     message CreateHardLink {
       // source_path is the relative path of the file the hard link should point to.
-      string source_path = 1;
+      bytes source_path = 1;
       // source_in_storage is set when the source path is relative to the storage
       // root instead of the log entry.
       bool source_in_storage = 2;
       // destination_path is a relative path from the storage root to where the hard
       // link should be created at.
-      string destination_path = 3;
+      bytes destination_path = 3;
     }
 
     // RemoveDirectoryEntry removes a directory or a file
@@ -103,13 +103,13 @@ message LogEntry {
     // it must be empty.
     message RemoveDirectoryEntry {
       // path is the relative path of the directory entry to remove in the storage.
-      string path = 1;
+      bytes path = 1;
     }
 
     // CreateDirectory creates a directory at a relative path.
     message CreateDirectory {
       // path is a relative path where to create the directory.
-      string path = 1;
+      bytes path = 1;
       // permissions are the Unix permision bits to set on the created directory.
       uint32 permissions = 2;
     }

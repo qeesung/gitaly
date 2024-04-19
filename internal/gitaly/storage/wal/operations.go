@@ -20,7 +20,7 @@ func (ops *operations) createDirectory(relativePath string, permissions fs.FileM
 	ops.append(&gitalypb.LogEntry_Operation{
 		Operation: &gitalypb.LogEntry_Operation_CreateDirectory_{
 			CreateDirectory: &gitalypb.LogEntry_Operation_CreateDirectory{
-				Path:        relativePath,
+				Path:        []byte(relativePath),
 				Permissions: uint32(permissions),
 			},
 		},
@@ -35,9 +35,9 @@ func (ops *operations) createHardLink(sourceRelativePath, destinationRelativePat
 	ops.append(&gitalypb.LogEntry_Operation{
 		Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
 			CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
-				SourcePath:      sourceRelativePath,
+				SourcePath:      []byte(sourceRelativePath),
 				SourceInStorage: sourceInStorage,
-				DestinationPath: destinationRelativePath,
+				DestinationPath: []byte(destinationRelativePath),
 			},
 		},
 	})
@@ -49,7 +49,7 @@ func (ops *operations) removeDirectoryEntry(relativePath string) {
 	ops.append(&gitalypb.LogEntry_Operation{
 		Operation: &gitalypb.LogEntry_Operation_RemoveDirectoryEntry_{
 			RemoveDirectoryEntry: &gitalypb.LogEntry_Operation_RemoveDirectoryEntry{
-				Path: relativePath,
+				Path: []byte(relativePath),
 			},
 		},
 	})

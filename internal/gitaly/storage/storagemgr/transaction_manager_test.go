@@ -206,6 +206,10 @@ func TestTransactionManager(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
+			if tc.skip != nil {
+				tc.skip(t)
+			}
+
 			// Setup the repository with the exact same state as what was used to build the test cases.
 			var setup testTransactionSetup
 			if tc.customSetup != nil {
@@ -361,8 +365,8 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							{
 								Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
 									CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
-										SourcePath:      "1",
-										DestinationPath: filepath.Join(setup.RelativePath, "refs/heads/main"),
+										SourcePath:      []byte("1"),
+										DestinationPath: []byte(filepath.Join(setup.RelativePath, "refs/heads/main")),
 									},
 								},
 							},
@@ -1338,8 +1342,8 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 				{
 					Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
 						CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
-							SourcePath:      "1",
-							DestinationPath: filepath.Join(setup.RelativePath, ref),
+							SourcePath:      []byte("1"),
+							DestinationPath: []byte(filepath.Join(setup.RelativePath, ref)),
 						},
 					},
 				},

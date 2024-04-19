@@ -31,38 +31,41 @@ func applyOperations(sync func(string) error, storageRoot, walEntryDirectory str
 				basePath = storageRoot
 			}
 
+			destinationPath := string(op.DestinationPath)
 			if err := os.Link(
-				filepath.Join(basePath, op.SourcePath),
-				filepath.Join(storageRoot, op.DestinationPath),
+				filepath.Join(basePath, string(op.SourcePath)),
+				filepath.Join(storageRoot, destinationPath),
 			); err != nil && !errors.Is(err, fs.ErrExist) {
 				return fmt.Errorf("link: %w", err)
 			}
 
 			// Sync the parent directory of the newly created directory entry.
-			dirtyDirectories[filepath.Dir(op.DestinationPath)] = struct{}{}
+			dirtyDirectories[filepath.Dir(destinationPath)] = struct{}{}
 		case *gitalypb.LogEntry_Operation_CreateDirectory_:
 			op := wrapper.CreateDirectory
 
-			if err := os.Mkdir(filepath.Join(storageRoot, op.Path), fs.FileMode(op.Permissions)); err != nil && !errors.Is(err, fs.ErrExist) {
+			path := string(op.Path)
+			if err := os.Mkdir(filepath.Join(storageRoot, path), fs.FileMode(op.Permissions)); err != nil && !errors.Is(err, fs.ErrExist) {
 				return fmt.Errorf("mkdir: %w", err)
 			}
 
 			// Sync the newly created directory itself.
-			dirtyDirectories[op.Path] = struct{}{}
+			dirtyDirectories[path] = struct{}{}
 			// Sync the parent directory where the new directory's directory entry was created.
-			dirtyDirectories[filepath.Dir(op.Path)] = struct{}{}
+			dirtyDirectories[filepath.Dir(path)] = struct{}{}
 		case *gitalypb.LogEntry_Operation_RemoveDirectoryEntry_:
 			op := wrapper.RemoveDirectoryEntry
 
-			if err := os.Remove(filepath.Join(storageRoot, op.Path)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			path := string(op.Path)
+			if err := os.Remove(filepath.Join(storageRoot, path)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("remove: %w", err)
 			}
 
 			// Remove the dirty marker from the removed directory entry if it exists. There's
 			// no need to sync it anymore as it doesn't exist.
-			delete(dirtyDirectories, op.Path)
+			delete(dirtyDirectories, path)
 			// Sync the parent directory where directory entry was removed from.
-			dirtyDirectories[filepath.Dir(op.Path)] = struct{}{}
+			dirtyDirectories[filepath.Dir(path)] = struct{}{}
 		default:
 			return fmt.Errorf("unhandled operation type: %T", wrappedOp)
 		}
