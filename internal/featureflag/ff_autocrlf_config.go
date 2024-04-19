@@ -7,5 +7,5 @@ var AutocrlfConfig = NewFeatureFlag(
 	"autocrlf_false",
 	"v16.11.0",
 	"https://gitlab.com/gitlab-org/gitaly/-/issues/4425",
-	false,
+	true,
 )
