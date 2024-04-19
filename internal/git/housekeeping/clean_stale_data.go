@@ -88,6 +88,7 @@ func DefaultStaleDataCleanup() CleanStaleDataConfig {
 		RepoCleanups: map[string]CleanupRepoFunc{
 			"refsemptydir":   RemoveRefEmptyDirs,
 			"configsections": PruneEmptyConfigSections,
+			"infoattributes": RemoveInfoAttributes,
 		},
 		RepoCleanupWithTxManagers: map[string]cleanupRepoWithTxManagerFunc{
 			"configkeys": removeUnnecessaryConfig,
@@ -634,4 +635,25 @@ func removeEmptyDirs(ctx context.Context, target string) (int, error) {
 	}
 
 	return prunedDirsTotal + 1, nil
+}
+
+// RemoveInfoAttributes removes attributes file inside the info directory. This is because,
+// From git 2.43 on, Gitaly will read from HEAD:.gitattributes instead of
+// .info/attributes. The old info/attributes file must be
+// removed because it has higher precedence than HEAD:.gitattributes.
+func RemoveInfoAttributes(ctx context.Context, repo *localrepo.Repo) (int, error) {
+	rPath, err := repo.Path()
+	if err != nil {
+		return 0, fmt.Errorf("find repo path: %w", err)
+	}
+
+	attrFile := filepath.Join(rPath, "info", "attributes")
+	err = os.Remove(attrFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return 1, nil
 }

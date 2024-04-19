@@ -117,6 +117,7 @@ type cleanStaleDataMetrics struct {
 	packedRefsNew  int
 	serverInfo     int
 	configFullpath int
+	infoAttributes int
 }
 
 func requireCleanStaleDataMetrics(t *testing.T, m *RepositoryManager, metrics cleanStaleDataMetrics) {
@@ -143,6 +144,7 @@ func requireCleanStaleDataMetrics(t *testing.T, m *RepositoryManager, metrics cl
 		"refsemptydir":   metrics.refsEmptyDir,
 		"serverinfo":     metrics.serverInfo,
 		"configfullpath": metrics.configFullpath,
+		"infoattributes": metrics.infoAttributes,
 	} {
 		_, err := builder.WriteString(fmt.Sprintf("gitaly_housekeeping_pruned_files_total{filetype=%q} %d\n", metric, expectedValue))
 		require.NoError(t, err)
