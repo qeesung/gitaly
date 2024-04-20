@@ -485,9 +485,10 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
 					},
 					ExpectedError: ReferenceVerificationError{
-						ReferenceName: "refs/heads/main",
-						ExpectedOID:   setup.ObjectHash.ZeroOID,
-						ActualOID:     setup.Commits.First.OID,
+						ReferenceName:  "refs/heads/main",
+						ExpectedOldOID: setup.ObjectHash.ZeroOID,
+						ActualOldOID:   setup.Commits.First.OID,
+						NewOID:         setup.Commits.Second.OID,
 					},
 				},
 				Begin{
