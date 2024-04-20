@@ -192,7 +192,31 @@ func NewStreamInterceptor(logger log.Logger, registry *protoregistry.Registry, t
 		if err != nil {
 			return err
 		}
-		defer func() { returnedErr = txReq.finishTransaction(returnedErr) }()
+		defer func() {
+			returnedErr = txReq.finishTransaction(returnedErr)
+
+			if info.FullMethod == gitalypb.OperationService_UserMergeBranch_FullMethodName {
+				// Rails handles reference update conflicts from UserMergeBranch by checking the
+				// error detail. UserMergeBranch handler may succeed in its own snapshot but another
+				// transaction could have committed a conflicting reference update concurrently.
+				// If our transaction failed to commit due to a reference conflict, return the error
+				// detail as the RPC handler would.
+				var errReferenceVerification ReferenceVerificationError
+				if errors.As(returnedErr, &errReferenceVerification) {
+					returnedErr = structerr.NewFailedPrecondition("%w", returnedErr).WithDetail(
+						&gitalypb.UserMergeBranchError{
+							Error: &gitalypb.UserMergeBranchError_ReferenceUpdate{
+								ReferenceUpdate: &gitalypb.ReferenceUpdateError{
+									ReferenceName: []byte(errReferenceVerification.ReferenceName),
+									OldOid:        errReferenceVerification.ExpectedOldOID.String(),
+									NewOid:        errReferenceVerification.NewOID.String(),
+								},
+							},
+						},
+					)
+				}
+			}
+		}()
 
 		return handler(srv, &peekedStream{
 			context:      txReq.ctx,
