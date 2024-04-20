@@ -762,31 +762,41 @@ func testUserMergeBranchConcurrentUpdate(t *testing.T, ctx context.Context) {
 	require.NoError(t, stream.Send(&gitalypb.UserMergeBranchRequest{Apply: true}), "apply merge")
 	require.NoError(t, stream.CloseSend(), "close send")
 
+	// mergeCommitOID is the OID of the merge commit the RPC produces if it succeeds.
+	mergeCommitOID := gittest.ObjectHashDependent(t, map[string]git.ObjectID{
+		"sha1":   "5e96169507b47c71ffb719dc3ad93d014f57617b",
+		"sha256": "a1165ec1ffbc14e1ad40dbae4c9ccb6afe6a3a4db1b7a7c5f6aa0c52999c45b1",
+	})
+
+	expectedDetail := &gitalypb.UserMergeBranchError{
+		Error: &gitalypb.UserMergeBranchError_ReferenceUpdate{
+			ReferenceUpdate: &gitalypb.ReferenceUpdateError{
+				ReferenceName: []byte("refs/heads/branch"),
+				OldOid:        commits.left.String(),
+				NewOid:        testhelper.WithOrWithoutWAL(mergeCommitOID.String(), firstResponse.CommitId),
+			},
+		},
+	}
+
 	if testhelper.IsWALEnabled() {
 		// With transaction management enabled, the RPC won't observe concurrent updates in its snapshot.
 		// Only once it commits will the updates be verified against other concurrent updates. We thus have
 		// to receive once more after the successful merge to end the stream and trigger a transaction commit.
-		//
-		// This test case is also expecting a UserMergeBranch specific error with additional detail. Given the
-		// commit errors are universal and happen after the handler, we won't be able to return the same error
-		// here.
 		secondResponse, err := stream.Recv()
 		require.NoError(t, err)
 		testhelper.ProtoEqual(t, &gitalypb.UserMergeBranchResponse{
 			BranchUpdate: &gitalypb.OperationBranchUpdate{
-				CommitId: gittest.ObjectHashDependent(t, map[string]string{
-					"sha1":   "5e96169507b47c71ffb719dc3ad93d014f57617b",
-					"sha256": "a1165ec1ffbc14e1ad40dbae4c9ccb6afe6a3a4db1b7a7c5f6aa0c52999c45b1",
-				}),
+				CommitId: mergeCommitOID.String(),
 			},
 		}, secondResponse)
 
 		thirdResponse, err := stream.Recv()
-		testhelper.RequireGrpcError(t, structerr.NewInternal("%w", fmt.Errorf("commit: %w", fmt.Errorf("verify references: %w", storagemgr.ReferenceVerificationError{
-			ReferenceName: "refs/heads/branch",
-			ExpectedOID:   commits.left,
-			ActualOID:     concurrentCommitID,
-		}))), err)
+		testhelper.RequireGrpcError(t, structerr.NewFailedPrecondition("commit: verify references: %w", storagemgr.ReferenceVerificationError{
+			ReferenceName:  "refs/heads/branch",
+			ExpectedOldOID: git.ObjectID(commits.left.String()),
+			ActualOldOID:   git.ObjectID(concurrentCommitID),
+			NewOID:         mergeCommitOID,
+		}).WithDetail(expectedDetail), err)
 		require.Nil(t, thirdResponse)
 	} else {
 		secondResponse, err := stream.Recv()
@@ -804,15 +814,7 @@ func testUserMergeBranchConcurrentUpdate(t *testing.T, ctx context.Context) {
 					Key:   []byte("reference"),
 					Value: []byte("refs/heads/branch"),
 				}).
-				WithDetail(&gitalypb.UserMergeBranchError{
-					Error: &gitalypb.UserMergeBranchError_ReferenceUpdate{
-						ReferenceUpdate: &gitalypb.ReferenceUpdateError{
-							ReferenceName: []byte("refs/heads/branch"),
-							OldOid:        commits.left.String(),
-							NewOid:        firstResponse.CommitId,
-						},
-					},
-				}),
+				WithDetail(expectedDetail),
 			err,
 		)
 		require.Nil(t, secondResponse)
