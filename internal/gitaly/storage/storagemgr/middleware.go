@@ -14,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -37,38 +38,38 @@ var (
 // NonTransactionalRPCs are the RPCs that do not support transactions.
 var NonTransactionalRPCs = map[string]struct{}{
 	// This isn't registered in protoregistry so mark it here as non-transactional.
-	"/grpc.health.v1.Health/Check": {},
+	grpc_health_v1.Health_Check_FullMethodName: {},
 
 	// These are missing annotations. We don't have a suitable scope for them
 	// so mark these as non-transactional here.
-	"/gitaly.ServerService/DiskStatistics": {},
-	"/gitaly.ServerService/ServerInfo":     {},
-	"/gitaly.ServerService/ClockSynced":    {},
-	"/gitaly.ServerService/ReadinessCheck": {},
+	gitalypb.ServerService_DiskStatistics_FullMethodName: {},
+	gitalypb.ServerService_ServerInfo_FullMethodName:     {},
+	gitalypb.ServerService_ClockSynced_FullMethodName:    {},
+	gitalypb.ServerService_ReadinessCheck_FullMethodName: {},
 
 	// ReplicateRepository is replicating the attributes and config which the
 	// WAL won't support. This is pending removal of their replication.
 	//
 	// ReplicateRepository may also create a repository which is not yet supported
 	// through the WAL.
-	"/gitaly.RepositoryService/ReplicateRepository": {},
+	gitalypb.RepositoryService_ReplicateRepository_FullMethodName: {},
 
 	// FetchIntoObjectPool manages the life-cycle of WAL transaction itself.
-	"/gitaly.ObjectPool/FetchIntoObjectPool": {},
+	gitalypb.ObjectPoolService_FetchIntoObjectPool_FullMethodName: {},
 	// OptimizeRepository manages the life-cycle of WAL transaction itself.
-	"/gitaly.RepositoryService/OptimizeRepository": {},
+	gitalypb.RepositoryService_OptimizeRepository_FullMethodName: {},
 	// PruneUnreachableObjects should be a no-op when WAL is enabled by default.
-	"/gitaly.RepositoryService/PruneUnreachableObjects": {},
+	gitalypb.RepositoryService_PruneUnreachableObjects_FullMethodName: {},
 }
 
 // repositoryCreatingRPCs are all of the RPCs that may create a repository.
 var repositoryCreatingRPCs = map[string]struct{}{
-	"/gitaly.ObjectPoolService/CreateObjectPool":             {},
-	"/gitaly.RepositoryService/CreateFork":                   {},
-	"/gitaly.RepositoryService/CreateRepository":             {},
-	"/gitaly.RepositoryService/CreateRepositoryFromURL":      {},
-	"/gitaly.RepositoryService/CreateRepositoryFromBundle":   {},
-	"/gitaly.RepositoryService/CreateRepositoryFromSnapshot": {},
+	gitalypb.ObjectPoolService_CreateObjectPool_FullMethodName:             {},
+	gitalypb.RepositoryService_CreateFork_FullMethodName:                   {},
+	gitalypb.RepositoryService_CreateRepository_FullMethodName:             {},
+	gitalypb.RepositoryService_CreateRepositoryFromURL_FullMethodName:      {},
+	gitalypb.RepositoryService_CreateRepositoryFromBundle_FullMethodName:   {},
+	gitalypb.RepositoryService_CreateRepositoryFromSnapshot_FullMethodName: {},
 }
 
 // NewUnaryInterceptor returns an unary interceptor that manages a unary RPC's transaction. It starts a transaction
@@ -91,7 +92,7 @@ func NewUnaryInterceptor(logger log.Logger, registry *protoregistry.Registry, tx
 				// Beginning a transaction fails if a repository is not yet assigned into a partition, and the repository does not exist
 				// on the disk.
 				switch methodInfo.FullMethodName() {
-				case "/gitaly.RepositoryService/RepositoryExists":
+				case gitalypb.RepositoryService_RepositoryExists_FullMethodName:
 					// As RepositoryExists may be used to check the existence of repositories before they've been assigned into a partition,
 					// the RPC would fail with a 'not found'. The RPC's interface however is a successful response with a boolean
 					// flag indicating whether or not the repository exists. Match that interface here if this is a RepositoryExists call.
@@ -101,7 +102,7 @@ func NewUnaryInterceptor(logger log.Logger, registry *protoregistry.Registry, tx
 					// the repository as the non-transactional `RepositoryExists` would be concurrently accessing the state the newly created repository's
 					// partition's TransactionManager would be writing to.
 					return &gitalypb.RepositoryExistsResponse{}, nil
-				case "/gitaly.ObjectPoolService/DeleteObjectPool":
+				case gitalypb.ObjectPoolService_DeleteObjectPool_FullMethodName:
 					// DeleteObjectPool is expected to return a successful response even if the object pool being deleted doesn't
 					// exist. The NotFound error could also be raised when attempting to delete a pool with an invalid relative path
 					// for an object pool, so we need to differentiate that case here.
