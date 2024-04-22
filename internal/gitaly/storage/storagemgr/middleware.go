@@ -87,17 +87,30 @@ func NewUnaryInterceptor(logger log.Logger, registry *protoregistry.Registry, tx
 
 		txReq, err := transactionalizeRequest(ctx, logger, txRegistry, mgr, locator, methodInfo, req.(proto.Message))
 		if err != nil {
-			// Beginning a transaction fails if a repository is not yet assigned into a partition, and the repository does not exist
-			// on the disk. As RepositoryExists may be used to check the existence of repositories before they've been assigned into
-			// a partition, the RPC would fail with a 'not found'. The RPC's interface however is a successful response with a boolean
-			// flag indicating whether or not the repository exists. Match that interface here if this is a RepositoryExists call.
-			//
-			// We can't delegate the handling to the `RepositoryExists` handler using a transaction as we have no partition to begin the
-			// transaction against. Running the handler non-transactionally could lead to racy access if someone else concurrently creates
-			// the repository as the non-transactional `RepositoryExists` would be concurrently accessing the state the newly created repository's
-			// partition's TransactionManager would be writing to.
-			if errors.Is(err, storage.ErrRepositoryNotFound) && methodInfo.FullMethodName() == "/gitaly.RepositoryService/RepositoryExists" {
-				return &gitalypb.RepositoryExistsResponse{}, nil
+			if errors.Is(err, storage.ErrRepositoryNotFound) {
+				// Beginning a transaction fails if a repository is not yet assigned into a partition, and the repository does not exist
+				// on the disk.
+				switch methodInfo.FullMethodName() {
+				case "/gitaly.RepositoryService/RepositoryExists":
+					// As RepositoryExists may be used to check the existence of repositories before they've been assigned into a partition,
+					// the RPC would fail with a 'not found'. The RPC's interface however is a successful response with a boolean
+					// flag indicating whether or not the repository exists. Match that interface here if this is a RepositoryExists call.
+					//
+					// We can't delegate the handling to the `RepositoryExists` handler using a transaction as we have no partition to begin the
+					// transaction against. Running the handler non-transactionally could lead to racy access if someone else concurrently creates
+					// the repository as the non-transactional `RepositoryExists` would be concurrently accessing the state the newly created repository's
+					// partition's TransactionManager would be writing to.
+					return &gitalypb.RepositoryExistsResponse{}, nil
+				case "/gitaly.ObjectPoolService/DeleteObjectPool":
+					// DeleteObjectPool is expected to return a successful response even if the object pool being deleted doesn't
+					// exist. The NotFound error could also be raised when attempting to delete a pool with an invalid relative path
+					// for an object pool, so we need to differentiate that case here.
+					if !storage.IsPoolRepository(req.(*gitalypb.DeleteObjectPoolRequest).GetObjectPool().GetRepository()) {
+						return nil, structerr.NewInvalidArgument("invalid object pool directory")
+					}
+
+					return &gitalypb.DeleteObjectPoolResponse{}, nil
+				}
 			}
 
 			return nil, err
