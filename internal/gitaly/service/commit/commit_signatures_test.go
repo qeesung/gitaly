@@ -298,6 +298,7 @@ func testGetCommitSignatures(t *testing.T, ctx context.Context) {
 					CommitterDate:  gittest.DefaultCommitTime,
 					Message:        "message",
 					GitConfig:      cfg.Git,
+					Sign:           featureflag.GPGSigning.IsEnabled(ctx),
 				})
 				require.NoError(t, err)
 
@@ -313,6 +314,7 @@ func testGetCommitSignatures(t *testing.T, ctx context.Context) {
 					GitConfig: config.Git{
 						SigningKey: cfg.Git.RotatedSigningKeys[0],
 					},
+					Sign: featureflag.GPGSigning.IsEnabled(ctx),
 				})
 				require.NoError(t, err)
 

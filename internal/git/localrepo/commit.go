@@ -98,6 +98,7 @@ type WriteCommitConfig struct {
 	TreeEntries        []TreeEntry
 	TreeID             git.ObjectID
 	AlternateObjectDir string
+	Sign               bool
 	GitConfig          config.Git
 }
 
@@ -164,7 +165,7 @@ func (repo *Repo) WriteCommit(ctx context.Context, cfg WriteCommitConfig) (git.O
 		fmt.Sprintf("GIT_COMMITTER_DATE=%s", git.FormatTime(cfg.CommitterDate)),
 	)
 
-	if featureflag.GPGSigning.IsEnabled(ctx) && cfg.GitConfig.CommitterName != "" && cfg.GitConfig.CommitterEmail != "" {
+	if featureflag.GPGSigning.IsEnabled(ctx) && cfg.Sign && cfg.GitConfig.CommitterName != "" && cfg.GitConfig.CommitterEmail != "" {
 		env = append(env,
 			fmt.Sprintf("GIT_COMMITTER_NAME=%s", cfg.GitConfig.CommitterName),
 			fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", cfg.GitConfig.CommitterEmail),
@@ -193,7 +194,7 @@ func (repo *Repo) WriteCommit(ctx context.Context, cfg WriteCommitConfig) (git.O
 		git.WithEnv(env...),
 	}
 
-	if featureflag.GPGSigning.IsEnabled(ctx) && cfg.GitConfig.SigningKey != "" {
+	if featureflag.GPGSigning.IsEnabled(ctx) && cfg.Sign && cfg.GitConfig.SigningKey != "" {
 		flags = append(flags, git.Flag{Name: "--gpg-sign=" + cfg.GitConfig.SigningKey})
 		opts = append(opts, git.WithGitalyGPG())
 	}

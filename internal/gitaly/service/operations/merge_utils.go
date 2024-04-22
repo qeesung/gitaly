@@ -39,6 +39,7 @@ func (s *Server) merge(
 		CommitterEmail: committer.Email,
 		CommitterDate:  committer.When,
 		GitConfig:      s.gitConfig,
+		Sign:           true,
 	}
 	c, err := quarantineRepo.WriteCommit(
 		ctx,
