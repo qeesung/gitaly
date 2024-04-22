@@ -105,15 +105,17 @@ func (err InvalidReferenceFormatError) Error() string {
 type ReferenceVerificationError struct {
 	// ReferenceName is the name of the reference that failed verification.
 	ReferenceName git.ReferenceName
-	// ExpectedOID is the OID the reference was expected to point to.
-	ExpectedOID git.ObjectID
-	// ActualOID is the OID the reference actually pointed to.
-	ActualOID git.ObjectID
+	// ExpectedOldOID is the OID the reference was expected to point to.
+	ExpectedOldOID git.ObjectID
+	// ActualOldOID is the OID the reference actually pointed to.
+	ActualOldOID git.ObjectID
+	// NewOID is the OID the reference was attempted to be pointed to.
+	NewOID git.ObjectID
 }
 
 // Error returns the formatted error string.
 func (err ReferenceVerificationError) Error() string {
-	return fmt.Sprintf("expected %q to point to %q but it pointed to %q", err.ReferenceName, err.ExpectedOID, err.ActualOID)
+	return fmt.Sprintf("expected %q to point to %q but it pointed to %q", err.ReferenceName, err.ExpectedOldOID, err.ActualOldOID)
 }
 
 // ReferenceUpdate describes the state of a reference's old and new tip in an update.
@@ -2360,9 +2362,10 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 			}
 
 			return nil, ReferenceVerificationError{
-				ReferenceName: referenceName,
-				ExpectedOID:   update.OldOID,
-				ActualOID:     actualOldTip,
+				ReferenceName:  referenceName,
+				ExpectedOldOID: update.OldOID,
+				ActualOldOID:   actualOldTip,
+				NewOID:         update.NewOID,
 			}
 		}
 	}

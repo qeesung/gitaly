@@ -15,7 +15,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/metadata"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
@@ -276,14 +275,8 @@ func TestFetchIntoObjectPool_Failure(t *testing.T) {
 			request: &gitalypb.FetchIntoObjectPoolRequest{
 				Origin: repo,
 			},
-			code: codes.InvalidArgument,
-			errMsg: func() string {
-				if testhelper.IsWALEnabled() {
-					return storage.ErrRepositoryNotSet.Error()
-				}
-
-				return "object pool is empty"
-			}(),
+			code:   codes.InvalidArgument,
+			errMsg: "object pool is empty",
 		},
 		{
 			description: "origin and pool do not share the same storage",
@@ -291,14 +284,8 @@ func TestFetchIntoObjectPool_Failure(t *testing.T) {
 				Origin:     repo,
 				ObjectPool: poolWithDifferentStorage,
 			},
-			code: codes.InvalidArgument,
-			errMsg: func() string {
-				if testhelper.IsWALEnabled() {
-					return "storage name not found"
-				}
-
-				return "origin has different storage than object pool"
-			}(),
+			code:   codes.InvalidArgument,
+			errMsg: "origin has different storage than object pool",
 		},
 	} {
 		t.Run(tc.description, func(t *testing.T) {
