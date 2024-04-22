@@ -142,7 +142,7 @@ func TestRestoreRepository(t *testing.T) {
 					backupID: "",
 				}
 			},
-			expectedErr: structerr.NewFailedPrecondition("restore repository: manager: restore from bundle: repository skipped: read refs: doesn't exist").WithDetail(
+			expectedErr: structerr.NewFailedPrecondition("restore repository: manager: restore from bundle: repository skipped: read refs: storage service sink: new reader for \"@test/restore/latest/missing.refs\": doesn't exist").WithDetail(
 				&gitalypb.RestoreRepositoryResponse_SkippedError{},
 			),
 		},

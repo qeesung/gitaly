@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -426,41 +425,19 @@ func (la *LogEntryArchiver) backupLogEntry(ctx context.Context, archiveRelPath s
 // checkForExistingBackup checks if a non-zero sized file or blob exists at the archive path
 // of the log entry.
 func (la *LogEntryArchiver) checkForExistingBackup(ctx context.Context, archiveRelPath string) (exists bool, returnErr error) {
-	switch sink := la.archiveSink.(type) {
-	case *FilesystemSink:
-		stat, err := os.Stat(filepath.Join(sink.path, archiveRelPath))
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return false, nil
-			}
-			return false, fmt.Errorf("stat log entry backup: %w", err)
+	r, err := la.archiveSink.GetReader(ctx, archiveRelPath)
+	if err != nil {
+		if errors.Is(err, ErrDoesntExist) {
+			return false, nil
 		}
-
-		// FilesystemSink will leave an empty file even if the Write fails.
-		// We need to confirm data is present in the file to be confident a
-		// backup from a previous LogEntryArchiver was successful.
-		if stat.Size() > 0 {
-			return true, nil
-		}
-
-		return false, nil
-	case *StorageServiceSink:
-		r, err := sink.GetReader(ctx, archiveRelPath)
-		if err != nil {
-			if errors.Is(err, ErrDoesntExist) {
-				return false, nil
-			}
-			return false, fmt.Errorf("get log entry backup reader: %w", err)
-		}
-
-		if err := r.Close(); err != nil {
-			return false, fmt.Errorf("close log entry backup reader: %w", err)
-		}
-
-		return true, nil
-	default:
-		return false, errors.New("unknown sink type")
+		return false, fmt.Errorf("get log entry backup reader: %w", err)
 	}
+
+	if err := r.Close(); err != nil {
+		return false, fmt.Errorf("close log entry backup reader: %w", err)
+	}
+
+	return true, nil
 }
 
 // popNextNotification removes the next entry from the head of the list.

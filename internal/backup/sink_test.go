@@ -2,7 +2,6 @@ package backup
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
@@ -20,21 +22,25 @@ import (
 func TestResolveSink(t *testing.T) {
 	ctx := testhelper.Context(t)
 
-	isStorageServiceSink := func(expErrMsg string) func(t *testing.T, sink Sink) {
+	isStorageServiceSink := func(bucketTy interface{}) func(t *testing.T, sink Sink) {
 		return func(t *testing.T, sink Sink) {
 			t.Helper()
 			sssink, ok := sink.(*StorageServiceSink)
 			require.True(t, ok)
-			_, err := sssink.bucket.List(nil).Next(ctx)
-			var ierr interface{ Unwrap() error }
-			require.True(t, errors.As(err, &ierr))
-			terr := ierr.Unwrap()
-			require.Contains(t, terr.Error(), expErrMsg)
+			require.True(t, sssink.bucket.As(bucketTy))
 		}
 	}
 
 	tmpDir := testhelper.TempDir(t)
 	gsCreds := filepath.Join(tmpDir, "gs.creds")
+
+	var (
+		azureBucket    *container.Client
+		gcsBucket      *storage.Client
+		s3Bucket       *s3.S3
+		fileblobBucket os.FileInfo
+	)
+
 	require.NoError(t, os.WriteFile(gsCreds, []byte(`
 {
   "type": "service_account",
@@ -64,7 +70,7 @@ func TestResolveSink(t *testing.T) {
 				"AWS_REGION":            "us-east-1",
 			},
 			path:   "s3://bucket",
-			verify: isStorageServiceSink("The AWS Access Key Id you provided does not exist in our records."),
+			verify: isStorageServiceSink(&s3Bucket),
 		},
 		{
 			desc: "Google Cloud Storage",
@@ -72,7 +78,7 @@ func TestResolveSink(t *testing.T) {
 				"GOOGLE_APPLICATION_CREDENTIALS": gsCreds,
 			},
 			path:   "blob+gs://bucket",
-			verify: isStorageServiceSink("storage.googleapis.com"),
+			verify: isStorageServiceSink(&gcsBucket),
 		},
 		{
 			desc: "Azure Cloud File Storage",
@@ -82,19 +88,27 @@ func TestResolveSink(t *testing.T) {
 				"AZURE_STORAGE_SAS_TOKEN": "test",
 			},
 			path:   "blob+bucket+azblob://bucket",
-			verify: isStorageServiceSink("https://test.blob.core.windows.net"),
+			verify: isStorageServiceSink(&azureBucket),
 		},
 		{
-			desc: "Filesystem",
-			path: "/some/path",
-			verify: func(t *testing.T, sink Sink) {
-				require.IsType(t, &FilesystemSink{}, sink)
-			},
+			desc:   "Fileblob",
+			path:   "file://" + tmpDir,
+			verify: isStorageServiceSink(&fileblobBucket),
+		},
+		{
+			desc:   "Unspecified scheme uses fileblob",
+			path:   tmpDir,
+			verify: isStorageServiceSink(&fileblobBucket),
 		},
 		{
 			desc:   "undefined",
 			path:   "some:invalid:path\x00",
 			errMsg: `parse "some:invalid:path\x00": net/url: invalid control character in URL`,
+		},
+		{
+			desc:   "unrecognized scheme",
+			path:   "minio://bucket",
+			errMsg: `unsupported sink URI scheme: "minio"`,
 		},
 	} {
 		tc := tc
@@ -109,6 +123,8 @@ func TestResolveSink(t *testing.T) {
 				require.EqualError(t, err, tc.errMsg)
 				return
 			}
+
+			require.NoError(t, err)
 			defer testhelper.MustClose(t, sink)
 
 			tc.verify(t, sink)
@@ -195,7 +211,7 @@ func TestStorageServiceSink_SignedURL_notImplemented(t *testing.T) {
 
 			_, err = sss.SignedURL(ctx, relativePath, 10*time.Minute)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "not implemented")
+			require.Contains(t, err.Error(), "Unimplemented")
 		})
 	}
 }
