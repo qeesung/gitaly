@@ -57,7 +57,6 @@ variables:
   RAILS_BRANCH_FOR_JOB: "gitaly-ci-jobs-$CI_PIPELINE_IID"
 
 include:
-  - template: Security/License-Scanning.gitlab-ci.yml
   - template: Jobs/SAST.latest.gitlab-ci.yml
   - template: Security/Dependency-Scanning.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
@@ -471,15 +470,6 @@ semgrep-sast:
   stage: analyze
   cache:
     - *cache_go_configuration
-
-license_scanning:
-  needs: []
-  stage: analyze
-  rules:
-    - if: $LICENSE_SCANNING_DISABLED
-      when: never
-  variables:
-    LICENSE_FINDER_CLI_OPTS: '--aggregate-paths=.'
 
 secret_detection:
   needs: []
