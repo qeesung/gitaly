@@ -47,13 +47,6 @@ var NonTransactionalRPCs = map[string]struct{}{
 	gitalypb.ServerService_ClockSynced_FullMethodName:    {},
 	gitalypb.ServerService_ReadinessCheck_FullMethodName: {},
 
-	// ReplicateRepository is replicating the attributes and config which the
-	// WAL won't support. This is pending removal of their replication.
-	//
-	// ReplicateRepository may also create a repository which is not yet supported
-	// through the WAL.
-	gitalypb.RepositoryService_ReplicateRepository_FullMethodName: {},
-
 	// FetchIntoObjectPool manages the life-cycle of WAL transaction itself.
 	gitalypb.ObjectPoolService_FetchIntoObjectPool_FullMethodName: {},
 	// OptimizeRepository manages the life-cycle of WAL transaction itself.
@@ -65,6 +58,7 @@ var NonTransactionalRPCs = map[string]struct{}{
 // repositoryCreatingRPCs are all of the RPCs that may create a repository.
 var repositoryCreatingRPCs = map[string]struct{}{
 	gitalypb.ObjectPoolService_CreateObjectPool_FullMethodName:             {},
+	gitalypb.RepositoryService_ReplicateRepository_FullMethodName:          {},
 	gitalypb.RepositoryService_CreateFork_FullMethodName:                   {},
 	gitalypb.RepositoryService_CreateRepository_FullMethodName:             {},
 	gitalypb.RepositoryService_CreateRepositoryFromURL_FullMethodName:      {},
