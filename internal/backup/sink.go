@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
 	"gocloud.dev/blob/fileblob"
@@ -63,6 +65,18 @@ func newStorageServiceSink(ctx context.Context, url string) (*StorageServiceSink
 // newFileblobSink returns initialized instance of StorageServiceSink instance using the
 // fileblob backend.
 func newFileblobSink(path string) (*StorageServiceSink, error) {
+	// fileblob's CreateDir creates directories with permissions 0777, so
+	// create this directory ourselves:
+	// https://github.com/google/go-cloud/issues/3423
+	if _, err := os.Stat(path); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("stat sink path: %w", err)
+		}
+		if err := os.MkdirAll(path, perm.PrivateDir); err != nil {
+			return nil, fmt.Errorf("creating sink directory: %w", err)
+		}
+	}
+
 	bucket, err := fileblob.OpenBucket(path, &fileblob.Options{NoTempDir: true})
 	if err != nil {
 		return nil, fmt.Errorf("storage service sink: open bucket: %w", err)
