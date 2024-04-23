@@ -409,14 +409,10 @@ test:macos:
     <<: *test_artifacts
 
 verify:docs:
-  image: registry.gitlab.com/gitlab-org/gitlab-docs/lint-markdown:alpine-3.19-vale-3.0.7-markdownlint-0.39.0-markdownlint2-0.12.1
+  image: registry.gitlab.com/gitlab-org/gitlab-docs/lint-markdown:alpine-3.19-vale-3.4.1-markdownlint2-0.13.0-lychee-0.14.3
   needs: []
   stage: analyze
-  variables:
-    LYCHEE_VERSION: "0.14.3"
   script:
-    - wget https://github.com/lycheeverse/lychee/releases/download/v${LYCHEE_VERSION}/lychee-v${LYCHEE_VERSION}-x86_64-unknown-linux-musl.tar.gz
-    - tar -zxvf lychee-v${LYCHEE_VERSION}-x86_64-unknown-linux-musl.tar.gz -C /usr/local/bin
     - make lint-docs
 
 verify:
