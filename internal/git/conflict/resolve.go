@@ -99,6 +99,12 @@ func Resolve(src io.Reader, ours, theirs git.ObjectID, path string, resolution R
 		s = bufio.NewScanner(src)
 	)
 
+	// When the paths are different, the conflicts contain the path names.
+	if resolution.OldPath != resolution.NewPath {
+		start = fmt.Sprintf("%s:%s", start, resolution.OldPath)
+		end = fmt.Sprintf("%s:%s", end, resolution.NewPath)
+	}
+
 	// allow for line scanning up to the file limit
 	s.Buffer(make([]byte, 4096), fileLimit)
 

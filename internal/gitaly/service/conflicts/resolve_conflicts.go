@@ -224,7 +224,7 @@ func (s *server) resolveConflictsWithGit(
 		defer cancel()
 
 		for _, resolution := range resolutions {
-			path := resolution.OldPath
+			path := resolution.NewPath
 
 			if _, ok := checkedConflictedFiles[path]; !ok {
 				// Note: this emulates the Ruby error that occurs when
@@ -300,6 +300,12 @@ func (s *server) resolveConflictsWithGit(
 
 			resolvedContent, err := conflict.Resolve(object, git.ObjectID(ours), git.ObjectID(theirs), path, resolution, needsNewLine)
 			if err != nil {
+				// If there are delimeters still present in the conflict resolution
+				// this means the client hasn't addressed all conflicts.
+				if errors.Is(err, conflict.ErrUnexpectedDelimiter) {
+					return "", structerr.NewInvalidArgument("%w", err)
+				}
+
 				return "", structerr.NewInternal("%w", err)
 			}
 

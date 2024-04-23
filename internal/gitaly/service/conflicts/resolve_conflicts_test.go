@@ -498,6 +498,99 @@ func testResolveConflicts(t *testing.T, ctx context.Context) {
 			},
 		},
 		{
+			"multi file with move to dir",
+			func(tb testing.TB, ctx context.Context) setupData {
+				cfg, client := setupConflictsService(tb, nil)
+				repo, repoPath := gittest.CreateRepository(tb, ctx, cfg)
+
+				baseCommitID := gittest.WriteCommit(tb, cfg, repoPath, gittest.WithTreeEntries(
+					gittest.TreeEntry{Path: "a", Mode: "100644", Content: "apple\n" + strings.Repeat("filler\n", 10) + "banana"},
+					gittest.TreeEntry{Path: "b", Mode: "100644", Content: "strawberry"},
+					gittest.TreeEntry{Path: "c", Mode: "100644", Content: "blue\n" + strings.Repeat("filler\n", 10) + "apple\n"},
+				))
+
+				ourCommitID := gittest.WriteCommit(tb, cfg, repoPath, gittest.WithParents(baseCommitID), gittest.WithBranch("ours"),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{
+							Path: "a", Mode: "100644",
+							Content: "apricot\n" + strings.Repeat("filler\n", 10) + "berries",
+						},
+						gittest.TreeEntry{Path: "b", Mode: "100644", Content: "blueberry"},
+						gittest.TreeEntry{Path: "c", Mode: "100644", Content: "raw\n" + strings.Repeat("filler\n", 10) + "mango\n"},
+					))
+				theirCommitID := gittest.WriteCommit(tb, cfg, repoPath, gittest.WithParents(baseCommitID), gittest.WithBranch("theirs"),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{
+							Path: "a", Mode: "100644",
+							Content: "acai\n" + strings.Repeat("filler\n", 10) + "birne",
+						},
+						gittest.TreeEntry{Path: "b", Mode: "100644", Content: "raspberry"},
+						gittest.TreeEntry{Path: "subdir", Mode: "040000", OID: gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+							{Path: "c", Mode: "100644", Content: "kiwi\n" + strings.Repeat("filler\n", 10) + "orange\n"},
+						})},
+					))
+
+				files := []map[string]interface{}{
+					{
+						"old_path": "a",
+						"new_path": "a",
+						"sections": map[string]string{
+							fmt.Sprintf("%x_%d_%d", sha1.Sum([]byte("a")), 1, 1):   "head",
+							fmt.Sprintf("%x_%d_%d", sha1.Sum([]byte("a")), 12, 12): "origin",
+						},
+					},
+					{
+						"old_path": "b",
+						"new_path": "b",
+						"sections": map[string]string{
+							fmt.Sprintf("%x_%d_%d", sha1.Sum([]byte("b")), 1, 1): "head",
+						},
+					},
+					{
+						"old_path": "c",
+						"new_path": "subdir/c",
+						"content":  "new content",
+					},
+				}
+
+				filesJSON, err := json.Marshal(files)
+				require.NoError(t, err)
+
+				return setupData{
+					cfg:      cfg,
+					client:   client,
+					repoPath: repoPath,
+					repo:     repo,
+					requestHeader: &gitalypb.ResolveConflictsRequest_Header{
+						Header: &gitalypb.ResolveConflictsRequestHeader{
+							Repository:       repo,
+							TargetRepository: repo,
+							OurCommitOid:     ourCommitID.String(),
+							TheirCommitOid:   theirCommitID.String(),
+							TargetBranch:     []byte("theirs"),
+							SourceBranch:     []byte("ours"),
+							CommitMessage:    []byte(conflictResolutionCommitMessage),
+							User:             defaultUser,
+							Timestamp:        defaultTimestamp,
+						},
+					},
+					requestsFilesJSON: []*gitalypb.ResolveConflictsRequest_FilesJson{
+						{FilesJson: filesJSON[:50]},
+						{FilesJson: filesJSON[50:]},
+					},
+					expectedCommitAuthor: defaultCommitAuthor,
+					expectedResponse:     &gitalypb.ResolveConflictsResponse{},
+					expectedContent: map[string]map[string][]byte{
+						"refs/heads/ours": {
+							"a":        []byte("apricot\n" + strings.Repeat("filler\n", 10) + "birne"),
+							"b":        []byte("blueberry"),
+							"subdir/c": []byte("new content"),
+						},
+					},
+				}
+			},
+		},
+		{
 			"multi file conflict, but missing file resolution",
 			func(tb testing.TB, ctx context.Context) setupData {
 				cfg, client := setupConflictsService(tb, nil)
@@ -877,7 +970,7 @@ func testResolveConflicts(t *testing.T, ctx context.Context) {
 					requestsFilesJSON: []*gitalypb.ResolveConflictsRequest_FilesJson{
 						{FilesJson: filesJSON},
 					},
-					expectedError:   structerr.NewInternal(`resolve: parse conflict for "a": unexpected conflict delimiter`),
+					expectedError:   structerr.NewInvalidArgument(`resolve: parse conflict for "a": unexpected conflict delimiter`),
 					skipCommitCheck: true,
 				}
 			},
