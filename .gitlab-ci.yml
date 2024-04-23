@@ -42,7 +42,6 @@ variables:
   RAILS_BRANCH_FOR_MERGE_REQUEST: "gitaly-merge-requests-$CI_MERGE_REQUEST_IID"
 
 include:
-  - template: Security/License-Scanning.gitlab-ci.yml
   - template: Security/SAST.gitlab-ci.yml
   - template: Security/Dependency-Scanning.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
@@ -458,16 +457,6 @@ semgrep-sast:
     - if: $SAST_DISABLED
       when: never
     - *rules_should_test_code
-
-license_scanning:
-  needs: []
-  stage: analyze
-  rules:
-    - if: $LICENSE_SCANNING_DISABLED
-      when: never
-    - *rules_should_test_all
-  variables:
-    LICENSE_FINDER_CLI_OPTS: '--aggregate-paths=.'
 
 secret_detection:
   needs: []
