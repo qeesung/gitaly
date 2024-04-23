@@ -96,6 +96,11 @@ func TestResolveSink(t *testing.T) {
 			verify: isStorageServiceSink(&fileblobBucket),
 		},
 		{
+			desc:   "Non-existent Fileblob",
+			path:   "file://" + filepath.Join(tmpDir, "some-new-dir"),
+			verify: isStorageServiceSink(&fileblobBucket),
+		},
+		{
 			desc:   "Unspecified scheme uses fileblob",
 			path:   tmpDir,
 			verify: isStorageServiceSink(&fileblobBucket),
@@ -130,6 +135,22 @@ func TestResolveSink(t *testing.T) {
 			tc.verify(t, sink)
 		})
 	}
+}
+
+func TestFileBlobSink(t *testing.T) {
+	t.Parallel()
+	ctx := testhelper.Context(t)
+
+	tmpDir := testhelper.TempDir(t)
+	tmpPath := filepath.Join(tmpDir, "another-dir")
+
+	sink, err := ResolveSink(ctx, fmt.Sprintf("file://%s", tmpPath))
+	defer testhelper.MustClose(t, sink)
+	require.NoError(t, err)
+
+	info, err := os.Stat(tmpPath)
+	require.NoError(t, err)
+	require.Equal(t, perm.PrivateDir, info.Mode().Perm())
 }
 
 func TestStorageServiceSink(t *testing.T) {
