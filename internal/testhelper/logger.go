@@ -54,6 +54,40 @@ func SharedLogger(tb testing.TB) log.LogrusLogger {
 	return logger
 }
 
+// syncBuffer is a thread-safe bytes.Buffer that we can share with logrus.
+type syncBuffer struct {
+	buffer bytes.Buffer
+	mu     sync.RWMutex
+}
+
+func (b *syncBuffer) Write(p []byte) (n int, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.buffer.Write(p)
+}
+
+func (b *syncBuffer) Read(p []byte) (n int, err error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	return b.buffer.Read(p)
+}
+
+func (b *syncBuffer) Len() int {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	return b.buffer.Len()
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	return b.buffer.String()
+}
+
 type loggerOptions struct {
 	name string
 }
@@ -72,7 +106,7 @@ func WithLoggerName(name string) LoggerOption {
 // NewLogger returns a logger that records the log output and
 // prints it out only if the test fails.
 func NewLogger(tb testing.TB, options ...LoggerOption) log.LogrusLogger {
-	logOutput := &bytes.Buffer{}
+	logOutput := &syncBuffer{}
 	logger := logrus.New() //nolint:forbidigo
 	logger.Out = logOutput
 
