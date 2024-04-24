@@ -122,6 +122,7 @@ type allowedRequest struct {
 	Username     string `json:"username,omitempty"`
 	KeyID        string `json:"key_id,omitempty"`
 	UserID       string `json:"user_id,omitempty"`
+	PushOptions  []string `json:"push_options,omitempty"`
 }
 
 func (a *allowedRequest) parseAndSetGLID(glID string) error {
@@ -170,6 +171,7 @@ func (c *HTTPClient) Allowed(ctx context.Context, params AllowedParams) (bool, s
 		Project:      strings.Replace(params.RepoPath, "'", "", -1),
 		RelativePath: params.RelativePath,
 		Env:          gitObjDirVars,
+		PushOptions:  params.pushOptions,
 	}
 
 	if err := req.parseAndSetGLID(params.GLID); err != nil {

@@ -136,6 +136,7 @@ func (m *GitLabHookManager) preReceiveHook(ctx context.Context, payload git.Hook
 		GLID:                          payload.UserDetails.UserID,
 		GLProtocol:                    payload.UserDetails.Protocol,
 		Changes:                       string(changes),
+		PushOptions:                   []string(pushOptions)
 	}
 
 	allowed, message, err := m.gitlabClient.Allowed(ctx, params)
