@@ -1,5 +1,9 @@
 # Gitaly changelog
 
+## 16.11.1 (2024-04-24)
+
+No changes.
+
 ## 16.11.0 (2024-04-17)
 
 ### Added (1 change)
@@ -10,6 +14,10 @@
 
 - [Fix FindCommits in repositories missing default branches](gitlab-org/gitaly@6e011ae3ecff6d8797de15df19b23c3000eea111) ([merge request](gitlab-org/gitaly!6801))
 - [Allow unauthenticated access to health checking service](gitlab-org/gitaly@fcdbc76dc24f946a84155d91c1a8a5a55de0e5a1) ([merge request](gitlab-org/gitaly!6715))
+
+## 16.10.4 (2024-04-24)
+
+No changes.
 
 ## 16.10.3 (2024-04-12)
 
@@ -36,6 +44,10 @@ No changes.
 - [commit: Fix nil panic in LastCommitForPath](gitlab-org/gitaly@f1250677f3f3cacb575aad20bac22a3410ff5f40) ([merge request](gitlab-org/gitaly!6677))
 - [proxy: Register proxy codec](gitlab-org/gitaly@e16ef95d0e08e3144e67b63b4446b4996e44da1c) ([merge request](gitlab-org/gitaly!6662))
 - [Always use CLONE_INTO_CGROUP when supported](gitlab-org/gitaly@057f4e9d177c018774bf036cc952542f2e3ec833) ([merge request](gitlab-org/gitaly!6653))
+
+## 16.9.6 (2024-04-24)
+
+No changes.
 
 ## 16.9.5 (2024-04-12)
 
