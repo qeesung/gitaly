@@ -167,6 +167,7 @@ func NewGRPCServer(
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			Time: 5 * time.Minute,
 		}),
+		grpc.WaitForHandlers(true),
 	}...)
 
 	// Accept backchannel connections so that we can proxy sidechannels
