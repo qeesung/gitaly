@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/safe"
@@ -123,29 +124,25 @@ func (repo *Repo) GetBranches(ctx context.Context) ([]git.Reference, error) {
 // that revision. If newValue is the ZeroOID, the reference will be deleted.
 // If oldValue is the ZeroOID, the reference will created.
 func (repo *Repo) UpdateRef(ctx context.Context, reference git.ReferenceName, newValue, oldValue git.ObjectID) error {
-	var stderr bytes.Buffer
+	updater, err := updateref.New(ctx, repo)
+	if err != nil {
+		return fmt.Errorf("creating updateref: %w", err)
+	}
 
-	if err := repo.ExecAndWait(ctx,
-		git.Command{
-			Name:  "update-ref",
-			Flags: []git.Option{git.Flag{Name: "-z"}, git.Flag{Name: "--stdin"}},
-		},
-		git.WithStdin(strings.NewReader(fmt.Sprintf("update %s\x00%s\x00%s\x00", reference, newValue.String(), oldValue.String()))),
-		git.WithStderr(&stderr),
-		git.WithRefTxHook(repo),
-	); err != nil {
-		formattedErr := fmt.Errorf("UpdateRef: failed updating reference %q from %q to %q: %w", reference, oldValue, newValue, errorWithStderr(err, stderr.Bytes()))
+	if err := updater.Start(); err != nil {
+		return fmt.Errorf("start: %w", err)
+	}
 
-		refBackend, err := repo.ReferenceBackend(ctx)
-		if err != nil {
-			return fmt.Errorf("get reference backend: %w", err)
-		}
+	if err := updater.Update(reference, newValue, oldValue); err != nil {
+		return fmt.Errorf("update: %w", err)
+	}
 
-		if matches := refBackend.MismatchingStateRegex.FindSubmatch(stderr.Bytes()); len(matches) > 2 {
-			return errors.Join(ErrMismatchingState, formattedErr)
-		}
+	if err := updater.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
 
-		return formattedErr
+	if err := updater.Close(); err != nil {
+		return fmt.Errorf("close: %w", err)
 	}
 
 	return nil
