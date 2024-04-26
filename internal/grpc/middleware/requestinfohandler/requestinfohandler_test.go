@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	grpcmwtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/stretchr/testify/require"
@@ -19,6 +21,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -517,6 +520,11 @@ func TestInterceptors(t *testing.T) {
 						GlProjectPath: "glProject",
 					},
 				},
+				Repository: &gitalypb.Repository{
+					StorageName:   "storage",
+					RelativePath:  "path",
+					GlProjectPath: "glProject",
+				},
 			},
 			expectedTags: map[string]any{
 				"grpc.meta.deadline_type":             "none",
@@ -524,6 +532,10 @@ func TestInterceptors(t *testing.T) {
 				"grpc.meta.method_scope":              "repository",
 				"grpc.meta.method_type":               "unary",
 				"grpc.request.fullMethod":             "/gitaly.ObjectPoolService/FetchIntoObjectPool",
+				"grpc.request.glProjectPath":          "glProject",
+				"grpc.request.glRepository":           "",
+				"grpc.request.repoPath":               "path",
+				"grpc.request.repoStorage":            "storage",
 				"grpc.request.pool.relativePath":      "path",
 				"grpc.request.pool.storage":           "storage",
 				"grpc.request.pool.sourceProjectPath": "glProject",
@@ -712,13 +724,72 @@ func TestInterceptors(t *testing.T) {
 				"grpc.request.fullMethod":    "/gitaly.RepositoryService/CreateBundleFromRefList",
 			},
 		},
+		{
+			desc: "streaming repository-scoped call with nested Repository field",
+			call: func(t *testing.T, client mockClient) {
+				stream, err := client.UserCommitFiles(ctx)
+				require.NoError(t, err)
+
+				require.NoError(t, stream.Send(&gitalypb.UserCommitFilesRequest{
+					UserCommitFilesRequestPayload: &gitalypb.UserCommitFilesRequest_Header{
+						Header: &gitalypb.UserCommitFilesRequestHeader{
+							Repository: &gitalypb.Repository{
+								StorageName:   "storage",
+								RelativePath:  "path",
+								GlProjectPath: "glProject",
+								GlRepository:  "glRepository",
+							},
+						},
+					},
+				}))
+
+				_, err = stream.CloseAndRecv()
+				require.Equal(t, err, io.EOF)
+			},
+			expectedInfo: &RequestInfo{
+				clientName:      "unknown",
+				callSite:        "unknown",
+				authVersion:     "unknown",
+				deadlineType:    "none",
+				methodOperation: "mutator",
+				methodScope:     "repository",
+				methodType:      "client_stream",
+				FullMethod:      "/gitaly.OperationService/UserCommitFiles",
+				Repository: &gitalypb.Repository{
+					StorageName:   "storage",
+					RelativePath:  "path",
+					GlProjectPath: "glProject",
+					GlRepository:  "glRepository",
+				},
+			},
+			expectedTags: map[string]any{
+				"grpc.meta.deadline_type":    "none",
+				"grpc.meta.method_operation": "mutator",
+				"grpc.meta.method_scope":     "repository",
+				"grpc.meta.method_type":      "client_stream",
+				"grpc.request.fullMethod":    "/gitaly.OperationService/UserCommitFiles",
+				"grpc.request.repoStorage":   "storage",
+				"grpc.request.repoPath":      "path",
+				"grpc.request.glProjectPath": "glProject",
+				"grpc.request.glRepository":  "glRepository",
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			server, client := setupServer(t, ctx)
 
 			tc.call(t, client)
 
-			require.Equal(t, tc.expectedInfo, server.info)
+			// Configure the comparison to ignore the atomicMessageInfo protobuf field.
+			cmpOpts := []cmp.Option{
+				cmpopts.IgnoreTypes(protoimpl.MessageState{}),
+				cmp.AllowUnexported(RequestInfo{}),
+				cmp.AllowUnexported(gitalypb.Repository{}),
+				cmp.AllowUnexported(gitalypb.ObjectPool{}),
+			}
+
+			testhelper.ProtoEqual(t, tc.expectedInfo, server.info, cmpOpts...)
+
 			if tc.expectedTags == nil {
 				require.Equal(t, nil, tc.expectedTags)
 			} else {
@@ -731,6 +802,7 @@ func TestInterceptors(t *testing.T) {
 type mockServer struct {
 	gitalypb.RepositoryServiceServer
 	gitalypb.ObjectPoolServiceServer
+	gitalypb.OperationServiceServer
 	tags map[string]any
 	info *RequestInfo
 }
@@ -738,6 +810,7 @@ type mockServer struct {
 type mockClient struct {
 	gitalypb.RepositoryServiceClient
 	gitalypb.ObjectPoolServiceClient
+	gitalypb.OperationServiceClient
 }
 
 func setupServer(tb testing.TB, ctx context.Context) (*mockServer, mockClient) {
@@ -771,6 +844,7 @@ func setupServer(tb testing.TB, ctx context.Context) (*mockServer, mockClient) {
 	tb.Cleanup(server.Stop)
 	gitalypb.RegisterRepositoryServiceServer(server, &mockServer)
 	gitalypb.RegisterObjectPoolServiceServer(server, &mockServer)
+	gitalypb.RegisterOperationServiceServer(server, &mockServer)
 
 	listener := bufconn.Listen(1)
 	go testhelper.MustServe(tb, server, listener)
@@ -787,6 +861,7 @@ func setupServer(tb testing.TB, ctx context.Context) (*mockServer, mockClient) {
 	return &mockServer, mockClient{
 		RepositoryServiceClient: gitalypb.NewRepositoryServiceClient(conn),
 		ObjectPoolServiceClient: gitalypb.NewObjectPoolServiceClient(conn),
+		OperationServiceClient:  gitalypb.NewOperationServiceClient(conn),
 	}
 }
 
@@ -796,6 +871,11 @@ func (s *mockServer) RepositoryInfo(ctx context.Context, _ *gitalypb.RepositoryI
 
 func (s *mockServer) FetchIntoObjectPool(ctx context.Context, _ *gitalypb.FetchIntoObjectPoolRequest) (*gitalypb.FetchIntoObjectPoolResponse, error) {
 	return &gitalypb.FetchIntoObjectPoolResponse{}, nil
+}
+
+func (s *mockServer) UserCommitFiles(stream gitalypb.OperationService_UserCommitFilesServer) error {
+	_, err := stream.Recv()
+	return err
 }
 
 func (s *mockServer) CreateBundleFromRefList(stream gitalypb.RepositoryService_CreateBundleFromRefListServer) error {
