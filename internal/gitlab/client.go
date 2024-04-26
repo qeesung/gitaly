@@ -22,6 +22,8 @@ type AllowedParams struct {
 	GLProtocol string
 	// Changes is a set of changes to be applied.
 	Changes string
+	// PushOptions is a list of the specified push options.
+	PushOptions []string
 }
 
 // PostReceiveMessage encapsulates a message from the /post_receive endpoint that gets printed to stdout

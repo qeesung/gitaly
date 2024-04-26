@@ -319,6 +319,7 @@ func TestPrereceive_gitlab(t *testing.T) {
 	require.NoError(t, err)
 
 	standardEnv := []string{payload}
+	pushOptions := []string{"mr.create", "mr.merge_when_pipeline_succeeds"}
 
 	testCases := []struct {
 		desc           string
@@ -340,6 +341,7 @@ func TestPrereceive_gitlab(t *testing.T) {
 				require.Equal(t, "web", params.GLProtocol)
 				require.Equal(t, "changes\n", params.Changes)
 				require.Equal(t, repo.RelativePath, params.RelativePath)
+				require.Equal(t, pushOptions, params.PushOptions)
 				return true, "", nil
 			},
 			prereceive: func(t *testing.T, ctx context.Context, glRepo string) (bool, error) {
@@ -433,7 +435,7 @@ func TestPrereceive_gitlab(t *testing.T) {
 			gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte("#!/bin/sh\necho called\n"))
 
 			var stdout, stderr bytes.Buffer
-			err = hookManager.PreReceiveHook(ctx, repo, nil, tc.env, strings.NewReader(tc.changes), &stdout, &stderr)
+			err = hookManager.PreReceiveHook(ctx, repo, pushOptions, tc.env, strings.NewReader(tc.changes), &stdout, &stderr)
 
 			if tc.expectedErr != nil {
 				require.Equal(t, tc.expectedErr, err)
