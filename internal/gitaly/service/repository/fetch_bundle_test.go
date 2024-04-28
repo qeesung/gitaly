@@ -22,8 +22,6 @@ import (
 )
 
 func TestServer_FetchBundle_success(t *testing.T) {
-	testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
