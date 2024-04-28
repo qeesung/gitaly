@@ -3,7 +3,6 @@ package repository
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -44,8 +43,6 @@ func TestCreateRepository_missingAuth(t *testing.T) {
 }
 
 func TestCreateRepository_successful(t *testing.T) {
-	testhelper.SkipWithReftable(t, "reads HEAD from the filesystem and only verifies refs/ folder permissions")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -77,8 +74,8 @@ func TestCreateRepository_successful(t *testing.T) {
 		require.NoError(t, unix.Access(dir, unix.X_OK))
 	}
 
-	symRef := testhelper.MustReadFile(t, path.Join(repoDir, "HEAD"))
-	require.Equal(t, symRef, []byte(fmt.Sprintf("ref: %s\n", git.DefaultRef)))
+	symRef := string(gittest.Exec(t, cfg, "-C", repoDir, "symbolic-ref", "HEAD"))
+	require.Equal(t, symRef, fmt.Sprintf("%s\n", git.DefaultRef))
 }
 
 func TestCreateRepository_withDefaultBranch(t *testing.T) {

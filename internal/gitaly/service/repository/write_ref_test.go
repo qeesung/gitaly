@@ -250,8 +250,6 @@ func TestWriteRef(t *testing.T) {
 		{
 			desc: "update default branch",
 			setup: func(t *testing.T) setupData {
-				testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
-
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 				defaultCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
