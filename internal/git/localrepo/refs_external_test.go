@@ -202,7 +202,12 @@ func TestRepo_SetDefaultBranch_errors(t *testing.T) {
 		code, ok := command.ExitStatus(err)
 		require.True(t, ok)
 		assert.Equal(t, 1, code)
-		assert.Regexp(t, "Unable to create .+\\/HEAD\\.lock': File exists.", stderr.String())
+
+		assert.Regexp(t, gittest.FilesOrReftables(
+			"Unable to create .+\\/HEAD\\.lock': File exists.",
+			"error: unable to write symref for HEAD: data is locked",
+		), stderr.String())
+
 		ch <- struct{}{}
 		<-doneCh
 	})
