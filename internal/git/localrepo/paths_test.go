@@ -82,8 +82,11 @@ func TestRepo_ObjectDirectoryPath(t *testing.T) {
 	// such a directory in the root of the storage.
 	transactionStateDir := filepath.Join(cfg.Storages[0].Path, "tx-tmp")
 	transactionQuarantineDir := filepath.Join(transactionStateDir, "quarantine")
-	require.NoError(t, os.MkdirAll(transactionQuarantineDir, perm.PrivateDir))
+	transactionQuarantineDirWithGitPush := filepath.Join(transactionQuarantineDir, "tmp_objdir-incoming-Gbc29N")
+	require.NoError(t, os.MkdirAll(transactionQuarantineDirWithGitPush, perm.PrivateDir))
 	transactionQuarantineDirRelativePath, err := filepath.Rel(repoPath, transactionQuarantineDir)
+	require.NoError(t, err)
+	transactionQuarantineDirWithGitPushRelativePath, err := filepath.Rel(repoPath, transactionQuarantineDirWithGitPush)
 	require.NoError(t, err)
 
 	repoWithGitObjDir := func(repo *gitalypb.Repository, dir string) *gitalypb.Repository {
@@ -107,6 +110,11 @@ func TestRepo_ObjectDirectoryPath(t *testing.T) {
 			desc: "repo quarantined by transaction manager",
 			repo: repoWithGitObjDir(quarantinedRepo, transactionQuarantineDirRelativePath),
 			path: transactionQuarantineDir,
+		},
+		{
+			desc: "repo quarantined by transaction manager additionally quarantined by git push",
+			repo: repoWithGitObjDir(quarantinedRepo, transactionQuarantineDirWithGitPushRelativePath),
+			path: transactionQuarantineDirWithGitPush,
 		},
 		{
 			desc: "object directory path points outside of storage",
