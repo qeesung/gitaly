@@ -130,8 +130,6 @@ func TestLocalRepository_ResetRefs(t *testing.T) {
 }
 
 func TestRemoteRepository_SetHeadReference(t *testing.T) {
-	testhelper.SkipWithReftable(t, "SetHeadReference modifies HEAD through the filesystem directly")
-
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyHooks(t, cfg)
 	cfg.SocketPath = testserver.RunGitalyServer(t, cfg, setup.RegisterAll)
@@ -170,8 +168,6 @@ func TestLocalRepository_SetHeadReference(t *testing.T) {
 	if testhelper.IsPraefectEnabled() {
 		t.Skip("local backup manager expects to operate on the local filesystem so cannot operate through praefect")
 	}
-
-	testhelper.SkipWithReftable(t, "SetHeadReference modifies HEAD through the filesystem directly")
 
 	cfg := testcfg.Build(t)
 	ctx := testhelper.Context(t)
