@@ -47,7 +47,7 @@ func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state 
 		phase = voting.Prepared
 
 		if tx != nil {
-			updates, err := parseChanges(ctx, objectHash, bytes.NewReader(changes))
+			updates, _, err := parseChanges(ctx, objectHash, bytes.NewReader(changes))
 			if err != nil {
 				return fmt.Errorf("parse changes: %w", err)
 			}
@@ -71,12 +71,16 @@ func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state 
 		phase = voting.Committed
 
 		if tx != nil {
-			updates, err := parseChanges(ctx, objectHash, bytes.NewReader(changes))
+			updates, defaultBranchUpdated, err := parseChanges(ctx, objectHash, bytes.NewReader(changes))
 			if err != nil {
 				return fmt.Errorf("parse changes: %w", err)
 			}
 
 			tx.UpdateReferences(updates)
+
+			if defaultBranchUpdated {
+				tx.MarkDefaultBranchUpdated()
+			}
 		}
 	default:
 		return nil
@@ -116,19 +120,23 @@ func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state 
 // parseChanges parses the changes from the reader. All updates to references lacking a 'refs/' prefix are ignored. These
 // are the various pseudo reference like ORIG_HEAD but also HEAD. See the documentation of the reference-transaction hook
 // for details on the format: https://git-scm.com/docs/githooks#_reference_transaction
-func parseChanges(ctx context.Context, objectHash git.ObjectHash, changes io.Reader) (storagemgr.ReferenceUpdates, error) {
+func parseChanges(ctx context.Context, objectHash git.ObjectHash, changes io.Reader) (storagemgr.ReferenceUpdates, bool, error) {
 	scanner := bufio.NewScanner(changes)
+	defaultBranchUpdated := false
 
 	updates := storagemgr.ReferenceUpdates{}
 	for scanner.Scan() {
 		line := scanner.Text()
 		components := strings.Split(line, " ")
 		if len(components) != 3 {
-			return nil, fmt.Errorf("unexpected change line: %q", line)
+			return nil, defaultBranchUpdated, fmt.Errorf("unexpected change line: %q", line)
 		}
 
 		reference := git.ReferenceName(components[2])
 		if !strings.HasPrefix(reference.String(), "refs/") {
+			// We want to track default branch updates, so that the
+			// transaction manager can be notified about it.
+			defaultBranchUpdated = reference.String() == "HEAD"
 			continue
 		}
 
@@ -137,18 +145,18 @@ func parseChanges(ctx context.Context, objectHash git.ObjectHash, changes io.Rea
 		var err error
 		update.OldOID, err = objectHash.FromHex(components[0])
 		if err != nil {
-			return nil, fmt.Errorf("parse old: %w", err)
+			return nil, defaultBranchUpdated, fmt.Errorf("parse old: %w", err)
 		}
 
 		update.NewOID, err = objectHash.FromHex(components[1])
 		if err != nil {
-			return nil, fmt.Errorf("parse new: %w", err)
+			return nil, defaultBranchUpdated, fmt.Errorf("parse new: %w", err)
 		}
 
 		updates[reference] = update
 	}
 
-	return updates, nil
+	return updates, defaultBranchUpdated, nil
 }
 
 // isForceDeletionsOnly determines whether the given changes only consist of force-deletions.
