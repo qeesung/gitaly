@@ -589,6 +589,18 @@ func TestValidateStorages(t *testing.T) {
 				{Name: "other", Path: repositories},
 				{Name: "third", Path: repositories},
 			},
+			expectedErr: cfgerror.ValidationErrors{
+				{
+					Key:   []string{"[1]", "path"},
+					Cause: fmt.Errorf(`%w: %q`, cfgerror.ErrNotUnique, repositories),
+				}, {
+					Key:   []string{"[2]", "path"},
+					Cause: fmt.Errorf(`%w: %q`, cfgerror.ErrNotUnique, repositories),
+				}, {
+					Key:   []string{"[2]", "path"},
+					Cause: fmt.Errorf(`%w: %q`, cfgerror.ErrNotUnique, repositories),
+				},
+			},
 		},
 		{
 			desc: "nested paths 1",
@@ -598,6 +610,9 @@ func TestValidateStorages(t *testing.T) {
 				{Name: "third", Path: nestedRepositories},
 			},
 			expectedErr: cfgerror.ValidationErrors{{
+				Key:   []string{"[1]", "path"},
+				Cause: fmt.Errorf(`%w: %q`, cfgerror.ErrNotUnique, repositories),
+			}, {
 				Key:   []string{"[2]", "path"},
 				Cause: fmt.Errorf(`can't nest: %q and %q`, nestedRepositories, repositories),
 			}, {
@@ -618,6 +633,9 @@ func TestValidateStorages(t *testing.T) {
 			}, {
 				Key:   []string{"[2]", "path"},
 				Cause: fmt.Errorf(`can't nest: %q and %q`, repositories, nestedRepositories),
+			}, {
+				Key:   []string{"[2]", "path"},
+				Cause: fmt.Errorf(`%w: %q`, cfgerror.ErrNotUnique, repositories),
 			}},
 		},
 		{
@@ -626,10 +644,15 @@ func TestValidateStorages(t *testing.T) {
 				{Name: "default", Path: repositories},
 				{Name: "default", Path: repositories},
 			},
-			expectedErr: cfgerror.ValidationErrors{cfgerror.NewValidationError(
-				fmt.Errorf(`%w: "default"`, cfgerror.ErrNotUnique),
-				"[1]", "name",
-			)},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					fmt.Errorf(`%w: "default"`, cfgerror.ErrNotUnique),
+					"[1]", "name"),
+				cfgerror.NewValidationError(
+					fmt.Errorf(`%w: %q`, cfgerror.ErrNotUnique, repositories),
+					"[1]", "path",
+				),
+			},
 		},
 		{
 			desc: "re-definition",
@@ -648,7 +671,7 @@ func TestValidateStorages(t *testing.T) {
 			desc: "empty name",
 			storages: []Storage{
 				{Name: "some", Path: repositories},
-				{Name: "", Path: repositories},
+				{Name: "", Path: repositories2},
 			},
 			expectedErr: cfgerror.ValidationErrors{
 				cfgerror.NewValidationError(

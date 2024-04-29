@@ -421,7 +421,9 @@ func (cfg *Cfg) validateStorages() error {
 			}
 
 			if storage.Path == other.Path {
-				// This is weird, but we allow it for legacy gitlab.com reasons.
+				err := fmt.Errorf("%w: %q", cfgerror.ErrNotUnique, storage.Path)
+				cause := cfgerror.NewValidationError(err, "path")
+				errs = errs.Append(cause, fmt.Sprintf("[%d]", i))
 				continue
 			}
 
