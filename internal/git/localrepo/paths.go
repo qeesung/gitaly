@@ -39,10 +39,17 @@ func (repo *Repo) ObjectDirectoryPath() (string, error) {
 		return "", structerr.NewInvalidArgument("validate relative path: %w", err)
 	}
 
+	parentDir := filepath.Base(filepath.Dir(relativeObjectDirectoryPath))
+	baseDir := filepath.Base(relativeObjectDirectoryPath)
+	isTransactionQuarantineDir := (baseDir == "quarantine") || ((parentDir == "quarantine") && strings.HasPrefix(baseDir, "tmp_objdir"))
+
 	// Transactions quarantine a repository by pointing the object directory to a 'quarantine' named
-	// directory in the transaction's temporary directory. If the path is suffixed with `/quarantine`,
-	// we assume this is the case and return the path.
-	if !strings.HasSuffix(relativeObjectDirectoryPath, "/quarantine") {
+	// directory in the transaction's temporary directory. If the base directory is `quarantine`,
+	// Git push may apply an additional layer of quarantine such as `/quarantine/tmp_objdir-incoming-Gbc29N`
+	// so we don't assert the `/quarantine` being the last element of the path. We thus also check for
+	// whether the parent directory is in `quarantine` and whether the base directory has the expected
+	// `tmp_objdir` suffix.
+	if !isTransactionQuarantineDir {
 		// We need to check whether the relative object directory as given by the repository is
 		// a valid path. This may either be a path in the Git repository itself, where it may either
 		// point to the main object directory storage or to an object quarantine directory as
