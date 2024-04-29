@@ -54,7 +54,6 @@ type RequestInfo struct {
 	methodScope     string
 
 	Repository  *gitalypb.Repository
-	objectPool  *gitalypb.ObjectPool
 	storageName string
 }
 
@@ -172,14 +171,6 @@ func newRequestInfo(ctx context.Context, fullMethod, grpcMethodType string) *Req
 }
 
 func (i *RequestInfo) extractRequestInfo(request any) {
-	type poolScopedRequest interface {
-		GetObjectPool() *gitalypb.ObjectPool
-	}
-
-	if poolScoped, ok := request.(poolScopedRequest); ok {
-		i.objectPool = poolScoped.GetObjectPool()
-	}
-
 	if reqMsg, ok := request.(proto.Message); ok {
 		// This handles extracting nested and non-nested *gitalypb.Repository fields from the request. In cases of
 		// multiple such fields, it will choose the one with the `target_repository` extension.
@@ -247,17 +238,6 @@ func (i *RequestInfo) Tags() map[string]string {
 			"grpc.request.repoPath":      repo.GetRelativePath(),
 			"grpc.request.glRepository":  repo.GetGlRepository(),
 			"grpc.request.glProjectPath": repo.GetGlProjectPath(),
-		} {
-			tags[key] = value
-		}
-	}
-
-	// Same for the object pool repository.
-	if pool := i.objectPool.GetRepository(); pool != nil {
-		for key, value := range map[string]string{
-			"grpc.request.pool.storage":           pool.GetStorageName(),
-			"grpc.request.pool.relativePath":      pool.GetRelativePath(),
-			"grpc.request.pool.sourceProjectPath": pool.GetGlProjectPath(),
 		} {
 			tags[key] = value
 		}
