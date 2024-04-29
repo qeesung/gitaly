@@ -704,7 +704,9 @@ func TestValidateStorages(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			err := validateStorages(tc.storages)
+			cfg := Cfg{Storages: tc.storages}
+			err := cfg.validateStorages()
+
 			if tc.expectedErr != nil {
 				assert.Equalf(t, tc.expectedErr, err, "%+v", tc.storages)
 				return

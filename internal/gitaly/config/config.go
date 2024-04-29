@@ -402,18 +402,18 @@ func (s Storage) Validate() error {
 		AsError()
 }
 
-func validateStorages(storages []Storage) error {
-	if len(storages) == 0 {
+func (cfg *Cfg) validateStorages() error {
+	if len(cfg.Storages) == 0 {
 		return cfgerror.NewValidationError(cfgerror.ErrNotSet)
 	}
 
 	var errs cfgerror.ValidationErrors
-	for i, s := range storages {
+	for i, s := range cfg.Storages {
 		errs = errs.Append(s.Validate(), fmt.Sprintf("[%d]", i))
 	}
 
-	for i, storage := range storages {
-		for _, other := range storages[:i] {
+	for i, storage := range cfg.Storages {
+		for _, other := range cfg.Storages[:i] {
 			if other.Name == storage.Name {
 				err := fmt.Errorf("%w: %q", cfgerror.ErrNotUnique, storage.Name)
 				cause := cfgerror.NewValidationError(err, "name")
@@ -742,11 +742,7 @@ func (cfg *Cfg) ValidateV2() error {
 		}},
 		{field: "git", validate: cfg.Git.Validate},
 		{field: "storage", validate: func() error {
-			var errs cfgerror.ValidationErrors
-			for i, storage := range cfg.Storages {
-				errs = errs.Append(storage.Validate(), fmt.Sprintf("[%d]", i))
-			}
-			return errs.AsError()
+			return cfg.validateStorages()
 		}},
 		{field: "prometheus", validate: cfg.Prometheus.Validate},
 		{field: "tls", validate: cfg.TLS.Validate},
@@ -895,55 +891,6 @@ func (cfg *Cfg) BinaryPath(binaryName string) string {
 	}
 
 	return filepath.Join(baseDirectory, binaryName)
-}
-
-func (cfg *Cfg) validateStorages() error {
-	if len(cfg.Storages) == 0 {
-		return fmt.Errorf("no storage configurations found. Are you using the right format? https://gitlab.com/gitlab-org/gitaly/issues/397")
-	}
-
-	for i, storage := range cfg.Storages {
-		if storage.Name == "" {
-			return fmt.Errorf("empty storage name at declaration %d", i+1)
-		}
-
-		if storage.Path == "" {
-			return fmt.Errorf("empty storage path for storage %q", storage.Name)
-		}
-
-		fs, err := os.Stat(storage.Path)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("storage path %q for storage %q doesn't exist", storage.Path, storage.Name)
-			}
-			return fmt.Errorf("storage %q: %w", storage.Name, err)
-		}
-
-		if !fs.IsDir() {
-			return fmt.Errorf("storage path %q for storage %q is not a dir", storage.Path, storage.Name)
-		}
-
-		for _, other := range cfg.Storages[:i] {
-			if other.Name == storage.Name {
-				return fmt.Errorf("storage %q is defined more than once", storage.Name)
-			}
-
-			if storage.Path == other.Path {
-				// This is weird but we allow it for legacy gitlab.com reasons.
-				continue
-			}
-
-			if strings.HasPrefix(storage.Path, other.Path) || strings.HasPrefix(other.Path, storage.Path) {
-				// If storages have the same sub directory, that is allowed
-				if filepath.Dir(storage.Path) == filepath.Dir(other.Path) {
-					continue
-				}
-				return fmt.Errorf("storage paths may not nest: %q and %q", storage.Name, other.Name)
-			}
-		}
-	}
-
-	return nil
 }
 
 // StoragePath looks up the base path for storageName. The second boolean
