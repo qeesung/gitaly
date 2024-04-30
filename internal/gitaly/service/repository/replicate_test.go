@@ -17,7 +17,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	gitalyhook "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
@@ -48,8 +47,6 @@ func TestReplicateRepository(t *testing.T) {
 	type setupData struct {
 		source              *gitalypb.Repository
 		target              *gitalypb.Repository
-		replicateObjectPool bool
-		expectedAltInfo     stats.AlternatesInfo
 		expectedObjects     []string
 		expectedCustomHooks []string
 		expectedError       error
@@ -389,204 +386,6 @@ func TestReplicateRepository(t *testing.T) {
 				}
 			},
 		},
-		{
-			desc: "source and target repository are not linked to object pool",
-			setup: func(t *testing.T, cfg config.Cfg) setupData {
-				// If both the source and target repository are not linked to a repository, Git
-				// alternates replication does not occur.
-				sourceProto, _, targetProto, _ := setupSourceAndTarget(t, cfg, true)
-
-				return setupData{
-					source:              sourceProto,
-					target:              targetProto,
-					replicateObjectPool: true,
-				}
-			},
-		},
-		{
-			desc: "only target repository is linked to object pool",
-			// Object pool replication is not currently supported by Praefect. Existing object pool
-			// repositories cannot be located because Praefect rewrites repository messages.
-			// Consequently, this test case is executed with Praefect disabled.
-			serverOpts: []testserver.GitalyServerOpt{testserver.WithDisablePraefect()},
-			setup: func(t *testing.T, cfg config.Cfg) setupData {
-				sourceProto, _, targetProto, targetPath := setupSourceAndTarget(t, cfg, true)
-
-				// If only the target repository is linked to an object pool, repository replication
-				// results in the target repository disconnecting from its object pool to match the
-				// state of the source repository.
-				gittest.CreateObjectPool(t, ctx, cfg, targetProto, gittest.CreateObjectPoolConfig{
-					LinkRepositoryToObjectPool: true,
-				})
-
-				targetAltInfo, err := stats.AlternatesInfoForRepository(targetPath)
-				require.NoError(t, err)
-
-				return setupData{
-					source: sourceProto,
-					target: targetProto,
-					// Object pool membership isn't replicated with transactions. The target is not disconnected
-					// from the pool.
-					expectedAltInfo:     testhelper.WithOrWithoutWAL(targetAltInfo, stats.AlternatesInfo{Exists: false}),
-					replicateObjectPool: true,
-				}
-			},
-		},
-		{
-			desc: "source and target linked to same object pool",
-			// Object pool replication is not currently supported by Praefect. The on disk path of
-			// object pools cannot be compared when Gitaly is running behind Praefect because
-			// repository messages are rewritten. Consequently, this test case is executed with
-			// Praefect disabled.
-			serverOpts: []testserver.GitalyServerOpt{testserver.WithDisablePraefect()},
-			setup: func(t *testing.T, cfg config.Cfg) setupData {
-				sourceProto, _, targetProto, targetPath := setupSourceAndTarget(t, cfg, true)
-
-				// If both the source and target repositories are linked to the same object pool,
-				// there is no need for additional replication.
-				sourcePool, _ := gittest.CreateObjectPool(t, ctx, cfg, sourceProto, gittest.CreateObjectPoolConfig{
-					LinkRepositoryToObjectPool: true,
-				})
-
-				gittest.CreateObjectPool(t, ctx, cfg, targetProto, gittest.CreateObjectPoolConfig{
-					RelativePath:               sourcePool.GetRepository().GetRelativePath(),
-					LinkRepositoryToObjectPool: true,
-				})
-
-				targetAltInfo, err := stats.AlternatesInfoForRepository(targetPath)
-				require.NoError(t, err)
-
-				return setupData{
-					source:              sourceProto,
-					target:              targetProto,
-					expectedAltInfo:     targetAltInfo,
-					replicateObjectPool: true,
-				}
-			},
-		},
-		{
-			desc: "source and target linked to different object pool",
-			// Object pool replication is not currently supported by Praefect. Existing object pool
-			// repositories cannot be located because Praefect rewrites repository messages.
-			// Consequently, this test case is executed with Praefect disabled.
-			serverOpts: []testserver.GitalyServerOpt{testserver.WithDisablePraefect()},
-			setup: func(t *testing.T, cfg config.Cfg) setupData {
-				sourceProto, _, targetProto, targetPath := setupSourceAndTarget(t, cfg, true)
-
-				// Both the source and target repositories being linked to different object pools is
-				// an unexpected state. If this occurs replication is aborted and an error returned.
-				gittest.CreateObjectPool(t, ctx, cfg, sourceProto, gittest.CreateObjectPoolConfig{
-					LinkRepositoryToObjectPool: true,
-				})
-
-				gittest.CreateObjectPool(t, ctx, cfg, targetProto, gittest.CreateObjectPoolConfig{
-					LinkRepositoryToObjectPool: true,
-				})
-
-				targetAltInfo, err := stats.AlternatesInfoForRepository(targetPath)
-				require.NoError(t, err)
-
-				return setupData{
-					source:              sourceProto,
-					target:              targetProto,
-					replicateObjectPool: true,
-					// Object pool membership isn't replicated with transactions. The target is not disconnected
-					// from its original pool and doesn't join the source's pool.
-					expectedError:   testhelper.WithOrWithoutWAL[error](nil, structerr.NewFailedPrecondition("replicating repository: synchronizing object pools: target repository links to different object pool")),
-					expectedAltInfo: testhelper.WithOrWithoutWAL(targetAltInfo, stats.AlternatesInfo{}),
-				}
-			},
-		},
-		{
-			desc: "source linked and target link replicated",
-			// Object pool replication is not currently supported by Praefect. Existing object pool
-			// repositories cannot be located because Praefect rewrites repository messages.
-			// Consequently, this test case is executed with Praefect disabled.
-			serverOpts: []testserver.GitalyServerOpt{testserver.WithDisablePraefect()},
-			setup: func(t *testing.T, cfg config.Cfg) setupData {
-				sourceProto, sourcePath, targetProto, _ := setupSourceAndTarget(t, cfg, true)
-
-				// If only the source repository is linked to an object pool, repository replication
-				// results in the target repository linking to the required object pool to match the
-				// state of the source repository.
-				sourcePool, _ := gittest.CreateObjectPool(t, ctx, cfg, sourceProto, gittest.CreateObjectPoolConfig{
-					LinkRepositoryToObjectPool: true,
-				})
-
-				// If the required object pool already exists on the target storage, object pool
-				// replication is skipped and the repository is linked to the existing object pool.
-				gittest.CreateObjectPool(t, ctx, cfg, targetProto, gittest.CreateObjectPoolConfig{
-					RelativePath:               sourcePool.GetRepository().GetRelativePath(),
-					LinkRepositoryToObjectPool: false,
-				})
-
-				expectedAltInfo, err := stats.AlternatesInfoForRepository(sourcePath)
-				require.NoError(t, err)
-
-				return setupData{
-					source:              sourceProto,
-					target:              targetProto,
-					expectedAltInfo:     testhelper.WithOrWithoutWAL(stats.AlternatesInfo{}, expectedAltInfo),
-					replicateObjectPool: true,
-				}
-			},
-		},
-		{
-			desc: "source object pool replicated to target",
-			// Object pool replication is not currently supported by Praefect. Existing object pool
-			// repositories cannot be located because Praefect rewrites repository messages.
-			// Consequently, this test case is executed with Praefect disabled.
-			serverOpts: []testserver.GitalyServerOpt{testserver.WithDisablePraefect()},
-			setup: func(t *testing.T, cfg config.Cfg) setupData {
-				sourceProto, sourcePath, targetProto, _ := setupSourceAndTarget(t, cfg, false)
-
-				// If the required object pool does not exist on the target storage, a snapshot copy
-				// of the object pool from the source storage will be extracted onto the target.
-				_, sourcePoolPath := gittest.CreateObjectPool(t, ctx, cfg, sourceProto, gittest.CreateObjectPoolConfig{
-					LinkRepositoryToObjectPool: true,
-				})
-
-				// Write commit to object pool to ensure that the pool and its contents are copied
-				// to the target storage.
-				commitID := gittest.WriteCommit(t, cfg, sourcePoolPath)
-
-				expectedAltInfo, err := stats.AlternatesInfoForRepository(sourcePath)
-				require.NoError(t, err)
-
-				return setupData{
-					source:              sourceProto,
-					target:              targetProto,
-					replicateObjectPool: true,
-					expectedAltInfo:     testhelper.WithOrWithoutWAL(stats.AlternatesInfo{}, expectedAltInfo),
-					expectedObjects:     testhelper.WithOrWithoutWAL(nil, []string{commitID.String()}),
-				}
-			},
-		},
-		{
-			desc: "object pool replication disabled",
-			setup: func(t *testing.T, cfg config.Cfg) setupData {
-				sourceProto, _, targetProto, _ := setupSourceAndTarget(t, cfg, true)
-
-				// If object pool replication is disabled, the target repository does not recreate
-				// the object pool relationship.
-				sourcePool, _ := gittest.CreateObjectPool(t, ctx, cfg, sourceProto, gittest.CreateObjectPoolConfig{
-					LinkRepositoryToObjectPool: true,
-				})
-
-				// Create the required object pool repository on the target storage, to validate
-				// that it does not get linked even though it exists.
-				gittest.CreateObjectPool(t, ctx, cfg, targetProto, gittest.CreateObjectPoolConfig{
-					RelativePath:               sourcePool.GetRepository().GetRelativePath(),
-					LinkRepositoryToObjectPool: false,
-				})
-
-				return setupData{
-					source:              sourceProto,
-					target:              targetProto,
-					replicateObjectPool: false,
-				}
-			},
-		},
 	} {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
@@ -607,7 +406,6 @@ func TestReplicateRepository(t *testing.T) {
 			_, err := repoClient.ReplicateRepository(ctx, &gitalypb.ReplicateRepositoryRequest{
 				Repository: setup.target,
 				Source:     setup.source,
-				ReplicateObjectDeduplicationNetworkMembership: setup.replicateObjectPool,
 			})
 
 			// Verify error matches expected test case state.
@@ -663,13 +461,6 @@ func TestReplicateRepository(t *testing.T) {
 			for _, oid := range setup.expectedObjects {
 				gittest.Exec(t, cfg, "-C", targetPath, "cat-file", "-p", oid)
 			}
-
-			targetAltInfo, err := stats.AlternatesInfoForRepository(targetPath)
-			require.NoError(t, err)
-
-			// Verify target repository Git alternates file matches expected state.
-			require.Equal(t, setup.expectedAltInfo.Exists, targetAltInfo.Exists)
-			require.Equal(t, setup.expectedAltInfo.ObjectDirectories, targetAltInfo.ObjectDirectories)
 		})
 	}
 }
