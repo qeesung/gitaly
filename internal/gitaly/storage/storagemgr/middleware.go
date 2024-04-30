@@ -47,13 +47,6 @@ var NonTransactionalRPCs = map[string]struct{}{
 	gitalypb.ServerService_ClockSynced_FullMethodName:    {},
 	gitalypb.ServerService_ReadinessCheck_FullMethodName: {},
 
-	// ReplicateRepository is replicating the attributes and config which the
-	// WAL won't support. This is pending removal of their replication.
-	//
-	// ReplicateRepository may also create a repository which is not yet supported
-	// through the WAL.
-	gitalypb.RepositoryService_ReplicateRepository_FullMethodName: {},
-
 	// FetchIntoObjectPool manages the life-cycle of WAL transaction itself.
 	gitalypb.ObjectPoolService_FetchIntoObjectPool_FullMethodName: {},
 	// OptimizeRepository manages the life-cycle of WAL transaction itself.
@@ -70,6 +63,7 @@ var repositoryCreatingRPCs = map[string]struct{}{
 	gitalypb.RepositoryService_CreateRepositoryFromURL_FullMethodName:      {},
 	gitalypb.RepositoryService_CreateRepositoryFromBundle_FullMethodName:   {},
 	gitalypb.RepositoryService_CreateRepositoryFromSnapshot_FullMethodName: {},
+	gitalypb.RepositoryService_ReplicateRepository_FullMethodName:          {},
 }
 
 // NewUnaryInterceptor returns an unary interceptor that manages a unary RPC's transaction. It starts a transaction

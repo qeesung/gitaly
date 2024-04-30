@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/remoterepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/client"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/metadata"
@@ -85,7 +86,14 @@ func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.Replicate
 
 	outgoingCtx := metadata.IncomingToOutgoing(ctx)
 
-	if err := s.replicateRepository(outgoingCtx, in.GetSource(), in.GetRepository(), in.GetReplicateObjectDeduplicationNetworkMembership()); err != nil {
+	replicateObjectDeduplicationNetworkMembership := in.GetReplicateObjectDeduplicationNetworkMembership()
+	storagectx.RunWithTransaction(ctx, func(storagectx.Transaction) {
+		// Transactions don't currently support replicating object pool memberships within ReplicateRepository.
+		// Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/6018
+		replicateObjectDeduplicationNetworkMembership = false
+	})
+
+	if err := s.replicateRepository(outgoingCtx, in.GetSource(), in.GetRepository(), replicateObjectDeduplicationNetworkMembership); err != nil {
 		return nil, structerr.NewInternal("replicating repository: %w", err)
 	}
 
