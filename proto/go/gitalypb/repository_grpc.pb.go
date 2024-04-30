@@ -37,6 +37,7 @@ const (
 	RepositoryService_CreateRepositoryFromURL_FullMethodName      = "/gitaly.RepositoryService/CreateRepositoryFromURL"
 	RepositoryService_CreateBundle_FullMethodName                 = "/gitaly.RepositoryService/CreateBundle"
 	RepositoryService_CreateBundleFromRefList_FullMethodName      = "/gitaly.RepositoryService/CreateBundleFromRefList"
+	RepositoryService_GenerateBundleURI_FullMethodName            = "/gitaly.RepositoryService/GenerateBundleURI"
 	RepositoryService_FetchBundle_FullMethodName                  = "/gitaly.RepositoryService/FetchBundle"
 	RepositoryService_CreateRepositoryFromBundle_FullMethodName   = "/gitaly.RepositoryService/CreateRepositoryFromBundle"
 	RepositoryService_GetConfig_FullMethodName                    = "/gitaly.RepositoryService/GetConfig"
@@ -143,6 +144,8 @@ type RepositoryServiceClient interface {
 	// CreateBundleFromRefList creates a bundle from a stream of ref patterns.
 	// When the bundle would be empty the FailedPrecondition error code is returned.
 	CreateBundleFromRefList(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_CreateBundleFromRefListClient, error)
+	// GenerateBundleURI generates a bundle on the server for bundle-URI use.
+	GenerateBundleURI(ctx context.Context, in *GenerateBundleURIRequest, opts ...grpc.CallOption) (*GenerateBundleURIResponse, error)
 	// FetchBundle fetches references from a bundle into the local repository.
 	// refs will be mirrored to the target repository with the refspec
 	// "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
@@ -507,6 +510,15 @@ func (x *repositoryServiceCreateBundleFromRefListClient) Recv() (*CreateBundleFr
 		return nil, err
 	}
 	return m, nil
+}
+
+func (c *repositoryServiceClient) GenerateBundleURI(ctx context.Context, in *GenerateBundleURIRequest, opts ...grpc.CallOption) (*GenerateBundleURIResponse, error) {
+	out := new(GenerateBundleURIResponse)
+	err := c.cc.Invoke(ctx, RepositoryService_GenerateBundleURI_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *repositoryServiceClient) FetchBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_FetchBundleClient, error) {
@@ -1093,6 +1105,8 @@ type RepositoryServiceServer interface {
 	// CreateBundleFromRefList creates a bundle from a stream of ref patterns.
 	// When the bundle would be empty the FailedPrecondition error code is returned.
 	CreateBundleFromRefList(RepositoryService_CreateBundleFromRefListServer) error
+	// GenerateBundleURI generates a bundle on the server for bundle-URI use.
+	GenerateBundleURI(context.Context, *GenerateBundleURIRequest) (*GenerateBundleURIResponse, error)
 	// FetchBundle fetches references from a bundle into the local repository.
 	// refs will be mirrored to the target repository with the refspec
 	// "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
@@ -1253,6 +1267,9 @@ func (UnimplementedRepositoryServiceServer) CreateBundle(*CreateBundleRequest, R
 }
 func (UnimplementedRepositoryServiceServer) CreateBundleFromRefList(RepositoryService_CreateBundleFromRefListServer) error {
 	return status.Errorf(codes.Unimplemented, "method CreateBundleFromRefList not implemented")
+}
+func (UnimplementedRepositoryServiceServer) GenerateBundleURI(context.Context, *GenerateBundleURIRequest) (*GenerateBundleURIResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateBundleURI not implemented")
 }
 func (UnimplementedRepositoryServiceServer) FetchBundle(RepositoryService_FetchBundleServer) error {
 	return status.Errorf(codes.Unimplemented, "method FetchBundle not implemented")
@@ -1683,6 +1700,24 @@ func (x *repositoryServiceCreateBundleFromRefListServer) Recv() (*CreateBundleFr
 		return nil, err
 	}
 	return m, nil
+}
+
+func _RepositoryService_GenerateBundleURI_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateBundleURIRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepositoryServiceServer).GenerateBundleURI(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RepositoryService_GenerateBundleURI_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepositoryServiceServer).GenerateBundleURI(ctx, req.(*GenerateBundleURIRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _RepositoryService_FetchBundle_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -2235,6 +2270,10 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateRepositoryFromURL",
 			Handler:    _RepositoryService_CreateRepositoryFromURL_Handler,
+		},
+		{
+			MethodName: "GenerateBundleURI",
+			Handler:    _RepositoryService_GenerateBundleURI_Handler,
 		},
 		{
 			MethodName: "FindLicense",

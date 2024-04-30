@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/bundleuri"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	housekeepingmgr "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/manager"
@@ -36,6 +37,7 @@ type server struct {
 	housekeepingManager housekeepingmgr.Manager
 	backupSink          backup.Sink
 	backupLocator       backup.Locator
+	bundleURISink       *bundleuri.Sink
 	repositoryCounter   *counter.RepositoryCounter
 
 	licenseCache *unarycache.Cache[git.ObjectID, *gitalypb.FindLicenseResponse]
@@ -56,6 +58,7 @@ func NewServer(deps *service.Dependencies) gitalypb.RepositoryServiceServer {
 		housekeepingManager: deps.GetHousekeepingManager(),
 		backupSink:          deps.GetBackupSink(),
 		backupLocator:       deps.GetBackupLocator(),
+		bundleURISink:       deps.GetBundleURISink(),
 		repositoryCounter:   deps.GetRepositoryCounter(),
 
 		licenseCache: newLicenseCache(),

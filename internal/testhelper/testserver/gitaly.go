@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v16/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/bundleuri"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
@@ -284,6 +285,7 @@ type gitalyServerDeps struct {
 	housekeepingManager housekeepingmgr.Manager
 	backupSink          backup.Sink
 	backupLocator       backup.Locator
+	bundleURISink       *bundleuri.Sink
 	signingKey          string
 	transactionRegistry *storagemgr.TransactionRegistry
 	procReceiveRegistry *hook.ProcReceiveRegistry
@@ -423,6 +425,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 		PartitionManager:    partitionManager,
 		BackupSink:          gsd.backupSink,
 		BackupLocator:       gsd.backupLocator,
+		BundleURISink:       gsd.bundleURISink,
 		ProcReceiveRegistry: gsd.procReceiveRegistry,
 	}
 }
@@ -541,6 +544,14 @@ func WithBackupSink(backupSink backup.Sink) GitalyServerOpt {
 func WithBackupLocator(backupLocator backup.Locator) GitalyServerOpt {
 	return func(deps gitalyServerDeps) gitalyServerDeps {
 		deps.backupLocator = backupLocator
+		return deps
+	}
+}
+
+// WithBundleURISink sets the bundleuri.Sink that will be used for Gitaly services
+func WithBundleURISink(sink *bundleuri.Sink) GitalyServerOpt {
+	return func(deps gitalyServerDeps) gitalyServerDeps {
+		deps.bundleURISink = sink
 		return deps
 	}
 }

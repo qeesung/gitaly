@@ -32,6 +32,7 @@ func NewApp() *cli.App {
 			newCheckCommand(),
 			newConfigurationCommand(),
 			newHooksCommand(),
+			newBundleURICommand(),
 		},
 	}
 }

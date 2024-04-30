@@ -126,6 +126,7 @@ type Cfg struct {
 	PackObjectsCache       StreamCacheConfig   `toml:"pack_objects_cache,omitempty" json:"pack_objects_cache"`
 	PackObjectsLimiting    PackObjectsLimiting `toml:"pack_objects_limiting,omitempty" json:"pack_objects_limiting"`
 	Backup                 BackupConfig        `toml:"backup,omitempty" json:"backup"`
+	BundleURI              BundleURIConfig     `toml:"bundle_uri,omitempty" json:"bundle_uri"`
 	Timeout                TimeoutConfig       `toml:"timeout,omitempty" json:"timeout"`
 	Transactions           Transactions        `toml:"transactions,omitempty" json:"transactions,omitempty"`
 	AdaptiveLimiting       AdaptiveLimiting    `toml:"adaptive_limiting,omitempty" json:"adaptive_limiting,omitempty"`
@@ -597,6 +598,27 @@ func (bc BackupConfig) Validate() error {
 	return errs.
 		Append(cfgerror.NotBlank(bc.Layout), "layout").
 		AsError()
+}
+
+// BundleURIConfig configures use of Bundle-URI
+type BundleURIConfig struct {
+	// GoCloudURL is the blob storage GoCloud URL that will be used to store
+	// Git bundles for Bundle-URI use.
+	GoCloudURL string `toml:"go_cloud_url,omitempty" json:"go_cloud_url,omitempty"`
+}
+
+// Validate runs validation on all fields and returns any errors found.
+func (bc BundleURIConfig) Validate() error {
+	if bc.GoCloudURL == "" {
+		return nil
+	}
+	var errs cfgerror.ValidationErrors
+
+	if _, err := url.Parse(bc.GoCloudURL); err != nil {
+		errs = errs.Append(err, "go_cloud_url")
+	}
+
+	return errs
 }
 
 // StreamCacheConfig contains settings for a streamcache instance.

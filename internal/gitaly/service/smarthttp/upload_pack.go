@@ -117,7 +117,7 @@ func (s *server) runUploadPack(ctx context.Context, req *gitalypb.PostUploadPack
 
 	gitConfig = append(gitConfig, bundleuri.CapabilitiesGitConfig(ctx)...)
 
-	uploadPackConfig, err := bundleuri.UploadPackGitConfig(ctx, s.backupLocator, s.backupSink, req.GetRepository())
+	uploadPackConfig, err := bundleuri.UploadPackGitConfig(ctx, s.bundleURISink, req.GetRepository())
 	if err != nil {
 		log.AddFields(ctx, log.Fields{"bundle_uri_error": err})
 	} else {

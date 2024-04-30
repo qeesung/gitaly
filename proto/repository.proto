@@ -176,6 +176,14 @@ service RepositoryService {
     };
   }
 
+  // GenerateBundleURI generates a bundle on the server for bundle-URI use.
+  rpc GenerateBundleURI(GenerateBundleURIRequest) returns (GenerateBundleURIResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
+
+
   // FetchBundle fetches references from a bundle into the local repository.
   // refs will be mirrored to the target repository with the refspec
   // "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
@@ -822,6 +830,16 @@ message CreateBundleFromRefListRequest {
 message CreateBundleFromRefListResponse {
   // data contains the content of the created bundle.
   bytes data = 1;
+}
+
+// GenerateBundleURIRequest is a request for the GenerateBundleURI RPC.
+message GenerateBundleURIRequest {
+  // repository is the repository that the bundle is created for.
+  Repository repository = 1 [(target_repository)=true];
+}
+
+// GenerateBundleURIResponse is a response for the GenerateBundleURI RPC.
+message GenerateBundleURIResponse {
 }
 
 // GetConfigRequest is a request for the GetConfig RPC.
