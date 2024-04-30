@@ -58,7 +58,6 @@ const (
 	RepositoryService_ReplicateRepository_FullMethodName          = "/gitaly.RepositoryService/ReplicateRepository"
 	RepositoryService_OptimizeRepository_FullMethodName           = "/gitaly.RepositoryService/OptimizeRepository"
 	RepositoryService_PruneUnreachableObjects_FullMethodName      = "/gitaly.RepositoryService/PruneUnreachableObjects"
-	RepositoryService_RemoveAll_FullMethodName                    = "/gitaly.RepositoryService/RemoveAll"
 	RepositoryService_BackupRepository_FullMethodName             = "/gitaly.RepositoryService/BackupRepository"
 	RepositoryService_RestoreRepository_FullMethodName            = "/gitaly.RepositoryService/RestoreRepository"
 	RepositoryService_GetFileAttributes_FullMethodName            = "/gitaly.RepositoryService/GetFileAttributes"
@@ -232,10 +231,6 @@ type RepositoryServiceClient interface {
 	// to make proper use of this RPC you thus need to call OptimizeRepository,
 	// wait 30 minutes, and then call PruneUnreachableObjects.
 	PruneUnreachableObjects(ctx context.Context, in *PruneUnreachableObjectsRequest, opts ...grpc.CallOption) (*PruneUnreachableObjectsResponse, error)
-	// Deprecated: Do not use.
-	// RemoveAll deletes all repositories on a specified storage.
-	// Deprecated in favour of individually removing repositories with RemoveRepository.
-	RemoveAll(ctx context.Context, in *RemoveAllRequest, opts ...grpc.CallOption) (*RemoveAllResponse, error)
 	// BackupRepository creates a full or incremental backup streamed directly to
 	// object-storage. The backup is created synchronously. The destination must
 	// be configured in config.backup.go_cloud_url
@@ -988,16 +983,6 @@ func (c *repositoryServiceClient) PruneUnreachableObjects(ctx context.Context, i
 	return out, nil
 }
 
-// Deprecated: Do not use.
-func (c *repositoryServiceClient) RemoveAll(ctx context.Context, in *RemoveAllRequest, opts ...grpc.CallOption) (*RemoveAllResponse, error) {
-	out := new(RemoveAllResponse)
-	err := c.cc.Invoke(ctx, RepositoryService_RemoveAll_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *repositoryServiceClient) BackupRepository(ctx context.Context, in *BackupRepositoryRequest, opts ...grpc.CallOption) (*BackupRepositoryResponse, error) {
 	out := new(BackupRepositoryResponse)
 	err := c.cc.Invoke(ctx, RepositoryService_BackupRepository_FullMethodName, in, out, opts...)
@@ -1193,10 +1178,6 @@ type RepositoryServiceServer interface {
 	// to make proper use of this RPC you thus need to call OptimizeRepository,
 	// wait 30 minutes, and then call PruneUnreachableObjects.
 	PruneUnreachableObjects(context.Context, *PruneUnreachableObjectsRequest) (*PruneUnreachableObjectsResponse, error)
-	// Deprecated: Do not use.
-	// RemoveAll deletes all repositories on a specified storage.
-	// Deprecated in favour of individually removing repositories with RemoveRepository.
-	RemoveAll(context.Context, *RemoveAllRequest) (*RemoveAllResponse, error)
 	// BackupRepository creates a full or incremental backup streamed directly to
 	// object-storage. The backup is created synchronously. The destination must
 	// be configured in config.backup.go_cloud_url
@@ -1330,9 +1311,6 @@ func (UnimplementedRepositoryServiceServer) OptimizeRepository(context.Context, 
 }
 func (UnimplementedRepositoryServiceServer) PruneUnreachableObjects(context.Context, *PruneUnreachableObjectsRequest) (*PruneUnreachableObjectsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PruneUnreachableObjects not implemented")
-}
-func (UnimplementedRepositoryServiceServer) RemoveAll(context.Context, *RemoveAllRequest) (*RemoveAllResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RemoveAll not implemented")
 }
 func (UnimplementedRepositoryServiceServer) BackupRepository(context.Context, *BackupRepositoryRequest) (*BackupRepositoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BackupRepository not implemented")
@@ -2136,24 +2114,6 @@ func _RepositoryService_PruneUnreachableObjects_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RepositoryService_RemoveAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RemoveAllRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepositoryServiceServer).RemoveAll(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RepositoryService_RemoveAll_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepositoryServiceServer).RemoveAll(ctx, req.(*RemoveAllRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _RepositoryService_BackupRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BackupRepositoryRequest)
 	if err := dec(in); err != nil {
@@ -2306,10 +2266,6 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PruneUnreachableObjects",
 			Handler:    _RepositoryService_PruneUnreachableObjects_Handler,
-		},
-		{
-			MethodName: "RemoveAll",
-			Handler:    _RepositoryService_RemoveAll_Handler,
 		},
 		{
 			MethodName: "BackupRepository",

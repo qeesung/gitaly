@@ -1879,25 +1879,6 @@ func TestStreamDirectorStorageScope(t *testing.T) {
 	)
 	ctx := testhelper.Context(t)
 
-	t.Run("mutator", func(t *testing.T) {
-		fullMethod := "/gitaly.RepositoryService/RemoveAll"
-		requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpMutator)
-
-		frame, err := proto.Marshal(&gitalypb.RemoveAllRequest{
-			StorageName: conf.VirtualStorages[0].Name,
-		})
-		require.NoError(t, err)
-
-		streamParams, err := coordinator.StreamDirector(ctx, fullMethod, &mockPeeker{frame})
-		require.NoError(t, err)
-
-		require.Equal(t, primaryAddress, streamParams.Primary().Conn.Target(), "stream director didn't redirect to gitaly storage")
-
-		rewritten := gitalypb.RemoveAllRequest{}
-		require.NoError(t, proto.Unmarshal(streamParams.Primary().Msg, &rewritten))
-		require.Equal(t, primaryGitaly.Storage, rewritten.StorageName, "stream director didn't rewrite storage")
-	})
-
 	t.Run("accessor", func(t *testing.T) {
 		fullMethod := "/gitaly.InternalGitaly/WalkRepos"
 		requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpAccessor)
@@ -2013,38 +1994,6 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 			require.True(t, ok)
 			require.Equal(t, codes.Internal, result.Code())
 			require.Equal(t, `accessor storage scoped: route storage accessor "fake": primary gitaly is not healthy`, result.Message())
-		})
-
-		t.Run("mutator", func(t *testing.T) {
-			mgr := &nodes.MockManager{
-				GetShardFunc: func(s string) (nodes.Shard, error) {
-					require.Equal(t, "fake", s)
-					return nodes.Shard{}, nodes.ErrPrimaryNotHealthy
-				},
-			}
-			rs := datastore.MockRepositoryStore{}
-			coordinator := NewCoordinator(
-				testhelper.NewLogger(t),
-				nil,
-				rs,
-				NewNodeManagerRouter(mgr, rs),
-				nil,
-				config.Config{},
-				protoregistry.GitalyProtoPreregistered,
-			)
-
-			fullMethod := "/gitaly.RepositoryService/RemoveAll"
-			requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpMutator)
-
-			frame, err := proto.Marshal(&gitalypb.RemoveAllRequest{StorageName: "fake"})
-			require.NoError(t, err)
-
-			_, err = coordinator.StreamDirector(ctx, fullMethod, &mockPeeker{frame})
-			require.Error(t, err)
-			result, ok := status.FromError(err)
-			require.True(t, ok)
-			require.Equal(t, codes.Internal, result.Code())
-			require.Equal(t, `mutator storage scoped: get shard "fake": primary gitaly is not healthy`, result.Message())
 		})
 	})
 }
