@@ -223,6 +223,7 @@ func TestTransactionManager(t *testing.T) {
 		generateHousekeepingRepackingStrategyTests(t, ctx, testPartitionID, relativePath),
 		generateHousekeepingRepackingConcurrentTests(t, ctx, setup),
 		generateHousekeepingCommitGraphsTests(t, ctx, setup),
+		generateConsumerTests(t, setup),
 	}
 	for _, subCases := range subTests {
 		testCases = append(testCases, subCases...)
@@ -1888,7 +1889,7 @@ func BenchmarkTransactionManager(b *testing.B) {
 
 				// Valid partition IDs are >=1.
 				testPartitionID := storage.PartitionID(i + 1)
-				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory, nil)
+				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory, nil, nil)
 
 				managers = append(managers, manager)
 

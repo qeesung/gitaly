@@ -396,6 +396,7 @@ func TestPartitionManager(t *testing.T) {
 								commandFactory,
 								storageMgr.repoFactory,
 								nil,
+								nil,
 							),
 						}
 					},
@@ -440,6 +441,7 @@ func TestPartitionManager(t *testing.T) {
 							stagingDir,
 							commandFactory,
 							storageMgr.repoFactory,
+							nil,
 							nil,
 						)
 
@@ -779,7 +781,7 @@ func TestPartitionManager(t *testing.T) {
 				)
 			}
 
-			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory(), cfg.Prometheus)
+			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory(), cfg.Prometheus, nil)
 			require.NoError(t, err)
 
 			if setup.transactionManagerFactory != nil {
@@ -949,6 +951,7 @@ func TestPartitionManager_garbageCollection(t *testing.T) {
 			})
 		}),
 		cfg.Prometheus,
+		nil,
 	)
 	require.NoError(t, err)
 	defer partitionManager.Close()
@@ -1005,7 +1008,7 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 
 	localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
 
-	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory(), cfg.Prometheus)
+	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory(), cfg.Prometheus, nil)
 	require.NoError(t, err)
 	defer partitionManager.Close()
 

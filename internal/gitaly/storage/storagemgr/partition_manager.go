@@ -220,6 +220,7 @@ func NewPartitionManager(
 	dbOpener DatabaseOpener,
 	gcTickerFactory helper.TickerFactory,
 	promCfg gitalycfgprom.Config,
+	logConsumer LogConsumer,
 ) (*PartitionManager, error) {
 	storages := make(map[string]*storageManager, len(configuredStorages))
 	for _, configuredStorage := range configuredStorages {
@@ -347,6 +348,7 @@ func NewPartitionManager(
 				cmdFactory,
 				storageMgr.repoFactory,
 				metrics,
+				logConsumer,
 			)
 		},
 		metrics: metrics,

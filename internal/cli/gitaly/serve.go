@@ -359,6 +359,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
 			helper.NewTimerTickerFactory(time.Minute),
 			cfg.Prometheus,
+			nil,
 		)
 		if err != nil {
 			return fmt.Errorf("new partition manager: %w", err)

@@ -341,6 +341,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
 			helper.NewNullTickerFactory(),
 			cfg.Prometheus,
+			nil,
 		)
 		require.NoError(tb, err)
 		tb.Cleanup(partitionManager.Close)
