@@ -157,7 +157,7 @@ self_signed_cert = false
 # # The destination object-storage URL.
 # go_cloud_url = "gs://gitaly-backups"
 # # Optional: defaults to pointer
-# # layout = "pointer"
+# layout = "pointer"
 
 # # Bundle-URI
 # [bundle_uri]
