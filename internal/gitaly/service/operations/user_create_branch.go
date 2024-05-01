@@ -67,12 +67,7 @@ func (s *Server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateB
 		var customHookErr updateref.CustomHookError
 
 		if errors.As(err, &customHookErr) {
-			// We explicitly don't include the custom hook error itself
-			// in the returned error because that would also contain the
-			// standard output or standard error in the error message.
-			// It's thus needlessly verbose and duplicates information
-			// we have available in the structured error anyway.
-			return nil, structerr.NewPermissionDenied("creation denied by custom hooks").WithDetail(
+			return nil, structerr.NewPermissionDenied("creation denied by custom hooks: %w", err).WithDetail(
 				&gitalypb.UserCreateBranchError{
 					Error: &gitalypb.UserCreateBranchError_CustomHook{
 						CustomHook: customHookErr.Proto(),
