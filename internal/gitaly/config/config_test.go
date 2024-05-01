@@ -2519,6 +2519,15 @@ func TestBackupConfig_Validate(t *testing.T) {
 		{
 			name: "valid",
 			backupConfig: BackupConfig{
+				GoCloudURL:     "s3://my-bucket",
+				WALGoCloudURL:  "s3://my-wal-bucket",
+				WALWorkerCount: 4,
+				Layout:         "pointer",
+			},
+		},
+		{
+			name: "valid no wal",
+			backupConfig: BackupConfig{
 				GoCloudURL: "s3://my-bucket",
 				Layout:     "pointer",
 			},
@@ -2537,6 +2546,24 @@ func TestBackupConfig_Validate(t *testing.T) {
 						Err: url.EscapeError("%in"),
 					},
 					"go_cloud_url",
+				),
+			},
+		},
+		{
+			name: "wal_go_cloud_url invalid",
+			backupConfig: BackupConfig{
+				GoCloudURL:    "s3://my-bucket",
+				WALGoCloudURL: "%invalid%",
+				Layout:        "pointer",
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					&url.Error{
+						Op:  "parse",
+						URL: "%invalid%",
+						Err: url.EscapeError("%in"),
+					},
+					"wal_backup_go_cloud_url",
 				),
 			},
 		},
