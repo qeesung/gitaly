@@ -72,7 +72,7 @@ func TestLogEntryArchiver(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc                string
-		workerCount         int
+		workerCount         uint
 		partitions          []storage.PartitionID
 		notifications       []notification
 		waitCount           int
