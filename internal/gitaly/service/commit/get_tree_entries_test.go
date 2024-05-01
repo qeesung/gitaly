@@ -1,7 +1,6 @@
 package commit
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -25,12 +23,9 @@ import (
 )
 
 func TestGetTreeEntries(t *testing.T) {
-	testhelper.NewFeatureSets(featureflag.UseUnifiedGetTreeEntries).Run(t, testGetTreeEntries)
-}
-
-func testGetTreeEntries(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
+	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
 	cfg.SocketPath = startTestServices(t, cfg)
@@ -246,19 +241,17 @@ func testGetTreeEntries(t *testing.T, ctx context.Context) {
 						Revision:   []byte(commitID.String()),
 						Path:       []byte("README.md"),
 					},
-					expectedErr: testhelper.EnabledOrDisabledFlag[error](ctx, featureflag.UseUnifiedGetTreeEntries,
-						testhelper.WithInterceptedMetadataItems(
-							structerr.NewInvalidArgument("path not treeish").WithDetail(&gitalypb.GetTreeEntriesError{
-								Error: &gitalypb.GetTreeEntriesError_ResolveTree{
-									ResolveTree: &gitalypb.ResolveRevisionError{
-										Revision: []byte(commitID),
-									},
+					expectedErr: testhelper.WithInterceptedMetadataItems(
+						structerr.NewInvalidArgument("path not treeish").WithDetail(&gitalypb.GetTreeEntriesError{
+							Error: &gitalypb.GetTreeEntriesError_ResolveTree{
+								ResolveTree: &gitalypb.ResolveRevisionError{
+									Revision: []byte(commitID),
 								},
-							}),
-							structerr.MetadataItem{Key: "path", Value: "README.md"},
-							structerr.MetadataItem{Key: "revision", Value: commitID},
-						),
-						nil),
+							},
+						}),
+						structerr.MetadataItem{Key: "path", Value: "README.md"},
+						structerr.MetadataItem{Key: "revision", Value: commitID},
+					),
 				}
 			},
 		},
@@ -282,19 +275,17 @@ func testGetTreeEntries(t *testing.T, ctx context.Context) {
 						Path:       []byte("README.md"),
 						Recursive:  true,
 					},
-					expectedErr: testhelper.EnabledOrDisabledFlag[error](ctx, featureflag.UseUnifiedGetTreeEntries,
-						testhelper.WithInterceptedMetadataItems(
-							structerr.NewInvalidArgument("path not treeish").WithDetail(&gitalypb.GetTreeEntriesError{
-								Error: &gitalypb.GetTreeEntriesError_ResolveTree{
-									ResolveTree: &gitalypb.ResolveRevisionError{
-										Revision: []byte(commitID),
-									},
+					expectedErr: testhelper.WithInterceptedMetadataItems(
+						structerr.NewInvalidArgument("path not treeish").WithDetail(&gitalypb.GetTreeEntriesError{
+							Error: &gitalypb.GetTreeEntriesError_ResolveTree{
+								ResolveTree: &gitalypb.ResolveRevisionError{
+									Revision: []byte(commitID),
 								},
-							}),
-							structerr.MetadataItem{Key: "path", Value: "README.md"},
-							structerr.MetadataItem{Key: "revision", Value: commitID},
-						),
-						nil),
+							},
+						}),
+						structerr.MetadataItem{Key: "path", Value: "README.md"},
+						structerr.MetadataItem{Key: "revision", Value: commitID},
+					),
 				}
 			},
 		},
