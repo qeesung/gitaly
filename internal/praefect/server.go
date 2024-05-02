@@ -186,7 +186,6 @@ func NewGRPCServer(
 
 	if deps.Config.Failover.ElectionStrategy == config.ElectionStrategyPerRepository {
 		proxy.RegisterStreamHandlers(srv, "gitaly.RepositoryService", map[string]grpc.StreamHandler{
-			"RemoveAll":           RemoveAllHandler(deps.RepositoryStore, deps.Conns),
 			"RemoveRepository":    RemoveRepositoryHandler(deps.RepositoryStore, deps.Logger, deps.Conns),
 			"ReplicateRepository": ReplicateRepositoryHandler(deps.Coordinator),
 			"RepositoryExists":    RepositoryExistsHandler(deps.RepositoryStore),

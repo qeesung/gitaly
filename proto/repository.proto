@@ -370,16 +370,6 @@ service RepositoryService {
     };
   }
 
-  // RemoveAll deletes all repositories on a specified storage.
-  // Deprecated in favour of individually removing repositories with RemoveRepository.
-  rpc RemoveAll(RemoveAllRequest) returns (RemoveAllResponse) {
-    option (op_type) = {
-      op: MUTATOR
-      scope_level: STORAGE
-    };
-    option deprecated = true;
-  }
-
   // BackupRepository creates a full or incremental backup streamed directly to
   // object-storage. The backup is created synchronously. The destination must
   // be configured in config.backup.go_cloud_url
@@ -1254,16 +1244,6 @@ message PruneUnreachableObjectsRequest {
 // PruneUnreachableObjectsResponse is a response for the
 // PruneUnreachableObjects RPC call.
 message PruneUnreachableObjectsResponse {
-}
-
-// RemoveAllRequest is a request for the RemoveAll RPC.
-message RemoveAllRequest {
-  // storage_name of the storage to have all repositories removed from.
-  string storage_name = 1 [(storage)=true];;
-}
-
-// RemoveAllResponse is a response for the RemoveAll RPC.
-message RemoveAllResponse {
 }
 
 // BackupRepositoryRequest is a request for the BackupRepository RPC.
