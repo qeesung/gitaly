@@ -231,23 +231,24 @@ func NewPartitionManager(
 			return nil, fmt.Errorf("scope by storage: %w", err)
 		}
 
-		stagingDir := stagingDirectoryPath(storage.Path)
+		internalDir := internalDirectoryPath(storage.Path)
+		stagingDir := stagingDirectoryPath(internalDir)
 		// Remove a possible already existing staging directory as it may contain stale files
 		// if the previous process didn't shutdown gracefully.
 		if err := os.RemoveAll(stagingDir); err != nil {
 			return nil, fmt.Errorf("failed clearing storage's staging directory: %w", err)
 		}
 
-		if err := os.Mkdir(stagingDir, perm.PrivateDir); err != nil {
+		if err := os.MkdirAll(stagingDir, perm.PrivateDir); err != nil {
 			return nil, fmt.Errorf("create storage's staging directory: %w", err)
 		}
 
-		databaseDir := filepath.Join(storage.Path, "database")
-		if err := os.Mkdir(databaseDir, perm.PrivateDir); err != nil && !errors.Is(err, fs.ErrExist) {
+		databaseDir := filepath.Join(internalDir, "database")
+		if err := os.MkdirAll(databaseDir, perm.PrivateDir); err != nil && !errors.Is(err, fs.ErrExist) {
 			return nil, fmt.Errorf("create storage's database directory: %w", err)
 		}
 
-		if err := safe.NewSyncer().SyncHierarchy(storage.Path, "database"); err != nil {
+		if err := safe.NewSyncer().SyncHierarchy(internalDir, "database"); err != nil {
 			return nil, fmt.Errorf("sync database directory: %w", err)
 		}
 
@@ -353,6 +354,11 @@ func NewPartitionManager(
 		},
 		metrics: metrics,
 	}, nil
+}
+
+// internalDirectoryPath returns the full path of Gitaly's internal data directory for the storage.
+func internalDirectoryPath(storagePath string) string {
+	return filepath.Join(storagePath, config.GitalyDataPrefix)
 }
 
 func stagingDirectoryPath(storagePath string) string {
@@ -514,6 +520,7 @@ func deriveStateDirectory(id partitionID) string {
 	hash := hex.EncodeToString(hasher.Sum(nil))
 
 	return filepath.Join(
+		config.GitalyDataPrefix,
 		"partitions",
 		// These two levels balance the state directories into smaller
 		// subdirectories to keep the directory sizes reasonable.

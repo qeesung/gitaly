@@ -773,7 +773,7 @@ func TestPartitionManager(t *testing.T) {
 			for _, storage := range cfg.Storages {
 				require.NoError(t,
 					os.MkdirAll(
-						filepath.Join(stagingDirectoryPath(storage.Path), "existing-content"),
+						filepath.Join(stagingDirectoryPath(internalDirectoryPath(storage.Path)), "existing-content"),
 						perm.PrivateDir,
 					),
 				)
@@ -790,7 +790,7 @@ func TestPartitionManager(t *testing.T) {
 				partitionManager.Close()
 				for _, storage := range cfg.Storages {
 					// Assert all staging directories have been emptied at the end.
-					testhelper.RequireDirectoryState(t, storage.Path, "staging", testhelper.DirectoryState{
+					testhelper.RequireDirectoryState(t, internalDirectoryPath(storage.Path), "staging", testhelper.DirectoryState{
 						"/staging": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
 					})
 				}
@@ -798,7 +798,7 @@ func TestPartitionManager(t *testing.T) {
 
 			for _, storage := range cfg.Storages {
 				// Assert the existing content in the staging directory was removed.
-				testhelper.RequireDirectoryState(t, storage.Path, "staging", testhelper.DirectoryState{
+				testhelper.RequireDirectoryState(t, internalDirectoryPath(storage.Path), "staging", testhelper.DirectoryState{
 					"/staging": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
 				})
 			}
