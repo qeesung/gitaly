@@ -262,6 +262,8 @@ var commandDescriptions = map[string]commandDescription{
 				// Make git-receive-pack(1) advertise the push options
 				// capability to clients.
 				ConfigPair{Key: "receive.advertisePushOptions", Value: "true"},
+				// Disable automatic garbage collection. We want to control the GC scheduling ourselves.
+				ConfigPair{Key: "receive.autogc", Value: "false"},
 			}, hiddenReceivePackRefPrefixes(ctx)...), receiveFsckConfiguration(ctx)...), packConfiguration(ctx)...)
 		},
 	},
