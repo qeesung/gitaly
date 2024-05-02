@@ -1194,13 +1194,6 @@ message ReplicateRepositoryRequest {
   // different storage node. The information for how to connect to this storage node needs to be
   // injected into the gRPC context by the caller by setting the `gitaly-servers` metadata.
   Repository source = 2;
-  // replicate_object_deduplication_network_membership enables replication of the source repository's
-  // object pool to the target repository's storage and recreates the Git `alternates` link. If the
-  // source repository is not linked to an object pool, no linking or additional replication is
-  // performed. In the event the target repository is linked to an object pool, but the source
-  // repository is not part of an object deduplication network, the target repository is
-  // disconnected from its object pool.
-  bool replicate_object_deduplication_network_membership = 3;
 }
 
 // ReplicateRepositoryResponse is a response for the ReplicateRepository RPC.
