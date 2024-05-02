@@ -351,7 +351,7 @@ func (req *trackRepositoryRequest) authoritativeRepositoryExists(ctx context.Con
 				}
 				exists, err := repositoryExists(ctx, repo, node.Address, node.Token)
 				if err != nil {
-					fmt.Fprintf(w, "checking if repository exists %q, %q", node.Storage, req.ReplicaPath)
+					fmt.Fprintf(w, "checking if repository exists %q, %q\n", node.Storage, req.ReplicaPath)
 					return false, nil
 				}
 				return exists, nil
