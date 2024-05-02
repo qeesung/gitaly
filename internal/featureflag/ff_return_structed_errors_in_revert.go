@@ -9,5 +9,5 @@ var ReturnStructuredErrorsInUserRevert = NewFeatureFlag(
 	"return_structured_errors_in_revert",
 	"v16.11.0",
 	"https://gitlab.com/gitlab-org/gitaly/-/issues/5752",
-	false,
+	true,
 )
