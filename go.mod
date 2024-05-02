@@ -41,6 +41,7 @@ require (
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	github.com/urfave/cli/v2 v2.27.2
 	gitlab.com/gitlab-org/labkit v1.21.0
+	go.uber.org/automaxprocs v1.5.3
 	go.uber.org/goleak v1.3.0
 	gocloud.dev v0.37.0
 	golang.org/x/crypto v0.22.0
