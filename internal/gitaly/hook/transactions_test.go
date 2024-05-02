@@ -38,7 +38,7 @@ func TestHookManager_stopCalled(t *testing.T) {
 	var mockTxMgr transaction.MockManager
 	hookManager := NewManager(cfg, config.NewLocator(cfg), testhelper.SharedLogger(t), gittest.NewCommandFactory(t, cfg), &mockTxMgr, gitlab.NewMockClient(
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
-	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry())
+	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry(), nil)
 
 	hooksPayload, err := git.NewHooksPayload(
 		cfg,
@@ -144,7 +144,7 @@ func TestHookManager_contextCancellationCancelsVote(t *testing.T) {
 
 	hookManager := NewManager(cfg, config.NewLocator(cfg), testhelper.SharedLogger(t), gittest.NewCommandFactory(t, cfg), &mockTxMgr, gitlab.NewMockClient(
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
-	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry())
+	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry(), nil)
 
 	hooksPayload, err := git.NewHooksPayload(
 		cfg,

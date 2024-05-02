@@ -83,5 +83,6 @@ func checkAPI(cfg config.Cfg, logger log.Logger) (*gitlab.CheckInfo, error) {
 		gitlabAPI,
 		hook.NewTransactionRegistry(storagemgr.NewTransactionRegistry()),
 		hook.NewProcReceiveRegistry(),
+		nil,
 	).Check(context.Background())
 }

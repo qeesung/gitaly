@@ -399,6 +399,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		gitlabClient,
 		hook.NewTransactionRegistry(txRegistry),
 		hook.NewProcReceiveRegistry(),
+		partitionMgr,
 	)
 
 	updaterWithHooks := updateref.NewUpdaterWithHooks(cfg, logger, locator, hookManager, gitCmdFactory, catfileCache)

@@ -34,6 +34,7 @@ func (m mockTransactionRegistry) Get(id storage.TransactionID) (hook.Transaction
 }
 
 type mockTransaction struct {
+	hook.Transaction
 	updateReferencesFunc         func(storagemgr.ReferenceUpdates)
 	recordInitialReferenceValues func(context.Context, map[git.ReferenceName]git.ObjectID) error
 }

@@ -330,6 +330,22 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 		gsd.procReceiveRegistry = hook.NewProcReceiveRegistry()
 	}
 
+	var partitionManager *storagemgr.PartitionManager
+	if testhelper.IsWALEnabled() {
+		var err error
+		partitionManager, err = storagemgr.NewPartitionManager(
+			cfg.Storages,
+			gsd.gitCmdFactory,
+			localrepo.NewFactory(gsd.logger, gsd.locator, gsd.gitCmdFactory, gsd.catfileCache),
+			gsd.logger,
+			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
+			helper.NewNullTickerFactory(),
+			cfg.Prometheus,
+		)
+		require.NoError(tb, err)
+		tb.Cleanup(partitionManager.Close)
+	}
+
 	if gsd.hookMgr == nil {
 		gsd.hookMgr = hook.NewManager(
 			cfg, gsd.locator,
@@ -339,6 +355,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 			gsd.gitlabClient,
 			hook.NewTransactionRegistry(gsd.transactionRegistry),
 			gsd.procReceiveRegistry,
+			partitionManager,
 		)
 	}
 
@@ -377,22 +394,6 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 
 	if gsd.updaterWithHooks == nil {
 		gsd.updaterWithHooks = updateref.NewUpdaterWithHooks(cfg, gsd.logger, gsd.locator, gsd.hookMgr, gsd.gitCmdFactory, gsd.catfileCache)
-	}
-
-	var partitionManager *storagemgr.PartitionManager
-	if testhelper.IsWALEnabled() {
-		var err error
-		partitionManager, err = storagemgr.NewPartitionManager(
-			cfg.Storages,
-			gsd.gitCmdFactory,
-			localrepo.NewFactory(gsd.logger, gsd.locator, gsd.gitCmdFactory, gsd.catfileCache),
-			gsd.logger,
-			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
-			helper.NewNullTickerFactory(),
-			cfg.Prometheus,
-		)
-		require.NoError(tb, err)
-		tb.Cleanup(partitionManager.Close)
 	}
 
 	if gsd.housekeepingManager == nil {

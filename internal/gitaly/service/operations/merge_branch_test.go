@@ -1152,6 +1152,7 @@ func testUserMergeBranchAllowed(t *testing.T, ctx context.Context) {
 				gitlab.MockPostReceive,
 			), hook.NewTransactionRegistry(storagemgr.NewTransactionRegistry()),
 				hook.NewProcReceiveRegistry(),
+				nil,
 			)
 
 			ctx, cfg, client := setupOperationsServiceWithCfg(

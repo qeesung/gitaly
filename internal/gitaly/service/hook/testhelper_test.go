@@ -68,6 +68,7 @@ func runHooksServerWithTransactionRegistry(tb testing.TB, cfg config.Cfg, opts [
 				deps.GetGitlabClient(),
 				txRegistry,
 				deps.ProcReceiveRegistry,
+				nil,
 			)
 		}
 
