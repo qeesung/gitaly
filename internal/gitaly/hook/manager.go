@@ -57,6 +57,9 @@ type Manager interface {
 type Transaction interface {
 	RecordInitialReferenceValues(context.Context, map[git.ReferenceName]git.ObjectID) error
 	UpdateReferences(storagemgr.ReferenceUpdates)
+	Commit(context.Context) error
+	OriginalRepository(*gitalypb.Repository) *gitalypb.Repository
+	RewriteRepository(*gitalypb.Repository) *gitalypb.Repository
 }
 
 // TransactionRegistry is the interface of storagemgr.TransactionRegistry. It's used for mocking

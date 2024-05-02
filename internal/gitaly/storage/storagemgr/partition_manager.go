@@ -162,15 +162,12 @@ func (tx *finalizableTransaction) Rollback() error {
 // newFinalizableTransaction returns a wrapped transaction that executes finalizeTransaction when the transaction
 // is committed or rolled back.
 func (sm *storageManager) newFinalizableTransaction(ptn *partition, tx *Transaction) *finalizableTransaction {
-	finalized := false
+	var finalizeOnce sync.Once
 	return &finalizableTransaction{
 		finalize: func() {
-			if finalized {
-				return
-			}
-
-			finalized = true
-			sm.finalizeTransaction(ptn)
+			finalizeOnce.Do(func() {
+				sm.finalizeTransaction(ptn)
+			})
 		},
 		Transaction: tx,
 	}
