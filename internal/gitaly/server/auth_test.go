@@ -246,7 +246,7 @@ func runServer(t *testing.T, cfg config.Cfg) string {
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 	hookManager := hook.NewManager(cfg, locator, logger, gitCmdFactory, txManager, gitlab.NewMockClient(
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
-	), hook.NewTransactionRegistry(storagemgr.NewTransactionRegistry()), hook.NewProcReceiveRegistry())
+	), hook.NewTransactionRegistry(storagemgr.NewTransactionRegistry()), hook.NewProcReceiveRegistry(), nil)
 	catfileCache := catfile.NewCache(cfg)
 	t.Cleanup(catfileCache.Stop)
 	diskCache := cache.New(cfg, locator, logger)

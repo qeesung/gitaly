@@ -57,6 +57,9 @@ type Manager interface {
 type Transaction interface {
 	RecordInitialReferenceValues(context.Context, map[git.ReferenceName]git.ObjectID) error
 	UpdateReferences(storagemgr.ReferenceUpdates)
+	Commit(context.Context) error
+	OriginalRepository(*gitalypb.Repository) *gitalypb.Repository
+	RewriteRepository(*gitalypb.Repository) *gitalypb.Repository
 }
 
 // TransactionRegistry is the interface of storagemgr.TransactionRegistry. It's used for mocking
@@ -90,6 +93,7 @@ type GitLabHookManager struct {
 	gitlabClient        gitlab.Client
 	txRegistry          TransactionRegistry
 	procReceiveRegistry *ProcReceiveRegistry
+	partitionManager    *storagemgr.PartitionManager
 }
 
 // ProcReceiveRegistry provides the ProcReceiveRegistry assigned to the Manager. The registry
@@ -108,6 +112,7 @@ func NewManager(
 	gitlabClient gitlab.Client,
 	txRegistry TransactionRegistry,
 	procReceiveRegistry *ProcReceiveRegistry,
+	partitionManager *storagemgr.PartitionManager,
 ) *GitLabHookManager {
 	return &GitLabHookManager{
 		cfg:                 cfg,
@@ -118,5 +123,6 @@ func NewManager(
 		gitlabClient:        gitlabClient,
 		txRegistry:          txRegistry,
 		procReceiveRegistry: procReceiveRegistry,
+		partitionManager:    partitionManager,
 	}
 }

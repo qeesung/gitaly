@@ -199,6 +199,13 @@ type Transaction struct {
 	// state records whether the transaction is still open. Transaction is open until either Commit()
 	// or Rollback() is called on it.
 	state transactionState
+	// stateLatch guards the transaction against concurrent commit and rollback operations. Transactions
+	// are not generally safe for concurrent use. As the transaction may need to be committed in the
+	// post-receive hook, there's potential for a race. If the RPC times out, it could be that the
+	// PostReceiveHook RPC's goroutine attempts to commit a transaction at the same time as the parent
+	// RPC's goroutine attempts to abort it. stateLatch guards against this race.
+	stateLatch sync.Mutex
+
 	// commit commits the Transaction through the TransactionManager.
 	commit func(context.Context, *Transaction) error
 	// result is where the outcome of the transaction is sent to by TransactionManager once it
@@ -452,6 +459,9 @@ func (txn *Transaction) OriginalRepository(repo *gitalypb.Repository) *gitalypb.
 }
 
 func (txn *Transaction) updateState(newState transactionState) error {
+	txn.stateLatch.Lock()
+	defer txn.stateLatch.Unlock()
+
 	switch txn.state {
 	case transactionStateOpen:
 		txn.state = newState

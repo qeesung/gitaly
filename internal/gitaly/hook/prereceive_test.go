@@ -43,7 +43,7 @@ func TestPrereceive_customHooks(t *testing.T) {
 	txManager := transaction.NewTrackingManager()
 	hookManager := NewManager(cfg, locator, testhelper.SharedLogger(t), gitCmdFactory, txManager, gitlab.NewMockClient(
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
-	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry())
+	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry(), nil)
 
 	receiveHooksPayload := &git.UserDetails{
 		UserID:   "1234",
@@ -228,7 +228,7 @@ func TestPrereceive_quarantine(t *testing.T) {
 
 	hookManager := NewManager(cfg, config.NewLocator(cfg), testhelper.SharedLogger(t), gittest.NewCommandFactory(t, cfg), nil, gitlab.NewMockClient(
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
-	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry())
+	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry(), nil)
 
 	//nolint:gitaly-linters
 	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(fmt.Sprintf(
@@ -430,6 +430,7 @@ func TestPrereceive_gitlab(t *testing.T) {
 				&gitlabAPI,
 				NewTransactionRegistry(storagemgr.NewTransactionRegistry()),
 				NewProcReceiveRegistry(),
+				nil,
 			)
 
 			gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte("#!/bin/sh\necho called\n"))
