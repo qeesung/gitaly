@@ -3,8 +3,6 @@ package repository
 import (
 	"bytes"
 	"io"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -165,8 +163,6 @@ func TestCreateRepositoryFromBundle(t *testing.T) {
 }
 
 func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
-	testhelper.SkipWithReftable(t, "writes refs by writing to the filesystem directly")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -236,19 +232,8 @@ func TestCreateRepositoryFromBundle_transactional(t *testing.T) {
 	// expect to hash. Furthermore, this is required for cross-platform compatibility given that
 	// the configuration may be different depending on the platform.
 	hash := voting.NewVoteHash()
-	for _, filePath := range []string{
-		"HEAD",
-		"config",
-		"packed-refs",
-	} {
-		file, err := os.Open(filepath.Join(repoPath, filePath))
-		require.NoError(t, err)
 
-		_, err = io.Copy(hash, file)
-		require.NoError(t, err)
-
-		testhelper.MustClose(t, file)
-	}
+	gittest.BackendSpecificRepoHash(t, ctx, cfg, hash, repoPath)
 
 	filesVote, err := hash.Vote()
 	require.NoError(t, err)
