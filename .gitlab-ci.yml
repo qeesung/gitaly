@@ -298,8 +298,7 @@ test:reftable:
   allow_failure: true
   variables:
     <<: *test_variables
-    SKIP_OVERRIDING_GIT_VERSION: "YesPlease"
-    GIT_VERSION: "master"
+    GIT_VERSION: "v2.45.0"
     TEST_TARGET: test-with-reftable
 
 test:nightly:
