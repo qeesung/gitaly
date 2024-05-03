@@ -444,6 +444,7 @@ func TestServer_PostUploadPackWithBundleURI(t *testing.T) {
 			t.Parallel()
 
 			var sink *bundleuri.Sink
+			var err error
 			if tc.sinkURI != "" {
 				sink, err = bundleuri.NewSink(ctx, tc.sinkURI)
 				require.NoError(t, err)
