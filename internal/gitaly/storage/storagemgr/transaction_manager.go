@@ -309,7 +309,6 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 
 	span, _ := tracing.StartSpanIfHasParent(ctx, "transaction.Begin", nil)
 	span.SetTag("readonly", readOnly)
-	span.SetTag("snapshotLSN", mgr.appendedLSN)
 	span.SetTag("relativePath", relativePath)
 	defer span.Finish()
 
@@ -338,6 +337,8 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 	}
 
 	mgr.mutex.Unlock()
+
+	span.SetTag("snapshotLSN", txn.snapshotLSN)
 
 	txn.finish = func() error {
 		defer close(txn.finished)
