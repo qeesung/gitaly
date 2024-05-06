@@ -75,3 +75,12 @@ revert as it unblocks other inflight changes from being deployed. Once the rever
 the MR so the `release-tools` bot can automatically open a new one with the updated `GITALY_SERVER_VERSION`.
 Alternatively, you can choose to manually update the `GITALY_SERVER_VERSION` in the existing MR and wait for the
 pipeline to pass.
+
+## Pipeline failures in the `security` mirror
+
+The [`gitlab-org/security/gitaly`](https://gitlab.com/gitlab-org/security/gitaly) mirror is owned by the
+[`#g_delivery`](https://gitlab.enterprise.slack.com/archives/CCFV016SV) group.
+
+Pipeline failures in the `master` branch prevent the `release-tools` bot from creating or amending **Update Gitaly version** MRs.
+If the failure is due to test flakes related to the CI/CD environment (that is, it cannot be addressed by a code change in Gitaly),
+reach out to the `#g_delivery` group so they can re-trigger the pipeline.
