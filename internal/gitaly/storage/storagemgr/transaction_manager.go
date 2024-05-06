@@ -309,7 +309,6 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 
 	span, _ := tracing.StartSpanIfHasParent(ctx, "transaction.Begin", nil)
 	span.SetTag("readonly", readOnly)
-	span.SetTag("snapshotLSN", mgr.appendedLSN)
 	span.SetTag("relativePath", relativePath)
 	defer span.Finish()
 
@@ -330,14 +329,12 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 
 	var entry *committedEntry
 	if !txn.readOnly {
-		var err error
-		entry, err = mgr.updateCommittedEntry(txn.snapshotLSN)
-		if err != nil {
-			return nil, err
-		}
+		entry = mgr.updateCommittedEntry(txn.snapshotLSN)
 	}
 
 	mgr.mutex.Unlock()
+
+	span.SetTag("snapshotLSN", txn.snapshotLSN)
 
 	txn.finish = func() error {
 		defer close(txn.finished)
@@ -3332,14 +3329,14 @@ func (mgr *TransactionManager) lowWaterMark() LSN {
 }
 
 // updateCommittedEntry updates the reader counter of the committed entry of the snapshot that this transaction depends on.
-func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) (*committedEntry, error) {
+func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) *committedEntry {
 	// Since the goroutine doing this is holding the lock, the snapshotLSN shouldn't change and no new transactions
 	// can be committed or added. That should guarantee .Back() is always the latest transaction and the one we're
 	// using to base our snapshot on.
 	if elm := mgr.committedEntries.Back(); elm != nil {
 		entry := elm.Value.(*committedEntry)
 		entry.snapshotReaders++
-		return entry, nil
+		return entry
 	}
 
 	entry := &committedEntry{
@@ -3349,7 +3346,7 @@ func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) (*committed
 
 	mgr.committedEntries.PushBack(entry)
 
-	return entry, nil
+	return entry
 }
 
 // walkCommittedEntries walks all committed entries after input transaction's snapshot LSN. It loads the content of the
