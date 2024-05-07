@@ -40,6 +40,8 @@ func TestEntry(t *testing.T) {
 	setupTestDirectory(t, filepath.Join(storageRoot, firstLevelDir))
 	setupTestDirectory(t, filepath.Join(storageRoot, secondLevelDir))
 
+	rootDirPerm := testhelper.Umask().Mask(fs.ModePerm)
+
 	for _, tc := range []struct {
 		desc               string
 		run                func(*testing.T, *Entry)
@@ -61,7 +63,7 @@ func TestEntry(t *testing.T) {
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
-				"/":  {Mode: fs.ModeDir | perm.SharedDir},
+				"/":  {Mode: fs.ModeDir | rootDirPerm},
 				"/1": {Mode: perm.PrivateFile, Content: []byte("root file")},
 			},
 		},
@@ -77,7 +79,7 @@ func TestEntry(t *testing.T) {
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
-				"/": {Mode: fs.ModeDir | perm.SharedDir},
+				"/": {Mode: fs.ModeDir | rootDirPerm},
 			},
 		},
 		{
@@ -93,7 +95,7 @@ func TestEntry(t *testing.T) {
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
-				"/":  {Mode: fs.ModeDir | perm.SharedDir},
+				"/":  {Mode: fs.ModeDir | rootDirPerm},
 				"/1": {Mode: perm.PrivateFile, Content: []byte("root file")},
 			},
 		},
@@ -110,7 +112,7 @@ func TestEntry(t *testing.T) {
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
-				"/":  {Mode: fs.ModeDir | perm.SharedDir},
+				"/":  {Mode: fs.ModeDir | rootDirPerm},
 				"/1": {Mode: perm.PrivateExecutable, Content: []byte("file-1")},
 			},
 		},
@@ -131,7 +133,7 @@ func TestEntry(t *testing.T) {
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
-				"/":  {Mode: fs.ModeDir | perm.SharedDir},
+				"/":  {Mode: fs.ModeDir | rootDirPerm},
 				"/1": {Mode: perm.PrivateExecutable, Content: []byte("file-1")},
 				"/2": {Mode: perm.SharedFile, Content: []byte("file-2")},
 				"/3": {Mode: perm.PrivateFile, Content: []byte("file-3")},
@@ -154,7 +156,7 @@ func TestEntry(t *testing.T) {
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
-				"/":  {Mode: fs.ModeDir | perm.SharedDir},
+				"/":  {Mode: fs.ModeDir | rootDirPerm},
 				"/1": {Mode: perm.PrivateExecutable, Content: []byte("file-1")},
 				"/2": {Mode: perm.SharedFile, Content: []byte("file-2")},
 				"/3": {Mode: perm.PrivateFile, Content: []byte("file-3")},
@@ -177,7 +179,7 @@ func TestEntry(t *testing.T) {
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
-				"/": {Mode: fs.ModeDir | perm.SharedDir},
+				"/": {Mode: fs.ModeDir | rootDirPerm},
 			},
 		},
 		{
@@ -197,7 +199,7 @@ func TestEntry(t *testing.T) {
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
-				"/": {Mode: fs.ModeDir | perm.SharedDir},
+				"/": {Mode: fs.ModeDir | rootDirPerm},
 			},
 		},
 	} {
@@ -342,6 +344,8 @@ func TestRecordReferenceUpdates(t *testing.T) {
 		require.NoError(t, updater.Commit())
 	}
 
+	umask := testhelper.Umask()
+
 	type setupData struct {
 		existingReferences    referenceTransaction
 		referenceTransactions []referenceTransaction
@@ -360,7 +364,7 @@ func TestRecordReferenceUpdates(t *testing.T) {
 				return setupData{
 					referenceTransactions: []referenceTransaction{{}},
 					expectedDirectory: testhelper.DirectoryState{
-						"/": {Mode: fs.ModeDir | perm.SharedDir},
+						"/": {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
 					},
 				}
 			},
@@ -380,20 +384,20 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						var ops operations
 						ops.createHardLink("1", "relative-path/refs/heads/branch-1", false)
 						ops.createHardLink("2", "relative-path/refs/heads/branch-2", false)
-						ops.createDirectory("relative-path/refs/heads/subdir", perm.SharedDir)
+						ops.createDirectory("relative-path/refs/heads/subdir", umask.Mask(fs.ModePerm))
 						ops.createHardLink("3", "relative-path/refs/heads/subdir/branch-3", false)
 						ops.createHardLink("4", "relative-path/refs/heads/subdir/branch-4", false)
-						ops.createDirectory("relative-path/refs/heads/subdir/no-refs", perm.SharedDir)
+						ops.createDirectory("relative-path/refs/heads/subdir/no-refs", umask.Mask(fs.ModePerm))
 						ops.createHardLink("5", "relative-path/refs/heads/subdir/no-refs/branch-5", false)
 						return ops
 					}(),
 					expectedDirectory: testhelper.DirectoryState{
-						"/":  {Mode: fs.ModeDir | perm.SharedDir},
-						"/1": {Mode: perm.SharedFile, Content: []byte(oids[0] + "\n")},
-						"/2": {Mode: perm.SharedFile, Content: []byte(oids[1] + "\n")},
-						"/3": {Mode: perm.SharedFile, Content: []byte(oids[2] + "\n")},
-						"/4": {Mode: perm.SharedFile, Content: []byte(oids[3] + "\n")},
-						"/5": {Mode: perm.SharedFile, Content: []byte(oids[4] + "\n")},
+						"/":  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
+						"/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[0] + "\n")},
+						"/2": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[1] + "\n")},
+						"/3": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[2] + "\n")},
+						"/4": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[3] + "\n")},
+						"/5": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[4] + "\n")},
 					},
 				}
 			},
@@ -421,7 +425,7 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						return ops
 					}(),
 					expectedDirectory: testhelper.DirectoryState{
-						"/": {Mode: fs.ModeDir | perm.SharedDir},
+						"/": {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
 					},
 				}
 			},
@@ -464,12 +468,12 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						return ops
 					}(),
 					expectedDirectory: testhelper.DirectoryState{
-						"/":  {Mode: fs.ModeDir | perm.SharedDir},
-						"/1": {Mode: perm.SharedFile, Content: []byte(oids[1] + "\n")},
-						"/2": {Mode: perm.SharedFile, Content: []byte(oids[2] + "\n")},
-						"/3": {Mode: perm.SharedFile, Content: []byte(oids[1] + "\n")},
-						"/4": {Mode: perm.SharedFile, Content: []byte(oids[2] + "\n")},
-						"/5": {Mode: perm.SharedFile, Content: []byte(oids[3] + "\n")},
+						"/":  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
+						"/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[1] + "\n")},
+						"/2": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[2] + "\n")},
+						"/3": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[1] + "\n")},
+						"/4": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[2] + "\n")},
+						"/5": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[3] + "\n")},
 					},
 				}
 			},
@@ -505,7 +509,7 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						return ops
 					}(),
 					expectedDirectory: testhelper.DirectoryState{
-						"/": {Mode: fs.ModeDir | perm.SharedDir},
+						"/": {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
 					},
 				}
 			},
@@ -531,17 +535,17 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						var ops operations
 						ops.removeDirectoryEntry("relative-path/refs/heads/parent")
 						ops.createHardLink("1", "relative-path/refs/heads/branch-1", false)
-						ops.createDirectory("relative-path/refs/heads/parent", perm.SharedDir)
+						ops.createDirectory("relative-path/refs/heads/parent", umask.Mask(fs.ModePerm))
 						ops.createHardLink("2", "relative-path/refs/heads/parent/branch-2", false)
-						ops.createDirectory("relative-path/refs/heads/parent/subdir", perm.SharedDir)
+						ops.createDirectory("relative-path/refs/heads/parent/subdir", umask.Mask(fs.ModePerm))
 						ops.createHardLink("3", "relative-path/refs/heads/parent/subdir/branch-3", false)
 						return ops
 					}(),
 					expectedDirectory: testhelper.DirectoryState{
-						"/":  {Mode: fs.ModeDir | perm.SharedDir},
-						"/1": {Mode: perm.SharedFile, Content: []byte(oids[0] + "\n")},
-						"/2": {Mode: perm.SharedFile, Content: []byte(oids[1] + "\n")},
-						"/3": {Mode: perm.SharedFile, Content: []byte(oids[2] + "\n")},
+						"/":  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
+						"/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[0] + "\n")},
+						"/2": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[1] + "\n")},
+						"/3": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[2] + "\n")},
 					},
 				}
 			},
