@@ -21,12 +21,6 @@ import (
 )
 
 func TestProcReceiveHook(t *testing.T) {
-	testhelper.SkipQuarantinedTest(
-		t,
-		"https://gitlab.com/gitlab-org/gitaly/-/issues/5966",
-		"TestProcReceiveHook",
-	)
-
 	procReceiveRegistry := gitalyhook.NewProcReceiveRegistry()
 
 	cfg := testcfg.Build(t)
