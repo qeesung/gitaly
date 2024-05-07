@@ -200,7 +200,6 @@ func runGitaly(tb testing.TB, cfg config.Cfg, registrar func(srv *grpc.Server, d
 	if cfg.RuntimeDir != "" {
 		internalServer, err := serverFactory.CreateInternal(serverOpts...)
 		require.NoError(tb, err)
-		tb.Cleanup(internalServer.Stop)
 
 		registrar(internalServer, deps)
 		registerHealthServerIfNotRegistered(internalServer)
@@ -222,7 +221,8 @@ func runGitaly(tb testing.TB, cfg config.Cfg, registrar func(srv *grpc.Server, d
 
 	externalServer, err := serverFactory.CreateExternal(secure, serverOpts...)
 	require.NoError(tb, err)
-	tb.Cleanup(externalServer.Stop)
+
+	tb.Cleanup(serverFactory.GracefulStop)
 
 	registrar(externalServer, deps)
 	registerHealthServerIfNotRegistered(externalServer)
