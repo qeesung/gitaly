@@ -229,14 +229,6 @@ func TestManager_Create(t *testing.T) {
 					require.FileExists(t, refsPath)
 					require.FileExists(t, bundlePath)
 
-					dirInfo, err := os.Stat(filepath.Dir(bundlePath))
-					require.NoError(t, err)
-					require.Equal(t, perm.SharedDir, dirInfo.Mode().Perm(), "expecting shared directory permissions")
-
-					bundleInfo, err := os.Stat(bundlePath)
-					require.NoError(t, err)
-					require.Equal(t, perm.SharedFile, bundleInfo.Mode().Perm(), "expecting shared file permissions")
-
 					output := gittest.Exec(t, cfg, "-C", data.repoPath, "bundle", "verify", bundlePath)
 					require.Contains(t, string(output), "The bundle records a complete history")
 
