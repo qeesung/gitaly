@@ -285,7 +285,7 @@ func (req *trackRepositoryRequest) trackRepository(
 	repositoryID, err := ds.ReserveRepositoryID(ctx, req.VirtualStorage, req.RelativePath)
 	if err != nil {
 		if errors.Is(err, datastore.ErrRepositoryAlreadyExists) {
-			fmt.Fprintf(w, "repository is already tracked in praefect database")
+			fmt.Fprintf(w, "repository is already tracked in praefect database\n")
 			existingID, err := ds.GetRepositoryID(ctx, req.VirtualStorage, req.RelativePath)
 			if err != nil {
 				return 0, fmt.Errorf("GetRepositoryID: %w", err)
