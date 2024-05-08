@@ -26,6 +26,7 @@ func TestApplyOperations(t *testing.T) {
 		"parent/relative-path/dir-with-removed-file": {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent/relative-path/dir-with-removed-file/removed-file": {Mode: perm.PrivateFile, Data: []byte("removed")},
 	})
+	umask := testhelper.Umask()
 
 	walEntryDirectory := t.TempDir()
 	walEntry := wal.NewEntry(walEntryDirectory)
@@ -55,7 +56,7 @@ func TestApplyOperations(t *testing.T) {
 		filepath.Join(storageRoot, "parent/relative-path/dir-with-removed-file"),
 	}, syncedPaths)
 	testhelper.RequireDirectoryState(t, storageRoot, "", testhelper.DirectoryState{
-		"/":                                  {Mode: fs.ModeDir | perm.SharedDir},
+		"/":                                  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
 		"/parent":                            {Mode: fs.ModeDir | perm.PrivateDir},
 		"/parent/relative-path":              {Mode: fs.ModeDir | perm.SharedDir},
 		"/parent/relative-path/private-file": {Mode: perm.PrivateFile, Content: []byte("private")},
