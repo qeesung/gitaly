@@ -139,6 +139,11 @@ func Create(
 		return err
 	}
 
+	refBackend, err := git.DetectReferenceBackend(ctx, gitCmdFactory, newRepo)
+	if err != nil {
+		return fmt.Errorf("detecting reference backend: %w", err)
+	}
+
 	// In order to guarantee that the repository is going to be the same across all
 	// Gitalies in case we're behind Praefect, we walk the repository and hash all of
 	// its files.
@@ -158,6 +163,22 @@ func Create(
 		// CreateRepositoryFromBundle.
 		case filepath.Join(newRepoDir.Path(), "FETCH_HEAD"):
 			return nil
+		case filepath.Join(newRepoDir.Path(), "refs"):
+			if refBackend == git.ReferenceBackendReftables {
+				return fs.SkipDir
+			}
+		// Reftables creates files with random suffix, which can be different from node
+		// to node. So we instead capture the ref information directly.
+		//
+		// TODO: Ideally we want to also use the same ideology for the files backend too
+		// https://gitlab.com/gitlab-org/gitaly/-/issues/6050
+		case filepath.Join(newRepoDir.Path(), "reftable"):
+			if refBackend == git.ReferenceBackendReftables {
+				if err := writeRefs(ctx, voteHash, newRepo, gitCmdFactory); err != nil {
+					return err
+				}
+				return fs.SkipDir
+			}
 		}
 
 		// We do not care about directories.
@@ -260,5 +281,45 @@ func Create(
 	repoCounter.Increment(repository)
 
 	// We unlock the repository implicitly via the deferred `Close()` call.
+	return nil
+}
+
+func writeRefs(
+	ctx context.Context,
+	w io.Writer,
+	repo *gitalypb.Repository,
+	gitCmdFactory git.CommandFactory,
+) error {
+	version, err := gitCmdFactory.GitVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("getting git version: %w", err)
+	}
+
+	// We rely on 'git for-each-ref --include-root-refs' to list all refs.
+	if version.LessThan(git.NewVersion(2, 45, 0, 0)) {
+		return nil
+	}
+
+	stderr := &bytes.Buffer{}
+
+	// This doesn't consider dangling symrefs. This needs to be fixed in Git:
+	// https://gitlab.com/gitlab-org/git/-/issues/309
+	cmd, err := gitCmdFactory.New(ctx, repo, git.Command{
+		Name: "for-each-ref",
+		Flags: []git.Option{
+			git.Flag{Name: "--format=%(refname) %(objectname) %(symref)"},
+			// This is currently broken as it also prints special refs:
+			// https://gitlab.com/gitlab-org/git/-/issues/303
+			git.Flag{Name: "--include-root-refs"},
+		},
+	}, git.WithStdout(w), git.WithStderr(stderr))
+	if err != nil {
+		return fmt.Errorf("spawning show-ref: %w", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("running show-ref: %w, stderr: %q", err, stderr.String())
+	}
+
 	return nil
 }

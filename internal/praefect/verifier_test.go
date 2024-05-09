@@ -43,8 +43,6 @@ func (svc erroringRepositoryService) RepositoryExists(context.Context, *gitalypb
 }
 
 func TestVerifier(t *testing.T) {
-	testhelper.SkipWithReftable(t, "voting doesn't work since the reftable is a binary format and its name and contents aren't deterministic")
-
 	t.Parallel()
 
 	// replicas contains the replicas the test setup should create, keyed by
