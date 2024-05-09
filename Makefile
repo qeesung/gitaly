@@ -494,8 +494,9 @@ build-proto-docs: ${PROTOC} ${PROTOC_GEN_DOC}
 	${Q}${PROTOC} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --doc_out=${BUILD_DIR}/proto-docs --doc_opt=html,index.html --plugin=protoc-gen-doc=${PROTOC_GEN_DOC} ${SOURCE_DIR}/proto/*.proto
 
 .PHONY: govulncheck
+## pipefail is set in the SHELL config, but we don't care about govulncheck's exit code here.
 govulncheck: ${GOVULNCHECK}
-	${Q}${GOVULNCHECK} ./...
+	${Q}(${GOVULNCHECK} ./... || true) | go run ${SOURCE_DIR}/tools/govulncheck-filter/main.go
 
 .PHONY: no-changes
 no-changes:
