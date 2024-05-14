@@ -446,10 +446,7 @@ func TestManifestLocator_withFallback(t *testing.T) {
 		var l Locator = PointerLocator{
 			Sink: sink,
 		}
-		l = ManifestLocator{
-			Sink:     sink,
-			Fallback: l,
-		}
+		l = NewManifestLocator(sink, l)
 
 		full := l.BeginFull(ctx, repo, backupID)
 		require.NoError(t, l.Commit(ctx, full))
@@ -479,10 +476,7 @@ custom_hooks_path = '%[1]s/%[2]s/001.custom_hooks.tar'
 		var l Locator = PointerLocator{
 			Sink: sink,
 		}
-		l = ManifestLocator{
-			Sink:     sink,
-			Fallback: l,
-		}
+		l = NewManifestLocator(sink, l)
 
 		incremental, err := l.BeginIncremental(ctx, repo, backupID)
 		require.NoError(t, err)
@@ -530,9 +524,7 @@ func TestManifestLocator(t *testing.T) {
 		backupPath := testhelper.TempDir(t)
 		sink, err := ResolveSink(ctx, backupPath)
 		require.NoError(t, err)
-		var l Locator = ManifestLocator{
-			Sink: sink,
-		}
+		var l Locator = NewManifestLocator(sink, nil)
 
 		full := l.BeginFull(ctx, repo, backupID)
 		require.NoError(t, l.Commit(ctx, full))
@@ -565,9 +557,7 @@ custom_hooks_path = '%[1]s/%[2]s/%[3]s/001.custom_hooks.tar'
 
 		sink, err := ResolveSink(ctx, backupPath)
 		require.NoError(t, err)
-		var l Locator = ManifestLocator{
-			Sink: sink,
-		}
+		var l Locator = NewManifestLocator(sink, nil)
 
 		incremental, err := l.BeginIncremental(ctx, repo, backupID)
 		require.NoError(t, err)
@@ -703,10 +693,7 @@ custom_hooks_path = 'path/to/002.custom_hooks.tar'
 			var l Locator = PointerLocator{
 				Sink: sink,
 			}
-			l = ManifestLocator{
-				Sink:     sink,
-				Fallback: l,
-			}
+			l = NewManifestLocator(sink, l)
 
 			backup, err := l.Find(ctx, tc.repo, tc.backupID)
 			require.NoError(t, err)
@@ -821,10 +808,7 @@ custom_hooks_path = 'manifest-path/to/002.custom_hooks.tar'
 			var l Locator = PointerLocator{
 				Sink: sink,
 			}
-			l = ManifestLocator{
-				Sink:     sink,
-				Fallback: l,
-			}
+			l = NewManifestLocator(sink, l)
 
 			backup, err := l.FindLatest(ctx, tc.repo)
 			require.NoError(t, err)
