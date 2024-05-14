@@ -2,6 +2,7 @@ package diff
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -14,8 +15,6 @@ import (
 )
 
 func TestGetPatchID(t *testing.T) {
-	t.Parallel()
-
 	ctx := testhelper.Context(t)
 	cfg, client := setupDiffService(t)
 
@@ -312,6 +311,20 @@ func TestGetPatchID(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
+			if os.Getenv("GIT_VERSION") == "next" {
+				testhelper.SkipQuarantinedTest(t,
+					"https://gitlab.com/gitlab-org/gitaly/-/issues/6066",
+					"TestGetPatchID/returns_patch-id_successfully",
+					"TestGetPatchID/returns_patch-id_successfully_with_commit_ids",
+					"TestGetPatchID/returns_patch-id_successfully_for_a_specific_file",
+					"TestGetPatchID/returns_patch-id_with_binary_file",
+					"TestGetPatchID/different_binary_diff_has_different_patch_ID",
+					"TestGetPatchID/file_didn't_exist_in_the_old_revision",
+					"TestGetPatchID/unknown_revisions",
+					"TestGetPatchID/no_diff_from_the_given_revisions",
+				)
+			}
+
 			t.Parallel()
 
 			setupData := tc.setup(t)
