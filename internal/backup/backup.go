@@ -73,6 +73,18 @@ type Backup struct {
 	ObjectFormat string `toml:"object_format"`
 	// HeadReference is the reference that HEAD points to.
 	HeadReference string `toml:"head_reference,omitempty"`
+	// WALPartition is the partition that this repository is stored in.
+	WALPartition WALPartition `toml:"wal_partition,omitempty"`
+}
+
+// WALPartition is the partition that this repository is stored in.
+type WALPartition struct {
+	// ID uniquely identifies the WAL partition.
+	ID string `toml:"id"`
+	// LSN identifies where in the log entries this backup was taken.
+	LSN string `toml:"lsn"`
+	// ArchivePath is the path to the WAL partition archive.
+	ArchivePath string `toml:"archive_path"`
 }
 
 // Step represents an incremental step that makes up a complete backup for a repository
