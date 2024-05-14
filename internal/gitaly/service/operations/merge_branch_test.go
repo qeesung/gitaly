@@ -49,7 +49,7 @@ func TestUserMergeBranch(t *testing.T) {
 func testUserMergeBranch(t *testing.T, ctx context.Context) {
 	var opts []testserver.GitalyServerOpt
 	if featureflag.GPGSigning.IsEnabled(ctx) {
-		opts = append(opts, testserver.WithSigningKey("testdata/signing_gpg_key"))
+		opts = append(opts, testserver.WithSigningKey(filepath.Join(testhelper.TestdataAbsolutePath(t), "signing_gpg_key")))
 	}
 
 	ctx, cfg, client := setupOperationsService(t, ctx, opts...)

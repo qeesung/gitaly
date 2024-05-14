@@ -42,7 +42,7 @@ func TestUserCommitFiles(t *testing.T) {
 
 func testUserCommitFiles(t *testing.T, ctx context.Context) {
 	opts := []testserver.GitalyServerOpt{
-		testserver.WithSigningKey("testdata/signing_gpg_key"),
+		testserver.WithSigningKey(filepath.Join(testhelper.TestdataAbsolutePath(t), "signing_gpg_key")),
 	}
 
 	ctx, cfg, client := setupOperationsService(t, ctx, opts...)
