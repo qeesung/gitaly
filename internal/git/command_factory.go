@@ -346,7 +346,7 @@ func setupHookDirectories(cfg config.Cfg, factoryCfg execCommandFactoryConfig, l
 
 	// We check if the gitaly-hooks binary exists
 	if _, err := os.Stat(cfg.BinaryPath("gitaly-hooks")); errors.Is(err, os.ErrNotExist) {
-		return hookDirectories{}, nil, fmt.Errorf("gitlay-hooks binary not existing: %w", err)
+		return hookDirectories{}, nil, fmt.Errorf("gitaly-hooks binary not existing: %w", err)
 	}
 
 	// And now we symlink all required hooks to the wrapper script.
