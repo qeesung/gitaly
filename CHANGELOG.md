@@ -1,5 +1,21 @@
 # Gitaly changelog
 
+## 17.0.0 (2024-05-15)
+
+### Added (2 changes)
+
+- [git: Wire up Git v2.45 execution environment](gitlab-org/gitaly@8f889e1461f31b898ea8a2fe3381df049b3c1f96) ([merge request](gitlab-org/gitaly!6879))
+- [Add Sign field to commit UserCommitFiles RPC](gitlab-org/gitaly@a0d1ccf1a95c99ff42fea15a2710d27d7f144329) ([merge request](gitlab-org/gitaly!6795))
+
+### Fixed (2 changes)
+
+- [backup: create directory if it does not exist](gitlab-org/gitaly@def62f21f3768ff4fed19dd11223efddc25dff13) ([merge request](gitlab-org/gitaly!6851))
+- [Handle accessing revision and path in empty repository in FindCommits](gitlab-org/gitaly@48b86ff773dd0142c2ca9a0ed827ab7a549b2e47) ([merge request](gitlab-org/gitaly!6826))
+
+### Changed (1 change)
+
+- [config: Don't allow storages to share a path](gitlab-org/gitaly@1f2789d97fd7b7d104a1ebaabbea90f9e5e4bff8) ([merge request](gitlab-org/gitaly!6849))
+
 ## 16.11.2 (2024-05-07)
 
 No changes.
