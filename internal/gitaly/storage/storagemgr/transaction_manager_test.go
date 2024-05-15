@@ -82,7 +82,7 @@ func validCustomHooks(tb testing.TB) []byte {
 	return hooks.Bytes()
 }
 
-func setupTest(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) testTransactionSetup {
+func setupTest(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) testTransactionSetup {
 	t.Helper()
 
 	cfg := testcfg.Build(t)
@@ -173,7 +173,7 @@ func TestTransactionManager(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	// testPartitionID is the partition ID used in the tests for the TransactionManager.
-	const testPartitionID partitionID = 1
+	const testPartitionID storage.PartitionID = 1
 
 	// A clean repository is setup for each test. We build a setup ahead of the tests here once to
 	// get deterministic commit IDs, relative path and object hash we can use to build the declarative
@@ -1887,7 +1887,7 @@ func BenchmarkTransactionManager(b *testing.B) {
 				require.NoError(b, os.MkdirAll(stagingDir, perm.PrivateDir))
 
 				// Valid partition IDs are >=1.
-				testPartitionID := partitionID(i + 1)
+				testPartitionID := storage.PartitionID(i + 1)
 				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory, nil)
 
 				managers = append(managers, manager)

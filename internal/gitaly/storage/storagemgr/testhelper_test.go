@@ -562,7 +562,7 @@ type testTransactionCommits struct {
 }
 
 type testTransactionSetup struct {
-	PartitionID       partitionID
+	PartitionID       storage.PartitionID
 	RelativePath      string
 	RepositoryPath    string
 	Repo              *localrepo.Repo
@@ -808,7 +808,7 @@ type transactionTestCase struct {
 	desc          string
 	skip          func(*testing.T)
 	steps         steps
-	customSetup   func(*testing.T, context.Context, partitionID, string) testTransactionSetup
+	customSetup   func(*testing.T, context.Context, storage.PartitionID, string) testTransactionSetup
 	expectedState StateAssertion
 }
 

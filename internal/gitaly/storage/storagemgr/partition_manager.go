@@ -38,7 +38,7 @@ type transactionManager interface {
 }
 
 type transactionManagerFactory func(
-	partitionID partitionID,
+	partitionID storage.PartitionID,
 	storageMgr *storageManager,
 	cmdFactory git.CommandFactory,
 	absoluteStateDir, stagingDir string,
@@ -96,7 +96,7 @@ type storageManager struct {
 	// partitionAssigner manages partition assignments of repositories.
 	partitionAssigner *partitionAssigner
 	// partitions contains all the active partitions. Each repository can have up to one partition.
-	partitions map[partitionID]*partition
+	partitions map[storage.PartitionID]*partition
 	// activePartitions keeps track of active partitions.
 	activePartitions sync.WaitGroup
 }
@@ -222,13 +222,13 @@ func NewPartitionManager(
 	promCfg gitalycfgprom.Config,
 ) (*PartitionManager, error) {
 	storages := make(map[string]*storageManager, len(configuredStorages))
-	for _, storage := range configuredStorages {
-		repoFactory, err := localRepoFactory.ScopeByStorage(storage.Name)
+	for _, configuredStorage := range configuredStorages {
+		repoFactory, err := localRepoFactory.ScopeByStorage(configuredStorage.Name)
 		if err != nil {
 			return nil, fmt.Errorf("scope by storage: %w", err)
 		}
 
-		internalDir := internalDirectoryPath(storage.Path)
+		internalDir := internalDirectoryPath(configuredStorage.Path)
 		stagingDir := stagingDirectoryPath(internalDir)
 		// Remove a possible already existing staging directory as it may contain stale files
 		// if the previous process didn't shutdown gracefully.
@@ -249,13 +249,13 @@ func NewPartitionManager(
 			return nil, fmt.Errorf("sync database directory: %w", err)
 		}
 
-		storageLogger := logger.WithField("storage", storage.Name)
+		storageLogger := logger.WithField("storage", configuredStorage.Name)
 		db, err := dbOpener.OpenDatabase(storageLogger.WithField("component", "database"), databaseDir)
 		if err != nil {
 			return nil, fmt.Errorf("create storage's database directory: %w", err)
 		}
 
-		pa, err := newPartitionAssigner(db, storage.Path)
+		pa, err := newPartitionAssigner(db, configuredStorage.Path)
 		if err != nil {
 			return nil, fmt.Errorf("new partition assigner: %w", err)
 		}
@@ -311,9 +311,9 @@ func NewPartitionManager(
 			}
 		}()
 
-		storages[storage.Name] = &storageManager{
+		storages[configuredStorage.Name] = &storageManager{
 			logger:           storageLogger,
-			path:             storage.Path,
+			path:             configuredStorage.Path,
 			repoFactory:      repoFactory,
 			stagingDirectory: stagingDir,
 			stopGC: func() {
@@ -322,7 +322,7 @@ func NewPartitionManager(
 			},
 			database:          db,
 			partitionAssigner: pa,
-			partitions:        map[partitionID]*partition{},
+			partitions:        map[storage.PartitionID]*partition{},
 		}
 	}
 
@@ -332,7 +332,7 @@ func NewPartitionManager(
 		storages:       storages,
 		commandFactory: cmdFactory,
 		transactionManagerFactory: func(
-			partitionID partitionID,
+			partitionID storage.PartitionID,
 			storageMgr *storageManager,
 			cmdFactory git.CommandFactory,
 			absoluteStateDir, stagingDir string,
@@ -511,7 +511,7 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 
 // deriveStateDirectory hashes the partition ID and returns the state
 // directory where state related to the partition should be stored.
-func deriveStateDirectory(id partitionID) string {
+func deriveStateDirectory(id storage.PartitionID) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(id.String()))
 	hash := hex.EncodeToString(hasher.Sum(nil))

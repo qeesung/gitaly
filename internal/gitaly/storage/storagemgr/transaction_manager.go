@@ -837,8 +837,8 @@ type TransactionManager struct {
 	// storagePath is an absolute path to the root of the storage this TransactionManager
 	// is operating in.
 	storagePath string
-	// partitionID is the ID of the partition this manager is operating on. This is used to determine the database keys.
-	partitionID partitionID
+	// storage.PartitionID is the ID of the partition this manager is operating on. This is used to determine the database keys.
+	partitionID storage.PartitionID
 	// db is the handle to the key-value store used for storing the write-ahead log related state.
 	db Database
 	// admissionQueue is where the incoming writes are waiting to be admitted to the transaction
@@ -899,7 +899,7 @@ type testHooks struct {
 
 // NewTransactionManager returns a new TransactionManager for the given repository.
 func NewTransactionManager(
-	ptnID partitionID,
+	ptnID storage.PartitionID,
 	logger log.Logger,
 	db Database,
 	storagePath,
@@ -3398,6 +3398,6 @@ func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) bool {
 }
 
 // keyAppliedLSN returns the database key storing a partition's last applied log entry's LSN.
-func keyAppliedLSN(ptnID partitionID) []byte {
+func keyAppliedLSN(ptnID storage.PartitionID) []byte {
 	return []byte(fmt.Sprintf("partition/%s/applied_lsn", ptnID.MarshalBinary()))
 }

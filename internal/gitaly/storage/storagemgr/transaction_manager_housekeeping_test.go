@@ -16,8 +16,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 )
 
-func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) []transactionTestCase {
-	customSetup := func(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) testTransactionSetup {
+func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) []transactionTestCase {
+	customSetup := func(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) testTransactionSetup {
 		setup := setupTest(t, ctx, testPartitionID, relativePath)
 		gittest.WriteRef(t, setup.Config, setup.RepositoryPath, "refs/heads/main", setup.Commits.First.OID)
 		gittest.WriteRef(t, setup.Config, setup.RepositoryPath, "refs/heads/branch-1", setup.Commits.Second.OID)
@@ -1088,8 +1088,8 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 
 // generateHousekeepingRepackingStrategyTests returns a set of tests which run repacking with different strategies and
 // settings.
-func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) []transactionTestCase {
-	customSetup := func(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) testTransactionSetup {
+func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) []transactionTestCase {
+	customSetup := func(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) testTransactionSetup {
 		setup := setupTest(t, ctx, testPartitionID, relativePath)
 		gittest.WriteRef(t, setup.Config, setup.RepositoryPath, "refs/heads/main", setup.Commits.Third.OID)
 		gittest.WriteRef(t, setup.Config, setup.RepositoryPath, "refs/heads/branch", setup.Commits.Diverging.OID)
