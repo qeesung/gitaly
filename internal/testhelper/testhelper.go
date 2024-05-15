@@ -442,3 +442,11 @@ func PkgPath(paths ...string) string {
 	rootPkgPath := path.Dir(internalPkgPath)
 	return path.Join(append([]string{rootPkgPath}, paths...)...)
 }
+
+// TestdataAbsolutePath returns the absolute path to the current test's `testdata/` directory.
+func TestdataAbsolutePath(t *testing.T) string {
+	_, currentFile, _, ok := runtime.Caller(1)
+	require.True(t, ok)
+
+	return filepath.Join(filepath.Dir(currentFile), "testdata")
+}

@@ -3,6 +3,7 @@ package commit
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -58,8 +59,8 @@ func testGetCommitSignatures(t *testing.T, ctx context.Context) {
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyGPG(t, cfg)
 
-	cfg.Git.SigningKey = "testdata/signing_ssh_key_ed25519"
-	cfg.Git.RotatedSigningKeys = []string{"testdata/signing_ssh_key_rsa"}
+	cfg.Git.SigningKey = filepath.Join(testhelper.TestdataAbsolutePath(t), "signing_ssh_key_ed25519")
+	cfg.Git.RotatedSigningKeys = []string{filepath.Join(testhelper.TestdataAbsolutePath(t), "signing_ssh_key_rsa")}
 	cfg.SocketPath = startTestServices(t, cfg)
 	client := newCommitServiceClient(t, cfg.SocketPath)
 

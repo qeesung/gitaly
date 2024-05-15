@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -433,7 +434,7 @@ func testWriteCommit(t *testing.T, ctx context.Context) {
 					CommitterDate:  commitDate,
 					Message:        "my custom message",
 					GitConfig: config.Git{
-						SigningKey: "testdata/signing_gpg_key",
+						SigningKey: filepath.Join(testhelper.TestdataAbsolutePath(t), "signing_gpg_key"),
 					},
 					Sign: tc.sign,
 				}
