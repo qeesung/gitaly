@@ -666,6 +666,9 @@ ${PROTOC_GEN_GITALY_LINT}: proto | ${TOOLS_DIR}
 ${PROTOC_GEN_GITALY_PROTOLIST}: | ${TOOLS_DIR}
 	${Q}go build -o $@ ${SOURCE_DIR}/tools/protoc-gen-gitaly-protolist
 
+.PHONY: filter-repo
+filter-repo: ${GIT_FILTER_REPO}
+
 ${GIT_FILTER_REPO}: ${DEPENDENCY_DIR}/git-filter-repo.version | ${BUILD_DIR}/bin
 	${Q}${GIT} -c init.defaultBranch=master init ${GIT_QUIET} "${GIT_FILTER_REPO_SOURCE_DIR}"
 	${Q}${GIT} -C "${GIT_FILTER_REPO_SOURCE_DIR}" config remote.origin.url ${GIT_FILTER_REPO_REPO_URL}
