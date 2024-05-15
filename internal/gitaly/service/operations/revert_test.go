@@ -429,7 +429,6 @@ func TestServer_UserRevert_quarantine(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertQuarantine)
 }
 
@@ -471,21 +470,16 @@ func testServerUserRevertQuarantine(t *testing.T, ctx context.Context) {
 		Message:    []byte("Reverting " + revertedCommit.Id),
 		Timestamp:  &timestamppb.Timestamp{Seconds: 12345},
 	})
-	if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-		require.NoError(t, err)
-		require.NotNil(t, response)
-		require.NotEmpty(t, response.PreReceiveError)
-	} else {
-		expectedError := structerr.NewPermissionDenied("revert: custom hook error").WithDetail(
-			&gitalypb.UserRevertError{
-				Error: &gitalypb.UserRevertError_CustomHook{
-					CustomHook: &gitalypb.CustomHookError{
-						HookType: gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
-					},
+	testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("revert: custom hook error").WithDetail(
+		&gitalypb.UserRevertError{
+			Error: &gitalypb.UserRevertError_CustomHook{
+				CustomHook: &gitalypb.CustomHookError{
+					HookType: gitalypb.CustomHookError_HOOK_TYPE_PRERECEIVE,
 				},
-			})
-		testhelper.RequireGrpcError(t, expectedError, err)
-	}
+			},
+		},
+	), err)
+	require.Nil(t, response)
 
 	objectHash, err := repo.ObjectHash(ctx)
 	require.NoError(t, err)
@@ -614,7 +608,6 @@ func TestServer_UserRevert_stableID(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertStableID)
 }
 
@@ -711,7 +704,6 @@ func TestServer_UserRevert_successfulIntoEmptyRepo(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertSuccessfulIntoEmptyRepo)
 }
 
@@ -785,7 +777,6 @@ func TestServer_UserRevert_successfulGitHooks(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertSuccessfulGitHooks)
 }
 
@@ -841,7 +832,6 @@ func TestServer_UserRevert_failedDueToPreReceiveError(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertFailedDueToPreReceiveError)
 }
 
@@ -879,19 +869,13 @@ func testServerUserRevertFailedDueToPreReceiveError(t *testing.T, ctx context.Co
 		t.Run(hookName, func(t *testing.T) {
 			gittest.WriteCustomHook(t, repoPath, hookName, hookContent)
 
-			if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-				response, err := client.UserRevert(ctx, request)
-				require.NoError(t, err)
-				require.Contains(t, response.PreReceiveError, "GL_ID="+gittest.TestUser.GlId)
-			} else {
-				_, err := client.UserRevert(ctx, request)
-				actualStatus, _ := status.FromError(err)
-				require.Equal(t, actualStatus.Code(), codes.PermissionDenied)
-				require.Equal(t, actualStatus.Message(), "revert: custom hook error")
-				revertError, ok := actualStatus.Details()[0].(*gitalypb.UserRevertError)
-				require.True(t, ok)
-				require.Contains(t, revertError.GetCustomHook().String(), "GL_ID="+gittest.TestUser.GlId)
-			}
+			_, err := client.UserRevert(ctx, request)
+			actualStatus, _ := status.FromError(err)
+			require.Equal(t, actualStatus.Code(), codes.PermissionDenied)
+			require.Equal(t, actualStatus.Message(), "revert: custom hook error")
+			revertError, ok := actualStatus.Details()[0].(*gitalypb.UserRevertError)
+			require.True(t, ok)
+			require.Contains(t, revertError.GetCustomHook().String(), "GL_ID="+gittest.TestUser.GlId)
 		})
 	}
 }
@@ -901,7 +885,6 @@ func TestServer_UserRevert_failedDueToCreateTreeErrorConflict(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertFailedDueToCreateTreeErrorConflict)
 }
 
@@ -948,22 +931,15 @@ func testServerUserRevertFailedDueToCreateTreeErrorConflict(t *testing.T, ctx co
 		Message:    []byte("Reverting " + revertedCommit.Id),
 	}
 
-	if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-		response, err := client.UserRevert(ctx, request)
-		require.NoError(t, err)
-		require.NotEmpty(t, response.CreateTreeError)
-		require.Equal(t, gitalypb.UserRevertResponse_CONFLICT, response.CreateTreeErrorCode)
-	} else {
-		_, err = client.UserRevert(ctx, request)
-		actualStatus, _ := status.FromError(err)
-		require.Equal(t, actualStatus.Code(), codes.FailedPrecondition)
-		require.Equal(t, actualStatus.Message(), "revert: there are conflicting files")
-		revertError, ok := actualStatus.Details()[0].(*gitalypb.UserRevertError)
-		require.True(t, ok)
-		testhelper.ProtoEqual(t, &gitalypb.MergeConflictError{
-			ConflictingFiles: [][]byte{[]byte("blob")},
-		}, revertError.GetMergeConflict())
-	}
+	_, err = client.UserRevert(ctx, request)
+	actualStatus, _ := status.FromError(err)
+	require.Equal(t, actualStatus.Code(), codes.FailedPrecondition)
+	require.Equal(t, actualStatus.Message(), "revert: there are conflicting files")
+	revertError, ok := actualStatus.Details()[0].(*gitalypb.UserRevertError)
+	require.True(t, ok)
+	testhelper.ProtoEqual(t, &gitalypb.MergeConflictError{
+		ConflictingFiles: [][]byte{[]byte("blob")},
+	}, revertError.GetMergeConflict())
 }
 
 func TestServer_UserRevert_failedDueToCreateTreeErrorEmpty(t *testing.T) {
@@ -971,7 +947,6 @@ func TestServer_UserRevert_failedDueToCreateTreeErrorEmpty(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertFailedDueToCreateTreeErrorEmpty)
 }
 
@@ -1036,19 +1011,12 @@ func testServerUserRevertFailedDueToCreateTreeErrorEmpty(t *testing.T, ctx conte
 	require.Empty(t, response.CreateTreeError)
 	require.Equal(t, gitalypb.UserRevertResponse_NONE, response.CreateTreeErrorCode)
 
-	if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-		response, err = client.UserRevert(ctx, request)
-		require.NoError(t, err)
-		require.NotEmpty(t, response.CreateTreeError)
-		require.Equal(t, gitalypb.UserRevertResponse_EMPTY, response.CreateTreeErrorCode)
-	} else {
-		_, err = client.UserRevert(ctx, request)
-		expectedError := structerr.NewFailedPrecondition("revert: could not apply because the result was empty").WithDetail(
-			&gitalypb.UserRevertError{
-				Error: &gitalypb.UserRevertError_ChangesAlreadyApplied{},
-			})
-		testhelper.RequireGrpcError(t, expectedError, err)
-	}
+	_, err = client.UserRevert(ctx, request)
+	expectedError := structerr.NewFailedPrecondition("revert: could not apply because the result was empty").WithDetail(
+		&gitalypb.UserRevertError{
+			Error: &gitalypb.UserRevertError_ChangesAlreadyApplied{},
+		})
+	testhelper.RequireGrpcError(t, expectedError, err)
 }
 
 func TestServer_UserRevert_failedDueToCommitError(t *testing.T) {
@@ -1056,7 +1024,6 @@ func TestServer_UserRevert_failedDueToCommitError(t *testing.T) {
 
 	testhelper.NewFeatureSets(
 		featureflag.GPGSigning,
-		featureflag.ReturnStructuredErrorsInUserRevert,
 	).Run(t, testServerUserRevertFailedDueToCommitError)
 }
 
@@ -1102,15 +1069,11 @@ func testServerUserRevertFailedDueToCommitError(t *testing.T, ctx context.Contex
 
 	response, err := client.UserRevert(ctx, request)
 
-	if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-		require.NoError(t, err)
-		require.Equal(t, "Branch diverged", response.CommitError)
-	} else {
-		actualStatus, _ := status.FromError(err)
-		require.Equal(t, actualStatus.Code(), codes.FailedPrecondition)
-		require.Equal(t, actualStatus.Message(), "revert: branch diverged")
-		revertError, ok := actualStatus.Details()[0].(*gitalypb.UserRevertError)
-		require.True(t, ok)
-		require.NotNil(t, revertError.GetNotAncestor())
-	}
+	actualStatus, _ := status.FromError(err)
+	require.Equal(t, actualStatus.Code(), codes.FailedPrecondition)
+	require.Equal(t, actualStatus.Message(), "revert: branch diverged")
+	revertError, ok := actualStatus.Details()[0].(*gitalypb.UserRevertError)
+	require.True(t, ok)
+	require.NotNil(t, revertError.GetNotAncestor())
+	require.Nil(t, response)
 }
