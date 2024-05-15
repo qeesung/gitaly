@@ -363,6 +363,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		return nil, fmt.Errorf("mutator call: replication details: %w", err)
 	}
 
+	partitioningHintRewritten := false
 	var additionalRepoRelativePath string
 	if additionalRepo, err := call.methodInfo.AdditionalRepo(call.msg); errors.Is(err, protoregistry.ErrRepositoryFieldNotFound) {
 		// We can land here in two cases: either the message doesn't have an additional
@@ -371,7 +372,16 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		// optional field for some RPC calls. The Gitaly-side RPC handlers should know to
 		// handle this case anyway, so we just leave the field unset in that case.
 
-		if call.methodInfo.FullMethodName() == "/gitaly.RepositoryService/CreateFork" {
+		// If a partitioning hint is provided in the request metadata, extract and rewrite it to the appropriate
+		// replicate path. The hint is the @hashed/... relative path to the repo and the rewritten hint is the
+		// equivalent @cluster/... replica path tto the repo.
+		partitioningHintRewritten = true
+		additionalRepoRelativePath, err = storagectx.ExtractPartitioningHintFromIncomingContext(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("mutator call: extract partitioning hint: %w", err)
+		}
+
+		if additionalRepoRelativePath == "" && call.methodInfo.FullMethodName() == gitalypb.RepositoryService_CreateFork_FullMethodName {
 			// The source repository is not marked as an additional repository so extract it manually.
 			// Gitaly needs the rewritten relative path as a partitioning hint.
 			additionalRepoRelativePath = call.msg.(*gitalypb.CreateForkRequest).GetSourceRepository().GetRelativePath()
@@ -431,14 +441,7 @@ func (c *Coordinator) mutatorStreamParameters(ctx context.Context, call grpcCall
 		return nil, fmt.Errorf("mutator call: rewrite storage: %w", err)
 	}
 
-	if call.methodInfo.FullMethodName() == "/gitaly.RepositoryService/CreateFork" {
-		// The source repository itself is not rewritten by Praefect as the Gitaly processing the request
-		// fetches the origin repository through Praefect's API. That requires the relative path to be in
-		// its original form so Praefect can route it correctly. Gitaly's transactions require the fork and
-		// the source repository to be in the same partition. As the Gitaly has both of the repositories
-		// stored on the disk at the rewritten paths, Gitaly needs the rewritten path to identify the source
-		// repository on the disk and place the fork in the same partition with it.
-		//
+	if partitioningHintRewritten && additionalRepoRelativePath != "" {
 		// Send the rewritten path as partitioning hint to Gitaly.
 		ctx = storagectx.SetPartitioningHintToIncomingContext(ctx, route.AdditionalReplicaPath)
 	}

@@ -19,12 +19,6 @@ import (
 )
 
 func TestMiddleware_partitioning_hint(t *testing.T) {
-	testhelper.SkipWithPraefect(t, `
-Partitioning hints are currently only sent by Praefect. We don't support sending partitioning hints
-through Praefect yet as we don't have a use case yet. Skip the test if Praefect running in front
-of the Gitaly.
-	`)
-
 	if !testhelper.IsWALEnabled() {
 		t.Skip("This is testing the partitioning behavior specifically. No point running the test without transactions.")
 	}
