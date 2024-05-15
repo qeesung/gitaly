@@ -51,6 +51,7 @@ import (
 	"gitlab.com/gitlab-org/labkit/fips"
 	"gitlab.com/gitlab-org/labkit/monitoring"
 	labkittracing "gitlab.com/gitlab-org/labkit/tracing"
+	"go.uber.org/automaxprocs/maxprocs"
 	"google.golang.org/grpc"
 
 	// Import to register the proxy codec with gRPC.
@@ -131,6 +132,13 @@ func configure(configPath string) (config.Cfg, log.Logger, error) {
 	logger, err := log.Configure(os.Stdout, cfg.Logging.Format, cfg.Logging.Level, urlSanitizer)
 	if err != nil {
 		return config.Cfg{}, nil, fmt.Errorf("configuring logger failed: %w", err)
+	}
+
+	if undo, err := maxprocs.Set(maxprocs.Logger(func(s string, i ...interface{}) {
+		logger.Info(fmt.Sprintf(s, i...))
+	})); err != nil {
+		logger.WithError(err).Error("failed to set GOMAXPROCS")
+		undo()
 	}
 
 	sentry.ConfigureSentry(logger, version.GetVersion(), sentry.Config(cfg.Logging.Sentry))
