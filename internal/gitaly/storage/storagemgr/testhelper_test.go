@@ -101,11 +101,16 @@ type FullRepackTimestamp struct {
 	Exists bool
 }
 
-// sortObjects sorts objects lexically by their oid.
-func sortObjects(objects []git.ObjectID) {
-	sort.Slice(objects, func(i, j int) bool {
-		return objects[i] < objects[j]
+// sortObjects returns a new slice with objects sorted lexically by their oid.
+func sortObjects(objects []git.ObjectID) []git.ObjectID {
+	sortedObjects := make([]git.ObjectID, len(objects))
+	copy(sortedObjects, objects)
+
+	sort.Slice(sortedObjects, func(i, j int) bool {
+		return sortedObjects[i] < sortedObjects[j]
 	})
+
+	return sortedObjects
 }
 
 // sortPackfiles sorts the list of packfiles by their contained objects. Each packfile has a static hash. This hash is
@@ -209,7 +214,9 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 				deduplicatedObjectIDs[oid] = struct{}{}
 			}
 		}
-		sortObjects(expectedPackfiles.LooseObjects)
+
+		expectedPackfiles.LooseObjects = sortObjects(expectedPackfiles.LooseObjects)
+
 		// The pooled objects are added to the general object existence assertion. If
 		// the pooled objects are missing, ListObjects below won't return them, and we'll
 		// ll see a failure as expected objects are missing.
@@ -218,7 +225,7 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 		expectedPackfiles.PooledObjects = nil
 
 		for _, packfile := range expected.Packfiles.Packfiles {
-			sortObjects(packfile.Objects)
+			packfile.Objects = sortObjects(packfile.Objects)
 			for _, oid := range packfile.Objects {
 				deduplicatedObjectIDs[oid] = struct{}{}
 			}
@@ -233,15 +240,14 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 		require.NoError(tb, err)
 
 		actualPackfiles = collectPackfilesState(tb, repoPath, cfg, objectHash, expected.Packfiles)
-		sortObjects(actualPackfiles.LooseObjects)
+		actualPackfiles.LooseObjects = sortObjects(actualPackfiles.LooseObjects)
 		for _, packfile := range actualPackfiles.Packfiles {
-			sortObjects(packfile.Objects)
+			packfile.Objects = sortObjects(packfile.Objects)
 		}
 	}
 
-	actualObjects := gittest.ListObjects(tb, cfg, repoPath)
-	sortObjects(actualObjects)
-	sortObjects(expectedObjects)
+	actualObjects := sortObjects(gittest.ListObjects(tb, cfg, repoPath))
+	expectedObjects = sortObjects(expectedObjects)
 	if expectedObjects == nil {
 		// Normalize no objects to an empty slice. This way the equality check keeps working
 		// without having to explicitly assert empty slice in the tests.
