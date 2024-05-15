@@ -26,14 +26,14 @@ const (
 
 // logEntry is used to track the state of a backup request.
 type logEntry struct {
-	partitionID uint64
+	partitionID storage.PartitionID
 	lsn         storage.LSN
 	logManager  storagemgr.LogManager
 	success     bool
 }
 
 // newLogEntry constructs a new logEntry.
-func newLogEntry(partitionID uint64, lsn storage.LSN, mgr storagemgr.LogManager) *logEntry {
+func newLogEntry(partitionID storage.PartitionID, lsn storage.LSN, mgr storagemgr.LogManager) *logEntry {
 	return &logEntry{
 		partitionID: partitionID,
 		lsn:         lsn,
@@ -45,12 +45,12 @@ func newLogEntry(partitionID uint64, lsn storage.LSN, mgr storagemgr.LogManager)
 type partitionNotification struct {
 	lowWaterMark  storage.LSN
 	highWaterMark storage.LSN
-	partitionID   uint64
+	partitionID   storage.PartitionID
 	mgr           storagemgr.LogManager
 }
 
 // newPartitionNotification constructs a new partitionNotification.
-func newPartitionNotification(partitionID uint64, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) *partitionNotification {
+func newPartitionNotification(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) *partitionNotification {
 	return &partitionNotification{
 		lowWaterMark:  lowWaterMark,
 		highWaterMark: highWaterMark,
@@ -103,9 +103,9 @@ type LogEntryArchiver struct {
 	notificationsMutex sync.Mutex
 
 	// partitionStates tracks the current LSN and entry backlog of each partition.
-	partitionStates map[uint64]*partitionState
+	partitionStates map[storage.PartitionID]*partitionState
 	// activePartitions tracks with partitions need to be processed.
-	activePartitions map[uint64]struct{}
+	activePartitions map[storage.PartitionID]struct{}
 
 	// activeJobs tracks how many entries are currently being backed up.
 	activeJobs int
@@ -141,8 +141,8 @@ func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount int, t
 		workCh:           make(chan struct{}, 1),
 		doneCh:           make(chan struct{}),
 		notifications:    list.New(),
-		partitionStates:  make(map[uint64]*partitionState),
-		activePartitions: make(map[uint64]struct{}),
+		partitionStates:  make(map[storage.PartitionID]*partitionState),
+		activePartitions: make(map[storage.PartitionID]struct{}),
 		workerCount:      workerCount,
 		tickerFunc:       tickerFunc,
 		waitDur:          minRetryWait,
@@ -165,7 +165,7 @@ func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount int, t
 }
 
 // NotifyNewTransactions passes the transaction information to the LogEntryArchiver for processing.
-func (la *LogEntryArchiver) NotifyNewTransactions(partitionID uint64, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) {
+func (la *LogEntryArchiver) NotifyNewTransactions(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) {
 	la.notificationsMutex.Lock()
 	defer la.notificationsMutex.Unlock()
 

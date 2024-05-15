@@ -22,7 +22,7 @@ import (
 )
 
 type mockLogManager struct {
-	partitionID   uint64
+	partitionID   storage.PartitionID
 	archiver      *LogEntryArchiver
 	notifications []notification
 	acknowledged  []storage.LSN
@@ -72,7 +72,7 @@ func TestLogEntryArchiver(t *testing.T) {
 	for _, tc := range []struct {
 		desc                string
 		workerCount         int
-		partitions          []uint64
+		partitions          []storage.PartitionID
 		notifications       []notification
 		waitCount           int
 		finalLSN            storage.LSN
@@ -82,7 +82,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		{
 			desc:        "notify one entry",
 			workerCount: 1,
-			partitions:  []uint64{1},
+			partitions:  []storage.PartitionID{1},
 			notifications: []notification{
 				{
 					lowWaterMark:  1,
@@ -95,7 +95,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		{
 			desc:        "start from later LSN",
 			workerCount: 1,
-			partitions:  []uint64{1},
+			partitions:  []storage.PartitionID{1},
 			notifications: []notification{
 				{
 					lowWaterMark:  11,
@@ -108,7 +108,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		{
 			desc:        "notify range of entries",
 			workerCount: 1,
-			partitions:  []uint64{1},
+			partitions:  []storage.PartitionID{1},
 			notifications: []notification{
 				{
 					lowWaterMark:  1,
@@ -121,7 +121,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		{
 			desc:        "increasing high water mark",
 			workerCount: 1,
-			partitions:  []uint64{1},
+			partitions:  []storage.PartitionID{1},
 			notifications: []notification{
 				{
 					lowWaterMark:  1,
@@ -142,7 +142,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		{
 			desc:        "increasing low water mark",
 			workerCount: 1,
-			partitions:  []uint64{1},
+			partitions:  []storage.PartitionID{1},
 			notifications: []notification{
 				{
 					lowWaterMark:  1,
@@ -165,7 +165,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		{
 			desc:        "multiple partitions",
 			workerCount: 1,
-			partitions:  []uint64{1, 2, 3},
+			partitions:  []storage.PartitionID{1, 2, 3},
 			notifications: []notification{
 				{
 					lowWaterMark:  1,
@@ -178,7 +178,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		{
 			desc:        "multiple partitions, multi-threaded",
 			workerCount: 4,
-			partitions:  []uint64{1, 2, 3},
+			partitions:  []storage.PartitionID{1, 2, 3},
 			notifications: []notification{
 				{
 					lowWaterMark:  1,
@@ -191,7 +191,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		{
 			desc:        "resent items processed once",
 			workerCount: 1,
-			partitions:  []uint64{1},
+			partitions:  []storage.PartitionID{1},
 			notifications: []notification{
 				{
 					lowWaterMark:  1,
@@ -210,7 +210,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		{
 			desc:        "gap in sequence",
 			workerCount: 1,
-			partitions:  []uint64{1},
+			partitions:  []storage.PartitionID{1},
 			notifications: []notification{
 				{
 					lowWaterMark:  1,
@@ -250,7 +250,7 @@ func TestLogEntryArchiver(t *testing.T) {
 			archiver.Run()
 			defer archiver.Close()
 
-			managers := make(map[uint64]*mockLogManager, len(tc.partitions))
+			managers := make(map[storage.PartitionID]*mockLogManager, len(tc.partitions))
 			for _, partitionID := range tc.partitions {
 				manager := &mockLogManager{
 					partitionID:   partitionID,
@@ -410,7 +410,7 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 		"gitaly_wal_backup_count"))
 }
 
-func createEntryDir(t *testing.T, entryRootPath string, partitionID uint64, lsn storage.LSN) {
+func createEntryDir(t *testing.T, entryRootPath string, partitionID storage.PartitionID, lsn storage.LSN) {
 	t.Helper()
 
 	partitionPath := filepath.Join(entryRootPath, fmt.Sprintf("%d", partitionID))

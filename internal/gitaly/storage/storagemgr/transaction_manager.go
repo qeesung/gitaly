@@ -759,7 +759,7 @@ type LogConsumer interface {
 	// A single LogConsumer may interact simultaneously with many LogManagers. The
 	// LogManager passes itself as a parameter so that the LogConsumer may call back to
 	// it when the operation is finished.
-	NotifyNewTransactions(partitionID uint64, lowWaterMark, highWaterMark storage.LSN, mgr LogManager)
+	NotifyNewTransactions(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr LogManager)
 }
 
 // LogManager is the interface used on the consumer side of the integration. The consumer
