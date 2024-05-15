@@ -15,7 +15,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
@@ -25,15 +25,15 @@ type mockLogManager struct {
 	partitionID   uint64
 	archiver      *LogEntryArchiver
 	notifications []notification
-	acknowledged  []storagemgr.LSN
-	finalLSN      storagemgr.LSN
+	acknowledged  []storage.LSN
+	finalLSN      storage.LSN
 	entryRootPath string
 	finishFunc    func()
 
 	sync.Mutex
 }
 
-func (lm *mockLogManager) AcknowledgeTransaction(lsn storagemgr.LSN) {
+func (lm *mockLogManager) AcknowledgeTransaction(lsn storage.LSN) {
 	lm.Lock()
 	defer lm.Unlock()
 
@@ -57,12 +57,12 @@ func (lm *mockLogManager) SendNotification() {
 	lm.notifications = lm.notifications[1:]
 }
 
-func (lm *mockLogManager) GetTransactionPath(lsn storagemgr.LSN) string {
+func (lm *mockLogManager) GetTransactionPath(lsn storage.LSN) string {
 	return filepath.Join(lm.entryRootPath, fmt.Sprintf("%d", lm.partitionID), lsn.String())
 }
 
 type notification struct {
-	lowWaterMark, highWaterMark, sendAt storagemgr.LSN
+	lowWaterMark, highWaterMark, sendAt storage.LSN
 }
 
 func TestLogEntryArchiver(t *testing.T) {
@@ -75,7 +75,7 @@ func TestLogEntryArchiver(t *testing.T) {
 		partitions          []uint64
 		notifications       []notification
 		waitCount           int
-		finalLSN            storagemgr.LSN
+		finalLSN            storage.LSN
 		expectedBackupCount int
 		expectedLogMessage  string
 	}{
@@ -272,7 +272,7 @@ func TestLogEntryArchiver(t *testing.T) {
 
 				// Send partitions in parallel to mimic real usage.
 				go func() {
-					sentLSNs := make([]storagemgr.LSN, 0, tc.finalLSN)
+					sentLSNs := make([]storage.LSN, 0, tc.finalLSN)
 					for _, notification := range tc.notifications {
 						for lsn := notification.lowWaterMark; lsn <= notification.highWaterMark; lsn++ {
 							// Don't recreate entries.
@@ -331,7 +331,7 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 	umask := testhelper.Umask()
 
 	const partitionID = 1
-	const lsn = storagemgr.LSN(1)
+	const lsn = storage.LSN(1)
 	const workerCount = 1
 
 	entryRootPath := testhelper.TempDir(t)
@@ -410,7 +410,7 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 		"gitaly_wal_backup_count"))
 }
 
-func createEntryDir(t *testing.T, entryRootPath string, partitionID uint64, lsn storagemgr.LSN) {
+func createEntryDir(t *testing.T, entryRootPath string, partitionID uint64, lsn storage.LSN) {
 	t.Helper()
 
 	partitionPath := filepath.Join(entryRootPath, fmt.Sprintf("%d", partitionID))

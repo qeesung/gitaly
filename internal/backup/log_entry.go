@@ -11,6 +11,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/archive"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -26,13 +27,13 @@ const (
 // logEntry is used to track the state of a backup request.
 type logEntry struct {
 	partitionID uint64
-	lsn         storagemgr.LSN
+	lsn         storage.LSN
 	logManager  storagemgr.LogManager
 	success     bool
 }
 
 // newLogEntry constructs a new logEntry.
-func newLogEntry(partitionID uint64, lsn storagemgr.LSN, mgr storagemgr.LogManager) *logEntry {
+func newLogEntry(partitionID uint64, lsn storage.LSN, mgr storagemgr.LogManager) *logEntry {
 	return &logEntry{
 		partitionID: partitionID,
 		lsn:         lsn,
@@ -42,14 +43,14 @@ func newLogEntry(partitionID uint64, lsn storagemgr.LSN, mgr storagemgr.LogManag
 
 // partitionNotification is used to store the data received by NotifyNewTransactions.
 type partitionNotification struct {
-	lowWaterMark  storagemgr.LSN
-	highWaterMark storagemgr.LSN
+	lowWaterMark  storage.LSN
+	highWaterMark storage.LSN
 	partitionID   uint64
 	mgr           storagemgr.LogManager
 }
 
 // newPartitionNotification constructs a new partitionNotification.
-func newPartitionNotification(partitionID uint64, lowWaterMark, highWaterMark storagemgr.LSN, mgr storagemgr.LogManager) *partitionNotification {
+func newPartitionNotification(partitionID uint64, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) *partitionNotification {
 	return &partitionNotification{
 		lowWaterMark:  lowWaterMark,
 		highWaterMark: highWaterMark,
@@ -61,9 +62,9 @@ func newPartitionNotification(partitionID uint64, lowWaterMark, highWaterMark st
 // partitionState tracks the progress made on one partition.
 type partitionState struct {
 	// nextLSN is the next LSN to be backed up.
-	nextLSN storagemgr.LSN
+	nextLSN storage.LSN
 	// highWaterMark is the highest LSN to be backed up.
-	highWaterMark storagemgr.LSN
+	highWaterMark storage.LSN
 	// logManager is the LogManager for this partition.
 	logManager storagemgr.LogManager
 	// hasJob indicates if a backup job is currently being processed for this partition.
@@ -71,7 +72,7 @@ type partitionState struct {
 }
 
 // newPartitionState constructs a new partitionState.
-func newPartitionState(nextLSN, highWaterMark storagemgr.LSN, logManager storagemgr.LogManager) *partitionState {
+func newPartitionState(nextLSN, highWaterMark storage.LSN, logManager storagemgr.LogManager) *partitionState {
 	return &partitionState{
 		nextLSN:       nextLSN,
 		highWaterMark: highWaterMark,
@@ -164,7 +165,7 @@ func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount int, t
 }
 
 // NotifyNewTransactions passes the transaction information to the LogEntryArchiver for processing.
-func (la *LogEntryArchiver) NotifyNewTransactions(partitionID uint64, lowWaterMark, highWaterMark storagemgr.LSN, mgr storagemgr.LogManager) {
+func (la *LogEntryArchiver) NotifyNewTransactions(partitionID uint64, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) {
 	la.notificationsMutex.Lock()
 	defer la.notificationsMutex.Unlock()
 

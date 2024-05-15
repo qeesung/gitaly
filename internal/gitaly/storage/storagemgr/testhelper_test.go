@@ -632,7 +632,7 @@ type Begin struct {
 	// Context is the context to use for the Begin call.
 	Context context.Context
 	// ExpectedSnapshot is the expected LSN this transaction should read the repsoitory's state at.
-	ExpectedSnapshotLSN LSN
+	ExpectedSnapshotLSN storage.LSN
 	// ExpectedError is the error expected to be returned from the Begin call.
 	ExpectedError error
 }
