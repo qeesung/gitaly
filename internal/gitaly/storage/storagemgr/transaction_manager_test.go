@@ -25,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -81,7 +82,7 @@ func validCustomHooks(tb testing.TB) []byte {
 	return hooks.Bytes()
 }
 
-func setupTest(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) testTransactionSetup {
+func setupTest(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) testTransactionSetup {
 	t.Helper()
 
 	cfg := testcfg.Build(t)
@@ -172,7 +173,7 @@ func TestTransactionManager(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	// testPartitionID is the partition ID used in the tests for the TransactionManager.
-	const testPartitionID partitionID = 1
+	const testPartitionID storage.PartitionID = 1
 
 	// A clean repository is setup for each test. We build a setup ahead of the tests here once to
 	// get deterministic commit IDs, relative path and object hash we can use to build the declarative
@@ -284,7 +285,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				},
 				expectedState: StateAssertion{
 					Database: DatabaseState{
-						string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+						string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 					},
 					Repositories: RepositoryStates{
 						setup.RelativePath: {
@@ -525,7 +526,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -558,7 +559,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -607,7 +608,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -654,7 +655,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -703,7 +704,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -755,7 +756,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -789,7 +790,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -817,7 +818,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -849,7 +850,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -918,7 +919,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -975,7 +976,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1077,7 +1078,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 			},
 		},
@@ -1095,7 +1096,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 			},
 		},
@@ -1261,7 +1262,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1301,7 +1302,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 }
 
 type expectedCommittedEntry struct {
-	lsn             LSN
+	lsn             storage.LSN
 	snapshotReaders int
 	entry           *gitalypb.LogEntry
 }
@@ -1412,7 +1413,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1523,7 +1524,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1623,7 +1624,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				AdhocAssertion(func(t *testing.T, ctx context.Context, tm *TransactionManager) {
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
-						string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+						string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 					})
 					// Transaction 2 and 3 are left-over.
 					testhelper.RequireDirectoryState(t, walFilesPath(tm.stateDirectory), "", testhelper.DirectoryState{
@@ -1642,15 +1643,15 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					// When the manager finishes initialization, the left-over log entries are
 					// cleaned up.
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
-						string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+						string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 					})
-					require.Equal(t, tm.appliedLSN, LSN(3))
-					require.Equal(t, tm.appendedLSN, LSN(3))
+					require.Equal(t, tm.appliedLSN, storage.LSN(3))
+					require.Equal(t, tm.appendedLSN, storage.LSN(3))
 				}),
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1722,7 +1723,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					require.NoError(t, tm.appendLogEntry(refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID), logEntryPath))
 
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
-						string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+						string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 					})
 					// Transaction 2 and 3 are left-over.
 					testhelper.RequireDirectoryState(t, walFilesPath(tm.stateDirectory), "", testhelper.DirectoryState{
@@ -1744,15 +1745,15 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					// When the manager finishes initialization, the left-over log entries are
 					// cleaned up.
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
-						string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+						string(keyAppliedLSN(setup.PartitionID)): storage.LSN(4).ToProto(),
 					})
-					require.Equal(t, tm.appliedLSN, LSN(4))
-					require.Equal(t, tm.appendedLSN, LSN(4))
+					require.Equal(t, tm.appliedLSN, storage.LSN(4))
+					require.Equal(t, tm.appendedLSN, storage.LSN(4))
 				}),
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(4).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1886,7 +1887,7 @@ func BenchmarkTransactionManager(b *testing.B) {
 				require.NoError(b, os.MkdirAll(stagingDir, perm.PrivateDir))
 
 				// Valid partition IDs are >=1.
-				testPartitionID := partitionID(i + 1)
+				testPartitionID := storage.PartitionID(i + 1)
 				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory, nil)
 
 				managers = append(managers, manager)

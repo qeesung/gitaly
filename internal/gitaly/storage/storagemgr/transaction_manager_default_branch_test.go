@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 )
 
 func generateDefaultBranchTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
@@ -37,7 +38,7 @@ func generateDefaultBranchTests(t *testing.T, setup testTransactionSetup) []tran
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -84,7 +85,7 @@ func generateDefaultBranchTests(t *testing.T, setup testTransactionSetup) []tran
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -117,7 +118,7 @@ func generateDefaultBranchTests(t *testing.T, setup testTransactionSetup) []tran
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -163,7 +164,7 @@ func generateDefaultBranchTests(t *testing.T, setup testTransactionSetup) []tran
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -209,7 +210,7 @@ func generateDefaultBranchTests(t *testing.T, setup testTransactionSetup) []tran
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -268,7 +269,7 @@ func generateDefaultBranchTests(t *testing.T, setup testTransactionSetup) []tran
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {

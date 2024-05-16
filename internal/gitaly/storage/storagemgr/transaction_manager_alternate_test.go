@@ -53,7 +53,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -116,7 +116,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -205,7 +205,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -285,7 +285,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -377,7 +377,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"alternate-1": {
@@ -442,7 +442,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"member": {
@@ -525,7 +525,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -588,7 +588,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -651,7 +651,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -692,7 +692,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"repository": {
@@ -751,7 +751,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -827,7 +827,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -906,7 +906,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -964,7 +964,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -1040,7 +1040,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -1138,7 +1138,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -1292,7 +1292,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(4).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"repository-1": {
@@ -1429,7 +1429,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -1545,7 +1545,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {

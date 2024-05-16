@@ -241,7 +241,7 @@ type Transaction struct {
 
 	// snapshotLSN is the log sequence number which this transaction is reading the repository's
 	// state at.
-	snapshotLSN LSN
+	snapshotLSN storage.LSN
 	// snapshot is the transaction's snapshot of the partition. It's used to rewrite relative paths to
 	// point to the snapshot instead of the actual repositories.
 	snapshot snapshot
@@ -539,7 +539,7 @@ func (txn *Transaction) finishUnadmitted() error {
 }
 
 // SnapshotLSN returns the LSN of the Transaction's read snapshot.
-func (txn *Transaction) SnapshotLSN() LSN {
+func (txn *Transaction) SnapshotLSN() storage.LSN {
 	return txn.snapshotLSN
 }
 
@@ -740,7 +740,7 @@ type snapshotLock struct {
 // accessed by other transactions.
 type committedEntry struct {
 	// lsn is the associated LSN of the entry
-	lsn LSN
+	lsn storage.LSN
 	// snapshotReaders accounts for the number of transaction readers of the snapshot.
 	snapshotReaders int
 }
@@ -759,16 +759,16 @@ type LogConsumer interface {
 	// A single LogConsumer may interact simultaneously with many LogManagers. The
 	// LogManager passes itself as a parameter so that the LogConsumer may call back to
 	// it when the operation is finished.
-	NotifyNewTransactions(partitionID uint64, lowWaterMark, highWaterMark LSN, mgr LogManager)
+	NotifyNewTransactions(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr LogManager)
 }
 
 // LogManager is the interface used on the consumer side of the integration. The consumer
 // has the ability to acknowledge transactions as having been processed with AcknowledgeTransaction.
 type LogManager interface {
 	// AcknowledgeTransaction acknowledges log entries up and including lsn as successfully processed.
-	AcknowledgeTransaction(lsn LSN)
+	AcknowledgeTransaction(lsn storage.LSN)
 	// GetTransactionPath returns the path of the log entry's root directory.
-	GetTransactionPath(lsn LSN) string
+	GetTransactionPath(lsn storage.LSN) string
 }
 
 // TransactionManager is responsible for transaction management of a single repository. Each repository has
@@ -837,8 +837,8 @@ type TransactionManager struct {
 	// storagePath is an absolute path to the root of the storage this TransactionManager
 	// is operating in.
 	storagePath string
-	// partitionID is the ID of the partition this manager is operating on. This is used to determine the database keys.
-	partitionID partitionID
+	// storage.PartitionID is the ID of the partition this manager is operating on. This is used to determine the database keys.
+	partitionID storage.PartitionID
 	// db is the handle to the key-value store used for storing the write-ahead log related state.
 	db Database
 	// admissionQueue is where the incoming writes are waiting to be admitted to the transaction
@@ -859,20 +859,20 @@ type TransactionManager struct {
 
 	// snapshotLocks contains state used for synchronizing snapshotters with the log application. The
 	// lock is released after the corresponding log entry is applied.
-	snapshotLocks map[LSN]*snapshotLock
+	snapshotLocks map[storage.LSN]*snapshotLock
 
 	// appendedLSN holds the LSN of the last log entry appended to the partition's write-ahead log.
-	appendedLSN LSN
+	appendedLSN storage.LSN
 	// appliedLSN holds the LSN of the last log entry applied to the partition.
-	appliedLSN LSN
+	appliedLSN storage.LSN
 	// oldestLSN holds the LSN of the head of log entries which is still kept in the database. The manager keeps
 	// them because they are still referred by a transaction.
-	oldestLSN LSN
+	oldestLSN storage.LSN
 
 	// awaitingTransactions contains transactions waiting for their log entry to be applied to
 	// the partition. It's keyed by the LSN the transaction is waiting to be applied and the
 	// value is the resultChannel that is waiting the result.
-	awaitingTransactions map[LSN]resultChannel
+	awaitingTransactions map[storage.LSN]resultChannel
 	// committedEntries keeps some latest appended log entries around. Some types of transactions, such as
 	// housekeeping, operate on snapshot repository. There is a gap between transaction doing its work and the time
 	// when it is committed. They need to verify if concurrent operations can cause conflict. These log entries are
@@ -899,7 +899,7 @@ type testHooks struct {
 
 // NewTransactionManager returns a new TransactionManager for the given repository.
 func NewTransactionManager(
-	ptnID partitionID,
+	ptnID storage.PartitionID,
 	logger log.Logger,
 	db Database,
 	storagePath,
@@ -924,10 +924,10 @@ func NewTransactionManager(
 		admissionQueue:       make(chan *Transaction),
 		completedQueue:       make(chan struct{}, 1),
 		initialized:          make(chan struct{}),
-		snapshotLocks:        make(map[LSN]*snapshotLock),
+		snapshotLocks:        make(map[storage.LSN]*snapshotLock),
 		stateDirectory:       stateDir,
 		stagingDirectory:     stagingDir,
-		awaitingTransactions: make(map[LSN]resultChannel),
+		awaitingTransactions: make(map[storage.LSN]resultChannel),
 		committedEntries:     list.New(),
 		metrics:              metrics,
 
@@ -2059,7 +2059,7 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 		return fmt.Errorf("read applied LSN: %w", err)
 	}
 
-	mgr.appliedLSN = LSN(appliedLSN.Value)
+	mgr.appliedLSN = storage.LSN(appliedLSN.Value)
 
 	if err := mgr.createStateDirectory(); err != nil {
 		return fmt.Errorf("create state directory: %w", err)
@@ -2087,10 +2087,10 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	if logEntries, err := os.ReadDir(walFilesPath(mgr.stateDirectory)); err != nil {
 		return fmt.Errorf("read wal directory: %w", err)
 	} else if len(logEntries) > 0 {
-		if mgr.oldestLSN, err = parseLSN(logEntries[0].Name()); err != nil {
+		if mgr.oldestLSN, err = storage.ParseLSN(logEntries[0].Name()); err != nil {
 			return fmt.Errorf("parse oldest LSN: %w", err)
 		}
-		if mgr.appendedLSN, err = parseLSN(logEntries[len(logEntries)-1].Name()); err != nil {
+		if mgr.appendedLSN, err = storage.ParseLSN(logEntries[len(logEntries)-1].Name()); err != nil {
 			return fmt.Errorf("parse appended LSN: %w", err)
 		}
 	}
@@ -2189,7 +2189,7 @@ func (mgr *TransactionManager) removePackedRefsLocks(ctx context.Context, reposi
 // but the manager was interrupted before successfully persisting the log entry itself.
 // If the manager deletes a log entry successfully from the database but is interrupted before it cleans
 // up the associated files, such a directory can also be left at the head of the log.
-func (mgr *TransactionManager) removeStaleWALFiles(ctx context.Context, oldestLSN, appendedLSN LSN) error {
+func (mgr *TransactionManager) removeStaleWALFiles(ctx context.Context, oldestLSN, appendedLSN storage.LSN) error {
 	needsFsync := false
 	for _, possibleStaleFilesPath := range []string{
 		// Log entries are pruned one by one. If a write is interrupted, the only possible stale files would be
@@ -2232,7 +2232,7 @@ func walFilesPath(stateDir string) string {
 }
 
 // walFilesPathForLSN returns an absolute path to a given log entry's WAL files.
-func walFilesPathForLSN(stateDir string, lsn LSN) string {
+func walFilesPathForLSN(stateDir string, lsn storage.LSN) string {
 	return filepath.Join(walFilesPath(stateDir), lsn.String())
 }
 
@@ -2888,7 +2888,7 @@ func (mgr *TransactionManager) appendLogEntry(logEntry *gitalypb.LogEntry, logEn
 }
 
 // applyLogEntry reads a log entry at the given LSN and applies it to the repository.
-func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error {
+func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn storage.LSN) error {
 	logEntry, err := mgr.readLogEntry(lsn)
 	if err != nil {
 		return fmt.Errorf("read log entry: %w", err)
@@ -2968,7 +2968,7 @@ func (mgr *TransactionManager) createRepository(ctx context.Context, repositoryP
 }
 
 // applyHousekeeping applies housekeeping results to the target repository.
-func (mgr *TransactionManager) applyHousekeeping(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
+func (mgr *TransactionManager) applyHousekeeping(ctx context.Context, lsn storage.LSN, logEntry *gitalypb.LogEntry) error {
 	if logEntry.Housekeeping == nil {
 		return nil
 	}
@@ -2994,7 +2994,7 @@ func (mgr *TransactionManager) applyHousekeeping(ctx context.Context, lsn LSN, l
 	return nil
 }
 
-func (mgr *TransactionManager) applyPackRefs(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
+func (mgr *TransactionManager) applyPackRefs(ctx context.Context, lsn storage.LSN, logEntry *gitalypb.LogEntry) error {
 	if logEntry.Housekeeping.PackRefs == nil {
 		return nil
 	}
@@ -3083,7 +3083,7 @@ func (mgr *TransactionManager) applyPackRefs(ctx context.Context, lsn LSN, logEn
 
 // applyRepacking applies the new packfile set and removed known pruned packfiles. New packfiles created by concurrent
 // changes are kept intact.
-func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
+func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn storage.LSN, logEntry *gitalypb.LogEntry) error {
 	if logEntry.Housekeeping.Repack == nil {
 		return nil
 	}
@@ -3130,7 +3130,7 @@ func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn LSN, logE
 // new chain can be identical to the existing chain, but the fee of checking is similar to the replacement fee. Thus, we
 // can simply remove and link new directory over. Apart from commit-graph task, the repacking task also replaces the
 // chain before verification.
-func (mgr *TransactionManager) applyCommitGraphs(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
+func (mgr *TransactionManager) applyCommitGraphs(ctx context.Context, lsn storage.LSN, logEntry *gitalypb.LogEntry) error {
 	if logEntry.Housekeeping.WriteCommitGraphs == nil {
 		return nil
 	}
@@ -3234,7 +3234,7 @@ func isDirEmpty(dir string) (bool, error) {
 }
 
 // deleteLogEntry deletes the log entry at the given LSN from the log.
-func (mgr *TransactionManager) deleteLogEntry(lsn LSN) error {
+func (mgr *TransactionManager) deleteLogEntry(lsn storage.LSN) error {
 	tmpDir, err := os.MkdirTemp(mgr.stagingDirectory, "")
 	if err != nil {
 		return fmt.Errorf("mkdir temp: %w", err)
@@ -3266,7 +3266,7 @@ func (mgr *TransactionManager) deleteLogEntry(lsn LSN) error {
 }
 
 // readLogEntry returns the log entry from the given position in the log.
-func (mgr *TransactionManager) readLogEntry(lsn LSN) (*gitalypb.LogEntry, error) {
+func (mgr *TransactionManager) readLogEntry(lsn storage.LSN) (*gitalypb.LogEntry, error) {
 	manifestBytes, err := os.ReadFile(manifestPath(walFilesPathForLSN(mgr.stateDirectory, lsn)))
 	if err != nil {
 		return nil, fmt.Errorf("read manifest: %w", err)
@@ -3281,8 +3281,8 @@ func (mgr *TransactionManager) readLogEntry(lsn LSN) (*gitalypb.LogEntry, error)
 }
 
 // storeAppliedLSN stores the partition's applied LSN in the database.
-func (mgr *TransactionManager) storeAppliedLSN(lsn LSN) error {
-	return mgr.setKey(keyAppliedLSN(mgr.partitionID), lsn.toProto())
+func (mgr *TransactionManager) storeAppliedLSN(lsn storage.LSN) error {
+	return mgr.setKey(keyAppliedLSN(mgr.partitionID), lsn.ToProto())
 }
 
 // setKey marshals and stores a given protocol buffer message into the database under the given key.
@@ -3317,7 +3317,7 @@ func (mgr *TransactionManager) readKey(key []byte, destination proto.Message) er
 
 // lowWaterMark returns the earliest LSN of log entries which should be kept in the database. Any log entries LESS than
 // this mark are removed.
-func (mgr *TransactionManager) lowWaterMark() LSN {
+func (mgr *TransactionManager) lowWaterMark() storage.LSN {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
@@ -3329,7 +3329,7 @@ func (mgr *TransactionManager) lowWaterMark() LSN {
 }
 
 // updateCommittedEntry updates the reader counter of the committed entry of the snapshot that this transaction depends on.
-func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) *committedEntry {
+func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN storage.LSN) *committedEntry {
 	// Since the goroutine doing this is holding the lock, the snapshotLSN shouldn't change and no new transactions
 	// can be committed or added. That should guarantee .Back() is always the latest transaction and the one we're
 	// using to base our snapshot on.
@@ -3398,6 +3398,6 @@ func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) bool {
 }
 
 // keyAppliedLSN returns the database key storing a partition's last applied log entry's LSN.
-func keyAppliedLSN(ptnID partitionID) []byte {
+func keyAppliedLSN(ptnID storage.PartitionID) []byte {
 	return []byte(fmt.Sprintf("partition/%s/applied_lsn", ptnID.MarshalBinary()))
 }

@@ -6,6 +6,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	grpc_metadata "google.golang.org/grpc/metadata"
 )
@@ -22,6 +23,7 @@ type Transaction interface {
 	PackRefs()
 	Repack(housekeepingcfg.RepackObjectsConfig)
 	WriteCommitGraphs(housekeepingcfg.WriteCommitGraphConfig)
+	SnapshotLSN() storage.LSN
 }
 
 type keyTransaction struct{}

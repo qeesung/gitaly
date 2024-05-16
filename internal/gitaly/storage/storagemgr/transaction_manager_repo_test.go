@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
@@ -26,7 +27,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -64,7 +65,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -94,7 +95,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -207,7 +208,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -265,7 +266,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -306,7 +307,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -389,7 +390,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"repository-1": {
@@ -463,7 +464,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -498,7 +499,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -527,7 +528,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -556,7 +557,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -587,7 +588,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -618,7 +619,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -662,7 +663,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -706,7 +707,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -744,7 +745,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -788,7 +789,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -889,7 +890,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{},
 			},
@@ -947,7 +948,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(4).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {

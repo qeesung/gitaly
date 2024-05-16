@@ -20,7 +20,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 )
 
-type partitionAssignments map[string]partitionID
+type partitionAssignments map[string]storage.PartitionID
 
 func getPartitionAssignments(tb testing.TB, db Database) partitionAssignments {
 	tb.Helper()
@@ -36,7 +36,7 @@ func getPartitionAssignments(tb testing.TB, db Database) partitionAssignments {
 			value, err := it.Item().ValueCopy(nil)
 			require.NoError(tb, err)
 
-			var ptnID partitionID
+			var ptnID storage.PartitionID
 			ptnID.UnmarshalBinary(value)
 
 			relativePath := strings.TrimPrefix(string(it.Item().Key()), prefixPartitionAssignment)
@@ -407,7 +407,7 @@ func TestPartitionAssigner_concurrentAccess(t *testing.T) {
 			// Access each repository from 10 goroutines concurrently.
 			goroutineCount := 10
 
-			collectedIDs := make([][]partitionID, repositoryCount)
+			collectedIDs := make([][]storage.PartitionID, repositoryCount)
 			ctx := testhelper.Context(t)
 			wg := sync.WaitGroup{}
 			start := make(chan struct{})
@@ -418,7 +418,7 @@ func TestPartitionAssigner_concurrentAccess(t *testing.T) {
 
 			for i := 0; i < repositoryCount; i++ {
 				i := i
-				collectedIDs[i] = make([]partitionID, goroutineCount)
+				collectedIDs[i] = make([]storage.PartitionID, goroutineCount)
 
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
@@ -458,7 +458,7 @@ func TestPartitionAssigner_concurrentAccess(t *testing.T) {
 			close(start)
 			wg.Wait()
 
-			var partitionIDs []partitionID
+			var partitionIDs []storage.PartitionID
 			for _, ids := range collectedIDs {
 				partitionIDs = append(partitionIDs, ids[0])
 				for i := range ids {
@@ -470,15 +470,15 @@ func TestPartitionAssigner_concurrentAccess(t *testing.T) {
 
 			if tc.withAlternate {
 				// We expect all repositories to have been assigned to the same partition as they are all linked to the same pool.
-				require.Equal(t, []partitionID{1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, partitionIDs)
+				require.Equal(t, []storage.PartitionID{1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, partitionIDs)
 				ptnID, err := pa.getPartitionID(ctx, pool.RelativePath, "", false)
 				require.NoError(t, err)
-				require.Equal(t, partitionID(1), ptnID, "pool should have been assigned into the same partition as the linked repositories")
+				require.Equal(t, storage.PartitionID(1), ptnID, "pool should have been assigned into the same partition as the linked repositories")
 				return
 			}
 
 			// We expect to have 10 unique partition IDs as there are 10 repositories being accessed.
-			require.ElementsMatch(t, []partitionID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, partitionIDs)
+			require.ElementsMatch(t, []storage.PartitionID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, partitionIDs)
 		})
 	}
 }
