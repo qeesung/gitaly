@@ -102,15 +102,20 @@ type ReceivePackRequest interface {
 }
 
 // WithReceivePackHooks returns an option that populates the safe command with the environment
-// variables necessary to properly execute the pre-receive, update and post-receive hooks for
-// git-receive-pack(1).
-func WithReceivePackHooks(req ReceivePackRequest, protocol string) CmdOpt {
+// variables necessary to properly execute the pre-receive, update, post-receive, and proc-receive
+// (if enabled) hooks for git-receive-pack(1).
+func WithReceivePackHooks(req ReceivePackRequest, protocol string, enableProcReceive bool) CmdOpt {
 	return func(ctx context.Context, cfg config.Cfg, gitCmdFactory CommandFactory, cc *cmdCfg) error {
+		requestedHooks := ReceivePackHooks
+		if enableProcReceive {
+			requestedHooks |= ProcReceiveHook
+		}
+
 		if err := cc.configureHooks(ctx, req.GetRepository(), cfg, gitCmdFactory, &UserDetails{
 			UserID:   req.GetGlId(),
 			Username: req.GetGlUsername(),
 			Protocol: protocol,
-		}, ReceivePackHooks); err != nil {
+		}, requestedHooks); err != nil {
 			return err
 		}
 
@@ -143,6 +148,10 @@ func (cc *cmdCfg) configureHooks(
 		transaction = &tx
 	} else if !errors.Is(err, txinfo.ErrTransactionNotFound) {
 		return err
+	}
+
+	if requestedHooks&ProcReceiveHook != 0 {
+		cc.globals = append(cc.globals, ConfigPair{Key: "receive.procReceiveRefs", Value: "refs"})
 	}
 
 	payload, err := NewHooksPayload(
