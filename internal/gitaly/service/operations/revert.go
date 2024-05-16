@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/remoterepo"
@@ -88,44 +87,30 @@ func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 	if err != nil {
 		var conflictErr *localrepo.MergeTreeConflictError
 		if errors.As(err, &conflictErr) {
-			if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-				return &gitalypb.UserRevertResponse{
-					CreateTreeError:     "revert: could not apply due to conflicts",
-					CreateTreeErrorCode: gitalypb.UserRevertResponse_CONFLICT,
-				}, nil
-			} else {
-				conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFileInfo))
-				for _, conflictingFileInfo := range conflictErr.ConflictingFileInfo {
-					conflictingFiles = append(conflictingFiles, []byte(conflictingFileInfo.FileName))
-				}
-				return nil, structerr.NewFailedPrecondition("revert: there are conflicting files").WithDetail(
-					&gitalypb.UserRevertError{
-						Error: &gitalypb.UserRevertError_MergeConflict{
-							MergeConflict: &gitalypb.MergeConflictError{
-								ConflictingFiles: conflictingFiles,
-							},
-						},
-					})
+			conflictingFiles := make([][]byte, 0, len(conflictErr.ConflictingFileInfo))
+			for _, conflictingFileInfo := range conflictErr.ConflictingFileInfo {
+				conflictingFiles = append(conflictingFiles, []byte(conflictingFileInfo.FileName))
 			}
+			return nil, structerr.NewFailedPrecondition("revert: there are conflicting files").WithDetail(
+				&gitalypb.UserRevertError{
+					Error: &gitalypb.UserRevertError_MergeConflict{
+						MergeConflict: &gitalypb.MergeConflictError{
+							ConflictingFiles: conflictingFiles,
+						},
+					},
+				})
 		}
 
 		return nil, structerr.NewInternal("merge-tree: %w", err)
 	}
 
 	if oursCommit.TreeId == treeOID.String() {
-		if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-			return &gitalypb.UserRevertResponse{
-				CreateTreeError:     "revert: could not apply because the result was empty",
-				CreateTreeErrorCode: gitalypb.UserRevertResponse_EMPTY,
-			}, nil
-		} else {
-			return nil, structerr.NewFailedPrecondition("revert: could not apply because the result was empty").WithDetail(
-				&gitalypb.UserRevertError{
-					Error: &gitalypb.UserRevertError_ChangesAlreadyApplied{
-						ChangesAlreadyApplied: &gitalypb.ChangesAlreadyAppliedError{},
-					},
-				})
-		}
+		return nil, structerr.NewFailedPrecondition("revert: could not apply because the result was empty").WithDetail(
+			&gitalypb.UserRevertError{
+				Error: &gitalypb.UserRevertError_ChangesAlreadyApplied{
+					ChangesAlreadyApplied: &gitalypb.ChangesAlreadyAppliedError{},
+				},
+			})
 	}
 
 	newrev, err = quarantineRepo.WriteCommit(
@@ -190,39 +175,27 @@ func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest
 			return nil, structerr.NewInternal("checking for ancestry: %w", err)
 		}
 		if !ancestor {
-			if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-				return &gitalypb.UserRevertResponse{
-					CommitError: "Branch diverged",
-				}, nil
-			} else {
-				return nil, structerr.NewFailedPrecondition("revert: branch diverged").WithDetail(
-					&gitalypb.UserRevertError{
-						Error: &gitalypb.UserRevertError_NotAncestor{
-							NotAncestor: &gitalypb.NotAncestorError{
-								ParentRevision: []byte(oldrev.Revision()),
-								ChildRevision:  []byte(newrev.Revision()),
-							},
+			return nil, structerr.NewFailedPrecondition("revert: branch diverged").WithDetail(
+				&gitalypb.UserRevertError{
+					Error: &gitalypb.UserRevertError_NotAncestor{
+						NotAncestor: &gitalypb.NotAncestorError{
+							ParentRevision: []byte(oldrev.Revision()),
+							ChildRevision:  []byte(newrev.Revision()),
 						},
-					})
-			}
+					},
+				})
 		}
 	}
 
 	if err := s.updateReferenceWithHooks(ctx, req.GetRepository(), req.User, quarantineDir, referenceName, newrev, oldrev); err != nil {
 		var customHookErr updateref.CustomHookError
 		if errors.As(err, &customHookErr) {
-			if featureflag.ReturnStructuredErrorsInUserRevert.IsDisabled(ctx) {
-				return &gitalypb.UserRevertResponse{
-					PreReceiveError: customHookErr.Error(),
-				}, nil
-			} else {
-				return nil, structerr.NewPermissionDenied("revert: custom hook error").WithDetail(
-					&gitalypb.UserRevertError{
-						Error: &gitalypb.UserRevertError_CustomHook{
-							CustomHook: customHookErr.Proto(),
-						},
-					})
-			}
+			return nil, structerr.NewPermissionDenied("revert: custom hook error").WithDetail(
+				&gitalypb.UserRevertError{
+					Error: &gitalypb.UserRevertError_CustomHook{
+						CustomHook: customHookErr.Proto(),
+					},
+				})
 		}
 
 		return nil, fmt.Errorf("update reference with hooks: %w", err)
