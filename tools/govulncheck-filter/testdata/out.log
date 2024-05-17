@@ -1,0 +1,165 @@
+Scanning your code and 1090 packages across 617 dependent modules for known vulnerabilities...
+
+Vulnerability #1: GO-2024-2824
+    Malformed DNS message can cause infinite loop in net
+  More info: https://pkg.go.dev/vuln/GO-2024-2824
+  Standard library
+    Found in: net@go1.22.1
+    Fixed in: net@go1.22.3
+    Example traces found:
+      #1: internal/bundleuri/sink.go:40:32: bundleuri.NewSink calls blob.OpenBucket, which eventually calls net.Dial
+      #2: internal/gitaly/hook/sidechannel.go:40:24: hook.GetSidechannel calls net.DialTimeout
+      #3: internal/gitlab/client/gitlabnet.go:169:34: client.GitlabNetClient.DoRequest calls http.Client.Do, which eventually calls net.Dialer.Dial
+      #4: internal/praefect/datastore/listener.go:48:32: datastore.Listener.Listen calls pgx.ConnectConfig, which eventually calls net.Dialer.DialContext
+      #5: internal/testhelper/testhelper.go:221:22: testhelper.GetLocalhostListener calls net.Listen
+      #6: internal/testhelper/dnsserver.go:59:61: testhelper.Start calls dns.Server.ListenAndServe, which eventually calls net.ListenConfig.Listen
+      #7: internal/testhelper/dnsserver.go:59:61: testhelper.Start calls dns.Server.ListenAndServe, which eventually calls net.ListenConfig.ListenPacket
+      #8: internal/bundleuri/sink.go:40:32: bundleuri.NewSink calls blob.OpenBucket, which eventually calls net.LookupHost
+      #9: internal/helper/clock.go:18:24: helper.CheckClockSync calls ntp.Query, which eventually calls net.ResolveUDPAddr
+      #10: internal/grpc/dnsresolver/resolver.go:113:35: dnsresolver.dnsResolver.resolve calls net.Resolver.LookupHost
+      #11: internal/grpc/client/dial.go:210:31: client.Dial calls grpc.DialContext, which eventually calls net.Resolver.LookupSRV
+      #12: internal/grpc/client/dial.go:210:31: client.Dial calls grpc.DialContext, which eventually calls net.Resolver.LookupTXT
+
+Vulnerability #2: GO-2024-2687
+    HTTP/2 CONTINUATION flood in net/http
+  More info: https://pkg.go.dev/vuln/GO-2024-2687
+  Standard library
+    Found in: net/http@go1.22.1
+    Fixed in: net/http@go1.22.2
+    Example traces found:
+      #1: internal/command/command.go:398:15: command.Command.Wait calls sync.Once.Do, which eventually calls http.CanonicalHeaderKey
+      #2: internal/gitlab/client/gitlabnet.go:169:34: client.GitlabNetClient.DoRequest calls http.Client.Do
+      #3: internal/command/command.go:398:15: command.Command.Wait calls sync.Once.Do, which eventually calls http.Client.PostForm
+      #4: internal/gitlab/client/gitlabnet.go:161:21: client.GitlabNetClient.DoRequest calls http.Header.Add
+      #5: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which eventually calls http.Header.Del
+      #6: internal/gitlab/http_client.go:270:54: gitlab.HTTPClient.PostReceive calls http.Header.Get
+      #7: internal/gitlab/client/gitlabnet.go:157:20: client.GitlabNetClient.DoRequest calls http.Header.Set
+      #8: internal/backup/sink.go:139:35: backup.StorageServiceSink.SignedURL calls blob.Bucket.SignedURL, which eventually calls http.Header.Values
+      #9: internal/git/stats/http_reference_discovery.go:57:29: stats.performHTTPReferenceDiscovery calls http.NewRequest
+      #10: internal/gitlab/client/gitlabnet.go:103:44: client.newRequest calls http.NewRequestWithContext
+      #11: internal/backup/sink.go:122:35: backup.StorageServiceSink.GetReader calls blob.Bucket.NewReader, which eventually calls http.ParseTime
+      #12: proto/go/gitalypb/repository_grpc.pb.go:918:36: gitalypb.repositoryServiceClient.GetCustomHooks calls grpc.clientStream.CloseSend, which eventually calls http.ProxyFromEnvironment
+      #13: internal/bundleuri/sink.go:133:35: bundleuri.Sink.SignedURL calls blob.Bucket.Exists, which eventually calls http.ReadRequest
+      #14: proto/go/gitalypb/repository_grpc.pb.go:918:36: gitalypb.repositoryServiceClient.GetCustomHooks calls grpc.clientStream.CloseSend, which eventually calls http.ReadResponse
+      #15: internal/gitlab/client/gitlabnet.go:144:23: client.GitlabNetClient.DoRequest calls http.Request.SetBasicAuth
+      #16: internal/bundleuri/sink.go:133:35: bundleuri.Sink.SignedURL calls blob.Bucket.Exists, which eventually calls http.Request.UserAgent
+      #17: proto/go/gitalypb/repository_grpc.pb.go:918:36: gitalypb.repositoryServiceClient.GetCustomHooks calls grpc.clientStream.CloseSend, which eventually calls http.Request.Write
+      #18: internal/bundleuri/sink.go:133:35: bundleuri.Sink.SignedURL calls blob.Bucket.Exists, which eventually calls http.Response.Write
+      #19: internal/testhelper/testhelper.go:168:34: testhelper.MustClose calls http.Server.Close
+      #20: internal/testhelper/testhelper.go:185:24: testhelper.MustServe calls http.Server.Serve
+      #21: internal/bundleuri/sink.go:133:35: bundleuri.Sink.SignedURL calls blob.Bucket.Exists, which eventually calls http.Server.Shutdown
+      #22: internal/gitaly/service/repository/create_repository_from_snapshot.go:73:34: repository.newResolvedHTTPClient calls http.Transport.Clone
+      #23: internal/bundleuri/sink.go:133:35: bundleuri.Sink.SignedURL calls blob.Bucket.Exists, which eventually calls http.Transport.CloseIdleConnections
+      #24: internal/bundleuri/sink.go:133:35: bundleuri.Sink.SignedURL calls blob.Bucket.Exists, which eventually calls http.Transport.RoundTrip
+      #25: internal/gitlab/http_client.go:317:27: gitlab.HTTPClient.finalizeResponse calls http.body.Close
+      #26: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.body.Read
+      #27: internal/gitlab/http_client.go:317:27: gitlab.HTTPClient.finalizeResponse calls http.bodyEOFSignal.Close
+      #28: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.bodyEOFSignal.Read
+      #29: internal/gitaly/service/ssh/upload_command.go:111:22: ssh.largeBufferReaderFrom.ReadFrom calls io.CopyBuffer, which eventually calls http.bodyLocked.Read
+      #30: cmd/validate.go:48:23: cmd.WriteTomlReadError calls io.WriteString, which calls http.bufioFlushWriter.Write
+      #31: internal/gitlab/http_client.go:317:27: gitlab.HTTPClient.finalizeResponse calls http.cancelTimerBody.Close
+      #32: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.cancelTimerBody.Read
+      #33: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which calls http.checkConnErrorWriter.Write
+      #34: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which calls http.chunkWriter.Write
+      #35: internal/git/stats/commit_graph.go:104:27: stats.CommitGraphInfoForRepository calls bufio.Reader.Read, which calls http.connReader.Read
+      #36: internal/gitlab/http_client.go:317:27: gitlab.HTTPClient.finalizeResponse calls http.expectContinueReader.Close
+      #37: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.expectContinueReader.Read
+      #38: internal/gitlab/http_client.go:317:27: gitlab.HTTPClient.finalizeResponse calls http.gzipReader.Close
+      #39: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.gzipReader.Read
+      #40: internal/backup/pipeline.go:148:52: backup.commandErrors.Error calls http.http2ConnectionError.Error
+      #41: internal/grpc/backchannel/backchannel.go:53:21: backchannel.yamuxLogWrapper.Println calls fmt.Sprintln, which eventually calls http.http2ErrCode.String
+      #42: internal/grpc/backchannel/backchannel.go:53:21: backchannel.yamuxLogWrapper.Println calls fmt.Sprintln, which eventually calls http.http2FrameHeader.String
+      #43: internal/grpc/backchannel/backchannel.go:53:21: backchannel.yamuxLogWrapper.Println calls fmt.Sprintln, which eventually calls http.http2FrameType.String
+      #44: internal/grpc/backchannel/backchannel.go:53:21: backchannel.yamuxLogWrapper.Println calls fmt.Sprintln, which eventually calls http.http2FrameWriteRequest.String
+      #45: internal/backup/pipeline.go:148:52: backup.commandErrors.Error calls http.http2GoAwayError.Error
+      #46: internal/grpc/backchannel/backchannel.go:53:21: backchannel.yamuxLogWrapper.Println calls fmt.Sprintln, which eventually calls http.http2Setting.String
+      #47: internal/grpc/backchannel/backchannel.go:53:21: backchannel.yamuxLogWrapper.Println calls fmt.Sprintln, which eventually calls http.http2SettingID.String
+      #48: internal/backup/pipeline.go:148:52: backup.commandErrors.Error calls http.http2StreamError.Error
+      #49: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which calls http.http2chunkWriter.Write
+      #50: internal/backup/pipeline.go:148:52: backup.commandErrors.Error calls http.http2connError.Error
+      #51: internal/backup/pipeline.go:148:52: backup.commandErrors.Error calls http.http2duplicatePseudoHeaderError.Error
+      #52: internal/gitlab/http_client.go:317:27: gitlab.HTTPClient.finalizeResponse calls http.http2gzipReader.Close
+      #53: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.http2gzipReader.Read
+      #54: internal/backup/pipeline.go:148:52: backup.commandErrors.Error calls http.http2headerFieldNameError.Error
+      #55: internal/backup/pipeline.go:148:52: backup.commandErrors.Error calls http.http2headerFieldValueError.Error
+      #56: internal/backup/pipeline.go:148:52: backup.commandErrors.Error calls http.http2pseudoHeaderError.Error
+      #57: internal/gitlab/http_client.go:317:27: gitlab.HTTPClient.finalizeResponse calls http.http2requestBody.Close
+      #58: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.http2requestBody.Read
+      #59: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which calls http.http2responseWriter.Write
+      #60: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which eventually calls http.http2responseWriter.WriteHeader
+      #61: internal/git/catfile/request_queue.go:135:34: catfile.requestQueue.Flush calls bufio.Writer.WriteString, which calls http.http2responseWriter.WriteString
+      #62: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which calls http.http2stickyErrWriter.Write
+      #63: internal/gitlab/http_client.go:317:27: gitlab.HTTPClient.finalizeResponse calls http.http2transportResponseBody.Close
+      #64: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.http2transportResponseBody.Read
+      #65: internal/grpc/backchannel/backchannel.go:53:21: backchannel.yamuxLogWrapper.Println calls fmt.Sprintln, which eventually calls http.http2writeData.String
+      #66: internal/git/stats/commit_graph.go:104:27: stats.CommitGraphInfoForRepository calls bufio.Reader.Read, which calls http.loggingConn.Read
+      #67: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which calls http.loggingConn.Write
+      #68: internal/gitaly/service/ssh/upload_command.go:111:22: ssh.largeBufferReaderFrom.ReadFrom calls io.CopyBuffer, which eventually calls http.maxBytesReader.Read
+      #69: internal/command/command.go:398:15: command.Command.Wait calls sync.Once.Do, which eventually calls http.onceCloseListener.Close
+      #70: internal/git/stats/commit_graph.go:104:27: stats.CommitGraphInfoForRepository calls bufio.Reader.Read, which calls http.persistConn.Read
+      #71: internal/gitaly/service/ssh/upload_command.go:111:22: ssh.largeBufferReaderFrom.ReadFrom calls io.CopyBuffer, which eventually calls http.persistConnWriter.ReadFrom
+      #72: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which calls http.persistConnWriter.Write
+      #73: internal/gitlab/http_client.go:317:27: gitlab.HTTPClient.finalizeResponse calls http.readTrackingBody.Close
+      #74: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.readTrackingBody.Read
+      #75: internal/gitaly/hook/postreceive.go:155:28: hook.GitLabHookManager.PostReceiveHook calls io.ReadAll, which calls http.readWriteCloserBody.Read
+      #76: internal/gitaly/service/ssh/upload_command.go:111:22: ssh.largeBufferReaderFrom.ReadFrom calls io.CopyBuffer, which eventually calls http.response.ReadFrom
+      #77: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which calls http.response.Write
+      #78: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which eventually calls http.response.WriteHeader
+      #79: internal/git/catfile/request_queue.go:135:34: catfile.requestQueue.Flush calls bufio.Writer.WriteString, which calls http.response.WriteString
+      #80: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which calls http.timeoutWriter.Write
+      #81: internal/git/catfile/request_queue.go:143:25: catfile.requestQueue.Flush calls bufio.Writer.Flush, which eventually calls http.timeoutWriter.WriteHeader
+      #82: internal/backup/pipeline.go:148:52: backup.commandErrors.Error calls http.transportReadFromServerError.Error
+
+=== Informational ===
+
+There are 6 vulnerabilities in modules that you require that are
+neither imported nor called. You may not need to take any action.
+See https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck for details.
+
+Vulnerability #1: GO-2024-2659
+    Data exfiltration from internal networks in github.com/docker/docker
+  More info: https://pkg.go.dev/vuln/GO-2024-2659
+  Module: github.com/docker/docker
+    Found in: github.com/docker/docker@v25.0.0+incompatible
+    Fixed in: github.com/docker/docker@v25.0.5+incompatible
+
+Vulnerability #2: GO-2023-1990
+    Excessive CPU consumption when decoding 0-height images in
+    golang.org/x/image/tiff
+  More info: https://pkg.go.dev/vuln/GO-2023-1990
+  Module: golang.org/x/image
+    Found in: golang.org/x/image@v0.0.0-20220302094943-723b81ca9867
+    Fixed in: golang.org/x/image@v0.10.0
+
+Vulnerability #3: GO-2023-1989
+    Excessive resource consumption in golang.org/x/image/tiff
+  More info: https://pkg.go.dev/vuln/GO-2023-1989
+  Module: golang.org/x/image
+    Found in: golang.org/x/image@v0.0.0-20220302094943-723b81ca9867
+    Fixed in: golang.org/x/image@v0.10.0
+
+Vulnerability #4: GO-2023-1737
+    Improper handling of filenames in Content-Disposition HTTP header in
+    github.com/gin-gonic/gin
+  More info: https://pkg.go.dev/vuln/GO-2023-1737
+  Module: github.com/gin-gonic/gin
+    Found in: github.com/gin-gonic/gin@v1.8.1
+    Fixed in: github.com/gin-gonic/gin@v1.9.1
+
+Vulnerability #5: GO-2023-1572
+    Denial of service via crafted TIFF image in golang.org/x/image/tiff
+  More info: https://pkg.go.dev/vuln/GO-2023-1572
+  Module: golang.org/x/image
+    Found in: golang.org/x/image@v0.0.0-20220302094943-723b81ca9867
+    Fixed in: golang.org/x/image@v0.5.0
+
+Vulnerability #6: GO-2022-0646
+    Use of risky cryptographic algorithm in github.com/aws/aws-sdk-go
+  More info: https://pkg.go.dev/vuln/GO-2022-0646
+  Module: github.com/aws/aws-sdk-go
+    Found in: github.com/aws/aws-sdk-go@v1.51.25
+    Fixed in: N/A
+
+Your code is affected by 2 vulnerabilities from the Go standard library.
+
+Share feedback at https://go.dev/s/govulncheck-feedback.
