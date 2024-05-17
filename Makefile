@@ -128,7 +128,7 @@ GIT_EXECUTABLES += git-http-backend
 ## tags, branches, and commit ids.
 GIT_VERSION ?=
 ## The Git version used for bundled Git v2.43.
-GIT_VERSION_2_43 ?= v2.43.0
+GIT_VERSION_2_43 ?= v2.43.4
 
 ## Skip overriding the Git version and instead use the Git version as specified
 ## in the Git sources. This is required when building Git from a version that
@@ -494,8 +494,9 @@ build-proto-docs: ${PROTOC} ${PROTOC_GEN_DOC}
 	${Q}${PROTOC} -I ${SOURCE_DIR}/proto -I ${PROTOC_INSTALL_DIR}/include --doc_out=${BUILD_DIR}/proto-docs --doc_opt=html,index.html --plugin=protoc-gen-doc=${PROTOC_GEN_DOC} ${SOURCE_DIR}/proto/*.proto
 
 .PHONY: govulncheck
+## pipefail is set in the SHELL config, but we don't care about govulncheck's exit code here.
 govulncheck: ${GOVULNCHECK}
-	${Q}${GOVULNCHECK} ./...
+	${Q}(${GOVULNCHECK} ./... || true) | go run ${SOURCE_DIR}/tools/govulncheck-filter/main.go
 
 .PHONY: no-changes
 no-changes:
