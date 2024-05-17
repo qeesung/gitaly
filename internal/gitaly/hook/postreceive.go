@@ -133,7 +133,9 @@ func (m *GitLabHookManager) PostReceiveHook(ctx context.Context, repo *gitalypb.
 
 		originalRepo := tx.OriginalRepository(repo)
 
-		if err := tx.Commit(ctx); err != nil {
+		// The transaction may already be committed if the RPC invokes git-receive-pack(1) with the
+		// proc-receive hook enabled. Ignore the error indicating that here.
+		if err := tx.Commit(ctx); err != nil && !errors.Is(err, storagemgr.ErrTransactionAlreadyCommitted) {
 			return fmt.Errorf("commit transaction: %w", err)
 		}
 

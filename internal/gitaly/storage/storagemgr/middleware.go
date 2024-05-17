@@ -361,9 +361,8 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 	txID := txRegistry.register(tx.Transaction)
 	ctx = storage.ContextWithTransactionID(ctx, txID)
 
-	// If the post-receive hook is invoked, the transaction may already be committed to ensure
-	// the new data is readable for the post-receive hook. Ignore the already committed errors
-	// here.
+	// If the proc-receive or post-receive hook is invoked, the transaction may already be committed
+	// to ensure the new data is readable. Ignore the already committed errors here.
 	finishTX := func(handlerErr error) error {
 		defer span.Finish()
 		defer txRegistry.unregister(txID)
