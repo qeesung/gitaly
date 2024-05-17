@@ -76,10 +76,10 @@ func TestPartitionAssigner(t *testing.T) {
 
 				ptnID, err := pa.getPartitionID(ctx, "repository", "", false)
 				require.NoError(t, err)
-				require.EqualValues(t, ptnID, 1)
+				require.EqualValues(t, ptnID, 2)
 			},
 			expectedAssignments: partitionAssignments{
-				"repository": 1,
+				"repository": 2,
 			},
 		},
 		{
@@ -87,15 +87,15 @@ func TestPartitionAssigner(t *testing.T) {
 			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
 				ptnID1, err := pa.getPartitionID(ctx, "repository-1", "", true)
 				require.NoError(t, err)
-				require.EqualValues(t, ptnID1, 1)
+				require.EqualValues(t, ptnID1, 2)
 
 				ptnID2, err := pa.getPartitionID(ctx, "repository-2", "", true)
 				require.NoError(t, err)
-				require.EqualValues(t, ptnID2, 2)
+				require.EqualValues(t, ptnID2, 3)
 			},
 			expectedAssignments: partitionAssignments{
-				"repository-1": 1,
-				"repository-2": 2,
+				"repository-1": 2,
+				"repository-2": 3,
 			},
 		},
 		{
@@ -103,14 +103,14 @@ func TestPartitionAssigner(t *testing.T) {
 			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
 				assignedID, err := pa.getPartitionID(ctx, "repository-1", "", true)
 				require.NoError(t, err)
-				require.EqualValues(t, assignedID, 1)
+				require.EqualValues(t, assignedID, 2)
 
 				retrievedID, err := pa.getPartitionID(ctx, "repository-1", "", false)
 				require.NoError(t, err)
 				require.Equal(t, assignedID, retrievedID)
 			},
 			expectedAssignments: partitionAssignments{
-				"repository-1": 1,
+				"repository-1": 2,
 			},
 		},
 		{
@@ -132,11 +132,11 @@ func TestPartitionAssigner(t *testing.T) {
 
 				ptnID, err := pa.getPartitionID(ctx, "repository", "alternate", true)
 				require.NoError(t, err)
-				require.EqualValues(t, ptnID, 1)
+				require.EqualValues(t, ptnID, 2)
 			},
 			expectedAssignments: partitionAssignments{
-				"repository": 1,
-				"alternate":  1,
+				"repository": 2,
+				"alternate":  2,
 			},
 		},
 		{
@@ -144,15 +144,15 @@ func TestPartitionAssigner(t *testing.T) {
 			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
 				ptnID1, err := pa.getPartitionID(ctx, "alternate", "", true)
 				require.NoError(t, err)
-				require.EqualValues(t, ptnID1, 1)
+				require.EqualValues(t, ptnID1, 2)
 
 				ptnID2, err := pa.getPartitionID(ctx, "repository", "alternate", true)
 				require.NoError(t, err)
 				require.EqualValues(t, ptnID2, ptnID1)
 			},
 			expectedAssignments: partitionAssignments{
-				"repository": 1,
-				"alternate":  1,
+				"repository": 2,
+				"alternate":  2,
 			},
 		},
 		{
@@ -160,7 +160,7 @@ func TestPartitionAssigner(t *testing.T) {
 			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
 				ptnID1, err := pa.getPartitionID(ctx, "repository", "", true)
 				require.NoError(t, err)
-				require.EqualValues(t, ptnID1, 1)
+				require.EqualValues(t, ptnID1, 2)
 
 				gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 					SkipCreationViaService: true,
@@ -172,8 +172,8 @@ func TestPartitionAssigner(t *testing.T) {
 				require.EqualValues(t, ptnID2, ptnID1)
 			},
 			expectedAssignments: partitionAssignments{
-				"repository": 1,
-				"alternate":  1,
+				"repository": 2,
+				"alternate":  2,
 			},
 		},
 		{
@@ -181,19 +181,19 @@ func TestPartitionAssigner(t *testing.T) {
 			run: func(t *testing.T, ctx context.Context, cfg config.Cfg, pa *partitionAssigner) {
 				ptnID1, err := pa.getPartitionID(ctx, "repository-1", "", true)
 				require.NoError(t, err)
-				require.EqualValues(t, ptnID1, 1)
+				require.EqualValues(t, ptnID1, 2)
 
 				ptnID2, err := pa.getPartitionID(ctx, "repository-2", "", true)
 				require.NoError(t, err)
-				require.EqualValues(t, ptnID2, 2)
+				require.EqualValues(t, ptnID2, 3)
 
 				ptnID, err := pa.getPartitionID(ctx, "repository-1", "repository-2", true)
 				require.Equal(t, ErrRepositoriesAreInDifferentPartitions, err)
 				require.Zero(t, ptnID)
 			},
 			expectedAssignments: partitionAssignments{
-				"repository-1": 1,
-				"repository-2": 2,
+				"repository-1": 2,
+				"repository-2": 3,
 			},
 		},
 	} {
@@ -230,16 +230,16 @@ func TestPartitionAssigner_alternates(t *testing.T) {
 		{
 			desc: "no alternates file",
 			expectedPartitionAssignments: partitionAssignments{
-				"member": 1,
-				"pool":   2,
+				"member": 2,
+				"pool":   3,
 			},
 		},
 		{
 			desc:                    "empty alternates file",
 			memberAlternatesContent: []byte(""),
 			expectedPartitionAssignments: partitionAssignments{
-				"member": 1,
-				"pool":   2,
+				"member": 2,
+				"pool":   3,
 			},
 		},
 		{
@@ -251,16 +251,16 @@ func TestPartitionAssigner_alternates(t *testing.T) {
 			desc:                    "points to pool",
 			memberAlternatesContent: []byte("../../pool/objects"),
 			expectedPartitionAssignments: partitionAssignments{
-				"member": 1,
-				"pool":   1,
+				"member": 2,
+				"pool":   2,
 			},
 		},
 		{
 			desc:                    "points to pool with newline",
 			memberAlternatesContent: []byte("../../pool/objects\n"),
 			expectedPartitionAssignments: partitionAssignments{
-				"member": 1,
-				"pool":   1,
+				"member": 2,
+				"pool":   2,
 			},
 		},
 		{
@@ -370,7 +370,7 @@ func TestPartitionAssigner_close(t *testing.T) {
 	// back to the database.
 	ptnID, err := pa.getPartitionID(testhelper.Context(t), "relative-path", "", true)
 	require.NoError(t, err)
-	require.EqualValues(t, 1, ptnID)
+	require.EqualValues(t, 2, ptnID)
 }
 
 func TestPartitionAssigner_concurrentAccess(t *testing.T) {
@@ -470,15 +470,15 @@ func TestPartitionAssigner_concurrentAccess(t *testing.T) {
 
 			if tc.withAlternate {
 				// We expect all repositories to have been assigned to the same partition as they are all linked to the same pool.
-				require.Equal(t, []storage.PartitionID{1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, partitionIDs)
+				require.Equal(t, []storage.PartitionID{2, 2, 2, 2, 2, 2, 2, 2, 2, 2}, partitionIDs)
 				ptnID, err := pa.getPartitionID(ctx, pool.RelativePath, "", false)
 				require.NoError(t, err)
-				require.Equal(t, storage.PartitionID(1), ptnID, "pool should have been assigned into the same partition as the linked repositories")
+				require.Equal(t, storage.PartitionID(2), ptnID, "pool should have been assigned into the same partition as the linked repositories")
 				return
 			}
 
 			// We expect to have 10 unique partition IDs as there are 10 repositories being accessed.
-			require.ElementsMatch(t, []storage.PartitionID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, partitionIDs)
+			require.ElementsMatch(t, []storage.PartitionID{2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, partitionIDs)
 		})
 	}
 }

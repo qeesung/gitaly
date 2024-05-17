@@ -127,10 +127,11 @@ func (pa *partitionAssigner) Close() error {
 }
 
 func (pa *partitionAssigner) allocatePartitionID() (storage.PartitionID, error) {
-	// Start partition IDs from 1 so the default value refers to an invalid
-	// partition.
+	// Start allocating partition IDs from 2:
+	// - The default value, 0, refers to an invalid partition.
+	// - Partition ID 1 is reserved for the storage's metadata partition.
 	var id uint64
-	for id == 0 {
+	for id < 2 {
 		var err error
 		id, err = pa.idSequence.Next()
 		if err != nil {
