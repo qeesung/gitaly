@@ -561,6 +561,11 @@ rails-specs:
   rules:
     - if: $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/gitaly' && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
 
+rails-specs-transactions:
+  extends:
+    - rails-specs
+  variables:
+    GITALY_TRANSACTIONS_ENABLED: "true"
 
 rails-specs-security:
   << : *rails-specs-common
@@ -591,6 +596,11 @@ rails-specs-cleanup:
     - if: $CI_MERGE_REQUEST_PROJECT_PATH == 'gitlab-org/gitaly' && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
       when: manual
       allow_failure: true
+
+rails-specs-transactions-cleanup:
+  extends:
+    - rails-specs-cleanup
+  needs: ["rails-specs-transactions"]
 
 rails-specs-security-cleanup:
   <<: *rails-specs-cleanup-common
