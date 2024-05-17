@@ -82,7 +82,7 @@ func TestFsck(t *testing.T) {
 				setupData := setupData{
 					repo: repo,
 					requireResponse: func(actual *gitalypb.FsckResponse) {
-						require.Regexp(t, "(?s)^fatal: not a git repository .+\n$", string(actual.Error))
+						require.Regexp(t, "^fatal: not a git repository: '.+'\n$", string(actual.Error))
 					},
 				}
 
