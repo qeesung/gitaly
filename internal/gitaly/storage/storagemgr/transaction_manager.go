@@ -19,7 +19,6 @@ import (
 
 	"github.com/dgraph-io/badger/v4"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -1912,7 +1911,11 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			return fmt.Errorf("setup staging snapshot: %w", err)
 		}
 
-		if err := mgr.verifyObjectDependencies(mgr.ctx, transaction); err != nil {
+		// Verify that all objects this transaction depends on are present in the repository. The dependency
+		// objects are the reference tips set in the transaction and the objects the transaction's packfile
+		// is based on. If an object dependency is missing, the transaction is aborted as applying it would
+		// result in repository corruption.
+		if err := mgr.verifyObjectsExist(mgr.ctx, transaction.stagingRepository, transaction.objectDependencies); err != nil {
 			return fmt.Errorf("verify object dependencies: %w", err)
 		}
 
@@ -1966,23 +1969,21 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 	return nil
 }
 
-// verifyObjectDependencies verifies that all objects this transaction depends on are present in the
-// repository. The dependency objects are the reference tips set in the transaction and the objects
-// the transaction's packfile is based on. If an object dependency is missing, the transaction is
-// aborted as applying it would result in repository corruption.
-func (mgr *TransactionManager) verifyObjectDependencies(ctx context.Context, tx *Transaction) error {
-	if len(tx.objectDependencies) == 0 {
+// verifyObjectsExist verifies that all objects passed in to the method exist in the repository.
+// If an object is missing, an InvalidObjectError error is raised.
+func (mgr *TransactionManager) verifyObjectsExist(ctx context.Context, repository *localrepo.Repo, oids map[git.ObjectID]struct{}) error {
+	if len(oids) == 0 {
 		return nil
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	dependencyReader, dependencyWriter := io.Pipe()
+	oidReader, oidWriter := io.Pipe()
 	eg.Go(func() (returnedErr error) {
-		defer dependencyWriter.CloseWithError(returnedErr)
+		defer oidWriter.CloseWithError(returnedErr)
 
-		for oid := range tx.objectDependencies {
-			if _, err := fmt.Fprintln(dependencyWriter, oid.String()); err != nil {
+		for oid := range oids {
+			if _, err := fmt.Fprintln(oidWriter, oid.String()); err != nil {
 				return fmt.Errorf("write dependency oid: %w", err)
 			}
 		}
@@ -1992,11 +1993,11 @@ func (mgr *TransactionManager) verifyObjectDependencies(ctx context.Context, tx 
 
 	resultReader, resultWriter := io.Pipe()
 	eg.Go(func() (returnedErr error) {
-		defer dependencyReader.CloseWithError(returnedErr)
+		defer oidReader.CloseWithError(returnedErr)
 		defer resultWriter.CloseWithError(returnedErr)
 
 		var stderr bytes.Buffer
-		if err := tx.stagingRepository.ExecAndWait(ctx,
+		if err := repository.ExecAndWait(ctx,
 			git.Command{
 				Name: "cat-file",
 				Flags: []git.Option{
@@ -2004,7 +2005,7 @@ func (mgr *TransactionManager) verifyObjectDependencies(ctx context.Context, tx 
 					git.Flag{Name: "--buffer"},
 				},
 			},
-			git.WithStdin(dependencyReader),
+			git.WithStdin(oidReader),
 			git.WithStdout(resultWriter),
 			git.WithStderr(&stderr),
 		); err != nil {
@@ -2025,7 +2026,7 @@ func (mgr *TransactionManager) verifyObjectDependencies(ctx context.Context, tx 
 			}
 
 			// Sanity check this was actually an object ID we were looking for.
-			if _, ok := tx.objectDependencies[git.ObjectID(line)]; !ok {
+			if _, ok := oids[git.ObjectID(line)]; !ok {
 				return fmt.Errorf("unexpected oid line: %q", line)
 			}
 		}
@@ -2678,11 +2679,6 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 		return nil, fmt.Errorf("applying commit graph for verifying repacking: %w", err)
 	}
 
-	objectHash, err := workingRepository.ObjectHash(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("detecting object hash: %w", err)
-	}
-
 	// Collect object dependencies. All of them should exist in the resulting packfile or new concurrent
 	// packfiles while repacking is running.
 	objectDependencies := map[git.ObjectID]struct{}{}
@@ -2696,76 +2692,13 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 		return nil, fmt.Errorf("walking committed entries: %w", err)
 	}
 
-	if len(objectDependencies) == 0 {
-		return &gitalypb.LogEntry_Housekeeping_Repack{
-			NewFiles:     repack.newFiles,
-			DeletedFiles: repack.deletedFiles,
-			IsFullRepack: repack.isFullRepack,
-		}, nil
-	}
-
-	// Although we have a wrapper for caching `git-cat-file` process, this command targets the snapshot repository
-	// that the repacking task depends on. This task might run for minutes to hours. It's unlikely there is any
-	// concurrent operation sharing this process. So, no need to cache it. An alternative solution is to read and
-	// parse the index files of the working directory. That approach avoids spawning `git-cat-file(1)`. In contrast,
-	// it requires storing the list of objects in memory.
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	var stderr bytes.Buffer
-	stdinReader, stdinWriter := io.Pipe()
-	stdoutReader, stdoutWriter := io.Pipe()
-
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.Go(func() (returnedErr error) {
-		defer func() { stdinWriter.CloseWithError(returnedErr) }()
-		for oid := range objectDependencies {
-			// Verify the object dependency still exists in the repository.
-			if _, err := stdinWriter.Write([]byte(fmt.Sprintf("%s\000", oid))); err != nil {
-				return fmt.Errorf("writing cat-file command: %w", err)
-			}
+	if err := mgr.verifyObjectsExist(ctx, workingRepository, objectDependencies); err != nil {
+		var errInvalidObject localrepo.InvalidObjectError
+		if errors.As(err, &errInvalidObject) {
+			return nil, errRepackConflictPrunedObject
 		}
-		if _, err := stdinWriter.Write([]byte("flush\000")); err != nil {
-			return fmt.Errorf("writing flush: %w", err)
-		}
-		return nil
-	})
 
-	group.Go(func() (returnedErr error) {
-		defer func() {
-			stdinReader.CloseWithError(returnedErr)
-			stdoutReader.CloseWithError(returnedErr)
-		}()
-
-		stdout := bufio.NewReader(stdoutReader)
-		for range objectDependencies {
-			if _, err := catfile.ParseObjectInfo(objectHash, stdout, true); err != nil {
-				if errors.As(err, &catfile.NotFoundError{}) {
-					return errRepackConflictPrunedObject
-				}
-				return fmt.Errorf("reading object info: %w", err)
-			}
-		}
-		return nil
-	})
-
-	group.Go(func() (returnedErr error) {
-		defer func() { stdoutWriter.CloseWithError(returnedErr) }()
-		if err := workingRepository.ExecAndWait(groupCtx, git.Command{
-			Name: "cat-file",
-			Flags: []git.Option{
-				git.Flag{Name: "--batch-check"},
-				git.Flag{Name: "--buffer"},
-				git.Flag{Name: "-Z"},
-			},
-		}, git.WithStdin(stdinReader), git.WithStdout(stdoutWriter), git.WithStderr(&stderr)); err != nil {
-			return structerr.New("spawning cat-file command: %w", err).WithMetadata("stderr", stderr.String())
-		}
-		return nil
-	})
-
-	if err := group.Wait(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("verify objects exist: %w", err)
 	}
 
 	return &gitalypb.LogEntry_Housekeeping_Repack{
