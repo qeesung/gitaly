@@ -2583,6 +2583,159 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 		},
 		{
+			desc: "run repacking (FullWithCruft) concurrently with another transaction's packfile depending on pruned objects",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID:    1,
+					IncludeObjects:   []git.ObjectID{setup.Commits.First.OID},
+					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+					QuarantinedPacks: [][]byte{
+						setup.Commits.Second.Pack,
+					},
+				},
+				RunRepack{
+					TransactionID: 3,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
+					},
+				},
+				Commit{
+					TransactionID: 3,
+				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":  1,
+					"housekeeping_task=total,stage=verify":   1,
+					"housekeeping_task=total,stage=apply":    1,
+					"housekeeping_task=repack,stage=prepare": 1,
+					"housekeeping_task=repack,stage=verify":  1,
+					"housekeeping_task=repack,stage=apply":   1,
+				}},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
+						Packfiles: &PackfilesState{
+							// As we can see below, the repository is corrupted as the concurrent pruning
+							// operation pruned away the first commit that is the parent of the second one.
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
+										setup.Commits.Second.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "run repacking (FullWithCruft) concurrently with another transaction including but not referencing an object",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID:    1,
+					IncludeObjects:   []git.ObjectID{setup.Commits.First.OID},
+					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID:  2,
+					IncludeObjects: []git.ObjectID{setup.Commits.Second.OID},
+					QuarantinedPacks: [][]byte{
+						setup.Commits.Second.Pack,
+					},
+				},
+				RunRepack{
+					TransactionID: 3,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
+					},
+				},
+				Commit{
+					TransactionID: 3,
+				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":  1,
+					"housekeeping_task=total,stage=verify":   1,
+					"housekeeping_task=total,stage=apply":    1,
+					"housekeeping_task=repack,stage=prepare": 1,
+					"housekeeping_task=repack,stage=verify":  1,
+					"housekeeping_task=repack,stage=apply":   1,
+				}},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						Packfiles: &PackfilesState{
+							// As we can see below, the repository is corrupted as the concurrent pruning
+							// operation pruned away the first commit that is the parent of the second one.
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
+										setup.Commits.Second.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			desc: "run repacking (FullWithUnreachable) on an alternate member",
 			steps: steps{
 				RemoveRepository{},
