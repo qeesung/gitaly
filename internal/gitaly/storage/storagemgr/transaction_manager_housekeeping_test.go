@@ -2623,19 +2623,18 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				Commit{
 					TransactionID: 3,
+					ExpectedError: errRepackConflictPrunedObject,
 				},
 				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
 					"housekeeping_task=total,stage=prepare":  1,
 					"housekeeping_task=total,stage=verify":   1,
-					"housekeeping_task=total,stage=apply":    1,
 					"housekeeping_task=repack,stage=prepare": 1,
 					"housekeeping_task=repack,stage=verify":  1,
-					"housekeeping_task=repack,stage=apply":   1,
 				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -2646,9 +2645,14 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 							},
 						},
 						Packfiles: &PackfilesState{
-							// As we can see below, the repository is corrupted as the concurrent pruning
-							// operation pruned away the first commit that is the parent of the second one.
 							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
 								{
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,
@@ -2701,27 +2705,31 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				},
 				Commit{
 					TransactionID: 3,
+					ExpectedError: errRepackConflictPrunedObject,
 				},
 				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
 					"housekeeping_task=total,stage=prepare":  1,
 					"housekeeping_task=total,stage=verify":   1,
-					"housekeeping_task=total,stage=apply":    1,
 					"housekeeping_task=repack,stage=prepare": 1,
 					"housekeeping_task=repack,stage=verify":  1,
-					"housekeeping_task=repack,stage=apply":   1,
 				}},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
+					string(keyAppliedLSN(setup.PartitionID)): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
 						Packfiles: &PackfilesState{
-							// As we can see below, the repository is corrupted as the concurrent pruning
-							// operation pruned away the first commit that is the parent of the second one.
 							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
 								{
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,

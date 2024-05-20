@@ -743,6 +743,8 @@ type committedEntry struct {
 	lsn storage.LSN
 	// snapshotReaders accounts for the number of transaction readers of the snapshot.
 	snapshotReaders int
+	// objectDependencies are the objects this transaction depends upon.
+	objectDependencies map[git.ObjectID]struct{}
 }
 
 // LogConsumer is the interface of a log consumer that is passed to a TransactionManager.
@@ -1346,13 +1348,15 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 	}
 
 	heads := make([]string, 0)
-	for _, update := range transaction.flattenReferenceTransactions() {
-		if update.NewOID == objectHash.ZeroOID {
-			// Reference deletions can't introduce new objects so ignore them.
-			continue
-		}
+	for _, referenceUpdates := range transaction.referenceUpdates {
+		for _, update := range referenceUpdates {
+			if update.NewOID == objectHash.ZeroOID {
+				// Reference deletions can't introduce new objects so ignore them.
+				continue
+			}
 
-		heads = append(heads, update.NewOID.String())
+			heads = append(heads, update.NewOID.String())
+		}
 	}
 
 	for objectID := range transaction.includedObjects {
@@ -1951,7 +1955,7 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 
 		logEntry.Operations = transaction.walEntry.Operations()
 
-		return mgr.appendLogEntry(logEntry, transaction.walFilesPath())
+		return mgr.appendLogEntry(transaction.objectDependencies, logEntry, transaction.walFilesPath())
 	}(); err != nil {
 		transaction.result <- err
 		return nil
@@ -2508,7 +2512,7 @@ func (mgr *TransactionManager) verifyHousekeeping(ctx context.Context, transacti
 	defer mgr.mutex.Unlock()
 
 	// Check for any concurrent housekeeping between this transaction's snapshot LSN and the latest appended LSN.
-	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry) error {
+	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry, objectDependencies map[git.ObjectID]struct{}) error {
 		if entry.GetHousekeeping() != nil {
 			return errHousekeepingConflictConcurrent
 		}
@@ -2577,7 +2581,7 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 	packRefs := transaction.runHousekeeping.packRefs
 
 	// Check for any concurrent ref deletion between this transaction's snapshot LSN to the end.
-	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry) error {
+	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry, objectDependencies map[git.ObjectID]struct{}) error {
 		for _, refTransaction := range entry.ReferenceTransactions {
 			for _, change := range refTransaction.Changes {
 				if objectHash.IsZeroOID(git.ObjectID(change.GetNewOid())) {
@@ -2603,24 +2607,26 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 	}, nil
 }
 
-// The function verifyRepacking confirms that the repacking process can integrate a new collection of packfiles.
-// Repacking should generally be risk-free as it systematically arranges packfiles and removes old, unused objects. The
-// standard housekeeping procedure includes a grace period, in days, to protect objects that might be in use by
-// simultaneous operations. However, the transaction manager deals with concurrent requests more effectively. By
-// reviewing the list of transactions since the repacking began, we can identify potential conflicts involving
-// concurrent processes.
-// We need to watch out for two types of conflicts:
-// 1. Overlapping transactions could reference objects that have been pruned. Extracting these pruned objects from the
-// repacking process isn't straightforward. The repacking task must confirm that these referenced objects are still
-// accessible in the repacked repository. This is done using the `git-cat-file --batch-check` command. Simultaneously,
-// it's possible for these transactions to refer to new objects created by other concurrent transactions. So, we need to
-// setup a working directory based on the destination repository and apply changed packfiles of repacking transaction
-// for checking.
-// 2. There might be transactions in progress that rely on dependencies that have been pruned. This type of conflict
-// can't be fully checked until Git v2.43 is implemented in Gitaly, as detailed in the GitLab epic
-// (https://gitlab.com/groups/gitlab-org/-/epics/11242).
-// It's important to note that this verification is specific to the `RepackObjectsStrategyFullWithCruft` strategy. Other
-// strategies focus solely on reorganizing packfiles and do not remove objects.
+// verifyRepacking checks the object repacking operations for conflicts.
+//
+// Object repacking without pruning is conflict-free operation. It only rearranges the objects on the disk into
+// a more optimal physical format. All objects that other transactions could need are still present in pure repacking
+// operations.
+//
+// Repacking operations that prune unreachable objects from the repository may lead to conflicts. Conflicts may occur
+// if concurrent transactions depend on the unreachable objects.
+//
+// 1. Transactions may point references to the previously unreachable objects and make them reachable.
+// 2. Transactions may write new objects that depend on the unreachable objects.
+//
+// In both cases a pruning operation that removes the objects must be aborted. In the first case, the pruning
+// operation would remove reachable objects from the repository and the repository becomes corrupted. In the second case,
+// the new objects written into the repository may not be necessarily reachable. Transactions depend on an invariant
+// that all objects in the repository are valid. Therefore, we must also reject transactions that attempt to remove
+// dependencies of unreachable objects even if such state isn't considered corrupted by Git.
+//
+// As we don't have a list of pruned objects at hand, the conflicts are identified by checking whether the recorded
+// dependencies of a transaction would still exist in the repository after applying the pruning operation.
 func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction *Transaction) (_ *gitalypb.LogEntry_Housekeeping_Repack, finalErr error) {
 	repack := transaction.runHousekeeping.repack
 	if repack == nil {
@@ -2677,24 +2683,20 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 		return nil, fmt.Errorf("detecting object hash: %w", err)
 	}
 
-	// Collect reference tips. All of them should exist in the resulting packfile or new concurrent
+	// Collect object dependencies. All of them should exist in the resulting packfile or new concurrent
 	// packfiles while repacking is running.
-	referenceTips := map[string]struct{}{}
-	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry) error {
-		for _, txn := range entry.GetReferenceTransactions() {
-			for _, change := range txn.GetChanges() {
-				oid := change.GetNewOid()
-				if !objectHash.IsZeroOID(git.ObjectID(oid)) {
-					referenceTips[string(oid)] = struct{}{}
-				}
-			}
+	objectDependencies := map[git.ObjectID]struct{}{}
+	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry, txnObjectDependencies map[git.ObjectID]struct{}) error {
+		for oid := range txnObjectDependencies {
+			objectDependencies[oid] = struct{}{}
 		}
+
 		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("walking committed entries: %w", err)
 	}
 
-	if len(referenceTips) == 0 {
+	if len(objectDependencies) == 0 {
 		return &gitalypb.LogEntry_Housekeeping_Repack{
 			NewFiles:     repack.newFiles,
 			DeletedFiles: repack.deletedFiles,
@@ -2717,8 +2719,8 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() (returnedErr error) {
 		defer func() { stdinWriter.CloseWithError(returnedErr) }()
-		for oid := range referenceTips {
-			// Verify if the reference tip is reachable from the resulting single packfile.
+		for oid := range objectDependencies {
+			// Verify the object dependency still exists in the repository.
 			if _, err := stdinWriter.Write([]byte(fmt.Sprintf("%s\000", oid))); err != nil {
 				return fmt.Errorf("writing cat-file command: %w", err)
 			}
@@ -2736,7 +2738,7 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 		}()
 
 		stdout := bufio.NewReader(stdoutReader)
-		for range referenceTips {
+		for range objectDependencies {
 			if _, err := catfile.ParseObjectInfo(objectHash, stdout, true); err != nil {
 				if errors.As(err, &catfile.NotFoundError{}) {
 					return errRepackConflictPrunedObject
@@ -2817,7 +2819,7 @@ func (mgr *TransactionManager) applyReferenceTransaction(ctx context.Context, ch
 // appendLogEntry appends the transaction to the write-ahead log. It first writes the transaction's manifest file
 // into the log entry's directory. Afterwards it moves the log entry's directory from the staging area to its final
 // place in the write-ahead log.
-func (mgr *TransactionManager) appendLogEntry(logEntry *gitalypb.LogEntry, logEntryPath string) error {
+func (mgr *TransactionManager) appendLogEntry(objectDependencies map[git.ObjectID]struct{}, logEntry *gitalypb.LogEntry, logEntryPath string) error {
 	manifestBytes, err := proto.Marshal(logEntry)
 	if err != nil {
 		return fmt.Errorf("marshal manifest: %w", err)
@@ -2880,7 +2882,8 @@ func (mgr *TransactionManager) appendLogEntry(logEntry *gitalypb.LogEntry, logEn
 	mgr.appendedLSN = nextLSN
 	mgr.snapshotLocks[nextLSN] = &snapshotLock{applied: make(chan struct{})}
 	mgr.committedEntries.PushBack(&committedEntry{
-		lsn: nextLSN,
+		lsn:                nextLSN,
+		objectDependencies: objectDependencies,
 	})
 	mgr.mutex.Unlock()
 
@@ -3351,7 +3354,7 @@ func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN storage.LSN) *co
 
 // walkCommittedEntries walks all committed entries after input transaction's snapshot LSN. It loads the content of the
 // entry from disk and triggers the callback with entry content.
-func (mgr *TransactionManager) walkCommittedEntries(transaction *Transaction, callback func(*gitalypb.LogEntry) error) error {
+func (mgr *TransactionManager) walkCommittedEntries(transaction *Transaction, callback func(*gitalypb.LogEntry, map[git.ObjectID]struct{}) error) error {
 	for elm := mgr.committedEntries.Front(); elm != nil; elm = elm.Next() {
 		committed := elm.Value.(*committedEntry)
 		if committed.lsn <= transaction.snapshotLSN {
@@ -3367,7 +3370,7 @@ func (mgr *TransactionManager) walkCommittedEntries(transaction *Transaction, ca
 		if entry.RelativePath != transaction.relativePath {
 			continue
 		}
-		if err := callback(entry); err != nil {
+		if err := callback(entry, committed.objectDependencies); err != nil {
 			return fmt.Errorf("callback: %w", err)
 		}
 	}
