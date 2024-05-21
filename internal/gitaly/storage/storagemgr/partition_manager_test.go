@@ -192,7 +192,7 @@ func TestPartitionManager(t *testing.T) {
 							repo: repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -213,7 +213,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -225,7 +225,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -248,7 +248,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -257,7 +257,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 2,
+									2: 2,
 								},
 							},
 						},
@@ -265,7 +265,7 @@ func TestPartitionManager(t *testing.T) {
 							transactionID: 1,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -290,7 +290,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repoA,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -299,8 +299,8 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repoB,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
 									2: 1,
+									3: 1,
 								},
 							},
 						},
@@ -309,11 +309,11 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repoC,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
 									2: 1,
+									3: 1,
 								},
 								"other-storage": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -321,10 +321,10 @@ func TestPartitionManager(t *testing.T) {
 							transactionID: 1,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									2: 1,
+									3: 1,
 								},
 								"other-storage": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -332,7 +332,7 @@ func TestPartitionManager(t *testing.T) {
 							transactionID: 2,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"other-storage": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -354,7 +354,7 @@ func TestPartitionManager(t *testing.T) {
 							repo: repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -416,7 +416,7 @@ func TestPartitionManager(t *testing.T) {
 							repo: repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -465,7 +465,7 @@ func TestPartitionManager(t *testing.T) {
 							repo: repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -489,7 +489,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -501,7 +501,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -581,7 +581,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -593,7 +593,7 @@ func TestPartitionManager(t *testing.T) {
 							},
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 2,
+									2: 2,
 								},
 							},
 						},
@@ -613,7 +613,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -625,7 +625,7 @@ func TestPartitionManager(t *testing.T) {
 							},
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 2,
+									2: 2,
 								},
 							},
 						},
@@ -633,7 +633,7 @@ func TestPartitionManager(t *testing.T) {
 							transactionID: 2,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -641,7 +641,7 @@ func TestPartitionManager(t *testing.T) {
 							transactionID: 2,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 							expectedError: ErrTransactionAlreadyRollbacked,
@@ -664,7 +664,7 @@ func TestPartitionManager(t *testing.T) {
 							alternateRelativePath: alternateRepo.GetRelativePath(),
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -673,7 +673,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 2,
+									2: 2,
 								},
 							},
 						},
@@ -682,7 +682,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          alternateRepo,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 3,
+									2: 3,
 								},
 							},
 						},
@@ -690,7 +690,7 @@ func TestPartitionManager(t *testing.T) {
 							transactionID: 1,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 2,
+									2: 2,
 								},
 							},
 						},
@@ -698,7 +698,7 @@ func TestPartitionManager(t *testing.T) {
 							transactionID: 2,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -722,7 +722,7 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo1,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
+									2: 1,
 								},
 							},
 						},
@@ -731,8 +731,8 @@ func TestPartitionManager(t *testing.T) {
 							repo:          repo2,
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
 									2: 1,
+									3: 1,
 								},
 							},
 						},
@@ -742,8 +742,8 @@ func TestPartitionManager(t *testing.T) {
 							alternateRelativePath: repo2.GetRelativePath(),
 							expectedState: map[string]map[storage.PartitionID]uint{
 								"default": {
-									1: 1,
 									2: 1,
+									3: 1,
 								},
 							},
 							expectedError: fmt.Errorf("get partition: %w", ErrRepositoriesAreInDifferentPartitions),
@@ -1034,7 +1034,7 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 	}()
 
 	// The TransactionManager may return if it errors out.
-	txMgr := partitionManager.storages[cfg.Storages[0].Name].partitions[1].transactionManager
+	txMgr := partitionManager.storages[cfg.Storages[0].Name].partitions[2].transactionManager
 	go func() {
 		defer wg.Done()
 		<-start
