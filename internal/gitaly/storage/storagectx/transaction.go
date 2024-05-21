@@ -23,6 +23,7 @@ type Transaction interface {
 	PackRefs()
 	Repack(housekeepingcfg.RepackObjectsConfig)
 	WriteCommitGraphs(housekeepingcfg.WriteCommitGraphConfig)
+	PartitionID() storage.PartitionID
 	SnapshotLSN() storage.LSN
 }
 

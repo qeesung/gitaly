@@ -237,7 +237,8 @@ type Transaction struct {
 	// snapshotRepository is a snapshot of the target repository with a possible quarantine applied
 	// if this is a read-write transaction.
 	snapshotRepository *localrepo.Repo
-
+	// partitionID is the partition ID of the repository for this transaction.
+	partitionID storage.PartitionID
 	// snapshotLSN is the log sequence number which this transaction is reading the repository's
 	// state at.
 	snapshotLSN storage.LSN
@@ -316,6 +317,7 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 	txn := &Transaction{
 		readOnly:     readOnly,
 		commit:       mgr.commit,
+		partitionID:  mgr.partitionID,
 		snapshotLSN:  mgr.appendedLSN,
 		finished:     make(chan struct{}),
 		relativePath: relativePath,
@@ -535,6 +537,11 @@ func (txn *Transaction) finishUnadmitted() error {
 	}
 
 	return txn.finish()
+}
+
+// PartitionID returns the partition ID of the repository.
+func (txn *Transaction) PartitionID() storage.PartitionID {
+	return txn.partitionID
 }
 
 // SnapshotLSN returns the LSN of the Transaction's read snapshot.
