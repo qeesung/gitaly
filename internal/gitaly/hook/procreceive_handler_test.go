@@ -90,7 +90,7 @@ func TestProcReceiveHandler(t *testing.T) {
 			desc: "single reference with atomic",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				var stdin bytes.Buffer
-				_, err := pktline.WriteString(&stdin, "version=1\000push-options atomic")
+				_, err := pktline.WriteString(&stdin, "version=1\000 push-options atomic")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdin)
 				require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestProcReceiveHandler(t *testing.T) {
 				require.NoError(t, err)
 
 				var stdout bytes.Buffer
-				_, err = pktline.WriteString(&stdout, "version=1\000atomic")
+				_, err = pktline.WriteString(&stdout, "version=1\000 atomic")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdout)
 				require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestProcReceiveHandler(t *testing.T) {
 			desc: "single reference without atomic",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				var stdin bytes.Buffer
-				_, err := pktline.WriteString(&stdin, "version=1\000push-options")
+				_, err := pktline.WriteString(&stdin, "version=1\000 push-options")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdin)
 				require.NoError(t, err)
@@ -145,7 +145,7 @@ func TestProcReceiveHandler(t *testing.T) {
 				require.NoError(t, err)
 
 				var stdout bytes.Buffer
-				_, err = pktline.WriteString(&stdout, "version=1\000")
+				_, err = pktline.WriteString(&stdout, "version=1")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdout)
 				require.NoError(t, err)
@@ -177,7 +177,7 @@ func TestProcReceiveHandler(t *testing.T) {
 			desc: "single reference but close midway with error",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				var stdin bytes.Buffer
-				_, err := pktline.WriteString(&stdin, "version=1\000push-options")
+				_, err := pktline.WriteString(&stdin, "version=1\000 push-options")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdin)
 				require.NoError(t, err)
@@ -188,7 +188,7 @@ func TestProcReceiveHandler(t *testing.T) {
 				require.NoError(t, err)
 
 				var stdout bytes.Buffer
-				_, err = pktline.WriteString(&stdout, "version=1\000")
+				_, err = pktline.WriteString(&stdout, "version=1")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdout)
 				require.NoError(t, err)
@@ -216,7 +216,7 @@ func TestProcReceiveHandler(t *testing.T) {
 			desc: "multiple references",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				var stdin bytes.Buffer
-				_, err := pktline.WriteString(&stdin, "version=1\000push-options")
+				_, err := pktline.WriteString(&stdin, "version=1\000 push-options")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdin)
 				require.NoError(t, err)
@@ -230,7 +230,7 @@ func TestProcReceiveHandler(t *testing.T) {
 				require.NoError(t, err)
 
 				var stdout bytes.Buffer
-				_, err = pktline.WriteString(&stdout, "version=1\000")
+				_, err = pktline.WriteString(&stdout, "version=1")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdout)
 				require.NoError(t, err)

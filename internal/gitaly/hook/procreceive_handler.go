@@ -51,7 +51,7 @@ func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (Pro
 		return nil, nil, fmt.Errorf("receiving header: %w", err)
 	}
 
-	after, ok := bytes.CutPrefix(data, []byte("version=1\000"))
+	after, ok := bytes.CutPrefix(data, []byte("version=1"))
 	if !ok {
 		return nil, nil, fmt.Errorf("unsupported version: %s", data)
 	}
@@ -65,7 +65,7 @@ func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (Pro
 		return nil, nil, fmt.Errorf("expected pkt flush")
 	}
 
-	if _, err := pktline.WriteString(stdout, fmt.Sprintf("version=1\000%s", featureRequests)); err != nil {
+	if _, err := pktline.WriteString(stdout, fmt.Sprintf("version=1%s", featureRequests)); err != nil {
 		return nil, nil, fmt.Errorf("writing version: %w", err)
 	}
 
@@ -185,7 +185,7 @@ type procReceiveFeatureRequests struct {
 func (r *procReceiveFeatureRequests) String() string {
 	s := ""
 	if r.atomic {
-		s = "atomic"
+		s = "\000 atomic"
 	}
 
 	return s
