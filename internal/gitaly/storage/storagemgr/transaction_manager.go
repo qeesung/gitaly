@@ -245,9 +245,13 @@ type Transaction struct {
 	// snapshotLSN is the log sequence number which this transaction is reading the repository's
 	// state at.
 	snapshotLSN storage.LSN
-	// snapshot is the transaction's snapshot of the partition. It's used to rewrite relative paths to
-	// point to the snapshot instead of the actual repositories.
+	// snapshot is the transaction's snapshot of the partition file system state. It's used to rewrite
+	// relative paths to point to the snapshot instead of the actual repositories.
 	snapshot snapshot
+	// db is the transaction's snapshot of the partition's key-value state. The keyvalue.Transaction is
+	// discarded when the transaction finishes. The recorded writes are write-ahead logged and applied
+	// to the partition from the WAL.
+	db keyvalue.Transaction
 	// stagingRepository is a repository that is used to stage the transaction. If there are quarantined
 	// objects, it has the quarantine applied so the objects are available for verification and packing.
 	// Generally the staging repository is the actual repository instance. If the repository doesn't exist
@@ -342,6 +346,10 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 	txn.finish = func() error {
 		defer close(txn.finished)
 		defer func() {
+			if txn.db != nil {
+				txn.db.Discard()
+			}
+
 			if !txn.readOnly {
 				var removedAnyEntry bool
 
@@ -424,6 +432,8 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 				txn.quarantineDirectory = filepath.Join(mgr.storagePath, txn.snapshot.relativePath(txn.relativePath), "objects")
 			}
 		}
+
+		txn.db = mgr.db.NewTransaction(!txn.readOnly)
 
 		return txn, nil
 	}
