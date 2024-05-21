@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/pelletier/go-toml/v2"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/text"
@@ -276,8 +274,16 @@ const latestManifestName = "+latest"
 //
 // It relies on Fallback to determine paths of new backups.
 type ManifestLocator struct {
-	Sink     Sink
+	Loader   ManifestLoader
 	Fallback Locator
+}
+
+// NewManifestLocator builds a new ManifestLocator.
+func NewManifestLocator(sink Sink, fallback Locator) ManifestLocator {
+	return ManifestLocator{
+		Loader:   NewManifestLoader(sink),
+		Fallback: fallback,
+	}
 }
 
 // BeginFull returns a tentative first step needed to create a new full backup.
@@ -313,7 +319,7 @@ func (l ManifestLocator) BeginIncremental(ctx context.Context, repo storage.Repo
 		return l.Fallback.BeginIncremental(ctx, repo, backupID)
 	}
 
-	backup, err := l.readManifest(ctx, repo, latestManifestName)
+	backup, err := l.Loader.ReadManifest(ctx, repo, latestManifestName)
 	switch {
 	case errors.Is(err, ErrDoesntExist):
 		return l.BeginFull(ctx, repo, backupID), nil
@@ -352,10 +358,10 @@ func (l ManifestLocator) Commit(ctx context.Context, backup *Backup) error {
 		}
 	}
 
-	if err := l.writeManifest(ctx, backup, backup.ID); err != nil {
+	if err := l.Loader.WriteManifest(ctx, backup, backup.ID); err != nil {
 		return fmt.Errorf("manifest: commit: %w", err)
 	}
-	if err := l.writeManifest(ctx, backup, latestManifestName); err != nil {
+	if err := l.Loader.WriteManifest(ctx, backup, latestManifestName); err != nil {
 		return fmt.Errorf("manifest: commit latest: %w", err)
 	}
 
@@ -365,7 +371,7 @@ func (l ManifestLocator) Commit(ctx context.Context, backup *Backup) error {
 // FindLatest loads the manifest called +latest. If this manifest does not
 // exist, the Fallback is used.
 func (l ManifestLocator) FindLatest(ctx context.Context, repo storage.Repository) (*Backup, error) {
-	backup, err := l.readManifest(ctx, repo, latestManifestName)
+	backup, err := l.Loader.ReadManifest(ctx, repo, latestManifestName)
 	switch {
 	case l.Fallback != nil && errors.Is(err, ErrDoesntExist):
 		return l.Fallback.FindLatest(ctx, repo)
@@ -379,7 +385,7 @@ func (l ManifestLocator) FindLatest(ctx context.Context, repo storage.Repository
 // Find loads the manifest for the provided repo and backupID. If this manifest
 // does not exist, the fallback is used.
 func (l ManifestLocator) Find(ctx context.Context, repo storage.Repository, backupID string) (*Backup, error) {
-	backup, err := l.readManifest(ctx, repo, backupID)
+	backup, err := l.Loader.ReadManifest(ctx, repo, backupID)
 	switch {
 	case l.Fallback != nil && errors.Is(err, ErrDoesntExist):
 		return l.Fallback.Find(ctx, repo, backupID)
@@ -388,50 +394,4 @@ func (l ManifestLocator) Find(ctx context.Context, repo storage.Repository, back
 	}
 
 	return backup, nil
-}
-
-func (l ManifestLocator) readManifest(ctx context.Context, repo storage.Repository, backupID string) (*Backup, error) {
-	f, err := l.Sink.GetReader(ctx, manifestPath(repo, backupID))
-	if err != nil {
-		return nil, fmt.Errorf("read manifest: %w", err)
-	}
-	defer f.Close()
-
-	var backup Backup
-
-	if err := toml.NewDecoder(f).Decode(&backup); err != nil {
-		return nil, fmt.Errorf("read manifest: %w", err)
-	}
-
-	backup.ID = backupID
-	backup.Repository = repo
-
-	return &backup, nil
-}
-
-func (l ManifestLocator) writeManifest(ctx context.Context, backup *Backup, backupID string) (returnErr error) {
-	f, err := l.Sink.GetWriter(ctx, manifestPath(backup.Repository, backupID))
-	if err != nil {
-		return fmt.Errorf("write manifest: %w", err)
-	}
-	defer func() {
-		if err := f.Close(); err != nil && returnErr == nil {
-			returnErr = fmt.Errorf("write manifest: %w", err)
-		}
-	}()
-
-	if err := toml.NewEncoder(f).Encode(backup); err != nil {
-		return fmt.Errorf("write manifest: %w", err)
-	}
-
-	return nil
-}
-
-func manifestPath(repo storage.Repository, backupID string) string {
-	storageName := repo.GetStorageName()
-	// Other locators strip the .git suffix off of relative paths. This suffix
-	// is determined by gitlab-rails not gitaly. So here we leave the relative
-	// path as-is so that new backups can be more independent.
-	relativePath := repo.GetRelativePath()
-	return path.Join("manifests", storageName, relativePath, backupID+".toml")
 }
