@@ -89,6 +89,7 @@ func testWithAndWithoutTransaction(t *testing.T, desc string, testFunc func(*tes
 				storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
 				helper.NewNullTickerFactory(),
 				cfg.Prometheus,
+				nil,
 			)
 			require.NoError(t, err)
 			defer partitionManager.Close()

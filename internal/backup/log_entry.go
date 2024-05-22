@@ -283,7 +283,7 @@ func (la *LogEntryArchiver) ingestNotifications() {
 		// We have already backed up all entries sent by the LogManager, but the manager is
 		// not aware of this. Acknowledge again with our last processed entry.
 		if state.nextLSN > notification.highWaterMark {
-			notification.mgr.AcknowledgeTransaction(state.nextLSN - 1)
+			notification.mgr.AcknowledgeTransaction(la, state.nextLSN-1)
 			continue
 		}
 
@@ -334,7 +334,7 @@ func (la *LogEntryArchiver) receiveEntry(entry *logEntry) {
 		return
 	}
 
-	entry.logManager.AcknowledgeTransaction(entry.lsn)
+	entry.logManager.AcknowledgeTransaction(la, entry.lsn)
 
 	state.nextLSN++
 

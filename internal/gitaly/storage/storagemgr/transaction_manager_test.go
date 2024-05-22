@@ -82,6 +82,32 @@ func validCustomHooks(tb testing.TB) []byte {
 	return hooks.Bytes()
 }
 
+func refChangeLogEntry(setup testTransactionSetup, ref string, oid git.ObjectID) *gitalypb.LogEntry {
+	return &gitalypb.LogEntry{
+		RelativePath: setup.RelativePath,
+		ReferenceTransactions: []*gitalypb.LogEntry_ReferenceTransaction{
+			{
+				Changes: []*gitalypb.LogEntry_ReferenceTransaction_Change{
+					{
+						ReferenceName: []byte(ref),
+						NewOid:        []byte(oid),
+					},
+				},
+			},
+		},
+		Operations: []*gitalypb.LogEntry_Operation{
+			{
+				Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
+					CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
+						SourcePath:      []byte("1"),
+						DestinationPath: []byte(filepath.Join(setup.RelativePath, ref)),
+					},
+				},
+			},
+		},
+	}
+}
+
 func setupTest(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) testTransactionSetup {
 	t.Helper()
 
@@ -197,6 +223,7 @@ func TestTransactionManager(t *testing.T) {
 		generateHousekeepingRepackingStrategyTests(t, ctx, testPartitionID, relativePath),
 		generateHousekeepingRepackingConcurrentTests(t, ctx, setup),
 		generateHousekeepingCommitGraphsTests(t, ctx, setup),
+		generateConsumerTests(t, setup),
 	}
 	for _, subCases := range subTests {
 		testCases = append(testCases, subCases...)
@@ -1327,32 +1354,6 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 		}
 	}
 
-	refChangeLogEntry := func(ref string, oid git.ObjectID) *gitalypb.LogEntry {
-		return &gitalypb.LogEntry{
-			RelativePath: setup.RelativePath,
-			ReferenceTransactions: []*gitalypb.LogEntry_ReferenceTransaction{
-				{
-					Changes: []*gitalypb.LogEntry_ReferenceTransaction_Change{
-						{
-							ReferenceName: []byte(ref),
-							NewOid:        []byte(oid),
-						},
-					},
-				},
-			},
-			Operations: []*gitalypb.LogEntry_Operation{
-				{
-					Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
-						CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
-							SourcePath:      []byte("1"),
-							DestinationPath: []byte(filepath.Join(setup.RelativePath, ref)),
-						},
-					},
-				},
-			},
-		}
-	}
-
 	return []transactionTestCase{
 		{
 			desc: "manager has just initialized",
@@ -1474,7 +1475,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						},
 						{
 							lsn:   2,
-							entry: refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID),
+							entry: refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID),
 						},
 					}, tm.committedEntries)
 				}),
@@ -1492,7 +1493,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						{
 							lsn:             2,
 							snapshotReaders: 1,
-							entry:           refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID),
+							entry:           refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID),
 						},
 					}, tm.committedEntries)
 				}),
@@ -1506,12 +1507,12 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					assertCommittedEntries(t, tm, []*expectedCommittedEntry{
 						{
 							lsn:             2,
-							entry:           refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID),
+							entry:           refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID),
 							snapshotReaders: 1,
 						},
 						{
 							lsn:   3,
-							entry: refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID),
+							entry: refChangeLogEntry(setup, "refs/heads/branch-2", setup.Commits.First.OID),
 						},
 					}, tm.committedEntries)
 				}),
@@ -1630,10 +1631,10 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					testhelper.RequireDirectoryState(t, walFilesPath(tm.stateDirectory), "", testhelper.DirectoryState{
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
+						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID)),
 						"/0000000000002/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
+						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-2", setup.Commits.First.OID)),
 						"/0000000000003/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
@@ -1720,7 +1721,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					logEntryPath := filepath.Join(t.TempDir(), "log_entry")
 					require.NoError(t, os.Mkdir(logEntryPath, perm.PrivateDir))
 					require.NoError(t, os.WriteFile(filepath.Join(logEntryPath, "1"), []byte(setup.Commits.First.OID+"\n"), perm.SharedFile))
-					require.NoError(t, tm.appendLogEntry(map[git.ObjectID]struct{}{setup.Commits.First.OID: {}}, refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID), logEntryPath))
+					require.NoError(t, tm.appendLogEntry(map[git.ObjectID]struct{}{setup.Commits.First.OID: {}}, refChangeLogEntry(setup, "refs/heads/branch-3", setup.Commits.First.OID), logEntryPath))
 
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
 						string(keyAppliedLSN(setup.PartitionID)): storage.LSN(3).ToProto(),
@@ -1729,13 +1730,13 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					testhelper.RequireDirectoryState(t, walFilesPath(tm.stateDirectory), "", testhelper.DirectoryState{
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-1", setup.Commits.First.OID)),
+						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID)),
 						"/0000000000002/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-2", setup.Commits.First.OID)),
+						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-2", setup.Commits.First.OID)),
 						"/0000000000003/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000004":          {Mode: fs.ModeDir | perm.PrivateDir},
-						"/0000000000004/MANIFEST": manifestDirectoryEntry(refChangeLogEntry("refs/heads/branch-3", setup.Commits.First.OID)),
+						"/0000000000004/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-3", setup.Commits.First.OID)),
 						"/0000000000004/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
@@ -1888,7 +1889,7 @@ func BenchmarkTransactionManager(b *testing.B) {
 
 				// Valid partition IDs are >=1.
 				testPartitionID := storage.PartitionID(i + 1)
-				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory, nil)
+				manager := NewTransactionManager(testPartitionID, logger, database, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory, nil, nil)
 
 				managers = append(managers, manager)
 

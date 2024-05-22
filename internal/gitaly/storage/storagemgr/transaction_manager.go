@@ -766,10 +766,50 @@ type LogConsumer interface {
 // LogManager is the interface used on the consumer side of the integration. The consumer
 // has the ability to acknowledge transactions as having been processed with AcknowledgeTransaction.
 type LogManager interface {
-	// AcknowledgeTransaction acknowledges log entries up and including lsn as successfully processed.
-	AcknowledgeTransaction(lsn storage.LSN)
+	// AcknowledgeTransaction acknowledges log entries up and including lsn as successfully processed
+	// for the specified LogConsumer.
+	AcknowledgeTransaction(consumer LogConsumer, lsn storage.LSN)
 	// GetTransactionPath returns the path of the log entry's root directory.
 	GetTransactionPath(lsn storage.LSN) string
+}
+
+// AcknowledgeTransaction acknowledges log entries up and including lsn as successfully processed
+// for the specified LogConsumer. The manager is awakened if it is currently awaiting a new or
+// completed transaction.
+func (mgr *TransactionManager) AcknowledgeTransaction(consumer LogConsumer, lsn storage.LSN) {
+	mgr.consumerPos.setPosition(lsn)
+
+	// Alert the manager. If it has a pending acknowledgement already no action is required.
+	select {
+	case mgr.acknowledgedQueue <- struct{}{}:
+	default:
+	}
+}
+
+// GetTransactionPath returns the path of the log entry's root directory.
+func (mgr *TransactionManager) GetTransactionPath(lsn storage.LSN) string {
+	return walFilesPathForLSN(mgr.stateDirectory, lsn)
+}
+
+// consumerPosition tracks the last LSN acknowledged for a consumer.
+type consumerPosition struct {
+	// position is the last LSN acknowledged as completed by the consumer.
+	position storage.LSN
+	sync.Mutex
+}
+
+func (p *consumerPosition) getPosition() storage.LSN {
+	p.Lock()
+	defer p.Unlock()
+
+	return p.position
+}
+
+func (p *consumerPosition) setPosition(pos storage.LSN) {
+	p.Lock()
+	defer p.Unlock()
+
+	p.position = pos
 }
 
 // TransactionManager is responsible for transaction management of a single repository. Each repository has
@@ -881,6 +921,14 @@ type TransactionManager struct {
 	// the corresponding snapshots.
 	committedEntries *list.List
 
+	// consumer is an the external caller that may perform read-only operations against applied
+	// log entries. Log entries are retained until the consumer has acknowledged past their LSN.
+	consumer LogConsumer
+	// consumerPos tracks the largest LSN that has been acknowledged by consumer.
+	consumerPos *consumerPosition
+	// acknowledgedQueue is a queue notifying when a transaction has been acknowledged.
+	acknowledgedQueue chan struct{}
+
 	// testHooks are used in the tests to trigger logic at certain points in the execution.
 	// They are used to synchronize more complex test scenarios. Not used in production.
 	testHooks testHooks
@@ -909,8 +957,12 @@ func NewTransactionManager(
 	cmdFactory git.CommandFactory,
 	repositoryFactory localrepo.StorageScopedFactory,
 	metrics *metrics,
+	consumer LogConsumer,
 ) *TransactionManager {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	consumerPos := &consumerPosition{}
+
 	return &TransactionManager{
 		ctx:                  ctx,
 		close:                cancel,
@@ -931,6 +983,9 @@ func NewTransactionManager(
 		awaitingTransactions: make(map[storage.LSN]resultChannel),
 		committedEntries:     list.New(),
 		metrics:              metrics,
+		consumer:             consumer,
+		consumerPos:          consumerPos,
+		acknowledgedQueue:    make(chan struct{}, 1),
 
 		testHooks: testHooks{
 			beforeInitialization:      func() {},
@@ -1874,6 +1929,8 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 		}()
 	case <-mgr.completedQueue:
 		return nil
+	case <-mgr.acknowledgedQueue:
+		return nil
 	case <-mgr.ctx.Done():
 	}
 
@@ -2098,6 +2155,10 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 		if mgr.appendedLSN, err = storage.ParseLSN(logEntries[len(logEntries)-1].Name()); err != nil {
 			return fmt.Errorf("parse appended LSN: %w", err)
 		}
+	}
+
+	if mgr.consumer != nil {
+		mgr.consumer.NotifyNewTransactions(mgr.partitionID, mgr.oldestLSN, mgr.appendedLSN, mgr)
 	}
 
 	// Create a snapshot lock for the applied LSN as it is used for synchronizing
@@ -2820,6 +2881,9 @@ func (mgr *TransactionManager) appendLogEntry(objectDependencies map[git.ObjectI
 	})
 	mgr.mutex.Unlock()
 
+	if mgr.consumer != nil {
+		mgr.consumer.NotifyNewTransactions(mgr.partitionID, mgr.lowWaterMark(), nextLSN, mgr)
+	}
 	return nil
 }
 
@@ -3257,11 +3321,29 @@ func (mgr *TransactionManager) lowWaterMark() storage.LSN {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
+	// Greater than the maximum position of any consumer.
+	minConsumed := mgr.appliedLSN + 1
+
+	if mgr.consumer != nil {
+		// Position is the last acknowledged LSN, this is eligible for pruning.
+		// lowWaterMark returns the lowest LSN that cannot be pruned, so add one.
+		pos := mgr.consumerPos.getPosition() + 1
+		if pos < minConsumed {
+			minConsumed = pos
+		}
+	}
+
 	elm := mgr.committedEntries.Front()
 	if elm == nil {
-		return mgr.appliedLSN + 1
+		return minConsumed
 	}
-	return elm.Value.(*committedEntry).lsn
+
+	committed := elm.Value.(*committedEntry).lsn
+	if minConsumed < committed {
+		return minConsumed
+	}
+
+	return committed
 }
 
 // updateCommittedEntry updates the reader counter of the committed entry of the snapshot that this transaction depends on.
