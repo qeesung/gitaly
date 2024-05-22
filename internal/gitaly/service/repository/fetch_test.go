@@ -22,17 +22,17 @@ func TestFetchSourceBranch(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	type setupData struct {
-		cfg     config.Cfg
-		client  gitalypb.RepositoryServiceClient
-		request *gitalypb.FetchSourceBranchRequest
-		verify  func()
+		cfg         config.Cfg
+		client      gitalypb.RepositoryServiceClient
+		request     *gitalypb.FetchSourceBranchRequest
+		verify      func()
+		expectedErr error
 	}
 
 	for _, tc := range []struct {
 		desc             string
 		setup            func(t *testing.T) setupData
 		expectedResponse *gitalypb.FetchSourceBranchResponse
-		expectedErr      error
 	}{
 		{
 			desc: "success",
@@ -143,9 +143,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceBranch:     []byte("master"),
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
+					expectedErr: structerr.NewInvalidArgument("%w", storage.ErrRepositoryNotSet),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("%w", storage.ErrRepositoryNotSet),
 		},
 		{
 			desc: "failure due to no source branch",
@@ -163,9 +163,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceRepository: sourceRepoProto,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
+					expectedErr: structerr.NewInvalidArgument("empty revision"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("empty revision"),
 		},
 		{
 			desc: "failure due to blanks in source branch",
@@ -184,9 +184,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceRepository: sourceRepoProto,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
+					expectedErr: structerr.NewInvalidArgument("revision can't contain whitespace"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("revision can't contain whitespace"),
 		},
 		{
 			desc: "failure due to source branch starting with -",
@@ -205,9 +205,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceRepository: sourceRepoProto,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
+					expectedErr: structerr.NewInvalidArgument("revision can't start with '-'"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("revision can't start with '-'"),
 		},
 		{
 			desc: "failure due to source branch with :",
@@ -226,9 +226,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceRepository: sourceRepoProto,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
+					expectedErr: structerr.NewInvalidArgument("revision can't contain ':'"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("revision can't contain ':'"),
 		},
 		{
 			desc: "failure due to source branch with NUL",
@@ -247,9 +247,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceRepository: sourceRepoProto,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
+					expectedErr: structerr.NewInvalidArgument("revision can't contain NUL"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("revision can't contain NUL"),
 		},
 		{
 			desc: "failure due to no target ref",
@@ -268,9 +268,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceBranch:     []byte("master"),
 						SourceRepository: sourceRepoProto,
 					},
+					expectedErr: structerr.NewInvalidArgument("empty revision"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("empty revision"),
 		},
 		{
 			desc: "failure due to blanks in target ref",
@@ -290,9 +290,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceRepository: sourceRepoProto,
 						TargetRef:        []byte("   "),
 					},
+					expectedErr: structerr.NewInvalidArgument("revision can't contain whitespace"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("revision can't contain whitespace"),
 		},
 		{
 			desc: "failure due to target ref starting with -",
@@ -312,9 +312,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceRepository: sourceRepoProto,
 						TargetRef:        []byte("-ref"),
 					},
+					expectedErr: structerr.NewInvalidArgument("revision can't start with '-'"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("revision can't start with '-'"),
 		},
 		{
 			desc: "failure due to target ref with :",
@@ -334,9 +334,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceRepository: sourceRepoProto,
 						TargetRef:        []byte("some:ref"),
 					},
+					expectedErr: structerr.NewInvalidArgument("revision can't contain ':'"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("revision can't contain ':'"),
 		},
 		{
 			desc: "failure due to target ref with NUL",
@@ -356,9 +356,9 @@ func TestFetchSourceBranch(t *testing.T) {
 						SourceRepository: sourceRepoProto,
 						TargetRef:        []byte("some\x00ref"),
 					},
+					expectedErr: structerr.NewInvalidArgument("revision can't contain NUL"),
 				}
 			},
-			expectedErr: structerr.NewInvalidArgument("revision can't contain NUL"),
 		},
 		{
 			desc: "failure during/after fetch doesn't clean out fetched objects",
@@ -416,7 +416,7 @@ func TestFetchSourceBranch(t *testing.T) {
 			ctx = testhelper.MergeOutgoingMetadata(ctx, md)
 
 			resp, err := data.client.FetchSourceBranch(ctx, data.request)
-			testhelper.RequireGrpcError(t, tc.expectedErr, err)
+			testhelper.RequireGrpcError(t, data.expectedErr, err)
 
 			if data.verify != nil {
 				data.verify()
