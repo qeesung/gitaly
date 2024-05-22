@@ -27,6 +27,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
+	"golang.org/x/exp/slices"
 	"golang.org/x/time/rate"
 )
 
@@ -125,6 +126,10 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 				"%s=%s", strings.ToLower(config.Key), config.Value,
 			))
 		}
+
+		// Add attr.tree for config command
+		configEntries = append(configEntries, fmt.Sprintf("attr.tree=%s", git.EmptyTreeHash))
+
 		return configEntries
 	}
 
@@ -213,7 +218,74 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 			}, append(tc.options, git.WithStdout(&stdout))...)
 			require.NoError(t, err)
 			require.NoError(t, cmd.Wait())
-			require.Equal(t, tc.expectedConfig, strings.Split(text.ChompBytes(stdout.Bytes()), "\n"))
+
+			// Here we sort the string slice to compare. So that
+			// it make sure ["a", "b"] equals ["b", "a"]
+			expectedConfigSorted := tc.expectedConfig
+			slices.Sort(expectedConfigSorted)
+			actualConfigSorted := strings.Split(text.ChompBytes(stdout.Bytes()), "\n")
+			slices.Sort(actualConfigSorted)
+
+			require.Equal(t, expectedConfigSorted, actualConfigSorted)
+		})
+	}
+}
+
+func TestExecCommandFactory_addAttrTree(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		desc                   string
+		cmd                    string
+		expectedAttrTreeConfig git.ConfigPair
+	}{
+		{
+			desc: "git clone should have  attr.tree = empty tree only",
+			cmd:  "clone",
+			expectedAttrTreeConfig: git.ConfigPair{
+				Key: "attr.tree", Value: git.EmptyTreeHash,
+			},
+		},
+		{
+			desc: "git merge should have  attr.tree = HEAD",
+			cmd:  "merge",
+			expectedAttrTreeConfig: git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+		{
+			desc: "git diff should have  attr.tree = HEAD",
+			cmd:  "diff",
+			expectedAttrTreeConfig: git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+		{
+			desc: "git archive should have  attr.tree = HEAD",
+			cmd:  "archive",
+			expectedAttrTreeConfig: git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+		{
+			desc: "git check-attr should have  attr.tree = HEAD",
+			cmd:  "check-attr",
+			expectedAttrTreeConfig: git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+		{
+			desc: "git worktree should have  attr.tree = HEAD",
+			cmd:  "worktree",
+			expectedAttrTreeConfig: git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			actualAttrTreeConfig := git.AddAttrTreeConfig(tc.cmd)
+			require.Equal(t, tc.expectedAttrTreeConfig.Key, actualAttrTreeConfig.Key)
+			require.Equal(t, tc.expectedAttrTreeConfig.Value, actualAttrTreeConfig.Value)
 		})
 	}
 }
@@ -615,6 +687,7 @@ func TestExecCommandFactory_config(t *testing.T) {
 		"core.packedrefstimeout=10000",
 		"core.filesreflocktimeout=1000",
 		"core.bigfilethreshold=50m",
+		fmt.Sprintf("attr.tree=%s", git.EmptyTreeHash),
 	}
 
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
