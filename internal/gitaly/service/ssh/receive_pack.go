@@ -107,7 +107,7 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 		git.WithStdin(pr),
 		git.WithStdout(stdout),
 		git.WithStderr(stderr),
-		git.WithReceivePackHooks(req, "ssh"),
+		git.WithReceivePackHooks(req, "ssh", false),
 		git.WithGitProtocol(s.logger, req),
 		git.WithConfig(config...),
 	)
