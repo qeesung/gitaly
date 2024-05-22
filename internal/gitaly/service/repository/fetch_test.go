@@ -61,6 +61,36 @@ func TestFetchSourceBranch(t *testing.T) {
 			expectedResponse: &gitalypb.FetchSourceBranchResponse{Result: true},
 		},
 		{
+			desc: "success with expected_target_old_oid",
+			setup: func(t *testing.T) setupData {
+				cfg, client := setupRepositoryService(t)
+
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceCommit := gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch(git.DefaultBranch))
+
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+				firstCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
+				secondCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(firstCommit), gittest.WithBranch(git.DefaultBranch))
+
+				return setupData{
+					cfg:    cfg,
+					client: client,
+					request: &gitalypb.FetchSourceBranchRequest{
+						Repository:           repo,
+						SourceRepository:     sourceRepo,
+						SourceBranch:         []byte(git.DefaultBranch),
+						TargetRef:            []byte(git.DefaultRef),
+						ExpectedTargetOldOid: secondCommit.String(),
+					},
+					verify: func() {
+						actualCommitID := gittest.ResolveRevision(t, cfg, repoPath, git.DefaultRef.String()+"^{commit}")
+						require.Equal(t, sourceCommit, actualCommitID)
+					},
+				}
+			},
+			expectedResponse: &gitalypb.FetchSourceBranchResponse{Result: true},
+		},
+		{
 			desc: "success + same repository",
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
@@ -84,6 +114,42 @@ func TestFetchSourceBranch(t *testing.T) {
 				}
 			},
 			expectedResponse: &gitalypb.FetchSourceBranchResponse{Result: true},
+		},
+		{
+			desc: "failure due to incorrect expected_target_old_oid",
+			setup: func(t *testing.T) setupData {
+				cfg, client := setupRepositoryService(t)
+
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceCommit := gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch(git.DefaultBranch))
+
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+				firstCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
+				concurrentCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(firstCommit), gittest.WithBranch(git.DefaultBranch))
+
+				return setupData{
+					cfg:    cfg,
+					client: client,
+					request: &gitalypb.FetchSourceBranchRequest{
+						Repository:           repo,
+						SourceRepository:     sourceRepo,
+						SourceBranch:         []byte(git.DefaultBranch),
+						TargetRef:            []byte(git.DefaultRef),
+						ExpectedTargetOldOid: firstCommit.String(),
+					},
+					expectedErr: structerr.NewFailedPrecondition(
+						//nolint:gitaly-linters
+						fmt.Sprintf(`reference does not point to expected object
+UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, stderr: "fatal: cannot lock ref '%s': is at %s but expected %s\n"`,
+							git.DefaultRef,
+							firstCommit.String(),
+							sourceCommit.String(),
+							git.DefaultRef,
+							concurrentCommit.String(),
+							firstCommit.String(),
+						)),
+				}
+			},
 		},
 		{
 			desc: "failure due to branch not found",
