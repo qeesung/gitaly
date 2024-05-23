@@ -27,6 +27,7 @@ func TestServerBackupRepository(t *testing.T) {
 		repo        *gitalypb.Repository
 		backupID    string
 		incremental bool
+		partition   bool
 	}
 
 	for _, tc := range []struct {
@@ -70,6 +71,30 @@ func TestServerBackupRepository(t *testing.T) {
 					repo:        repo,
 					backupID:    "abc123",
 					incremental: true,
+				}
+			},
+		},
+		{
+			desc: "success - partition",
+			setup: func(t *testing.T, ctx context.Context, backupSink backup.Sink, backupLocator backup.Locator) setupData {
+				if !testhelper.IsWALEnabled() {
+					t.Skip("partition backups can only work with WAL enabled")
+				}
+
+				cfg, client := setupRepositoryService(t,
+					testserver.WithBackupSink(backupSink),
+					testserver.WithBackupLocator(backupLocator),
+				)
+
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
+
+				return setupData{
+					cfg:       cfg,
+					client:    client,
+					repo:      repo,
+					backupID:  "abc123",
+					partition: true,
 				}
 			},
 		},
@@ -189,6 +214,7 @@ func TestServerBackupRepository(t *testing.T) {
 				VanityRepository: vanityRepo,
 				BackupId:         data.backupID,
 				Incremental:      data.incremental,
+				Partition:        data.partition,
 			})
 			if tc.expectedErr != nil {
 				testhelper.RequireGrpcError(t, tc.expectedErr, err)

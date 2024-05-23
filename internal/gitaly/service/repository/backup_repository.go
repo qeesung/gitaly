@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -20,16 +21,25 @@ func (s *server) BackupRepository(ctx context.Context, in *gitalypb.BackupReposi
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
-	manager := backup.NewManagerLocal(
-		s.backupSink,
-		s.logger,
-		s.backupLocator,
-		s.locator,
-		s.gitCmdFactory,
-		s.catfileCache,
-		s.txManager,
-		s.repositoryCounter,
-	)
+	var manager backup.Strategy
+
+	if in.Partition {
+		manager = backup.NewPartitionManager(
+			s.backupSink,
+			localrepo.NewFactory(s.logger, s.locator, s.gitCmdFactory, s.catfileCache),
+		)
+	} else {
+		manager = backup.NewManagerLocal(
+			s.backupSink,
+			s.logger,
+			s.backupLocator,
+			s.locator,
+			s.gitCmdFactory,
+			s.catfileCache,
+			s.txManager,
+			s.repositoryCounter,
+		)
+	}
 
 	err := manager.Create(ctx, &backup.CreateRequest{
 		Repository:       in.Repository,
