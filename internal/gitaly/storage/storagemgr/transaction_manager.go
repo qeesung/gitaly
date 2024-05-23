@@ -882,7 +882,7 @@ type TransactionManager struct {
 	// storage.PartitionID is the ID of the partition this manager is operating on. This is used to determine the database keys.
 	partitionID storage.PartitionID
 	// db is the handle to the key-value store used for storing the write-ahead log related state.
-	db keyvalue.Store
+	db keyvalue.Transactioner
 	// admissionQueue is where the incoming writes are waiting to be admitted to the transaction
 	// manager.
 	admissionQueue chan *Transaction
@@ -951,7 +951,7 @@ type testHooks struct {
 func NewTransactionManager(
 	ptnID storage.PartitionID,
 	logger log.Logger,
-	db keyvalue.Store,
+	db keyvalue.Transactioner,
 	storagePath,
 	stateDir,
 	stagingDir string,

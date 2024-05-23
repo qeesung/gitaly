@@ -504,7 +504,7 @@ type DatabaseState map[string]proto.Message
 
 // RequireDatabase asserts the actual database state matches the expected database state. The actual values in the
 // database are unmarshaled to the same type the values have in the expected database state.
-func RequireDatabase(tb testing.TB, ctx context.Context, database keyvalue.Store, expectedState DatabaseState) {
+func RequireDatabase(tb testing.TB, ctx context.Context, database keyvalue.Transactioner, expectedState DatabaseState) {
 	tb.Helper()
 
 	if expectedState == nil {

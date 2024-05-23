@@ -22,7 +22,7 @@ import (
 
 type partitionAssignments map[string]storage.PartitionID
 
-func getPartitionAssignments(tb testing.TB, db keyvalue.Store) partitionAssignments {
+func getPartitionAssignments(tb testing.TB, db keyvalue.Transactioner) partitionAssignments {
 	tb.Helper()
 
 	state := partitionAssignments{}
