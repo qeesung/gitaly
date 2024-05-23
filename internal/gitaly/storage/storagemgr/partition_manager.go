@@ -342,7 +342,7 @@ func NewPartitionManager(
 			return NewTransactionManager(
 				partitionID,
 				logger,
-				storageMgr.database,
+				keyvalue.NewPrefixedTransactioner(storageMgr.database, keyPrefixPartition(partitionID)),
 				storageMgr.path,
 				absoluteStateDir,
 				stagingDir,
@@ -354,6 +354,10 @@ func NewPartitionManager(
 		},
 		metrics: metrics,
 	}, nil
+}
+
+func keyPrefixPartition(ptnID storage.PartitionID) []byte {
+	return []byte(fmt.Sprintf("partition/%s/", ptnID.MarshalBinary()))
 }
 
 // internalDirectoryPath returns the full path of Gitaly's internal data directory for the storage.

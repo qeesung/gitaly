@@ -88,6 +88,9 @@ var (
 	errReadOnlyRepositoryDeletion  = errors.New("repository deletion staged in a read-only transaction")
 	errReadOnlyObjectsIncluded     = errors.New("objects staged in a read-only transaction")
 	errReadOnlyHousekeeping        = errors.New("housekeeping in a read-only transaction")
+
+	// keyAppliedLSN is the database key storing a partition's last applied log entry's LSN.
+	keyAppliedLSN = []byte("applied_lsn")
 )
 
 // InvalidReferenceFormatError is returned when a reference name was invalid.
@@ -2118,7 +2121,7 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	defer close(mgr.initialized)
 
 	var appliedLSN gitalypb.LSN
-	if err := mgr.readKey(keyAppliedLSN(mgr.partitionID), &appliedLSN); err != nil && !errors.Is(err, badger.ErrKeyNotFound) {
+	if err := mgr.readKey(keyAppliedLSN, &appliedLSN); err != nil && !errors.Is(err, badger.ErrKeyNotFound) {
 		return fmt.Errorf("read applied LSN: %w", err)
 	}
 
@@ -3283,7 +3286,7 @@ func (mgr *TransactionManager) readLogEntry(lsn storage.LSN) (*gitalypb.LogEntry
 
 // storeAppliedLSN stores the partition's applied LSN in the database.
 func (mgr *TransactionManager) storeAppliedLSN(lsn storage.LSN) error {
-	return mgr.setKey(keyAppliedLSN(mgr.partitionID), lsn.ToProto())
+	return mgr.setKey(keyAppliedLSN, lsn.ToProto())
 }
 
 // setKey marshals and stores a given protocol buffer message into the database under the given key.
@@ -3414,9 +3417,4 @@ func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) bool {
 		elm = mgr.committedEntries.Front()
 	}
 	return removedAnyEntry
-}
-
-// keyAppliedLSN returns the database key storing a partition's last applied log entry's LSN.
-func keyAppliedLSN(ptnID storage.PartitionID) []byte {
-	return []byte(fmt.Sprintf("partition/%s/applied_lsn", ptnID.MarshalBinary()))
 }
