@@ -19,7 +19,7 @@ var (
 		Name: "reftable",
 		updateRefErrorRegexs: updateRefErrorRegexs{
 			InTransactionConflictRegex:   regexp.MustCompile(`^fatal: .*: cannot process '(.*)' and '(.*)' at the same time\n$`),
-			MismatchingStateRegex:        regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': is at (.*) but expected (.*)\n$`),
+			MismatchingStateRegex:        regexp.MustCompile(`^fatal: (?:.*: )?cannot lock ref '(.*)': is at (.*) but expected (.*)\n$`),
 			MultipleUpdatesRegex:         regexp.MustCompile(`^fatal: .*: multiple updates for ref '(.*)' not allowed\n$`),
 			NonCommitObjectRegex:         regexp.MustCompile(`^fatal: .*: trying to write non-commit object (.*) to branch '(.*)'\n`),
 			NonExistentObjectRegex:       regexp.MustCompile(`^fatal: .*: trying to write ref '(.*)' with nonexistent object (.*)\n$`),
@@ -39,7 +39,7 @@ var (
 		Name: "files",
 		updateRefErrorRegexs: updateRefErrorRegexs{
 			InTransactionConflictRegex:   regexp.MustCompile(`^fatal: .*: cannot lock ref '.*': cannot process '(.*)' and '(.*)' at the same time\n$`),
-			MismatchingStateRegex:        regexp.MustCompile(`^fatal: .*: cannot lock ref '(.*)': is at (.*) but expected (.*)\n$`),
+			MismatchingStateRegex:        regexp.MustCompile(`^fatal: (?:.*: )?cannot lock ref '(.*)': is at (.*) but expected (.*)\n$`),
 			MultipleUpdatesRegex:         regexp.MustCompile(`^fatal: .*: multiple updates for ref '(.*)' not allowed\n$`),
 			NonCommitObjectRegex:         regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write non-commit object (.*) to branch '(.*)'\n`),
 			NonExistentObjectRegex:       regexp.MustCompile(`^fatal: .*: cannot update ref '.*': trying to write ref '(.*)' with nonexistent object (.*)\n$`),

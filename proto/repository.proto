@@ -671,6 +671,10 @@ message FetchSourceBranchRequest {
   // target_ref is the name of the reference which shall be newly created in the target
   // repository.
   bytes target_ref = 4;
+  // expected_target_old_oid is the object ID to which target_ref is expected to point.
+  // This is an optional safety guard to avoid races when target_ref has been
+  // concurrently updated.
+  string expected_target_old_oid = 5;
 }
 
 // FetchSourceBranchResponse is a response for the FetchSourceBranch RPC.

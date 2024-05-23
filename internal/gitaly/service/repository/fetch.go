@@ -105,7 +105,15 @@ func (s *server) FetchSourceBranch(ctx context.Context, req *gitalypb.FetchSourc
 	}
 
 	origTargetRepo := s.localrepo(req.GetRepository())
-	if err := origTargetRepo.UpdateRef(ctx, git.ReferenceName(req.GetTargetRef()), sourceOid, ""); err != nil {
+	if err := origTargetRepo.UpdateRef(ctx,
+		git.ReferenceName(req.GetTargetRef()),
+		sourceOid,
+		git.ObjectID(req.GetExpectedTargetOldOid()),
+	); err != nil {
+		if errors.Is(err, localrepo.ErrMismatchingState) {
+			return nil, structerr.NewFailedPrecondition("%w", err)
+		}
+
 		return nil, err
 	}
 
