@@ -127,8 +127,6 @@ GIT_EXECUTABLES += git-http-backend
 ## WITH_BUNDLED_GIT=YesPlease. Can be set to an arbitrary Git revision with
 ## tags, branches, and commit ids.
 GIT_VERSION ?=
-## The Git version used for bundled Git v2.43.
-GIT_VERSION_2_43 ?= v2.43.4
 ## The Git version used for bundled Git v2.44.
 GIT_VERSION_2_44 ?= v2.44.1.gl1
 ## The Git version used for bundled Git v2.45.
@@ -142,7 +140,7 @@ SKIP_OVERRIDING_GIT_VERSION ?=
 # The default version is used in case the caller does not set the variable or
 # if it is either set to the empty string or "default".
 ifeq (${GIT_VERSION:default=},)
-    override GIT_VERSION := ${GIT_VERSION_2_43}
+    override GIT_VERSION := ${GIT_VERSION_2_44}
 else
     # Support both vX.Y.Z and X.Y.Z version patterns, since callers across GitLab
     # use both.
@@ -293,16 +291,14 @@ install: build
 
 .PHONY: build-bundled-git
 ## Build bundled Git binaries.
-build-bundled-git: build-bundled-git-v2.43 build-bundled-git-v2.44 build-bundled-git-v2.45
-build-bundled-git-v2.43: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-v2.43,${GIT_EXECUTABLES})
+build-bundled-git: build-bundled-git-v2.44 build-bundled-git-v2.45
 build-bundled-git-v2.44: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-v2.44,${GIT_EXECUTABLES})
 build-bundled-git-v2.45: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-v2.45,${GIT_EXECUTABLES})
 
 .PHONY: install-bundled-git
 ## Install bundled Git binaries. The target directory can be modified by
 ## setting PREFIX and DESTDIR.
-install-bundled-git: install-bundled-git-v2.43 install-bundled-git-v2.44 install-bundled-git-v2.45
-install-bundled-git-v2.43: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-v2.43,${GIT_EXECUTABLES})
+install-bundled-git: install-bundled-git-v2.44 install-bundled-git-v2.45
 install-bundled-git-v2.44: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-v2.44,${GIT_EXECUTABLES})
 install-bundled-git-v2.45: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-v2.45,${GIT_EXECUTABLES})
 
@@ -559,10 +555,6 @@ ${DEPENDENCY_DIR}: | ${BUILD_DIR}
 ${DEPENDENCY_DIR}/git-distribution/git: ${DEPENDENCY_DIR}/git-distribution/Makefile
 	${Q}env -u PROFILE -u MAKEFLAGS -u GIT_VERSION ${MAKE} -C "$(<D)" -j$(shell nproc) prefix=${GIT_PREFIX} ${GIT_BUILD_OPTIONS}
 	${Q}touch $@
-
-${BUILD_DIR}/bin/gitaly-%-v2.43: override GIT_VERSION = ${GIT_VERSION_2_43}
-${BUILD_DIR}/bin/gitaly-%-v2.43: ${DEPENDENCY_DIR}/git-v2.43/% | ${BUILD_DIR}/bin
-	${Q}install $< $@
 
 ${BUILD_DIR}/bin/gitaly-%-v2.44: override GIT_VERSION = ${GIT_VERSION_2_44}
 ${BUILD_DIR}/bin/gitaly-%-v2.44: ${DEPENDENCY_DIR}/git-v2.44/% | ${BUILD_DIR}/bin

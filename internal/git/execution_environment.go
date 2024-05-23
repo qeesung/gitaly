@@ -34,9 +34,6 @@ var (
 		BundledGitEnvironmentConstructor{
 			Suffix: "-v2.44",
 		},
-		BundledGitEnvironmentConstructor{
-			Suffix: "-v2.43",
-		},
 		DistributedGitEnvironmentConstructor{},
 	}
 )
