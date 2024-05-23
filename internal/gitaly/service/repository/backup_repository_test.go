@@ -2,9 +2,7 @@ package repository
 
 import (
 	"context"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -176,7 +174,7 @@ func TestServerBackupRepository(t *testing.T) {
 			backupSink, err := backup.ResolveSink(ctx, backupRoot)
 			require.NoError(t, err)
 
-			backupLocator, err := backup.ResolveLocator("pointer", backupSink)
+			backupLocator, err := backup.ResolveLocator("manifest", backupSink)
 			require.NoError(t, err)
 
 			vanityRepo := &gitalypb.Repository{
@@ -200,12 +198,9 @@ func TestServerBackupRepository(t *testing.T) {
 			require.NoError(t, err)
 			testhelper.ProtoEqual(t, &gitalypb.BackupRepositoryResponse{}, response)
 
-			relativePath := strings.TrimSuffix(vanityRepo.GetRelativePath(), ".git")
-			refsPath := filepath.Join(relativePath, data.backupID, "001.refs")
-
-			refs, err := backupSink.GetReader(ctx, refsPath)
+			manifestLoader := backup.NewManifestLoader(backupSink)
+			_, err = manifestLoader.ReadManifest(ctx, vanityRepo, data.backupID)
 			require.NoError(t, err)
-			testhelper.MustClose(t, refs)
 		})
 	}
 }
@@ -217,7 +212,7 @@ func BenchmarkBackupRepository(b *testing.B) {
 	backupSink, err := backup.ResolveSink(ctx, backupRoot)
 	require.NoError(b, err)
 
-	backupLocator, err := backup.ResolveLocator("pointer", backupSink)
+	backupLocator, err := backup.ResolveLocator("manifest", backupSink)
 	require.NoError(b, err)
 
 	cfg, client := setupRepositoryService(b,
