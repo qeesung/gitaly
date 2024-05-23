@@ -357,7 +357,7 @@ func NewPartitionManager(
 }
 
 func keyPrefixPartition(ptnID storage.PartitionID) []byte {
-	return []byte(fmt.Sprintf("partition/%s/", ptnID.MarshalBinary()))
+	return []byte(fmt.Sprintf("p/%s/", ptnID.MarshalBinary()))
 }
 
 // internalDirectoryPath returns the full path of Gitaly's internal data directory for the storage.
