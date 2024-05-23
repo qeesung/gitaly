@@ -26,6 +26,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/wal"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -881,7 +882,7 @@ type TransactionManager struct {
 	// storage.PartitionID is the ID of the partition this manager is operating on. This is used to determine the database keys.
 	partitionID storage.PartitionID
 	// db is the handle to the key-value store used for storing the write-ahead log related state.
-	db Database
+	db keyvalue.Store
 	// admissionQueue is where the incoming writes are waiting to be admitted to the transaction
 	// manager.
 	admissionQueue chan *Transaction
@@ -950,7 +951,7 @@ type testHooks struct {
 func NewTransactionManager(
 	ptnID storage.PartitionID,
 	logger log.Logger,
-	db Database,
+	db keyvalue.Store,
 	storagePath,
 	stateDir,
 	stagingDir string,
@@ -3305,7 +3306,7 @@ func (mgr *TransactionManager) setKey(key []byte, value proto.Message) error {
 // readKey reads a key from the database and unmarshals its value in to the destination protocol
 // buffer message.
 func (mgr *TransactionManager) readKey(key []byte, destination proto.Message) error {
-	return mgr.db.View(func(txn DatabaseTransaction) error {
+	return mgr.db.View(func(txn keyvalue.ReadWriter) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return fmt.Errorf("get: %w", err)

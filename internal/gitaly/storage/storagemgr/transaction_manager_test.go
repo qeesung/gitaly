@@ -26,6 +26,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -1832,7 +1833,7 @@ func BenchmarkTransactionManager(b *testing.B) {
 			cache := catfile.NewCache(cfg)
 			defer cache.Stop()
 
-			database, err := OpenDatabase(testhelper.SharedLogger(b), b.TempDir())
+			database, err := keyvalue.NewBadgerStore(testhelper.SharedLogger(b), b.TempDir())
 			require.NoError(b, err)
 			defer testhelper.MustClose(b, database)
 

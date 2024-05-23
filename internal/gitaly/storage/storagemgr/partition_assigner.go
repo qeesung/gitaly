@@ -11,6 +11,7 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 )
 
 var (
@@ -44,9 +45,9 @@ func (err relativePathNotFoundError) Error() string {
 }
 
 // partitionAssignmentTable records which partitions repositories are assigned into.
-type partitionAssignmentTable struct{ db Database }
+type partitionAssignmentTable struct{ db keyvalue.Store }
 
-func newPartitionAssignmentTable(db Database) *partitionAssignmentTable {
+func newPartitionAssignmentTable(db keyvalue.Store) *partitionAssignmentTable {
 	return &partitionAssignmentTable{db: db}
 }
 
@@ -56,7 +57,8 @@ func (pt *partitionAssignmentTable) key(relativePath string) []byte {
 
 func (pt *partitionAssignmentTable) getPartitionID(relativePath string) (storage.PartitionID, error) {
 	var id storage.PartitionID
-	if err := pt.db.View(func(txn DatabaseTransaction) error {
+
+	if err := pt.db.View(func(txn keyvalue.ReadWriter) error {
 		item, err := txn.Get(pt.key(relativePath))
 		if err != nil {
 			if errors.Is(err, badger.ErrKeyNotFound) {
@@ -98,7 +100,7 @@ type partitionAssigner struct {
 	// channel closing signals the lock being released.
 	repositoryLocks map[string]chan struct{}
 	// idSequence is the sequence used to mint partition IDs.
-	idSequence Sequence
+	idSequence *badger.Sequence
 	// partitionAssignmentTable contains the partition assignment records.
 	partitionAssignmentTable *partitionAssignmentTable
 	// storagePath is the path to the root directory of the storage the relative
@@ -108,7 +110,7 @@ type partitionAssigner struct {
 
 // newPartitionAssigner returns a new partitionAssigner. Close must be called on the
 // returned instance to release acquired resources.
-func newPartitionAssigner(db Database, storagePath string) (*partitionAssigner, error) {
+func newPartitionAssigner(db keyvalue.Store, storagePath string) (*partitionAssigner, error) {
 	seq, err := db.GetSequence([]byte("partition_id_seq"), 100)
 	if err != nil {
 		return nil, fmt.Errorf("get sequence: %w", err)

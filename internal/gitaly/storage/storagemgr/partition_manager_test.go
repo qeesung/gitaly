@@ -21,6 +21,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -781,7 +782,7 @@ func TestPartitionManager(t *testing.T) {
 				)
 			}
 
-			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory(), cfg.Prometheus, nil)
+			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(keyvalue.NewBadgerStore), helper.NewNullTickerFactory(), cfg.Prometheus, nil)
 			require.NoError(t, err)
 
 			if setup.transactionManagerFactory != nil {
@@ -896,7 +897,7 @@ func TestPartitionManager(t *testing.T) {
 }
 
 type dbWrapper struct {
-	Database
+	keyvalue.Store
 	runValueLogGC func(float64) error
 }
 
@@ -927,10 +928,10 @@ func TestPartitionManager_garbageCollection(t *testing.T) {
 		cmdFactory,
 		localRepoFactory,
 		logger,
-		DatabaseOpenerFunc(func(logger log.Logger, path string) (Database, error) {
-			db, err := OpenDatabase(logger, path)
+		DatabaseOpenerFunc(func(logger log.Logger, path string) (keyvalue.Store, error) {
+			db, err := keyvalue.NewBadgerStore(logger, path)
 			return dbWrapper{
-				Database: db,
+				Store: db,
 				runValueLogGC: func(discardRatio float64) error {
 					gcRunCount++
 					if gcRunCount < 3 {
@@ -1008,7 +1009,7 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 
 	localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
 
-	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(OpenDatabase), helper.NewNullTickerFactory(), cfg.Prometheus, nil)
+	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(keyvalue.NewBadgerStore), helper.NewNullTickerFactory(), cfg.Prometheus, nil)
 	require.NoError(t, err)
 	defer partitionManager.Close()
 

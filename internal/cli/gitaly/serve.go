@@ -32,6 +32,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/counter"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitlab"
@@ -356,7 +357,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			gitCmdFactory,
 			localrepo.NewFactory(logger, locator, gitCmdFactory, catfileCache),
 			logger,
-			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
+			storagemgr.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
 			helper.NewTimerTickerFactory(time.Minute),
 			cfg.Prometheus,
 			nil,

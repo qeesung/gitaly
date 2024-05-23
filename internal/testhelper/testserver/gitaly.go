@@ -25,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/counter"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitlab"
@@ -338,7 +339,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 			gsd.gitCmdFactory,
 			localrepo.NewFactory(gsd.logger, gsd.locator, gsd.gitCmdFactory, gsd.catfileCache),
 			gsd.logger,
-			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
+			storagemgr.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
 			helper.NewNullTickerFactory(),
 			cfg.Prometheus,
 			nil,

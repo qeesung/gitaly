@@ -9,25 +9,25 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 )
 
 type partitionAssignments map[string]storage.PartitionID
 
-func getPartitionAssignments(tb testing.TB, db Database) partitionAssignments {
+func getPartitionAssignments(tb testing.TB, db keyvalue.Store) partitionAssignments {
 	tb.Helper()
 
 	state := partitionAssignments{}
-	require.NoError(tb, db.View(func(txn DatabaseTransaction) error {
-		it := txn.NewIterator(badger.IteratorOptions{
+	require.NoError(tb, db.View(func(txn keyvalue.ReadWriter) error {
+		it := txn.NewIterator(keyvalue.IteratorOptions{
 			Prefix: []byte(prefixPartitionAssignment),
 		})
 		defer it.Close()
@@ -201,7 +201,7 @@ func TestPartitionAssigner(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
-			db, err := OpenDatabase(testhelper.SharedLogger(t), t.TempDir())
+			db, err := keyvalue.NewBadgerStore(testhelper.SharedLogger(t), t.TempDir())
 			require.NoError(t, err)
 			defer testhelper.MustClose(t, db)
 
@@ -315,7 +315,7 @@ func TestPartitionAssigner_alternates(t *testing.T) {
 				writeAlternatesFile(t, memberPath, tc.memberAlternatesContent)
 			}
 
-			db, err := OpenDatabase(testhelper.NewLogger(t), t.TempDir())
+			db, err := keyvalue.NewBadgerStore(testhelper.NewLogger(t), t.TempDir())
 			require.NoError(t, err)
 			defer testhelper.MustClose(t, db)
 
@@ -347,7 +347,7 @@ func TestPartitionAssigner_alternates(t *testing.T) {
 func TestPartitionAssigner_close(t *testing.T) {
 	dbDir := t.TempDir()
 
-	db, err := OpenDatabase(testhelper.SharedLogger(t), dbDir)
+	db, err := keyvalue.NewBadgerStore(testhelper.SharedLogger(t), dbDir)
 	require.NoError(t, err)
 
 	cfg := testcfg.Build(t)
@@ -357,7 +357,7 @@ func TestPartitionAssigner_close(t *testing.T) {
 	testhelper.MustClose(t, pa)
 	testhelper.MustClose(t, db)
 
-	db, err = OpenDatabase(testhelper.SharedLogger(t), dbDir)
+	db, err = keyvalue.NewBadgerStore(testhelper.SharedLogger(t), dbDir)
 	require.NoError(t, err)
 	defer testhelper.MustClose(t, db)
 
@@ -392,7 +392,7 @@ func TestPartitionAssigner_concurrentAccess(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
-			db, err := OpenDatabase(testhelper.SharedLogger(t), t.TempDir())
+			db, err := keyvalue.NewBadgerStore(testhelper.SharedLogger(t), t.TempDir())
 			require.NoError(t, err)
 			defer testhelper.MustClose(t, db)
 
