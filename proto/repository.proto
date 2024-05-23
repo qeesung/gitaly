@@ -1262,6 +1262,8 @@ message BackupRepositoryRequest {
   // incremental controls whether an incremental backup should be performed. An incremental
   // backup will attempt to locate a previous backup of this repository to base itself off.
   bool incremental = 4;
+  // partition controls whether a WAL partition backup should be performed.
+  bool partition = 5;
 }
 
 // BackupRepositoryResponse is a response for the BackupRepository RPC.
