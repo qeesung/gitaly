@@ -39,16 +39,16 @@ func TestFetchSourceBranch(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				commitID := gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
-				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
-						SourceRepository: sourceRepoProto,
+						Repository:       repo,
+						SourceRepository: sourceRepo,
 						SourceBranch:     []byte("master"),
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
@@ -95,15 +95,15 @@ func TestFetchSourceBranch(t *testing.T) {
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				commitID := gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       sourceRepoProto,
-						SourceRepository: sourceRepoProto,
+						Repository:       sourceRepo,
+						SourceRepository: sourceRepo,
 						SourceBranch:     []byte("master"),
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
@@ -156,16 +156,16 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				gittest.WriteCommit(t, cfg, sourceRepoPath)
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
-						SourceRepository: sourceRepoProto,
+						Repository:       repo,
+						SourceRepository: sourceRepo,
 						SourceBranch:     []byte("master"),
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
@@ -178,15 +178,15 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				gittest.WriteCommit(t, cfg, sourceRepoPath)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       sourceRepoProto,
-						SourceRepository: sourceRepoProto,
+						Repository:       sourceRepo,
+						SourceRepository: sourceRepo,
 						SourceBranch:     []byte("master"),
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
@@ -199,13 +199,13 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 						SourceBranch:     []byte("master"),
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
@@ -218,15 +218,15 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, _ := gittest.CreateRepository(t, ctx, cfg)
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
-						SourceRepository: sourceRepoProto,
+						Repository:       repo,
+						SourceRepository: sourceRepo,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
 					expectedErr: structerr.NewInvalidArgument("empty revision"),
@@ -238,16 +238,16 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, _ := gittest.CreateRepository(t, ctx, cfg)
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
+						Repository:       repo,
 						SourceBranch:     []byte("   "),
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
 					expectedErr: structerr.NewInvalidArgument("revision can't contain whitespace"),
@@ -259,16 +259,16 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, _ := gittest.CreateRepository(t, ctx, cfg)
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
+						Repository:       repo,
 						SourceBranch:     []byte("-ref"),
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
 					expectedErr: structerr.NewInvalidArgument("revision can't start with '-'"),
@@ -280,16 +280,16 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, _ := gittest.CreateRepository(t, ctx, cfg)
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
+						Repository:       repo,
 						SourceBranch:     []byte("some:ref"),
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
 					expectedErr: structerr.NewInvalidArgument("revision can't contain ':'"),
@@ -301,16 +301,16 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, _ := gittest.CreateRepository(t, ctx, cfg)
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
+						Repository:       repo,
 						SourceBranch:     []byte("some\x00ref"),
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
 					expectedErr: structerr.NewInvalidArgument("revision can't contain NUL"),
@@ -322,17 +322,17 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
+						Repository:       repo,
 						SourceBranch:     []byte("master"),
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 					},
 					expectedErr: structerr.NewInvalidArgument("empty revision"),
 				}
@@ -343,17 +343,17 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
+						Repository:       repo,
 						SourceBranch:     []byte("master"),
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 						TargetRef:        []byte("   "),
 					},
 					expectedErr: structerr.NewInvalidArgument("revision can't contain whitespace"),
@@ -365,17 +365,17 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
+						Repository:       repo,
 						SourceBranch:     []byte("master"),
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 						TargetRef:        []byte("-ref"),
 					},
 					expectedErr: structerr.NewInvalidArgument("revision can't start with '-'"),
@@ -387,17 +387,17 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
+						Repository:       repo,
 						SourceBranch:     []byte("master"),
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 						TargetRef:        []byte("some:ref"),
 					},
 					expectedErr: structerr.NewInvalidArgument("revision can't contain ':'"),
@@ -409,17 +409,17 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 			setup: func(t *testing.T) setupData {
 				cfg, client := setupRepositoryService(t)
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
+						Repository:       repo,
 						SourceBranch:     []byte("master"),
-						SourceRepository: sourceRepoProto,
+						SourceRepository: sourceRepo,
 						TargetRef:        []byte("some\x00ref"),
 					},
 					expectedErr: structerr.NewInvalidArgument("revision can't contain NUL"),
@@ -449,21 +449,21 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 				client, serverSocketPath := runRepositoryService(t, cfg, testserver.WithGitCommandFactory(gitCmdFactory))
 				cfg.SocketPath = serverSocketPath
 
-				sourceRepoProto, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
+				sourceRepo, sourceRepoPath := gittest.CreateRepository(t, ctx, cfg)
 				commitID := gittest.WriteCommit(t, cfg, sourceRepoPath, gittest.WithBranch("master"))
-				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+				repo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 				return setupData{
 					cfg:    cfg,
 					client: client,
 					request: &gitalypb.FetchSourceBranchRequest{
-						Repository:       repoProto,
-						SourceRepository: sourceRepoProto,
+						Repository:       repo,
+						SourceRepository: sourceRepo,
 						SourceBranch:     []byte("master"),
 						TargetRef:        []byte("refs/tmp/fetch-source-branch-test"),
 					},
 					verify: func() {
-						repo := localrepo.NewTestRepo(t, cfg, repoProto)
+						repo := localrepo.NewTestRepo(t, cfg, repo)
 						exists, err := repo.HasRevision(ctx, commitID.Revision()+"^{commit}")
 						require.NoError(t, err)
 						require.False(t, exists, "fetched commit isn't discarded")
