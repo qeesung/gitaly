@@ -40,7 +40,6 @@ variables:
   TEST_UID: 9999
 
 include:
-  - template: Security/License-Scanning.gitlab-ci.yml
   - template: Security/SAST.gitlab-ci.yml
   - template: Security/Dependency-Scanning.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
@@ -324,7 +323,7 @@ test:fips:
 test:macos:
   image: macos-12-xcode-14
   tags:
-    - shared-macos-amd64
+    - saas-macos-medium-m1
   needs: []
   allow_failure: true
   stage: test
@@ -336,7 +335,7 @@ test:macos:
   variables:
     <<: *test_variables
     CACHE_PREFIX: macos-12-xcode-14
-    PGDATA: /usr/local/var/postgres
+    PGDATA: /tmp/postgres
     PGHOST: localhost
     PGUSER: gitlab
   before_script:
@@ -350,7 +349,8 @@ test:macos:
     - go version
     - pg_ctl --version
     - ulimit -n 4096 # The default of 256 can lead to 'too many open files' errors when running parallel tests
-    - pg_ctl -D /usr/local/var/postgres start > /tmp/postgres.log
+    - pg_ctl init
+    - pg_ctl start
     - pg_ctl status
     - createdb -U $PGUSER $POSTGRES_DB
     - make -j$(nproc) build prepare-tests
@@ -421,16 +421,6 @@ semgrep-sast:
     - if: $SAST_DISABLED
       when: never
     - *rules_should_test
-
-license_scanning:
-  needs: []
-  stage: analyze
-  rules:
-    - if: $LICENSE_SCANNING_DISABLED
-      when: never
-    - *rules_should_test
-  variables:
-    LICENSE_FINDER_CLI_OPTS: '--aggregate-paths=.'
 
 secret_detection:
   needs: []
