@@ -394,6 +394,14 @@ service RepositoryService {
       op: ACCESSOR
     };
   }
+
+  // FastExport runs git-fast-export on the repository, streaming the data back through the response
+  rpc FastExport(FastExportRequest) returns (stream FastExportResponse) {
+    option (op_type) = {
+      op: ACCESSOR
+    };
+  }
+
 }
 
 // RepositoryExistsRequest is a request for the RepositoryExists RPC.
@@ -1311,4 +1319,16 @@ message GetFileAttributesResponse {
   }
   // attribute_infos is the list of attributes that matches the given GetFileAttributesRequest
   repeated AttributeInfo attribute_infos = 1;
+}
+
+// FastExportRequest is a request for the FastExport RPC
+message FastExportRequest {
+  // repository is the repository to generate export data for.
+  Repository repository = 1 [(target_repository)=true];
+}
+
+// FastExportResponse is a response for the FastExport RPC
+message FastExportResponse {
+  // data contains the content of the export of the repository.
+  bytes data = 1;
 }
