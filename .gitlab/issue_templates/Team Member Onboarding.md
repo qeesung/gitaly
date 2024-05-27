@@ -22,6 +22,7 @@ Please complete all but the "Reading material" section in your first few working
   - [ ] get access to [Stackdriver](https://about.gitlab.com/handbook/engineering/monitoring/#go-services)
   - [ ] join the `gcp-host-profiles-sg@gitlab.com` GCP group for access to [periodic profiling data](https://gitlab.com/gitlab-com/gl-infra/scalability/-/issues/1433#note_901717231)
     - [ ] create an [Access request](https://about.gitlab.com/handbook/business-technology/end-user-services/onboarding-access-requests/access-requests/). An example is [here](https://gitlab.com/gitlab-com/team-member-epics/access-requests/-/issues/24746)
+  - [ ] get [Responder](https://www.pagerduty.com/resources/learn/user-roles-permissions/) access to `PagerDuty` through an [Access request](https://about.gitlab.com/handbook/business-technology/end-user-services/onboarding-access-requests/access-requests/) 
   - [ ] request access to [Zendesk](https://about.gitlab.com/handbook/support/internal-support/#requesting-a-zendesk-light-agent-account)
   - [ ] join the https://groups.google.com/a/gitlab.com/g/eng-dev-trace-gitaly/members Google group to be able to use [GCP tracing](https://gitlab.com/gitlab-com/team-member-epics/access-requests/-/issues/21356)
   - [ ] Log in to [Sentry](https://new-sentry.gitlab.net/settings/gitlab/teams/) via Okta and join the `#gitlab` group. This should allow you to view events and statistics related to Gitaly production.
