@@ -19,6 +19,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2hooks"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
 	"gitlab.com/gitlab-org/labkit/correlation"
@@ -433,6 +434,17 @@ func (cf *ExecCommandFactory) GitVersion(ctx context.Context) (Version, error) {
 	return gitVersion, nil
 }
 
+// scratchDir returns a location within Gitaly's runtime directory to spawn Git processes that do
+// not operate in the context of a repository. The directory is created once if it does not exist.
+func (cf *ExecCommandFactory) scratchDir() (string, error) {
+	dir := cf.cfg.GitScratchDir()
+	if err := os.Mkdir(dir, perm.PrivateDir); err != nil && !errors.Is(err, os.ErrExist) {
+		return "", fmt.Errorf("create scratch dir: %w", err)
+	}
+
+	return dir, nil
+}
+
 // newCommand creates a new command.Command for the given git command. If a repo is given, then the
 // command will be run in the context of that repository. Note that this sets up arguments and
 // environment variables for git, but doesn't run in the directory itself. If a directory
@@ -459,12 +471,21 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repos
 		}
 
 		env = append(alternates.Env(repoPath, repo.GetGitObjectDirectory(), repo.GetGitAlternateObjectDirectories()), env...)
+	} else {
+		// If the Git command is running outside the context of a repo, we restrict it to a fixed scratch
+		// directory here.
+		repoPath, err = cf.scratchDir()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if config.worktreePath != "" {
 		args = append([]string{"-C", config.worktreePath}, args...)
-	} else if repoPath != "" {
-		args = append([]string{"--git-dir", repoPath}, args...)
+	} else {
+		// Ensure Git doesn't traverse upwards to find a Git repository.
+		env = append([]string{fmt.Sprintf("GIT_CEILING_DIRECTORIES=%s", repoPath)}, env...)
+		args = append([]string{"-C", repoPath}, args...)
 	}
 
 	execEnv := cf.GetExecutionEnvironment(ctx)
