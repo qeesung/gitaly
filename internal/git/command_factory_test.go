@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
@@ -128,9 +130,6 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 			))
 		}
 
-		// Add attr.tree for config command
-		configEntries = append(configEntries, fmt.Sprintf("attr.tree=%s", git.ObjectHashSHA1.EmptyTreeOID.String()))
-
 		return configEntries
 	}
 
@@ -206,6 +205,11 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			cfg.Git.Config = tc.config
 
+			// Randomly enable SetAttrTreeConfig feature flag
+			now := time.Now()
+			rnd := rand.New(rand.NewSource(now.Unix() + int64(now.Nanosecond())))
+			ctx = featureflag.OutgoingCtxWithFeatureFlag(ctx, featureflag.SetAttrTreeConfig, rnd.Int()%2 == 0)
+
 			commandFactory, cleanup, err := git.NewExecCommandFactory(cfg, testhelper.SharedLogger(t))
 			require.NoError(t, err)
 			defer cleanup()
@@ -219,6 +223,12 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 			}, append(tc.options, git.WithStdout(&stdout))...)
 			require.NoError(t, err)
 			require.NoError(t, cmd.Wait())
+
+			if featureflag.SetAttrTreeConfig.IsEnabled(ctx) {
+				// if SetTreeInAttrTreeConfig is enabled, we expect attr.tree = EmptyTreeHash
+				// in git config command
+				tc.expectedConfig = append(tc.expectedConfig, fmt.Sprintf("attr.tree=%s", git.ObjectHashSHA1.EmptyTreeOID.String()))
+			}
 
 			require.ElementsMatch(t, tc.expectedConfig, strings.Split(text.ChompBytes(stdout.Bytes()), "\n"))
 		})
@@ -725,7 +735,6 @@ func TestExecCommandFactory_config(t *testing.T) {
 		"core.packedrefstimeout=10000",
 		"core.filesreflocktimeout=1000",
 		"core.bigfilethreshold=50m",
-		fmt.Sprintf("attr.tree=%s", git.ObjectHashSHA1.EmptyTreeOID.String()),
 	}
 
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
