@@ -449,9 +449,11 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repos
 	// need to set "attr.tree" to HEAD
 	//
 	// This can be removed once https://gitlab.com/gitlab-org/git/-/issues/316 is implemented and put in git upstream
-	attrTreeConfig := cf.AttrTreeConfig(ctx, repo, sc, opts...)
-	if attrTreeConfig != nil {
-		opts = append(opts, WithConfig(*attrTreeConfig))
+	if featureflag.SetAttrTreeConfig.IsEnabled(ctx) {
+		attrTreeConfig := cf.AttrTreeConfig(ctx, repo, sc, opts...)
+		if attrTreeConfig != nil {
+			opts = append(opts, WithConfig(*attrTreeConfig))
+		}
 	}
 
 	config, err := cf.combineOpts(ctx, sc, opts)
