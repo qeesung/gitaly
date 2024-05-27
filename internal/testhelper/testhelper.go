@@ -448,3 +448,11 @@ func TestdataAbsolutePath(t *testing.T) string {
 
 	return filepath.Join(filepath.Dir(currentFile), "testdata")
 }
+
+// WorkingDirectory returns the current working directory.
+func WorkingDirectory(t *testing.T) string {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	return wd
+}
