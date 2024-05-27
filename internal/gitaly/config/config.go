@@ -716,6 +716,13 @@ func Load(file io.Reader) (Cfg, error) {
 		cfg.Storages[i].Path = filepath.Clean(cfg.Storages[i].Path)
 	}
 
+	// Ensure the socket path is absolute so issues don't arise if the working directory changes at runtime.
+	absSocketPath, err := filepath.Abs(cfg.SocketPath)
+	if err != nil {
+		return Cfg{}, fmt.Errorf("get absolute socket path: %w", err)
+	}
+	cfg.SocketPath = absSocketPath
+
 	return cfg, nil
 }
 
