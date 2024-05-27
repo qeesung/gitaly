@@ -449,7 +449,7 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repos
 	// need to set "attr.tree" to HEAD
 	//
 	// This can be removed once https://gitlab.com/gitlab-org/git/-/issues/316 is implemented and put in git upstream
-	if repo != nil {
+	if repo != nil && featureflag.SetTreeInAttrTreeConfig.IsEnabled(ctx) {
 		// Add tree config only when repo exists, because some git command, e.g. diff
 		// can exec without a repo, If we add an attr.tree when a command is executing
 		// without a repo, it leads to error, e.g. attempting to get main_ref_store outside of repository.
