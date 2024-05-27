@@ -106,4 +106,17 @@ func TestPartitioningHint(t *testing.T) {
 		require.Equal(t, errors.New("multiple partitioning hints"), err)
 		require.Empty(t, relativePath)
 	})
+
+	t.Run("removes the hint", func(t *testing.T) {
+		ctx := SetPartitioningHintToIncomingContext(context.Background(), "relative-path")
+
+		relativePath, err := ExtractPartitioningHintFromIncomingContext(ctx)
+		require.NoError(t, err)
+		require.Equal(t, relativePath, "relative-path")
+
+		ctx = RemovePartitioningHintFromIncomingContext(ctx)
+		relativePath, err = ExtractPartitioningHintFromIncomingContext(ctx)
+		require.NoError(t, err)
+		require.Equal(t, relativePath, "")
+	})
 }

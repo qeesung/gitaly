@@ -75,3 +75,16 @@ func ExtractPartitioningHintFromIncomingContext(ctx context.Context) (string, er
 
 	return relativePaths[0], nil
 }
+
+// RemovePartitioningHintFromIncomingContext removes the partitioning hint from the provided context.
+func RemovePartitioningHintFromIncomingContext(ctx context.Context) context.Context {
+	md, ok := grpc_metadata.FromIncomingContext(ctx)
+	if !ok {
+		md = grpc_metadata.New(nil)
+	} else {
+		md = md.Copy()
+	}
+	md.Delete(keyPartitioningHint)
+
+	return grpc_metadata.NewIncomingContext(ctx, md)
+}
