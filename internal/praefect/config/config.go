@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -337,6 +338,15 @@ func FromReader(reader io.Reader) (Config, error) {
 	}
 
 	conf.setDefaults()
+
+	// Ensure the socket path is absolute so issues don't arise if the working directory changes at runtime.
+	if conf.SocketPath != "" {
+		absSocketPath, err := filepath.Abs(conf.SocketPath)
+		if err != nil {
+			return Config{}, fmt.Errorf("get absolute socket path: %w", err)
+		}
+		conf.SocketPath = absSocketPath
+	}
 
 	return *conf, nil
 }
