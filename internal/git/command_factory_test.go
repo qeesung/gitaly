@@ -22,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/trace2hooks"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
@@ -108,6 +109,7 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 
 	repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
+		ObjectFormat:           "sha256",
 	})
 	require.NoError(t, os.Remove(filepath.Join(repoPath, "config")))
 
@@ -125,6 +127,10 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 				"%s=%s", strings.ToLower(config.Key), config.Value,
 			))
 		}
+
+		// Add attr.tree for config command
+		configEntries = append(configEntries, fmt.Sprintf("attr.tree=%s", git.ObjectHashSHA1.EmptyTreeOID.String()))
+
 		return configEntries
 	}
 
@@ -213,7 +219,111 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 			}, append(tc.options, git.WithStdout(&stdout))...)
 			require.NoError(t, err)
 			require.NoError(t, cmd.Wait())
-			require.Equal(t, tc.expectedConfig, strings.Split(text.ChompBytes(stdout.Bytes()), "\n"))
+
+			require.ElementsMatch(t, tc.expectedConfig, strings.Split(text.ChompBytes(stdout.Bytes()), "\n"))
+		})
+	}
+}
+
+func TestExecCommandFactory_addAttrTree(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+
+	repoSHA1, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		ObjectFormat:           "sha1",
+	})
+
+	repoSHA256, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+		ObjectFormat:           "sha256",
+	})
+
+	cfLogger := testhelper.SharedLogger(t)
+	cf, cleanup, err := git.NewExecCommandFactory(cfg, cfLogger)
+	require.NoError(t, err)
+	defer cleanup()
+
+	for _, tc := range []struct {
+		desc                   string
+		cmd                    string
+		repo                   storage.Repository
+		expectedAttrTreeConfig *git.ConfigPair
+	}{
+		{
+			desc:                   "git diff without a repo path",
+			cmd:                    "diff",
+			repo:                   nil,
+			expectedAttrTreeConfig: nil,
+		},
+		{
+			desc: "git clone should have attr.tree = empty tree only",
+			cmd:  "clone",
+			repo: repoSHA256,
+			expectedAttrTreeConfig: &git.ConfigPair{
+				Key: "attr.tree", Value: git.ObjectHashSHA256.EmptyTreeOID.String(),
+			},
+		},
+		{
+			desc: "git config should have attr.tree = empty tree only",
+			cmd:  "config",
+			repo: repoSHA1,
+			expectedAttrTreeConfig: &git.ConfigPair{
+				Key: "attr.tree", Value: git.ObjectHashSHA1.EmptyTreeOID.String(),
+			},
+		},
+		{
+			desc: "git merge should have attr.tree = HEAD",
+			cmd:  "merge",
+			repo: repoSHA256,
+			expectedAttrTreeConfig: &git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+		{
+			desc: "git diff should have attr.tree = HEAD",
+			cmd:  "diff",
+			repo: repoSHA1,
+			expectedAttrTreeConfig: &git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+		{
+			desc: "git archive should have attr.tree = HEAD",
+			cmd:  "archive",
+			repo: repoSHA256,
+			expectedAttrTreeConfig: &git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+		{
+			desc: "git check-attr should have attr.tree = HEAD",
+			cmd:  "check-attr",
+			repo: repoSHA1,
+			expectedAttrTreeConfig: &git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+		{
+			desc: "git worktree should have attr.tree = HEAD",
+			cmd:  "worktree",
+			repo: repoSHA256,
+			expectedAttrTreeConfig: &git.ConfigPair{
+				Key: "attr.tree", Value: "HEAD",
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			cmd := git.Command{Name: tc.cmd}
+			actualAttrTreeConfig := cf.AttrTreeConfig(ctx, tc.repo, cmd)
+			if tc.expectedAttrTreeConfig == nil {
+				require.Nil(t, actualAttrTreeConfig)
+			} else {
+				require.Equal(t, tc.expectedAttrTreeConfig.Key, actualAttrTreeConfig.Key)
+				require.Equal(t, tc.expectedAttrTreeConfig.Value, actualAttrTreeConfig.Value)
+			}
 		})
 	}
 }
@@ -615,6 +725,7 @@ func TestExecCommandFactory_config(t *testing.T) {
 		"core.packedrefstimeout=10000",
 		"core.filesreflocktimeout=1000",
 		"core.bigfilethreshold=50m",
+		fmt.Sprintf("attr.tree=%s", git.ObjectHashSHA1.EmptyTreeOID.String()),
 	}
 
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
