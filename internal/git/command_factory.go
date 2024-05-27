@@ -438,6 +438,25 @@ func (cf *ExecCommandFactory) GitVersion(ctx context.Context) (Version, error) {
 // environment variables for git, but doesn't run in the directory itself. If a directory
 // is given, then the command will be run in that directory.
 func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repository, sc Command, opts ...CmdOpt) (*command.Command, error) {
+	// In Git change 2386535511, we introduced a feature, "attr: read attributes from HEAD when bare repo".
+	// This causes a performance degradation. Current workaround is to get rid of the default behavior
+	// in bare repos of reading from HEAD by setting attr.tree to empty tree.
+	// See https://lore.kernel.org/git/xmqqzft6aozg.fsf_-_@gitster.g/ and
+	// https://gitlab.com/gitlab-org/gitaly/-/issues/6064 for details.
+	//
+	// For gitaly, there are commands that specifically need attr.tree to be set to HEAD. We have a white list
+	// of commands who should be excluded, see AttrTreeConfig. Those commands in the white list
+	// need to set "attr.tree" to HEAD
+	//
+	// This can be removed once https://gitlab.com/gitlab-org/git/-/issues/316 is implemented and put in git upstream
+	if repo != nil && featureflag.SetTreeInAttrTreeConfig.IsEnabled(ctx) {
+		// Add tree config only when repo exists, because some git command, e.g. diff
+		// can exec without a repo, If we add an attr.tree when a command is executing
+		// without a repo, it leads to error, e.g. attempting to get main_ref_store outside of repository.
+		attrTreeConfig := AttrTreeConfig(sc.Name)
+		opts = append(opts, WithConfig(attrTreeConfig))
+	}
+
 	config, err := cf.combineOpts(ctx, sc, opts)
 	if err != nil {
 		return nil, err
@@ -686,4 +705,26 @@ func (cf *ExecCommandFactory) trace2Finalizer(manager *trace2.Manager) func(cont
 			}
 		}
 	}
+}
+
+// AttrTreeConfig adds `attr.tree = HEAD` to the commands in the whiteList have,
+// others has `attr.tree = emptyTreeHash`.
+func AttrTreeConfig(cmd string) ConfigPair {
+	whiteList := map[string]struct{}{
+		"diff":         {},
+		"merge":        {},
+		"check-attr":   {},
+		"worktree":     {},
+		"archive":      {},
+		"log":          {},
+		"format-patch": {},
+	}
+	if _, ok := whiteList[cmd]; ok {
+		return ConfigPair{Key: "attr.tree", Value: "HEAD"}
+	}
+
+	// We intentionally use SHA1 EmptyTreeOID here
+	// It doesn't matter SHA1 or SHA256, what we want is a
+	// tree hash that git can never find
+	return ConfigPair{Key: "attr.tree", Value: ObjectHashSHA1.EmptyTreeOID.String()}
 }
