@@ -14,7 +14,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dgraph-io/badger/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +29,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/counter"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -504,7 +504,7 @@ type DatabaseState map[string]proto.Message
 
 // RequireDatabase asserts the actual database state matches the expected database state. The actual values in the
 // database are unmarshaled to the same type the values have in the expected database state.
-func RequireDatabase(tb testing.TB, ctx context.Context, database Database, expectedState DatabaseState) {
+func RequireDatabase(tb testing.TB, ctx context.Context, database keyvalue.Transactioner, expectedState DatabaseState) {
 	tb.Helper()
 
 	if expectedState == nil {
@@ -513,8 +513,8 @@ func RequireDatabase(tb testing.TB, ctx context.Context, database Database, expe
 
 	actualState := DatabaseState{}
 	unexpectedKeys := []string{}
-	require.NoError(tb, database.View(func(txn DatabaseTransaction) error {
-		iterator := txn.NewIterator(badger.DefaultIteratorOptions)
+	require.NoError(tb, database.View(func(txn keyvalue.ReadWriter) error {
+		iterator := txn.NewIterator(keyvalue.IteratorOptions{})
 		defer iterator.Close()
 
 		for iterator.Rewind(); iterator.Valid(); iterator.Next() {
@@ -881,9 +881,11 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 	repoPath, err := repo.Path()
 	require.NoError(t, err)
 
-	database, err := OpenDatabase(testhelper.SharedLogger(t), t.TempDir())
+	rawDatabase, err := keyvalue.NewBadgerStore(testhelper.SharedLogger(t), t.TempDir())
 	require.NoError(t, err)
-	defer testhelper.MustClose(t, database)
+	defer testhelper.MustClose(t, rawDatabase)
+
+	database := keyvalue.NewPrefixedTransactioner(rawDatabase, keyPrefixPartition(setup.PartitionID))
 
 	storagePath := setup.Config.Storages[0].Path
 	stateDir := filepath.Join(storagePath, "state")

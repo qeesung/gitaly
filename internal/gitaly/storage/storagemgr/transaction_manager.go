@@ -26,6 +26,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/wal"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -87,6 +88,9 @@ var (
 	errReadOnlyRepositoryDeletion  = errors.New("repository deletion staged in a read-only transaction")
 	errReadOnlyObjectsIncluded     = errors.New("objects staged in a read-only transaction")
 	errReadOnlyHousekeeping        = errors.New("housekeeping in a read-only transaction")
+
+	// keyAppliedLSN is the database key storing a partition's last applied log entry's LSN.
+	keyAppliedLSN = []byte("applied_lsn")
 )
 
 // InvalidReferenceFormatError is returned when a reference name was invalid.
@@ -881,7 +885,7 @@ type TransactionManager struct {
 	// storage.PartitionID is the ID of the partition this manager is operating on. This is used to determine the database keys.
 	partitionID storage.PartitionID
 	// db is the handle to the key-value store used for storing the write-ahead log related state.
-	db Database
+	db keyvalue.Transactioner
 	// admissionQueue is where the incoming writes are waiting to be admitted to the transaction
 	// manager.
 	admissionQueue chan *Transaction
@@ -950,7 +954,7 @@ type testHooks struct {
 func NewTransactionManager(
 	ptnID storage.PartitionID,
 	logger log.Logger,
-	db Database,
+	db keyvalue.Transactioner,
 	storagePath,
 	stateDir,
 	stagingDir string,
@@ -2117,7 +2121,7 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	defer close(mgr.initialized)
 
 	var appliedLSN gitalypb.LSN
-	if err := mgr.readKey(keyAppliedLSN(mgr.partitionID), &appliedLSN); err != nil && !errors.Is(err, badger.ErrKeyNotFound) {
+	if err := mgr.readKey(keyAppliedLSN, &appliedLSN); err != nil && !errors.Is(err, badger.ErrKeyNotFound) {
 		return fmt.Errorf("read applied LSN: %w", err)
 	}
 
@@ -3282,7 +3286,7 @@ func (mgr *TransactionManager) readLogEntry(lsn storage.LSN) (*gitalypb.LogEntry
 
 // storeAppliedLSN stores the partition's applied LSN in the database.
 func (mgr *TransactionManager) storeAppliedLSN(lsn storage.LSN) error {
-	return mgr.setKey(keyAppliedLSN(mgr.partitionID), lsn.ToProto())
+	return mgr.setKey(keyAppliedLSN, lsn.ToProto())
 }
 
 // setKey marshals and stores a given protocol buffer message into the database under the given key.
@@ -3305,7 +3309,7 @@ func (mgr *TransactionManager) setKey(key []byte, value proto.Message) error {
 // readKey reads a key from the database and unmarshals its value in to the destination protocol
 // buffer message.
 func (mgr *TransactionManager) readKey(key []byte, destination proto.Message) error {
-	return mgr.db.View(func(txn DatabaseTransaction) error {
+	return mgr.db.View(func(txn keyvalue.ReadWriter) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return fmt.Errorf("get: %w", err)
@@ -3413,9 +3417,4 @@ func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) bool {
 		elm = mgr.committedEntries.Front()
 	}
 	return removedAnyEntry
-}
-
-// keyAppliedLSN returns the database key storing a partition's last applied log entry's LSN.
-func keyAppliedLSN(ptnID storage.PartitionID) []byte {
-	return []byte(fmt.Sprintf("partition/%s/applied_lsn", ptnID.MarshalBinary()))
 }

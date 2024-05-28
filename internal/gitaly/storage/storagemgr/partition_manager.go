@@ -18,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -62,14 +63,14 @@ type PartitionManager struct {
 // DatabaseOpener is responsible for opening a database handle.
 type DatabaseOpener interface {
 	// OpenDatabase opens a database at the given path.
-	OpenDatabase(log.Logger, string) (Database, error)
+	OpenDatabase(log.Logger, string) (keyvalue.Store, error)
 }
 
 // DatabaseOpenerFunc is a function that implements DatabaseOpener.
-type DatabaseOpenerFunc func(log.Logger, string) (Database, error)
+type DatabaseOpenerFunc func(log.Logger, string) (keyvalue.Store, error)
 
 // OpenDatabase opens a handle to the database at the given path.
-func (fn DatabaseOpenerFunc) OpenDatabase(logger log.Logger, path string) (Database, error) {
+func (fn DatabaseOpenerFunc) OpenDatabase(logger log.Logger, path string) (keyvalue.Store, error) {
 	return fn(logger, path)
 }
 
@@ -92,7 +93,7 @@ type storageManager struct {
 	// stopGC stops the garbage collection and waits for it to return.
 	stopGC func()
 	// db is the handle to the key-value store used for storing the storage's database state.
-	database Database
+	database keyvalue.Store
 	// partitionAssigner manages partition assignments of repositories.
 	partitionAssigner *partitionAssigner
 	// partitions contains all the active partitions. Each repository can have up to one partition.
@@ -341,7 +342,7 @@ func NewPartitionManager(
 			return NewTransactionManager(
 				partitionID,
 				logger,
-				storageMgr.database,
+				keyvalue.NewPrefixedTransactioner(storageMgr.database, keyPrefixPartition(partitionID)),
 				storageMgr.path,
 				absoluteStateDir,
 				stagingDir,
@@ -353,6 +354,10 @@ func NewPartitionManager(
 		},
 		metrics: metrics,
 	}, nil
+}
+
+func keyPrefixPartition(ptnID storage.PartitionID) []byte {
+	return []byte(fmt.Sprintf("p/%s/", ptnID.MarshalBinary()))
 }
 
 // internalDirectoryPath returns the full path of Gitaly's internal data directory for the storage.
