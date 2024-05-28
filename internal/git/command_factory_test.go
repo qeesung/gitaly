@@ -109,6 +109,13 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
+	cf, cleanup, err := git.NewExecCommandFactory(cfg, testhelper.SharedLogger(t))
+	require.NoError(t, err)
+	defer cleanup()
+
+	gitVersion, err := cf.GitVersion(ctx)
+	require.NoError(t, err)
+
 	repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
 		ObjectFormat:           "sha256",
@@ -133,6 +140,22 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 		return configEntries
 	}
 
+	var fsckSymlinkConfig []string
+	if gitVersion.GreaterOrEqual(git.NewVersion(2, 45, 1, 0)) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 44, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 45, 0, 0))) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 43, 4, 0)) && gitVersion.LessThan(git.NewVersion(2, 44, 0, 0))) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 42, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 43, 0, 0))) {
+		fsckSymlinkConfig = []string{
+			"fsck.symlinkpointstogitdir=ignore",
+			"fetch.fsck.symlinkpointstogitdir=ignore",
+			"receive.fsck.symlinkpointstogitdir=ignore",
+		}
+	}
+
+	defaultConfigWithFsckSymlinkConfig := func() []string {
+		return append(defaultConfig(), fsckSymlinkConfig...)
+	}
+
 	for _, tc := range []struct {
 		desc           string
 		config         []config.GitConfig
@@ -141,28 +164,28 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 	}{
 		{
 			desc:           "without config",
-			expectedConfig: defaultConfig(),
+			expectedConfig: defaultConfigWithFsckSymlinkConfig(),
 		},
 		{
 			desc: "config with simple entry",
 			config: []config.GitConfig{
 				{Key: "core.foo", Value: "bar"},
 			},
-			expectedConfig: append(defaultConfig(), "core.foo=bar"),
+			expectedConfig: append(defaultConfigWithFsckSymlinkConfig(), "core.foo=bar"),
 		},
 		{
 			desc: "config with empty value",
 			config: []config.GitConfig{
 				{Key: "core.empty", Value: ""},
 			},
-			expectedConfig: append(defaultConfig(), "core.empty="),
+			expectedConfig: append(defaultConfigWithFsckSymlinkConfig(), "core.empty="),
 		},
 		{
 			desc: "config with subsection",
 			config: []config.GitConfig{
 				{Key: "http.http://example.com.proxy", Value: "http://proxy.example.com"},
 			},
-			expectedConfig: append(defaultConfig(), "http.http://example.com.proxy=http://proxy.example.com"),
+			expectedConfig: append(defaultConfigWithFsckSymlinkConfig(), "http.http://example.com.proxy=http://proxy.example.com"),
 		},
 		{
 			desc: "config with multiple keys",
@@ -170,14 +193,17 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 				{Key: "core.foo", Value: "initial"},
 				{Key: "core.foo", Value: "second"},
 			},
-			expectedConfig: append(defaultConfig(), "core.foo=initial", "core.foo=second"),
+			expectedConfig: append(defaultConfigWithFsckSymlinkConfig(), "core.foo=initial", "core.foo=second"),
 		},
 		{
 			desc: "option",
 			options: []git.CmdOpt{
 				git.WithConfig(git.ConfigPair{Key: "core.foo", Value: "bar"}),
 			},
-			expectedConfig: append(defaultConfig(), "core.foo=bar"),
+			expectedConfig: func() []string {
+				conf := append(defaultConfig(), "core.foo=bar")
+				return append(conf, fsckSymlinkConfig...)
+			}(),
 		},
 		{
 			desc: "multiple options",
@@ -187,7 +213,10 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 					git.ConfigPair{Key: "core.foo", Value: "second"},
 				),
 			},
-			expectedConfig: append(defaultConfig(), "core.foo=initial", "core.foo=second"),
+			expectedConfig: func() []string {
+				conf := append(defaultConfig(), "core.foo=initial", "core.foo=second")
+				return append(conf, fsckSymlinkConfig...)
+			}(),
 		},
 		{
 			desc: "config comes after options",
@@ -199,7 +228,11 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 					git.ConfigPair{Key: "from.option", Value: "value"},
 				),
 			},
-			expectedConfig: append(defaultConfig(), "from.option=value", "from.config=value"),
+			expectedConfig: func() []string {
+				conf := append(defaultConfig(), "from.option=value")
+				conf = append(conf, fsckSymlinkConfig...)
+				return append(conf, "from.config=value")
+			}(),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -738,6 +771,20 @@ func TestExecCommandFactory_config(t *testing.T) {
 	}
 
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+
+	gitVersion, err := gitCmdFactory.GitVersion(ctx)
+	require.NoError(t, err)
+
+	if gitVersion.GreaterOrEqual(git.NewVersion(2, 45, 1, 0)) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 44, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 45, 0, 0))) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 43, 4, 0)) && gitVersion.LessThan(git.NewVersion(2, 44, 0, 0))) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 42, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 43, 0, 0))) {
+		expectedEnv = append(expectedEnv,
+			"fsck.symlinkpointstogitdir=ignore",
+			"fetch.fsck.symlinkpointstogitdir=ignore",
+			"receive.fsck.symlinkpointstogitdir=ignore",
+		)
+	}
 
 	var stdout bytes.Buffer
 	cmd, err := gitCmdFactory.New(ctx, repo, git.Command{
