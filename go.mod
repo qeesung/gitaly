@@ -1,6 +1,6 @@
 module gitlab.com/gitlab-org/gitaly/v16
 
-go 1.21
+go 1.22
 
 // It is a temporary solution, please see https://gitlab.com/gitlab-org/gitaly/-/issues/4423 for details.
 replace github.com/go-enry/go-license-detector/v4 => github.com/gl-gitaly/go-license-detector/v4 v4.0.0-20230524080836-4cc9a3796917
