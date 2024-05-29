@@ -63,6 +63,10 @@ var hooksBySubcommand = map[string]hookCommand{
 		exec:     referenceTransactionHook,
 		hookType: git.ReferenceTransactionHook,
 	},
+	"proc-receive": {
+		exec:     procReceiveHook,
+		hookType: git.ProcReceiveHook,
+	},
 }
 
 func main() {
@@ -414,6 +418,38 @@ func referenceTransactionHook(ctx context.Context, payload git.HooksPayload, hoo
 		return referenceTransactionHookStream.Recv()
 	}, f, os.Stdout, os.Stderr); err != nil {
 		return fmt.Errorf("error when receiving data for reference-transaction hook: %w", err)
+	} else if returnCode != 0 {
+		return hookError{returnCode: int(returnCode)}
+	}
+
+	return nil
+}
+
+func procReceiveHook(ctx context.Context, payload git.HooksPayload, hookClient gitalypb.HookServiceClient, args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("proc-receive hook does not accept arguments, got %d", len(args))
+	}
+
+	hookStream, err := hookClient.ProcReceiveHook(ctx)
+	if err != nil {
+		return fmt.Errorf("getting proc-receive client stream: %w", err)
+	}
+
+	if err := hookStream.Send(&gitalypb.ProcReceiveHookRequest{
+		Repository:           payload.Repo,
+		EnvironmentVariables: os.Environ(),
+	}); err != nil {
+		return fmt.Errorf("sending first proc-receive request: %w", err)
+	}
+
+	f := sendFunc(streamio.NewWriter(func(p []byte) error {
+		return hookStream.Send(&gitalypb.ProcReceiveHookRequest{Stdin: p})
+	}), hookStream, os.Stdin)
+
+	if returnCode, err := stream.Handler(func() (stream.StdoutStderrResponse, error) {
+		return hookStream.Recv()
+	}, f, os.Stdout, os.Stderr); err != nil {
+		return fmt.Errorf("receiving output for proc-receive hook: %w", err)
 	} else if returnCode != 0 {
 		return hookError{returnCode: int(returnCode)}
 	}

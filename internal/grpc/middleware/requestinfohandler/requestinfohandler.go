@@ -16,6 +16,7 @@ import (
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 var requests = promauto.NewCounterVec(
@@ -171,28 +172,29 @@ func newRequestInfo(ctx context.Context, fullMethod, grpcMethodType string) *Req
 }
 
 func (i *RequestInfo) extractRequestInfo(request any) {
-	type repoScopedRequest interface {
-		GetRepository() *gitalypb.Repository
-	}
-
 	type poolScopedRequest interface {
 		GetObjectPool() *gitalypb.ObjectPool
-	}
-
-	type storageScopedRequest interface {
-		GetStorageName() string
-	}
-
-	if repoScoped, ok := request.(repoScopedRequest); ok {
-		i.Repository = repoScoped.GetRepository()
 	}
 
 	if poolScoped, ok := request.(poolScopedRequest); ok {
 		i.objectPool = poolScoped.GetObjectPool()
 	}
 
-	if storageScoped, ok := request.(storageScopedRequest); ok {
-		i.storageName = storageScoped.GetStorageName()
+	if reqMsg, ok := request.(proto.Message); ok {
+		// This handles extracting nested and non-nested *gitalypb.Repository fields from the request. In cases of
+		// multiple such fields, it will choose the one with the `target_repository` extension.
+		if mi, err := protoregistry.GitalyProtoPreregistered.LookupMethod(i.FullMethod); err == nil {
+			switch mi.Scope {
+			case protoregistry.ScopeRepository:
+				if targetRepo, err := mi.TargetRepo(reqMsg); err == nil {
+					i.Repository = targetRepo
+				}
+			case protoregistry.ScopeStorage:
+				if storage, err := mi.Storage(reqMsg); err == nil {
+					i.storageName = storage
+				}
+			}
+		}
 	}
 }
 

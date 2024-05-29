@@ -19,7 +19,6 @@ import (
 
 	"github.com/dgraph-io/badger/v4"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
@@ -27,6 +26,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/wal"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -88,6 +88,9 @@ var (
 	errReadOnlyRepositoryDeletion  = errors.New("repository deletion staged in a read-only transaction")
 	errReadOnlyObjectsIncluded     = errors.New("objects staged in a read-only transaction")
 	errReadOnlyHousekeeping        = errors.New("housekeeping in a read-only transaction")
+
+	// keyAppliedLSN is the database key storing a partition's last applied log entry's LSN.
+	keyAppliedLSN = []byte("applied_lsn")
 )
 
 // InvalidReferenceFormatError is returned when a reference name was invalid.
@@ -199,6 +202,13 @@ type Transaction struct {
 	// state records whether the transaction is still open. Transaction is open until either Commit()
 	// or Rollback() is called on it.
 	state transactionState
+	// stateLatch guards the transaction against concurrent commit and rollback operations. Transactions
+	// are not generally safe for concurrent use. As the transaction may need to be committed in the
+	// post-receive hook, there's potential for a race. If the RPC times out, it could be that the
+	// PostReceiveHook RPC's goroutine attempts to commit a transaction at the same time as the parent
+	// RPC's goroutine attempts to abort it. stateLatch guards against this race.
+	stateLatch sync.Mutex
+
 	// commit commits the Transaction through the TransactionManager.
 	commit func(context.Context, *Transaction) error
 	// result is where the outcome of the transaction is sent to by TransactionManager once it
@@ -234,7 +244,7 @@ type Transaction struct {
 
 	// snapshotLSN is the log sequence number which this transaction is reading the repository's
 	// state at.
-	snapshotLSN LSN
+	snapshotLSN storage.LSN
 	// snapshot is the transaction's snapshot of the partition. It's used to rewrite relative paths to
 	// point to the snapshot instead of the actual repositories.
 	snapshot snapshot
@@ -302,7 +312,6 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 
 	span, _ := tracing.StartSpanIfHasParent(ctx, "transaction.Begin", nil)
 	span.SetTag("readonly", readOnly)
-	span.SetTag("snapshotLSN", mgr.appendedLSN)
 	span.SetTag("relativePath", relativePath)
 	defer span.Finish()
 
@@ -323,14 +332,12 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 
 	var entry *committedEntry
 	if !txn.readOnly {
-		var err error
-		entry, err = mgr.updateCommittedEntry(txn.snapshotLSN)
-		if err != nil {
-			return nil, err
-		}
+		entry = mgr.updateCommittedEntry(txn.snapshotLSN)
 	}
 
 	mgr.mutex.Unlock()
+
+	span.SetTag("snapshotLSN", txn.snapshotLSN)
 
 	txn.finish = func() error {
 		defer close(txn.finished)
@@ -452,6 +459,9 @@ func (txn *Transaction) OriginalRepository(repo *gitalypb.Repository) *gitalypb.
 }
 
 func (txn *Transaction) updateState(newState transactionState) error {
+	txn.stateLatch.Lock()
+	defer txn.stateLatch.Unlock()
+
 	switch txn.state {
 	case transactionStateOpen:
 		txn.state = newState
@@ -532,7 +542,7 @@ func (txn *Transaction) finishUnadmitted() error {
 }
 
 // SnapshotLSN returns the LSN of the Transaction's read snapshot.
-func (txn *Transaction) SnapshotLSN() LSN {
+func (txn *Transaction) SnapshotLSN() storage.LSN {
 	return txn.snapshotLSN
 }
 
@@ -733,9 +743,11 @@ type snapshotLock struct {
 // accessed by other transactions.
 type committedEntry struct {
 	// lsn is the associated LSN of the entry
-	lsn LSN
+	lsn storage.LSN
 	// snapshotReaders accounts for the number of transaction readers of the snapshot.
 	snapshotReaders int
+	// objectDependencies are the objects this transaction depends upon.
+	objectDependencies map[git.ObjectID]struct{}
 }
 
 // LogConsumer is the interface of a log consumer that is passed to a TransactionManager.
@@ -752,16 +764,56 @@ type LogConsumer interface {
 	// A single LogConsumer may interact simultaneously with many LogManagers. The
 	// LogManager passes itself as a parameter so that the LogConsumer may call back to
 	// it when the operation is finished.
-	NotifyNewTransactions(partitionID uint64, lowWaterMark, highWaterMark LSN, mgr LogManager)
+	NotifyNewTransactions(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr LogManager)
 }
 
 // LogManager is the interface used on the consumer side of the integration. The consumer
 // has the ability to acknowledge transactions as having been processed with AcknowledgeTransaction.
 type LogManager interface {
-	// AcknowledgeTransaction acknowledges log entries up and including lsn as successfully processed.
-	AcknowledgeTransaction(lsn LSN)
+	// AcknowledgeTransaction acknowledges log entries up and including lsn as successfully processed
+	// for the specified LogConsumer.
+	AcknowledgeTransaction(consumer LogConsumer, lsn storage.LSN)
 	// GetTransactionPath returns the path of the log entry's root directory.
-	GetTransactionPath(lsn LSN) string
+	GetTransactionPath(lsn storage.LSN) string
+}
+
+// AcknowledgeTransaction acknowledges log entries up and including lsn as successfully processed
+// for the specified LogConsumer. The manager is awakened if it is currently awaiting a new or
+// completed transaction.
+func (mgr *TransactionManager) AcknowledgeTransaction(consumer LogConsumer, lsn storage.LSN) {
+	mgr.consumerPos.setPosition(lsn)
+
+	// Alert the manager. If it has a pending acknowledgement already no action is required.
+	select {
+	case mgr.acknowledgedQueue <- struct{}{}:
+	default:
+	}
+}
+
+// GetTransactionPath returns the path of the log entry's root directory.
+func (mgr *TransactionManager) GetTransactionPath(lsn storage.LSN) string {
+	return walFilesPathForLSN(mgr.stateDirectory, lsn)
+}
+
+// consumerPosition tracks the last LSN acknowledged for a consumer.
+type consumerPosition struct {
+	// position is the last LSN acknowledged as completed by the consumer.
+	position storage.LSN
+	sync.Mutex
+}
+
+func (p *consumerPosition) getPosition() storage.LSN {
+	p.Lock()
+	defer p.Unlock()
+
+	return p.position
+}
+
+func (p *consumerPosition) setPosition(pos storage.LSN) {
+	p.Lock()
+	defer p.Unlock()
+
+	p.position = pos
 }
 
 // TransactionManager is responsible for transaction management of a single repository. Each repository has
@@ -830,10 +882,10 @@ type TransactionManager struct {
 	// storagePath is an absolute path to the root of the storage this TransactionManager
 	// is operating in.
 	storagePath string
-	// partitionID is the ID of the partition this manager is operating on. This is used to determine the database keys.
-	partitionID partitionID
+	// storage.PartitionID is the ID of the partition this manager is operating on. This is used to determine the database keys.
+	partitionID storage.PartitionID
 	// db is the handle to the key-value store used for storing the write-ahead log related state.
-	db Database
+	db keyvalue.Transactioner
 	// admissionQueue is where the incoming writes are waiting to be admitted to the transaction
 	// manager.
 	admissionQueue chan *Transaction
@@ -852,26 +904,34 @@ type TransactionManager struct {
 
 	// snapshotLocks contains state used for synchronizing snapshotters with the log application. The
 	// lock is released after the corresponding log entry is applied.
-	snapshotLocks map[LSN]*snapshotLock
+	snapshotLocks map[storage.LSN]*snapshotLock
 
 	// appendedLSN holds the LSN of the last log entry appended to the partition's write-ahead log.
-	appendedLSN LSN
+	appendedLSN storage.LSN
 	// appliedLSN holds the LSN of the last log entry applied to the partition.
-	appliedLSN LSN
+	appliedLSN storage.LSN
 	// oldestLSN holds the LSN of the head of log entries which is still kept in the database. The manager keeps
 	// them because they are still referred by a transaction.
-	oldestLSN LSN
+	oldestLSN storage.LSN
 
 	// awaitingTransactions contains transactions waiting for their log entry to be applied to
 	// the partition. It's keyed by the LSN the transaction is waiting to be applied and the
 	// value is the resultChannel that is waiting the result.
-	awaitingTransactions map[LSN]resultChannel
+	awaitingTransactions map[storage.LSN]resultChannel
 	// committedEntries keeps some latest appended log entries around. Some types of transactions, such as
 	// housekeeping, operate on snapshot repository. There is a gap between transaction doing its work and the time
 	// when it is committed. They need to verify if concurrent operations can cause conflict. These log entries are
 	// still kept around even after they are applied. They are removed when there are no active readers accessing
 	// the corresponding snapshots.
 	committedEntries *list.List
+
+	// consumer is an the external caller that may perform read-only operations against applied
+	// log entries. Log entries are retained until the consumer has acknowledged past their LSN.
+	consumer LogConsumer
+	// consumerPos tracks the largest LSN that has been acknowledged by consumer.
+	consumerPos *consumerPosition
+	// acknowledgedQueue is a queue notifying when a transaction has been acknowledged.
+	acknowledgedQueue chan struct{}
 
 	// testHooks are used in the tests to trigger logic at certain points in the execution.
 	// They are used to synchronize more complex test scenarios. Not used in production.
@@ -892,17 +952,21 @@ type testHooks struct {
 
 // NewTransactionManager returns a new TransactionManager for the given repository.
 func NewTransactionManager(
-	ptnID partitionID,
+	ptnID storage.PartitionID,
 	logger log.Logger,
-	db Database,
+	db keyvalue.Transactioner,
 	storagePath,
 	stateDir,
 	stagingDir string,
 	cmdFactory git.CommandFactory,
 	repositoryFactory localrepo.StorageScopedFactory,
 	metrics *metrics,
+	consumer LogConsumer,
 ) *TransactionManager {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	consumerPos := &consumerPosition{}
+
 	return &TransactionManager{
 		ctx:                  ctx,
 		close:                cancel,
@@ -917,12 +981,15 @@ func NewTransactionManager(
 		admissionQueue:       make(chan *Transaction),
 		completedQueue:       make(chan struct{}, 1),
 		initialized:          make(chan struct{}),
-		snapshotLocks:        make(map[LSN]*snapshotLock),
+		snapshotLocks:        make(map[storage.LSN]*snapshotLock),
 		stateDirectory:       stateDir,
 		stagingDirectory:     stagingDir,
-		awaitingTransactions: make(map[LSN]resultChannel),
+		awaitingTransactions: make(map[storage.LSN]resultChannel),
 		committedEntries:     list.New(),
 		metrics:              metrics,
+		consumer:             consumer,
+		consumerPos:          consumerPos,
+		acknowledgedQueue:    make(chan struct{}, 1),
 
 		testHooks: testHooks{
 			beforeInitialization:      func() {},
@@ -1339,13 +1406,15 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 	}
 
 	heads := make([]string, 0)
-	for _, update := range transaction.flattenReferenceTransactions() {
-		if update.NewOID == objectHash.ZeroOID {
-			// Reference deletions can't introduce new objects so ignore them.
-			continue
-		}
+	for _, referenceUpdates := range transaction.referenceUpdates {
+		for _, update := range referenceUpdates {
+			if update.NewOID == objectHash.ZeroOID {
+				// Reference deletions can't introduce new objects so ignore them.
+				continue
+			}
 
-		heads = append(heads, update.NewOID.String())
+			heads = append(heads, update.NewOID.String())
+		}
 	}
 
 	for objectID := range transaction.includedObjects {
@@ -1864,6 +1933,8 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 		}()
 	case <-mgr.completedQueue:
 		return nil
+	case <-mgr.acknowledgedQueue:
+		return nil
 	case <-mgr.ctx.Done():
 	}
 
@@ -1901,7 +1972,11 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			return fmt.Errorf("setup staging snapshot: %w", err)
 		}
 
-		if err := mgr.verifyObjectDependencies(mgr.ctx, transaction); err != nil {
+		// Verify that all objects this transaction depends on are present in the repository. The dependency
+		// objects are the reference tips set in the transaction and the objects the transaction's packfile
+		// is based on. If an object dependency is missing, the transaction is aborted as applying it would
+		// result in repository corruption.
+		if err := mgr.verifyObjectsExist(mgr.ctx, transaction.stagingRepository, transaction.objectDependencies); err != nil {
 			return fmt.Errorf("verify object dependencies: %w", err)
 		}
 
@@ -1944,7 +2019,7 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 
 		logEntry.Operations = transaction.walEntry.Operations()
 
-		return mgr.appendLogEntry(logEntry, transaction.walFilesPath())
+		return mgr.appendLogEntry(transaction.objectDependencies, logEntry, transaction.walFilesPath())
 	}(); err != nil {
 		transaction.result <- err
 		return nil
@@ -1955,23 +2030,21 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 	return nil
 }
 
-// verifyObjectDependencies verifies that all objects this transaction depends on are present in the
-// repository. The dependency objects are the reference tips set in the transaction and the objects
-// the transaction's packfile is based on. If an object dependency is missing, the transaction is
-// aborted as applying it would result in repository corruption.
-func (mgr *TransactionManager) verifyObjectDependencies(ctx context.Context, tx *Transaction) error {
-	if len(tx.objectDependencies) == 0 {
+// verifyObjectsExist verifies that all objects passed in to the method exist in the repository.
+// If an object is missing, an InvalidObjectError error is raised.
+func (mgr *TransactionManager) verifyObjectsExist(ctx context.Context, repository *localrepo.Repo, oids map[git.ObjectID]struct{}) error {
+	if len(oids) == 0 {
 		return nil
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
 
-	dependencyReader, dependencyWriter := io.Pipe()
+	oidReader, oidWriter := io.Pipe()
 	eg.Go(func() (returnedErr error) {
-		defer dependencyWriter.CloseWithError(returnedErr)
+		defer oidWriter.CloseWithError(returnedErr)
 
-		for oid := range tx.objectDependencies {
-			if _, err := fmt.Fprintln(dependencyWriter, oid.String()); err != nil {
+		for oid := range oids {
+			if _, err := fmt.Fprintln(oidWriter, oid.String()); err != nil {
 				return fmt.Errorf("write dependency oid: %w", err)
 			}
 		}
@@ -1981,11 +2054,11 @@ func (mgr *TransactionManager) verifyObjectDependencies(ctx context.Context, tx 
 
 	resultReader, resultWriter := io.Pipe()
 	eg.Go(func() (returnedErr error) {
-		defer dependencyReader.CloseWithError(returnedErr)
+		defer oidReader.CloseWithError(returnedErr)
 		defer resultWriter.CloseWithError(returnedErr)
 
 		var stderr bytes.Buffer
-		if err := tx.stagingRepository.ExecAndWait(ctx,
+		if err := repository.ExecAndWait(ctx,
 			git.Command{
 				Name: "cat-file",
 				Flags: []git.Option{
@@ -1993,7 +2066,7 @@ func (mgr *TransactionManager) verifyObjectDependencies(ctx context.Context, tx 
 					git.Flag{Name: "--buffer"},
 				},
 			},
-			git.WithStdin(dependencyReader),
+			git.WithStdin(oidReader),
 			git.WithStdout(resultWriter),
 			git.WithStderr(&stderr),
 		); err != nil {
@@ -2014,7 +2087,7 @@ func (mgr *TransactionManager) verifyObjectDependencies(ctx context.Context, tx 
 			}
 
 			// Sanity check this was actually an object ID we were looking for.
-			if _, ok := tx.objectDependencies[git.ObjectID(line)]; !ok {
+			if _, ok := oids[git.ObjectID(line)]; !ok {
 				return fmt.Errorf("unexpected oid line: %q", line)
 			}
 		}
@@ -2048,11 +2121,11 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	defer close(mgr.initialized)
 
 	var appliedLSN gitalypb.LSN
-	if err := mgr.readKey(keyAppliedLSN(mgr.partitionID), &appliedLSN); err != nil && !errors.Is(err, badger.ErrKeyNotFound) {
+	if err := mgr.readKey(keyAppliedLSN, &appliedLSN); err != nil && !errors.Is(err, badger.ErrKeyNotFound) {
 		return fmt.Errorf("read applied LSN: %w", err)
 	}
 
-	mgr.appliedLSN = LSN(appliedLSN.Value)
+	mgr.appliedLSN = storage.LSN(appliedLSN.Value)
 
 	if err := mgr.createStateDirectory(); err != nil {
 		return fmt.Errorf("create state directory: %w", err)
@@ -2080,12 +2153,16 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	if logEntries, err := os.ReadDir(walFilesPath(mgr.stateDirectory)); err != nil {
 		return fmt.Errorf("read wal directory: %w", err)
 	} else if len(logEntries) > 0 {
-		if mgr.oldestLSN, err = parseLSN(logEntries[0].Name()); err != nil {
+		if mgr.oldestLSN, err = storage.ParseLSN(logEntries[0].Name()); err != nil {
 			return fmt.Errorf("parse oldest LSN: %w", err)
 		}
-		if mgr.appendedLSN, err = parseLSN(logEntries[len(logEntries)-1].Name()); err != nil {
+		if mgr.appendedLSN, err = storage.ParseLSN(logEntries[len(logEntries)-1].Name()); err != nil {
 			return fmt.Errorf("parse appended LSN: %w", err)
 		}
+	}
+
+	if mgr.consumer != nil {
+		mgr.consumer.NotifyNewTransactions(mgr.partitionID, mgr.oldestLSN, mgr.appendedLSN, mgr)
 	}
 
 	// Create a snapshot lock for the applied LSN as it is used for synchronizing
@@ -2182,7 +2259,7 @@ func (mgr *TransactionManager) removePackedRefsLocks(ctx context.Context, reposi
 // but the manager was interrupted before successfully persisting the log entry itself.
 // If the manager deletes a log entry successfully from the database but is interrupted before it cleans
 // up the associated files, such a directory can also be left at the head of the log.
-func (mgr *TransactionManager) removeStaleWALFiles(ctx context.Context, oldestLSN, appendedLSN LSN) error {
+func (mgr *TransactionManager) removeStaleWALFiles(ctx context.Context, oldestLSN, appendedLSN storage.LSN) error {
 	needsFsync := false
 	for _, possibleStaleFilesPath := range []string{
 		// Log entries are pruned one by one. If a write is interrupted, the only possible stale files would be
@@ -2225,7 +2302,7 @@ func walFilesPath(stateDir string) string {
 }
 
 // walFilesPathForLSN returns an absolute path to a given log entry's WAL files.
-func walFilesPathForLSN(stateDir string, lsn LSN) string {
+func walFilesPathForLSN(stateDir string, lsn storage.LSN) string {
 	return filepath.Join(walFilesPath(stateDir), lsn.String())
 }
 
@@ -2333,7 +2410,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 		return nil, fmt.Errorf("quarantine: %w", err)
 	}
 
-	conflictingReferenceUpdates := map[git.ReferenceName]struct{}{}
+	droppedReferenceUpdates := map[git.ReferenceName]struct{}{}
 	for referenceName, update := range transaction.flattenReferenceTransactions() {
 		// Transactions should only stage references with valid names as otherwise Git would already
 		// fail when they try to stage them against their snapshot. `update-ref` happily accepts references
@@ -2357,7 +2434,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 
 		if update.OldOID != actualOldTip {
 			if transaction.skipVerificationFailures {
-				conflictingReferenceUpdates[referenceName] = struct{}{}
+				droppedReferenceUpdates[referenceName] = struct{}{}
 				continue
 			}
 
@@ -2368,13 +2445,20 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 				NewOID:         update.NewOID,
 			}
 		}
+
+		if update.OldOID == update.NewOID {
+			// This was a no-op and doesn't need to be written out. The reference's old value has been
+			// verified now to match what is expected.
+			droppedReferenceUpdates[referenceName] = struct{}{}
+			continue
+		}
 	}
 
 	var referenceTransactions []*gitalypb.LogEntry_ReferenceTransaction
 	for _, updates := range transaction.referenceUpdates {
 		changes := make([]*gitalypb.LogEntry_ReferenceTransaction_Change, 0, len(updates))
 		for reference, update := range updates {
-			if _, ok := conflictingReferenceUpdates[reference]; ok {
+			if _, ok := droppedReferenceUpdates[reference]; ok {
 				continue
 			}
 
@@ -2494,7 +2578,7 @@ func (mgr *TransactionManager) verifyHousekeeping(ctx context.Context, transacti
 	defer mgr.mutex.Unlock()
 
 	// Check for any concurrent housekeeping between this transaction's snapshot LSN and the latest appended LSN.
-	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry) error {
+	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry, objectDependencies map[git.ObjectID]struct{}) error {
 		if entry.GetHousekeeping() != nil {
 			return errHousekeepingConflictConcurrent
 		}
@@ -2563,7 +2647,7 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 	packRefs := transaction.runHousekeeping.packRefs
 
 	// Check for any concurrent ref deletion between this transaction's snapshot LSN to the end.
-	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry) error {
+	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry, objectDependencies map[git.ObjectID]struct{}) error {
 		for _, refTransaction := range entry.ReferenceTransactions {
 			for _, change := range refTransaction.Changes {
 				if objectHash.IsZeroOID(git.ObjectID(change.GetNewOid())) {
@@ -2589,24 +2673,26 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 	}, nil
 }
 
-// The function verifyRepacking confirms that the repacking process can integrate a new collection of packfiles.
-// Repacking should generally be risk-free as it systematically arranges packfiles and removes old, unused objects. The
-// standard housekeeping procedure includes a grace period, in days, to protect objects that might be in use by
-// simultaneous operations. However, the transaction manager deals with concurrent requests more effectively. By
-// reviewing the list of transactions since the repacking began, we can identify potential conflicts involving
-// concurrent processes.
-// We need to watch out for two types of conflicts:
-// 1. Overlapping transactions could reference objects that have been pruned. Extracting these pruned objects from the
-// repacking process isn't straightforward. The repacking task must confirm that these referenced objects are still
-// accessible in the repacked repository. This is done using the `git-cat-file --batch-check` command. Simultaneously,
-// it's possible for these transactions to refer to new objects created by other concurrent transactions. So, we need to
-// setup a working directory based on the destination repository and apply changed packfiles of repacking transaction
-// for checking.
-// 2. There might be transactions in progress that rely on dependencies that have been pruned. This type of conflict
-// can't be fully checked until Git v2.43 is implemented in Gitaly, as detailed in the GitLab epic
-// (https://gitlab.com/groups/gitlab-org/-/epics/11242).
-// It's important to note that this verification is specific to the `RepackObjectsStrategyFullWithCruft` strategy. Other
-// strategies focus solely on reorganizing packfiles and do not remove objects.
+// verifyRepacking checks the object repacking operations for conflicts.
+//
+// Object repacking without pruning is conflict-free operation. It only rearranges the objects on the disk into
+// a more optimal physical format. All objects that other transactions could need are still present in pure repacking
+// operations.
+//
+// Repacking operations that prune unreachable objects from the repository may lead to conflicts. Conflicts may occur
+// if concurrent transactions depend on the unreachable objects.
+//
+// 1. Transactions may point references to the previously unreachable objects and make them reachable.
+// 2. Transactions may write new objects that depend on the unreachable objects.
+//
+// In both cases a pruning operation that removes the objects must be aborted. In the first case, the pruning
+// operation would remove reachable objects from the repository and the repository becomes corrupted. In the second case,
+// the new objects written into the repository may not be necessarily reachable. Transactions depend on an invariant
+// that all objects in the repository are valid. Therefore, we must also reject transactions that attempt to remove
+// dependencies of unreachable objects even if such state isn't considered corrupted by Git.
+//
+// As we don't have a list of pruned objects at hand, the conflicts are identified by checking whether the recorded
+// dependencies of a transaction would still exist in the repository after applying the pruning operation.
 func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction *Transaction) (_ *gitalypb.LogEntry_Housekeeping_Repack, finalErr error) {
 	repack := transaction.runHousekeeping.repack
 	if repack == nil {
@@ -2658,98 +2744,26 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 		return nil, fmt.Errorf("applying commit graph for verifying repacking: %w", err)
 	}
 
-	objectHash, err := workingRepository.ObjectHash(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("detecting object hash: %w", err)
-	}
-
-	// Collect reference tips. All of them should exist in the resulting packfile or new concurrent
+	// Collect object dependencies. All of them should exist in the resulting packfile or new concurrent
 	// packfiles while repacking is running.
-	referenceTips := map[string]struct{}{}
-	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry) error {
-		for _, txn := range entry.GetReferenceTransactions() {
-			for _, change := range txn.GetChanges() {
-				oid := change.GetNewOid()
-				if !objectHash.IsZeroOID(git.ObjectID(oid)) {
-					referenceTips[string(oid)] = struct{}{}
-				}
-			}
+	objectDependencies := map[git.ObjectID]struct{}{}
+	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry, txnObjectDependencies map[git.ObjectID]struct{}) error {
+		for oid := range txnObjectDependencies {
+			objectDependencies[oid] = struct{}{}
 		}
+
 		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("walking committed entries: %w", err)
 	}
 
-	if len(referenceTips) == 0 {
-		return &gitalypb.LogEntry_Housekeeping_Repack{
-			NewFiles:     repack.newFiles,
-			DeletedFiles: repack.deletedFiles,
-			IsFullRepack: repack.isFullRepack,
-		}, nil
-	}
-
-	// Although we have a wrapper for caching `git-cat-file` process, this command targets the snapshot repository
-	// that the repacking task depends on. This task might run for minutes to hours. It's unlikely there is any
-	// concurrent operation sharing this process. So, no need to cache it. An alternative solution is to read and
-	// parse the index files of the working directory. That approach avoids spawning `git-cat-file(1)`. In contrast,
-	// it requires storing the list of objects in memory.
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	var stderr bytes.Buffer
-	stdinReader, stdinWriter := io.Pipe()
-	stdoutReader, stdoutWriter := io.Pipe()
-
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.Go(func() (returnedErr error) {
-		defer func() { stdinWriter.CloseWithError(returnedErr) }()
-		for oid := range referenceTips {
-			// Verify if the reference tip is reachable from the resulting single packfile.
-			if _, err := stdinWriter.Write([]byte(fmt.Sprintf("%s\000", oid))); err != nil {
-				return fmt.Errorf("writing cat-file command: %w", err)
-			}
+	if err := mgr.verifyObjectsExist(ctx, workingRepository, objectDependencies); err != nil {
+		var errInvalidObject localrepo.InvalidObjectError
+		if errors.As(err, &errInvalidObject) {
+			return nil, errRepackConflictPrunedObject
 		}
-		if _, err := stdinWriter.Write([]byte("flush\000")); err != nil {
-			return fmt.Errorf("writing flush: %w", err)
-		}
-		return nil
-	})
 
-	group.Go(func() (returnedErr error) {
-		defer func() {
-			stdinReader.CloseWithError(returnedErr)
-			stdoutReader.CloseWithError(returnedErr)
-		}()
-
-		stdout := bufio.NewReader(stdoutReader)
-		for range referenceTips {
-			if _, err := catfile.ParseObjectInfo(objectHash, stdout, true); err != nil {
-				if errors.As(err, &catfile.NotFoundError{}) {
-					return errRepackConflictPrunedObject
-				}
-				return fmt.Errorf("reading object info: %w", err)
-			}
-		}
-		return nil
-	})
-
-	group.Go(func() (returnedErr error) {
-		defer func() { stdoutWriter.CloseWithError(returnedErr) }()
-		if err := workingRepository.ExecAndWait(groupCtx, git.Command{
-			Name: "cat-file",
-			Flags: []git.Option{
-				git.Flag{Name: "--batch-check"},
-				git.Flag{Name: "--buffer"},
-				git.Flag{Name: "-Z"},
-			},
-		}, git.WithStdin(stdinReader), git.WithStdout(stdoutWriter), git.WithStderr(&stderr)); err != nil {
-			return structerr.New("spawning cat-file command: %w", err).WithMetadata("stderr", stderr.String())
-		}
-		return nil
-	})
-
-	if err := group.Wait(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("verify objects exist: %w", err)
 	}
 
 	return &gitalypb.LogEntry_Housekeeping_Repack{
@@ -2803,7 +2817,7 @@ func (mgr *TransactionManager) applyReferenceTransaction(ctx context.Context, ch
 // appendLogEntry appends the transaction to the write-ahead log. It first writes the transaction's manifest file
 // into the log entry's directory. Afterwards it moves the log entry's directory from the staging area to its final
 // place in the write-ahead log.
-func (mgr *TransactionManager) appendLogEntry(logEntry *gitalypb.LogEntry, logEntryPath string) error {
+func (mgr *TransactionManager) appendLogEntry(objectDependencies map[git.ObjectID]struct{}, logEntry *gitalypb.LogEntry, logEntryPath string) error {
 	manifestBytes, err := proto.Marshal(logEntry)
 	if err != nil {
 		return fmt.Errorf("marshal manifest: %w", err)
@@ -2866,15 +2880,19 @@ func (mgr *TransactionManager) appendLogEntry(logEntry *gitalypb.LogEntry, logEn
 	mgr.appendedLSN = nextLSN
 	mgr.snapshotLocks[nextLSN] = &snapshotLock{applied: make(chan struct{})}
 	mgr.committedEntries.PushBack(&committedEntry{
-		lsn: nextLSN,
+		lsn:                nextLSN,
+		objectDependencies: objectDependencies,
 	})
 	mgr.mutex.Unlock()
 
+	if mgr.consumer != nil {
+		mgr.consumer.NotifyNewTransactions(mgr.partitionID, mgr.lowWaterMark(), nextLSN, mgr)
+	}
 	return nil
 }
 
 // applyLogEntry reads a log entry at the given LSN and applies it to the repository.
-func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn LSN) error {
+func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn storage.LSN) error {
 	logEntry, err := mgr.readLogEntry(lsn)
 	if err != nil {
 		return fmt.Errorf("read log entry: %w", err)
@@ -2954,7 +2972,7 @@ func (mgr *TransactionManager) createRepository(ctx context.Context, repositoryP
 }
 
 // applyHousekeeping applies housekeeping results to the target repository.
-func (mgr *TransactionManager) applyHousekeeping(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
+func (mgr *TransactionManager) applyHousekeeping(ctx context.Context, lsn storage.LSN, logEntry *gitalypb.LogEntry) error {
 	if logEntry.Housekeeping == nil {
 		return nil
 	}
@@ -2980,7 +2998,7 @@ func (mgr *TransactionManager) applyHousekeeping(ctx context.Context, lsn LSN, l
 	return nil
 }
 
-func (mgr *TransactionManager) applyPackRefs(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
+func (mgr *TransactionManager) applyPackRefs(ctx context.Context, lsn storage.LSN, logEntry *gitalypb.LogEntry) error {
 	if logEntry.Housekeeping.PackRefs == nil {
 		return nil
 	}
@@ -3069,7 +3087,7 @@ func (mgr *TransactionManager) applyPackRefs(ctx context.Context, lsn LSN, logEn
 
 // applyRepacking applies the new packfile set and removed known pruned packfiles. New packfiles created by concurrent
 // changes are kept intact.
-func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
+func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn storage.LSN, logEntry *gitalypb.LogEntry) error {
 	if logEntry.Housekeeping.Repack == nil {
 		return nil
 	}
@@ -3116,7 +3134,7 @@ func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn LSN, logE
 // new chain can be identical to the existing chain, but the fee of checking is similar to the replacement fee. Thus, we
 // can simply remove and link new directory over. Apart from commit-graph task, the repacking task also replaces the
 // chain before verification.
-func (mgr *TransactionManager) applyCommitGraphs(ctx context.Context, lsn LSN, logEntry *gitalypb.LogEntry) error {
+func (mgr *TransactionManager) applyCommitGraphs(ctx context.Context, lsn storage.LSN, logEntry *gitalypb.LogEntry) error {
 	if logEntry.Housekeeping.WriteCommitGraphs == nil {
 		return nil
 	}
@@ -3220,7 +3238,7 @@ func isDirEmpty(dir string) (bool, error) {
 }
 
 // deleteLogEntry deletes the log entry at the given LSN from the log.
-func (mgr *TransactionManager) deleteLogEntry(lsn LSN) error {
+func (mgr *TransactionManager) deleteLogEntry(lsn storage.LSN) error {
 	tmpDir, err := os.MkdirTemp(mgr.stagingDirectory, "")
 	if err != nil {
 		return fmt.Errorf("mkdir temp: %w", err)
@@ -3252,7 +3270,7 @@ func (mgr *TransactionManager) deleteLogEntry(lsn LSN) error {
 }
 
 // readLogEntry returns the log entry from the given position in the log.
-func (mgr *TransactionManager) readLogEntry(lsn LSN) (*gitalypb.LogEntry, error) {
+func (mgr *TransactionManager) readLogEntry(lsn storage.LSN) (*gitalypb.LogEntry, error) {
 	manifestBytes, err := os.ReadFile(manifestPath(walFilesPathForLSN(mgr.stateDirectory, lsn)))
 	if err != nil {
 		return nil, fmt.Errorf("read manifest: %w", err)
@@ -3267,8 +3285,8 @@ func (mgr *TransactionManager) readLogEntry(lsn LSN) (*gitalypb.LogEntry, error)
 }
 
 // storeAppliedLSN stores the partition's applied LSN in the database.
-func (mgr *TransactionManager) storeAppliedLSN(lsn LSN) error {
-	return mgr.setKey(keyAppliedLSN(mgr.partitionID), lsn.toProto())
+func (mgr *TransactionManager) storeAppliedLSN(lsn storage.LSN) error {
+	return mgr.setKey(keyAppliedLSN, lsn.ToProto())
 }
 
 // setKey marshals and stores a given protocol buffer message into the database under the given key.
@@ -3291,7 +3309,7 @@ func (mgr *TransactionManager) setKey(key []byte, value proto.Message) error {
 // readKey reads a key from the database and unmarshals its value in to the destination protocol
 // buffer message.
 func (mgr *TransactionManager) readKey(key []byte, destination proto.Message) error {
-	return mgr.db.View(func(txn DatabaseTransaction) error {
+	return mgr.db.View(func(txn keyvalue.ReadWriter) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return fmt.Errorf("get: %w", err)
@@ -3303,26 +3321,44 @@ func (mgr *TransactionManager) readKey(key []byte, destination proto.Message) er
 
 // lowWaterMark returns the earliest LSN of log entries which should be kept in the database. Any log entries LESS than
 // this mark are removed.
-func (mgr *TransactionManager) lowWaterMark() LSN {
+func (mgr *TransactionManager) lowWaterMark() storage.LSN {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
+	// Greater than the maximum position of any consumer.
+	minConsumed := mgr.appliedLSN + 1
+
+	if mgr.consumer != nil {
+		// Position is the last acknowledged LSN, this is eligible for pruning.
+		// lowWaterMark returns the lowest LSN that cannot be pruned, so add one.
+		pos := mgr.consumerPos.getPosition() + 1
+		if pos < minConsumed {
+			minConsumed = pos
+		}
+	}
+
 	elm := mgr.committedEntries.Front()
 	if elm == nil {
-		return mgr.appliedLSN + 1
+		return minConsumed
 	}
-	return elm.Value.(*committedEntry).lsn
+
+	committed := elm.Value.(*committedEntry).lsn
+	if minConsumed < committed {
+		return minConsumed
+	}
+
+	return committed
 }
 
 // updateCommittedEntry updates the reader counter of the committed entry of the snapshot that this transaction depends on.
-func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) (*committedEntry, error) {
+func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN storage.LSN) *committedEntry {
 	// Since the goroutine doing this is holding the lock, the snapshotLSN shouldn't change and no new transactions
 	// can be committed or added. That should guarantee .Back() is always the latest transaction and the one we're
 	// using to base our snapshot on.
 	if elm := mgr.committedEntries.Back(); elm != nil {
 		entry := elm.Value.(*committedEntry)
 		entry.snapshotReaders++
-		return entry, nil
+		return entry
 	}
 
 	entry := &committedEntry{
@@ -3332,12 +3368,12 @@ func (mgr *TransactionManager) updateCommittedEntry(snapshotLSN LSN) (*committed
 
 	mgr.committedEntries.PushBack(entry)
 
-	return entry, nil
+	return entry
 }
 
 // walkCommittedEntries walks all committed entries after input transaction's snapshot LSN. It loads the content of the
 // entry from disk and triggers the callback with entry content.
-func (mgr *TransactionManager) walkCommittedEntries(transaction *Transaction, callback func(*gitalypb.LogEntry) error) error {
+func (mgr *TransactionManager) walkCommittedEntries(transaction *Transaction, callback func(*gitalypb.LogEntry, map[git.ObjectID]struct{}) error) error {
 	for elm := mgr.committedEntries.Front(); elm != nil; elm = elm.Next() {
 		committed := elm.Value.(*committedEntry)
 		if committed.lsn <= transaction.snapshotLSN {
@@ -3353,7 +3389,7 @@ func (mgr *TransactionManager) walkCommittedEntries(transaction *Transaction, ca
 		if entry.RelativePath != transaction.relativePath {
 			continue
 		}
-		if err := callback(entry); err != nil {
+		if err := callback(entry, committed.objectDependencies); err != nil {
 			return fmt.Errorf("callback: %w", err)
 		}
 	}
@@ -3381,9 +3417,4 @@ func (mgr *TransactionManager) cleanCommittedEntry(entry *committedEntry) bool {
 		elm = mgr.committedEntries.Front()
 	}
 	return removedAnyEntry
-}
-
-// keyAppliedLSN returns the database key storing a partition's last applied log entry's LSN.
-func keyAppliedLSN(ptnID partitionID) []byte {
-	return []byte(fmt.Sprintf("partition/%s/applied_lsn", ptnID.MarshalBinary()))
 }

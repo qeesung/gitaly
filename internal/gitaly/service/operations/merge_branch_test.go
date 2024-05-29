@@ -49,7 +49,7 @@ func TestUserMergeBranch(t *testing.T) {
 func testUserMergeBranch(t *testing.T, ctx context.Context) {
 	var opts []testserver.GitalyServerOpt
 	if featureflag.GPGSigning.IsEnabled(ctx) {
-		opts = append(opts, testserver.WithSigningKey("testdata/signing_gpg_key"))
+		opts = append(opts, testserver.WithSigningKey(filepath.Join(testhelper.TestdataAbsolutePath(t), "signing_gpg_key")))
 	}
 
 	ctx, cfg, client := setupOperationsService(t, ctx, opts...)
@@ -778,47 +778,35 @@ func testUserMergeBranchConcurrentUpdate(t *testing.T, ctx context.Context) {
 		},
 	}
 
-	if testhelper.IsWALEnabled() {
-		// With transaction management enabled, the RPC won't observe concurrent updates in its snapshot.
-		// Only once it commits will the updates be verified against other concurrent updates. We thus have
-		// to receive once more after the successful merge to end the stream and trigger a transaction commit.
-		secondResponse, err := stream.Recv()
-		require.NoError(t, err)
-		testhelper.ProtoEqual(t, &gitalypb.UserMergeBranchResponse{
-			BranchUpdate: &gitalypb.OperationBranchUpdate{
-				CommitId: mergeCommitOID.String(),
-			},
-		}, secondResponse)
-
-		thirdResponse, err := stream.Recv()
-		testhelper.RequireGrpcError(t, structerr.NewFailedPrecondition("commit: verify references: %w", storagemgr.ReferenceVerificationError{
+	expectedErr := testhelper.WithOrWithoutWAL(
+		structerr.NewFailedPrecondition("%w", storagemgr.ReferenceVerificationError{
 			ReferenceName:  "refs/heads/branch",
 			ExpectedOldOID: git.ObjectID(commits.left.String()),
 			ActualOldOID:   concurrentCommitID,
 			NewOID:         mergeCommitOID,
-		}).WithDetail(expectedDetail), err)
-		require.Nil(t, thirdResponse)
-	} else {
-		secondResponse, err := stream.Recv()
-		testhelper.RequireGrpcError(t,
-			structerr.NewFailedPrecondition("reference update: reference does not point to expected object").
-				WithDetail(&testproto.ErrorMetadata{
-					Key:   []byte("actual_object_id"),
-					Value: []byte(concurrentCommitID),
-				}).
-				WithDetail(&testproto.ErrorMetadata{
-					Key:   []byte("expected_object_id"),
-					Value: []byte(commits.left),
-				}).
-				WithDetail(&testproto.ErrorMetadata{
-					Key:   []byte("reference"),
-					Value: []byte("refs/heads/branch"),
-				}).
-				WithDetail(expectedDetail),
-			err,
-		)
-		require.Nil(t, secondResponse)
-	}
+		}).WithDetail(expectedDetail),
+		structerr.NewFailedPrecondition("reference update: reference does not point to expected object").
+			WithDetail(&testproto.ErrorMetadata{
+				Key:   []byte("actual_object_id"),
+				Value: []byte(concurrentCommitID),
+			}).
+			WithDetail(&testproto.ErrorMetadata{
+				Key:   []byte("expected_object_id"),
+				Value: []byte(commits.left),
+			}).
+			WithDetail(&testproto.ErrorMetadata{
+				Key:   []byte("reference"),
+				Value: []byte("refs/heads/branch"),
+			}).
+			WithDetail(expectedDetail),
+	)
+
+	secondResponse, err := stream.Recv()
+	testhelper.RequireGrpcError(t,
+		expectedErr,
+		err,
+	)
+	require.Nil(t, secondResponse)
 
 	commit, err := repo.ReadCommit(ctx, "refs/heads/branch")
 	require.NoError(t, err, "get commit after RPC finished")
@@ -1152,6 +1140,7 @@ func testUserMergeBranchAllowed(t *testing.T, ctx context.Context) {
 				gitlab.MockPostReceive,
 			), hook.NewTransactionRegistry(storagemgr.NewTransactionRegistry()),
 				hook.NewProcReceiveRegistry(),
+				nil,
 			)
 
 			ctx, cfg, client := setupOperationsServiceWithCfg(

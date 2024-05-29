@@ -189,12 +189,7 @@ func (s *Server) UserCreateTag(ctx context.Context, req *gitalypb.UserCreateTagR
 				},
 			)
 		} else if errors.As(err, &customHookErr) {
-			// We explicitly don't include the custom hook error itself
-			// in the returned error because that would also contain the
-			// standard output or standard error in the error message.
-			// It's thus needlessly verbose and duplicates information
-			// we have available in the structured error anyway.
-			return nil, structerr.NewPermissionDenied("reference update denied by custom hooks").WithDetail(
+			return nil, structerr.NewPermissionDenied("reference update denied by custom hooks: %w", err).WithDetail(
 				&gitalypb.UserCreateTagError{
 					Error: &gitalypb.UserCreateTagError_CustomHook{
 						CustomHook: customHookErr.Proto(),

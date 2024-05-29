@@ -14,7 +14,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dgraph-io/badger/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +29,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/counter"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -101,11 +101,16 @@ type FullRepackTimestamp struct {
 	Exists bool
 }
 
-// sortObjects sorts objects lexically by their oid.
-func sortObjects(objects []git.ObjectID) {
-	sort.Slice(objects, func(i, j int) bool {
-		return objects[i] < objects[j]
+// sortObjects returns a new slice with objects sorted lexically by their oid.
+func sortObjects(objects []git.ObjectID) []git.ObjectID {
+	sortedObjects := make([]git.ObjectID, len(objects))
+	copy(sortedObjects, objects)
+
+	sort.Slice(sortedObjects, func(i, j int) bool {
+		return sortedObjects[i] < sortedObjects[j]
 	})
+
+	return sortedObjects
 }
 
 // sortPackfiles sorts the list of packfiles by their contained objects. Each packfile has a static hash. This hash is
@@ -209,7 +214,9 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 				deduplicatedObjectIDs[oid] = struct{}{}
 			}
 		}
-		sortObjects(expectedPackfiles.LooseObjects)
+
+		expectedPackfiles.LooseObjects = sortObjects(expectedPackfiles.LooseObjects)
+
 		// The pooled objects are added to the general object existence assertion. If
 		// the pooled objects are missing, ListObjects below won't return them, and we'll
 		// ll see a failure as expected objects are missing.
@@ -218,7 +225,7 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 		expectedPackfiles.PooledObjects = nil
 
 		for _, packfile := range expected.Packfiles.Packfiles {
-			sortObjects(packfile.Objects)
+			packfile.Objects = sortObjects(packfile.Objects)
 			for _, oid := range packfile.Objects {
 				deduplicatedObjectIDs[oid] = struct{}{}
 			}
@@ -233,15 +240,14 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 		require.NoError(tb, err)
 
 		actualPackfiles = collectPackfilesState(tb, repoPath, cfg, objectHash, expected.Packfiles)
-		sortObjects(actualPackfiles.LooseObjects)
+		actualPackfiles.LooseObjects = sortObjects(actualPackfiles.LooseObjects)
 		for _, packfile := range actualPackfiles.Packfiles {
-			sortObjects(packfile.Objects)
+			packfile.Objects = sortObjects(packfile.Objects)
 		}
 	}
 
-	actualObjects := gittest.ListObjects(tb, cfg, repoPath)
-	sortObjects(actualObjects)
-	sortObjects(expectedObjects)
+	actualObjects := sortObjects(gittest.ListObjects(tb, cfg, repoPath))
+	expectedObjects = sortObjects(expectedObjects)
 	if expectedObjects == nil {
 		// Normalize no objects to an empty slice. This way the equality check keeps working
 		// without having to explicitly assert empty slice in the tests.
@@ -498,7 +504,7 @@ type DatabaseState map[string]proto.Message
 
 // RequireDatabase asserts the actual database state matches the expected database state. The actual values in the
 // database are unmarshaled to the same type the values have in the expected database state.
-func RequireDatabase(tb testing.TB, ctx context.Context, database Database, expectedState DatabaseState) {
+func RequireDatabase(tb testing.TB, ctx context.Context, database keyvalue.Transactioner, expectedState DatabaseState) {
 	tb.Helper()
 
 	if expectedState == nil {
@@ -507,8 +513,8 @@ func RequireDatabase(tb testing.TB, ctx context.Context, database Database, expe
 
 	actualState := DatabaseState{}
 	unexpectedKeys := []string{}
-	require.NoError(tb, database.View(func(txn DatabaseTransaction) error {
-		iterator := txn.NewIterator(badger.DefaultIteratorOptions)
+	require.NoError(tb, database.View(func(txn keyvalue.ReadWriter) error {
+		iterator := txn.NewIterator(keyvalue.IteratorOptions{})
 		defer iterator.Close()
 
 		for iterator.Rewind(); iterator.Valid(); iterator.Next() {
@@ -556,7 +562,7 @@ type testTransactionCommits struct {
 }
 
 type testTransactionSetup struct {
-	PartitionID       partitionID
+	PartitionID       storage.PartitionID
 	RelativePath      string
 	RepositoryPath    string
 	Repo              *localrepo.Repo
@@ -568,6 +574,7 @@ type testTransactionSetup struct {
 	Commits           testTransactionCommits
 	AnnotatedTags     []testTransactionTag
 	Metrics           *metrics
+	Consumer          LogConsumer
 }
 
 type testTransactionHooks struct {
@@ -626,7 +633,7 @@ type Begin struct {
 	// Context is the context to use for the Begin call.
 	Context context.Context
 	// ExpectedSnapshot is the expected LSN this transaction should read the repsoitory's state at.
-	ExpectedSnapshotLSN LSN
+	ExpectedSnapshotLSN storage.LSN
 	// ExpectedError is the error expected to be returned from the Begin call.
 	ExpectedError error
 }
@@ -751,6 +758,12 @@ type Prune struct {
 	ExpectedObjects []git.ObjectID
 }
 
+// ConsumerAcknowledge calls AcknowledgeTransaction for all consumers.
+type ConsumerAcknowledge struct {
+	// LSN is the LSN acknowledged by the consumers.
+	LSN storage.LSN
+}
+
 // RemoveRepository removes the repository from the disk. It must be run with the TransactionManager
 // closed.
 type RemoveRepository struct{}
@@ -773,6 +786,9 @@ type StateAssertion struct {
 	// Repositories is the expected state of the repositories in the storage. The key is
 	// the repository's relative path and the value describes its expected state.
 	Repositories RepositoryStates
+	// Consumers is the expected state of the consumers and their position as tracked by
+	// the TransactionManager.
+	Consumers ConsumerState
 }
 
 // AdhocAssertion allows a test to add some custom assertions apart from the built-in assertions above.
@@ -794,6 +810,41 @@ func (m histogramMetric) metricName() string { return string(m) }
 // metrics.
 type AssertMetrics map[metricFamily]map[string]int
 
+// MockLogConsumer acts as a generic log consumer for testing the TransactionManager.
+type MockLogConsumer struct {
+	highWaterMark storage.LSN
+}
+
+func (lc *MockLogConsumer) NotifyNewTransactions(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr LogManager) {
+	lc.highWaterMark = highWaterMark
+}
+
+// ConsumerState is used to track the log positions received by the consumer and the corresponding
+// acknowledgements from the consumer to the manager. We deliberately do not track the LowWaterMark
+// sent to consumers as this is non-deterministic.
+type ConsumerState struct {
+	// ManagerPosition is the last acknowledged LSN for the consumer as tracked by the TransactionManager.
+	ManagerPosition storage.LSN
+	// HighWaterMark is the latest high water mark received by the consumer from NotifyNewTransactions.
+	HighWaterMark storage.LSN
+}
+
+// RequireConsumer asserts the consumer log position is correct.
+func RequireConsumer(t *testing.T, consumer LogConsumer, consumerPos *consumerPosition, expected ConsumerState) {
+	t.Helper()
+
+	require.Equal(t, expected.ManagerPosition, consumerPos.getPosition(), "expected and actual manager position don't match")
+
+	if consumer == nil {
+		return
+	}
+
+	mock, ok := consumer.(*MockLogConsumer)
+	require.True(t, ok)
+
+	require.Equal(t, expected.HighWaterMark, mock.highWaterMark, "expected and actual high water marks don't match")
+}
+
 // steps defines execution steps in a test. Each test case can define multiple steps to exercise
 // more complex behavior.
 type steps []any
@@ -802,7 +853,7 @@ type transactionTestCase struct {
 	desc          string
 	skip          func(*testing.T)
 	steps         steps
-	customSetup   func(*testing.T, context.Context, partitionID, string) testTransactionSetup
+	customSetup   func(*testing.T, context.Context, storage.PartitionID, string) testTransactionSetup
 	expectedState StateAssertion
 }
 
@@ -830,9 +881,11 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 	repoPath, err := repo.Path()
 	require.NoError(t, err)
 
-	database, err := OpenDatabase(testhelper.SharedLogger(t), t.TempDir())
+	rawDatabase, err := keyvalue.NewBadgerStore(testhelper.SharedLogger(t), t.TempDir())
 	require.NoError(t, err)
-	defer testhelper.MustClose(t, database)
+	defer testhelper.MustClose(t, rawDatabase)
+
+	database := keyvalue.NewPrefixedTransactioner(rawDatabase, keyPrefixPartition(setup.PartitionID))
 
 	storagePath := setup.Config.Storages[0].Path
 	stateDir := filepath.Join(storagePath, "state")
@@ -844,7 +897,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 		// managerRunning tracks whether the manager is running or closed.
 		managerRunning bool
 		// transactionManager is the current TransactionManager instance.
-		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus))
+		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
 		// managerErr is used for synchronizing manager closing and returning
 		// the error from Run.
 		managerErr chan error
@@ -891,7 +944,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.NoError(t, os.RemoveAll(stagingDir))
 			require.NoError(t, os.Mkdir(stagingDir, perm.PrivateDir))
 
-			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus))
+			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
 			installHooks(transactionManager, &inflightTransactions, step.Hooks)
 
 			go func() {
@@ -1151,6 +1204,8 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 			transaction := openTransactions[step.TransactionID]
 			transaction.WriteCommitGraphs(step.Config)
+		case ConsumerAcknowledge:
+			transactionManager.AcknowledgeTransaction(transactionManager.consumer, step.LSN)
 		case RepositoryAssertion:
 			require.Contains(t, openTransactions, step.TransactionID, "test error: transaction's snapshot asserted before beginning it")
 			transaction := openTransactions[step.TransactionID]
@@ -1258,6 +1313,8 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			"/wal": {Mode: fs.ModeDir | perm.PrivateDir},
 		}
 	}
+
+	RequireConsumer(t, transactionManager.consumer, transactionManager.consumerPos, tc.expectedState.Consumers)
 
 	testhelper.RequireDirectoryState(t, stateDir, "", expectedDirectory)
 

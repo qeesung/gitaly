@@ -109,6 +109,67 @@ but they want this line
 we can both agree on this line though`),
 		},
 		{
+			name: "CRLF conflicts with no newline",
+			args: args{
+				src: strings.NewReader(fmt.Sprintf(
+					"# this file is very conflicted\r\n"+
+						"<<<<<<< %s\r\n"+
+						"we want this line\r\n"+
+						"=======\r\n"+
+						"but they want this line\r\n"+
+						">>>>>>> %s\r\n"+
+						"we can both agree on this line though\r\n",
+					gittest.DefaultObjectHash.EmptyTreeOID, gittest.DefaultObjectHash.EmptyTreeOID,
+				)),
+				ours:   gittest.DefaultObjectHash.EmptyTreeOID,
+				theirs: gittest.DefaultObjectHash.EmptyTreeOID,
+				path:   "conflict.txt",
+				resolution: Resolution{
+					NewPath: "conflict.txt",
+					OldPath: "conflict.txt",
+					Sections: map[string]string{
+						"dc1c302824bab8da29f7c06fec1c77cf16b975e6_2_2": "origin",
+					},
+				},
+			},
+			resolvedContent: []byte(
+				"# this file is very conflicted\r\n" +
+					"but they want this line\r\n" +
+					"we can both agree on this line though",
+			),
+		},
+		{
+			name: "CRLF conflicts with newline",
+			args: args{
+				src: strings.NewReader(fmt.Sprintf(
+					"# this file is very conflicted\r\n"+
+						"<<<<<<< %s\r\n"+
+						"we want this line\r\n"+
+						"=======\r\n"+
+						"but they want this line\r\n"+
+						">>>>>>> %s\r\n"+
+						"we can both agree on this line though\r\n",
+					gittest.DefaultObjectHash.EmptyTreeOID, gittest.DefaultObjectHash.EmptyTreeOID,
+				)),
+				ours:   gittest.DefaultObjectHash.EmptyTreeOID,
+				theirs: gittest.DefaultObjectHash.EmptyTreeOID,
+				path:   "conflict.txt",
+				resolution: Resolution{
+					NewPath: "conflict.txt",
+					OldPath: "conflict.txt",
+					Sections: map[string]string{
+						"dc1c302824bab8da29f7c06fec1c77cf16b975e6_2_2": "origin",
+					},
+				},
+				appendNewLine: true,
+			},
+			resolvedContent: []byte(
+				"# this file is very conflicted\r\n" +
+					"but they want this line\r\n" +
+					"we can both agree on this line though\r\n",
+			),
+		},
+		{
 			name: "UnexpectedDelimiter",
 			args: args{
 				src: strings.NewReader(fmt.Sprintf(`# this file is very conflicted

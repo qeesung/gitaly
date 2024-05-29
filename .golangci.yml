@@ -168,3 +168,5 @@ issues:
     # Migration issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5971
     - "grpc.Dial is deprecated: use NewClient instead.  Will be supported throughout 1.x."
     - "grpc.DialContext is deprecated: use NewClient instead.  Will be supported throughout 1.x."
+    - "grpc.WithBlock is deprecated: this DialOption is not supported by NewClient. Will be supported throughout 1.x."
+    - "grpc.FailOnNonTempDialError is deprecated: this DialOption is not supported by NewClient. This API may be changed or removed in a later release."

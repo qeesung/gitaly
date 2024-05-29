@@ -291,11 +291,8 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseResizableSemaphoreInConcurrencyLimiter, rnd.Int()%2 == 0)
 	// Disable LogGitTraces
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.LogGitTraces, false)
-	// Globably disable autocrlf config in git.
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.AutocrlfConfig, true)
-
-	// Always enable Git v2.44 as we depend on functionality patched in there for transactions.
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV244, true)
+	// Randomly enable either Git v2.44 or Git v2.45
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV245, rnd.Int()%2 == 0)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)
@@ -442,4 +439,12 @@ func PkgPath(paths ...string) string {
 	internalPkgPath := path.Dir(reflect.TypeOf(pkgPath{}).PkgPath())
 	rootPkgPath := path.Dir(internalPkgPath)
 	return path.Join(append([]string{rootPkgPath}, paths...)...)
+}
+
+// TestdataAbsolutePath returns the absolute path to the current test's `testdata/` directory.
+func TestdataAbsolutePath(t *testing.T) string {
+	_, currentFile, _, ok := runtime.Caller(1)
+	require.True(t, ok)
+
+	return filepath.Join(filepath.Dir(currentFile), "testdata")
 }

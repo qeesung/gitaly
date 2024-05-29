@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
@@ -86,9 +87,10 @@ func testWithAndWithoutTransaction(t *testing.T, desc string, testFunc func(*tes
 				cmdFactory,
 				localRepoFactory,
 				logger,
-				storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
+				storagemgr.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
 				helper.NewNullTickerFactory(),
 				cfg.Prometheus,
+				nil,
 			)
 			require.NoError(t, err)
 			defer partitionManager.Close()

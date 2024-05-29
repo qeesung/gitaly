@@ -1,4 +1,4 @@
-package storagemgr
+package storage
 
 import (
 	"fmt"
@@ -15,11 +15,11 @@ const lsnFormatBase = 36
 // padded form to keep their string representation lexicograpically ordered.
 var lsnFormat = "%0" + strconv.FormatUint(uint64(len(strconv.FormatUint(math.MaxUint64, lsnFormatBase))), 10) + "s"
 
-// LSN is a log sequence number that points to a specific position in the partition's write-ahead log.
+// LSN is a log sequence number that points to a specific position in a partition's write-ahead log.
 type LSN uint64
 
-// toProto returns the protobuf representation of LSN for serialization purposes.
-func (lsn LSN) toProto() *gitalypb.LSN {
+// ToProto returns the protobuf representation of LSN for serialization purposes.
+func (lsn LSN) ToProto() *gitalypb.LSN {
 	return &gitalypb.LSN{Value: uint64(lsn)}
 }
 
@@ -28,8 +28,8 @@ func (lsn LSN) String() string {
 	return fmt.Sprintf(lsnFormat, strconv.FormatUint(uint64(lsn), lsnFormatBase))
 }
 
-// parseLSN parses a string representation of an LSN.
-func parseLSN(lsn string) (LSN, error) {
+// ParseLSN parses a string representation of an LSN.
+func ParseLSN(lsn string) (LSN, error) {
 	parsedValue, err := strconv.ParseUint(lsn, lsnFormatBase, 64)
 	if err != nil {
 		return 0, fmt.Errorf("parse uint: %w", err)

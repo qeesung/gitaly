@@ -47,13 +47,6 @@ var NonTransactionalRPCs = map[string]struct{}{
 	gitalypb.ServerService_ClockSynced_FullMethodName:    {},
 	gitalypb.ServerService_ReadinessCheck_FullMethodName: {},
 
-	// ReplicateRepository is replicating the attributes and config which the
-	// WAL won't support. This is pending removal of their replication.
-	//
-	// ReplicateRepository may also create a repository which is not yet supported
-	// through the WAL.
-	gitalypb.RepositoryService_ReplicateRepository_FullMethodName: {},
-
 	// FetchIntoObjectPool manages the life-cycle of WAL transaction itself.
 	gitalypb.ObjectPoolService_FetchIntoObjectPool_FullMethodName: {},
 	// OptimizeRepository manages the life-cycle of WAL transaction itself.
@@ -70,6 +63,7 @@ var repositoryCreatingRPCs = map[string]struct{}{
 	gitalypb.RepositoryService_CreateRepositoryFromURL_FullMethodName:      {},
 	gitalypb.RepositoryService_CreateRepositoryFromBundle_FullMethodName:   {},
 	gitalypb.RepositoryService_CreateRepositoryFromSnapshot_FullMethodName: {},
+	gitalypb.RepositoryService_ReplicateRepository_FullMethodName:          {},
 }
 
 // NewUnaryInterceptor returns an unary interceptor that manages a unary RPC's transaction. It starts a transaction
@@ -193,31 +187,7 @@ func NewStreamInterceptor(logger log.Logger, registry *protoregistry.Registry, t
 		if err != nil {
 			return err
 		}
-		defer func() {
-			returnedErr = txReq.finishTransaction(returnedErr)
-
-			if info.FullMethod == gitalypb.OperationService_UserMergeBranch_FullMethodName {
-				// Rails handles reference update conflicts from UserMergeBranch by checking the
-				// error detail. UserMergeBranch handler may succeed in its own snapshot but another
-				// transaction could have committed a conflicting reference update concurrently.
-				// If our transaction failed to commit due to a reference conflict, return the error
-				// detail as the RPC handler would.
-				var errReferenceVerification ReferenceVerificationError
-				if errors.As(returnedErr, &errReferenceVerification) {
-					returnedErr = structerr.NewFailedPrecondition("%w", returnedErr).WithDetail(
-						&gitalypb.UserMergeBranchError{
-							Error: &gitalypb.UserMergeBranchError_ReferenceUpdate{
-								ReferenceUpdate: &gitalypb.ReferenceUpdateError{
-									ReferenceName: []byte(errReferenceVerification.ReferenceName),
-									OldOid:        errReferenceVerification.ExpectedOldOID.String(),
-									NewOid:        errReferenceVerification.NewOID.String(),
-								},
-							},
-						},
-					)
-				}
-			}
-		}()
+		defer func() { returnedErr = txReq.finishTransaction(returnedErr) }()
 
 		return handler(srv, &peekedStream{
 			context:      txReq.ctx,
@@ -407,7 +377,9 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 			return handlerErr
 		}
 
-		if err := tx.Commit(ctx); err != nil {
+		// If the post-receive hook is invoked, the transaction may already be committed to ensure
+		// the new data is readable for the post-receive hook. Ignore the error indicating that here.
+		if err := tx.Commit(ctx); err != nil && !errors.Is(err, ErrTransactionAlreadyCommitted) {
 			return fmt.Errorf("commit: %w", err)
 		}
 

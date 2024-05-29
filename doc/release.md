@@ -29,13 +29,20 @@ sequenceDiagram
 - `UpdateGitaly` retrieves the latest green commit on the default branch of the mirror and creates an
   MR with the "Update Gitaly version" title on the [`gitlab-org/gitlab`](https://gitlab.com/gitlab-org/gitlab/-/merge_requests)
   repo. The MR updates the `GITALY_SERVER_VERSION` file with the
-  [SHA of the latest green commit](https://gitlab.com/gitlab-org/gitlab/-/merge_requests/134951/diffs) (4 and 5).
+  [SHA of the latest green commit](https://gitlab.com/gitlab-org/gitlab/-/merge_requests/134951/diffs) (4 and 5). See
+  below for more information on how this is accomplished.
 - The CI pipeline is executed. If the pipeline succeeds, the MR is automatically merged (6) and the
   deployment process (7) to the various [environments](https://gitlab.com/gitlab-org/gitlab/-/environments)
   begins. If the pipeline fails, the failure is reported on the [`#g_gitaly`](https://gitlab.slack.com/archives/C3ER3TQBT)
   channel (8), and the Gitaly team is tagged in the MR. Failures require manual intervention (9).
 - Once the deploymnent begins, progress can be tracked in the [`#gitaly_alerts`](https://gitlab.slack.com/archives/C4MU5R2MD)
   channel. The bot also updates the `workflow` labels in the MR as deployment progresses through each stage.
+
+The `passing_build_commit` and `success?` [functions](https://gitlab.com/gitlab-org/release-tools/-/blob/28eb8b2b869d6930bcc2c18dde39548147fa6df0/lib/release_tools/passing_build.rb#L44-71)
+in the `release-tools` bot are responsible for identifying the latest commit with a passing pipeline. The
+`@project.auto_deploy_path` property is what results in the
+[security mirror](https://gitlab.com/gitlab-org/release-tools/-/blob/28eb8b2b869d6930bcc2c18dde39548147fa6df0/lib/release_tools/project/gitaly.rb#L9-9).
+being targeted.
 
 ## Why do pipeline failures occur?
 
@@ -68,3 +75,12 @@ revert as it unblocks other inflight changes from being deployed. Once the rever
 the MR so the `release-tools` bot can automatically open a new one with the updated `GITALY_SERVER_VERSION`.
 Alternatively, you can choose to manually update the `GITALY_SERVER_VERSION` in the existing MR and wait for the
 pipeline to pass.
+
+## Pipeline failures in the `security` mirror
+
+The [`gitlab-org/security/gitaly`](https://gitlab.com/gitlab-org/security/gitaly) mirror is owned by the
+[`#g_delivery`](https://gitlab.enterprise.slack.com/archives/CCFV016SV) group.
+
+Pipeline failures in the `master` branch prevent the `release-tools` bot from creating or amending **Update Gitaly version** MRs.
+If the failure is due to test flakes related to the CI/CD environment (that is, it cannot be addressed by a code change in Gitaly),
+reach out to the `#g_delivery` group so they can re-trigger the pipeline.

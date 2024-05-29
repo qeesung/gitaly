@@ -92,14 +92,14 @@ func TestRequireDirectoryState(t *testing.T) {
 			modifyAssertion: func(state DirectoryState) {
 				delete(state, "/assertion-root")
 			},
-			expectedErrorMessage: `+ 	"/assertion-root":                     {Mode: s"drwxr-xr-x"}`,
+			expectedErrorMessage: fmt.Sprintf(`+ 	"/assertion-root":                     {Mode: s%q}`, fs.ModeDir|umask.Mask(fs.ModePerm)),
 		},
 		{
 			desc: "unexpected file",
 			modifyAssertion: func(state DirectoryState) {
 				delete(state, "/assertion-root/dir-a/unparsed-file")
 			},
-			expectedErrorMessage: `+ 	"/assertion-root/dir-a/unparsed-file": {Mode: s"-rwxr-xr-x", Content: []uint8("raw content")},`,
+			expectedErrorMessage: fmt.Sprintf(`+ 	"/assertion-root/dir-a/unparsed-file": {Mode: s%q, Content: []uint8("raw content")},`, umask.Mask(fs.ModePerm)),
 		},
 		{
 			desc: "wrong mode",

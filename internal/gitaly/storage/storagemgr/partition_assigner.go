@@ -2,17 +2,16 @@ package storagemgr
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"strconv"
 	"sync"
 
 	"github.com/dgraph-io/badger/v4"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 )
 
 var (
@@ -45,27 +44,10 @@ func (err relativePathNotFoundError) Error() string {
 	return fmt.Sprintf("relative path not found: %q", string(err))
 }
 
-// partitionID uniquely identifies a partition.
-type partitionID uint64
-
-func (id partitionID) MarshalBinary() []byte {
-	marshaled := make([]byte, binary.Size(id))
-	binary.BigEndian.PutUint64(marshaled, uint64(id))
-	return marshaled
-}
-
-func (id *partitionID) UnmarshalBinary(data []byte) {
-	*id = partitionID(binary.BigEndian.Uint64(data))
-}
-
-func (id partitionID) String() string {
-	return strconv.FormatUint(uint64(id), 10)
-}
-
 // partitionAssignmentTable records which partitions repositories are assigned into.
-type partitionAssignmentTable struct{ db Database }
+type partitionAssignmentTable struct{ db keyvalue.Store }
 
-func newPartitionAssignmentTable(db Database) *partitionAssignmentTable {
+func newPartitionAssignmentTable(db keyvalue.Store) *partitionAssignmentTable {
 	return &partitionAssignmentTable{db: db}
 }
 
@@ -73,9 +55,10 @@ func (pt *partitionAssignmentTable) key(relativePath string) []byte {
 	return []byte(fmt.Sprintf("%s%s", prefixPartitionAssignment, relativePath))
 }
 
-func (pt *partitionAssignmentTable) getPartitionID(relativePath string) (partitionID, error) {
-	var id partitionID
-	if err := pt.db.View(func(txn DatabaseTransaction) error {
+func (pt *partitionAssignmentTable) getPartitionID(relativePath string) (storage.PartitionID, error) {
+	var id storage.PartitionID
+
+	if err := pt.db.View(func(txn keyvalue.ReadWriter) error {
 		item, err := txn.Get(pt.key(relativePath))
 		if err != nil {
 			if errors.Is(err, badger.ErrKeyNotFound) {
@@ -96,7 +79,7 @@ func (pt *partitionAssignmentTable) getPartitionID(relativePath string) (partiti
 	return id, nil
 }
 
-func (pt *partitionAssignmentTable) setPartitionID(relativePath string, id partitionID) error {
+func (pt *partitionAssignmentTable) setPartitionID(relativePath string, id storage.PartitionID) error {
 	wb := pt.db.NewWriteBatch()
 	if err := wb.Set(pt.key(relativePath), id.MarshalBinary()); err != nil {
 		return fmt.Errorf("set: %w", err)
@@ -117,7 +100,7 @@ type partitionAssigner struct {
 	// channel closing signals the lock being released.
 	repositoryLocks map[string]chan struct{}
 	// idSequence is the sequence used to mint partition IDs.
-	idSequence Sequence
+	idSequence *badger.Sequence
 	// partitionAssignmentTable contains the partition assignment records.
 	partitionAssignmentTable *partitionAssignmentTable
 	// storagePath is the path to the root directory of the storage the relative
@@ -127,7 +110,7 @@ type partitionAssigner struct {
 
 // newPartitionAssigner returns a new partitionAssigner. Close must be called on the
 // returned instance to release acquired resources.
-func newPartitionAssigner(db Database, storagePath string) (*partitionAssigner, error) {
+func newPartitionAssigner(db keyvalue.Store, storagePath string) (*partitionAssigner, error) {
 	seq, err := db.GetSequence([]byte("partition_id_seq"), 100)
 	if err != nil {
 		return nil, fmt.Errorf("get sequence: %w", err)
@@ -145,11 +128,12 @@ func (pa *partitionAssigner) Close() error {
 	return pa.idSequence.Release()
 }
 
-func (pa *partitionAssigner) allocatePartitionID() (partitionID, error) {
-	// Start partition IDs from 1 so the default value refers to an invalid
-	// partition.
+func (pa *partitionAssigner) allocatePartitionID() (storage.PartitionID, error) {
+	// Start allocating partition IDs from 2:
+	// - The default value, 0, refers to an invalid partition.
+	// - Partition ID 1 is reserved for the storage's metadata partition.
 	var id uint64
-	for id == 0 {
+	for id < 2 {
 		var err error
 		id, err = pa.idSequence.Next()
 		if err != nil {
@@ -157,7 +141,7 @@ func (pa *partitionAssigner) allocatePartitionID() (partitionID, error) {
 		}
 	}
 
-	return partitionID(id), nil
+	return storage.PartitionID(id), nil
 }
 
 // getPartitionID returns the partition ID of the repository. If the repository wasn't yet assigned into
@@ -165,8 +149,8 @@ func (pa *partitionAssigner) allocatePartitionID() (partitionID, error) {
 // partition ID. Repositories without an alternate go into their own partitions. Repositories with an alternate
 // are assigned into the same partition as the alternate repository. The alternate is assigned into a partition
 // if it hasn't yet been. The method is safe to call concurrently.
-func (pa *partitionAssigner) getPartitionID(ctx context.Context, relativePath, partitionWithRelativePath string, isRepositoryCreation bool) (partitionID, error) {
-	var partitionHint partitionID
+func (pa *partitionAssigner) getPartitionID(ctx context.Context, relativePath, partitionWithRelativePath string, isRepositoryCreation bool) (storage.PartitionID, error) {
+	var partitionHint storage.PartitionID
 	if partitionWithRelativePath != "" {
 		var err error
 		// See if the target repository itself is already in a partition. If so, we should assign the other repository
@@ -201,7 +185,7 @@ func (pa *partitionAssigner) getPartitionID(ctx context.Context, relativePath, p
 	return ptnID, nil
 }
 
-func (pa *partitionAssigner) getPartitionIDRecursive(ctx context.Context, relativePath string, recursiveCall bool, partitionHint partitionID, isRepositoryCreation bool) (partitionID, error) {
+func (pa *partitionAssigner) getPartitionIDRecursive(ctx context.Context, relativePath string, recursiveCall bool, partitionHint storage.PartitionID, isRepositoryCreation bool) (storage.PartitionID, error) {
 	ptnID, err := pa.partitionAssignmentTable.getPartitionID(relativePath)
 	if err != nil {
 		if !errors.Is(err, errPartitionAssignmentNotFound) {
@@ -279,7 +263,7 @@ func (pa *partitionAssigner) getPartitionIDRecursive(ctx context.Context, relati
 	return ptnID, nil
 }
 
-func (pa *partitionAssigner) assignPartitionID(ctx context.Context, relativePath string, recursiveCall bool, partitionHint partitionID) (partitionID, error) {
+func (pa *partitionAssigner) assignPartitionID(ctx context.Context, relativePath string, recursiveCall bool, partitionHint storage.PartitionID) (storage.PartitionID, error) {
 	// Check if the repository has an alternate. If so, it needs to go into the same
 	// partition with it.
 	ptnID, err := pa.getAlternatePartitionID(ctx, relativePath, recursiveCall, partitionHint)
@@ -306,7 +290,7 @@ func (pa *partitionAssigner) assignPartitionID(ctx context.Context, relativePath
 	return ptnID, nil
 }
 
-func (pa *partitionAssigner) getAlternatePartitionID(ctx context.Context, relativePath string, recursiveCall bool, partitionHint partitionID) (partitionID, error) {
+func (pa *partitionAssigner) getAlternatePartitionID(ctx context.Context, relativePath string, recursiveCall bool, partitionHint storage.PartitionID) (storage.PartitionID, error) {
 	alternate, err := readAlternatesFile(filepath.Join(pa.storagePath, relativePath))
 	if err != nil {
 		return 0, fmt.Errorf("read alternates file: %w", err)

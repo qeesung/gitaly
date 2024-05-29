@@ -60,6 +60,8 @@ type line struct {
 	newIndex uint
 	// payload denotes the content of line (sans the newline)
 	payload string
+	// crlf indicates if the line uses a CRLF line break.
+	crlf bool
 	// section denotes which section this line belongs to.
 	section section
 }
@@ -130,10 +132,10 @@ func Resolve(src io.Reader, ours, theirs git.ObjectID, path string, resolution R
 		return 0, nil, nil
 	})
 
-	lines := []line{}
+	var lines []line
 
 	for s.Scan() {
-		switch l := s.Text(); l {
+		switch l, crlf := strings.CutSuffix(s.Text(), "\r"); l {
 		case start:
 			if currentSection != sectionNone {
 				return &resolvedContent, fmt.Errorf("resolve: parse conflict for %q: %w", path, ErrUnexpectedDelimiter)
@@ -157,6 +159,7 @@ func Resolve(src io.Reader, ours, theirs git.ObjectID, path string, resolution R
 					oldIndex: oldIndex,
 					newIndex: newIndex,
 					payload:  l,
+					crlf:     crlf,
 					section:  currentSection,
 				})
 				continue
@@ -166,6 +169,7 @@ func Resolve(src io.Reader, ours, theirs git.ObjectID, path string, resolution R
 				oldIndex: oldIndex,
 				newIndex: newIndex,
 				payload:  l,
+				crlf:     crlf,
 				section:  currentSection,
 			})
 
@@ -197,10 +201,7 @@ func Resolve(src io.Reader, ours, theirs git.ObjectID, path string, resolution R
 	var sectionID string
 
 	if len(resolution.Sections) == 0 {
-		_, err := resolvedContent.Write([]byte(resolution.Content))
-		if err != nil {
-			return &resolvedContent, fmt.Errorf("writing bytes: %w", err)
-		}
+		resolvedContent.Write([]byte(resolution.Content))
 
 		return &resolvedContent, nil
 	}
@@ -238,13 +239,15 @@ func Resolve(src io.Reader, ours, theirs git.ObjectID, path string, resolution R
 		resolvedLines = append(resolvedLines, l.payload)
 	}
 
-	_, err := resolvedContent.Write([]byte(strings.Join(resolvedLines, "\n")))
-	if err != nil {
-		return &resolvedContent, fmt.Errorf("writing bytes: %w", err)
+	lineBreak := "\n"
+	if len(lines) > 0 && lines[0].crlf {
+		lineBreak = "\r\n"
 	}
 
+	resolvedContent.Write([]byte(strings.Join(resolvedLines, lineBreak)))
+
 	if appendNewLine {
-		resolvedContent.Write([]byte("\n"))
+		resolvedContent.Write([]byte(lineBreak))
 	}
 
 	return &resolvedContent, nil

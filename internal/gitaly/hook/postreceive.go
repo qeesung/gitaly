@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitlab"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -109,6 +110,46 @@ func (m *GitLabHookManager) PostReceiveHook(ctx context.Context, repo *gitalypb.
 	payload, err := git.HooksPayloadFromEnv(env)
 	if err != nil {
 		return structerr.NewInternal("extracting hooks payload: %w", err)
+	}
+
+	// When transactions are enabled, new writes to the repository are only available for readers (other than the
+	// transaction itself) after the transaction is committed. Commit usually happens in middleware after the gRPC
+	// request handler returns. Because the post-receive hook is invoked within the request handler, the transaction
+	// will still be in flight, and the new writes will not be available to other transactions yet. Rails sends
+	// further requests from its post-receive handler. Each of these requests are handled in their own transactions.
+	//
+	// To address this, explicitly commit the transaction here. We then begin a new transaction to provide the hook
+	// with read-only access to the repository and its newly written changes. A new transaction is needed because
+	// the previous transaction's snapshot would've been discarded by the commit. As the changes have been committed,
+	// the subsequent requests sent from Rails' post-receive handler will have access to the new changes.
+	//
+	// We perform this dance here instead of the transaction middleware as the post-receive hook may need to write
+	// messages directly to the client.
+	if payload.TransactionID > 0 {
+		tx, err := m.txRegistry.Get(payload.TransactionID)
+		if err != nil {
+			return fmt.Errorf("get transaction: %w", err)
+		}
+
+		originalRepo := tx.OriginalRepository(repo)
+
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("commit transaction: %w", err)
+		}
+
+		tx, err = m.partitionManager.Begin(ctx, originalRepo.GetStorageName(), originalRepo.GetRelativePath(), storagemgr.TransactionOptions{
+			ReadOnly: true,
+		})
+		if err != nil {
+			return fmt.Errorf("begin transaction: %w", err)
+		}
+		defer func() {
+			if err := tx.Commit(ctx); err != nil {
+				m.logger.WithError(err).Error("failed committing post-receive transaction")
+			}
+		}()
+
+		repo = tx.RewriteRepository(originalRepo)
 	}
 
 	changes, err := io.ReadAll(stdin)

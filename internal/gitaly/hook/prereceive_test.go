@@ -43,7 +43,7 @@ func TestPrereceive_customHooks(t *testing.T) {
 	txManager := transaction.NewTrackingManager()
 	hookManager := NewManager(cfg, locator, testhelper.SharedLogger(t), gitCmdFactory, txManager, gitlab.NewMockClient(
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
-	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry())
+	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry(), nil)
 
 	receiveHooksPayload := &git.UserDetails{
 		UserID:   "1234",
@@ -228,7 +228,7 @@ func TestPrereceive_quarantine(t *testing.T) {
 
 	hookManager := NewManager(cfg, config.NewLocator(cfg), testhelper.SharedLogger(t), gittest.NewCommandFactory(t, cfg), nil, gitlab.NewMockClient(
 		t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive,
-	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry())
+	), NewTransactionRegistry(storagemgr.NewTransactionRegistry()), NewProcReceiveRegistry(), nil)
 
 	//nolint:gitaly-linters
 	gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte(fmt.Sprintf(
@@ -319,6 +319,7 @@ func TestPrereceive_gitlab(t *testing.T) {
 	require.NoError(t, err)
 
 	standardEnv := []string{payload}
+	pushOptions := []string{"mr.create", "mr.merge_when_pipeline_succeeds"}
 
 	testCases := []struct {
 		desc           string
@@ -340,6 +341,7 @@ func TestPrereceive_gitlab(t *testing.T) {
 				require.Equal(t, "web", params.GLProtocol)
 				require.Equal(t, "changes\n", params.Changes)
 				require.Equal(t, repo.RelativePath, params.RelativePath)
+				require.Equal(t, pushOptions, params.PushOptions)
 				return true, "", nil
 			},
 			prereceive: func(t *testing.T, ctx context.Context, glRepo string) (bool, error) {
@@ -428,12 +430,13 @@ func TestPrereceive_gitlab(t *testing.T) {
 				&gitlabAPI,
 				NewTransactionRegistry(storagemgr.NewTransactionRegistry()),
 				NewProcReceiveRegistry(),
+				nil,
 			)
 
 			gittest.WriteCustomHook(t, repoPath, "pre-receive", []byte("#!/bin/sh\necho called\n"))
 
 			var stdout, stderr bytes.Buffer
-			err = hookManager.PreReceiveHook(ctx, repo, nil, tc.env, strings.NewReader(tc.changes), &stdout, &stderr)
+			err = hookManager.PreReceiveHook(ctx, repo, pushOptions, tc.env, strings.NewReader(tc.changes), &stdout, &stderr)
 
 			if tc.expectedErr != nil {
 				require.Equal(t, tc.expectedErr, err)

@@ -18,6 +18,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -38,7 +39,7 @@ type transactionManager interface {
 }
 
 type transactionManagerFactory func(
-	partitionID partitionID,
+	partitionID storage.PartitionID,
 	storageMgr *storageManager,
 	cmdFactory git.CommandFactory,
 	absoluteStateDir, stagingDir string,
@@ -62,14 +63,14 @@ type PartitionManager struct {
 // DatabaseOpener is responsible for opening a database handle.
 type DatabaseOpener interface {
 	// OpenDatabase opens a database at the given path.
-	OpenDatabase(log.Logger, string) (Database, error)
+	OpenDatabase(log.Logger, string) (keyvalue.Store, error)
 }
 
 // DatabaseOpenerFunc is a function that implements DatabaseOpener.
-type DatabaseOpenerFunc func(log.Logger, string) (Database, error)
+type DatabaseOpenerFunc func(log.Logger, string) (keyvalue.Store, error)
 
 // OpenDatabase opens a handle to the database at the given path.
-func (fn DatabaseOpenerFunc) OpenDatabase(logger log.Logger, path string) (Database, error) {
+func (fn DatabaseOpenerFunc) OpenDatabase(logger log.Logger, path string) (keyvalue.Store, error) {
 	return fn(logger, path)
 }
 
@@ -92,11 +93,11 @@ type storageManager struct {
 	// stopGC stops the garbage collection and waits for it to return.
 	stopGC func()
 	// db is the handle to the key-value store used for storing the storage's database state.
-	database Database
+	database keyvalue.Store
 	// partitionAssigner manages partition assignments of repositories.
 	partitionAssigner *partitionAssigner
 	// partitions contains all the active partitions. Each repository can have up to one partition.
-	partitions map[partitionID]*partition
+	partitions map[storage.PartitionID]*partition
 	// activePartitions keeps track of active partitions.
 	activePartitions sync.WaitGroup
 }
@@ -162,15 +163,12 @@ func (tx *finalizableTransaction) Rollback() error {
 // newFinalizableTransaction returns a wrapped transaction that executes finalizeTransaction when the transaction
 // is committed or rolled back.
 func (sm *storageManager) newFinalizableTransaction(ptn *partition, tx *Transaction) *finalizableTransaction {
-	finalized := false
+	var finalizeOnce sync.Once
 	return &finalizableTransaction{
 		finalize: func() {
-			if finalized {
-				return
-			}
-
-			finalized = true
-			sm.finalizeTransaction(ptn)
+			finalizeOnce.Do(func() {
+				sm.finalizeTransaction(ptn)
+			})
 		},
 		Transaction: tx,
 	}
@@ -223,41 +221,43 @@ func NewPartitionManager(
 	dbOpener DatabaseOpener,
 	gcTickerFactory helper.TickerFactory,
 	promCfg gitalycfgprom.Config,
+	logConsumer LogConsumer,
 ) (*PartitionManager, error) {
 	storages := make(map[string]*storageManager, len(configuredStorages))
-	for _, storage := range configuredStorages {
-		repoFactory, err := localRepoFactory.ScopeByStorage(storage.Name)
+	for _, configuredStorage := range configuredStorages {
+		repoFactory, err := localRepoFactory.ScopeByStorage(configuredStorage.Name)
 		if err != nil {
 			return nil, fmt.Errorf("scope by storage: %w", err)
 		}
 
-		stagingDir := stagingDirectoryPath(storage.Path)
+		internalDir := internalDirectoryPath(configuredStorage.Path)
+		stagingDir := stagingDirectoryPath(internalDir)
 		// Remove a possible already existing staging directory as it may contain stale files
 		// if the previous process didn't shutdown gracefully.
 		if err := os.RemoveAll(stagingDir); err != nil {
 			return nil, fmt.Errorf("failed clearing storage's staging directory: %w", err)
 		}
 
-		if err := os.Mkdir(stagingDir, perm.PrivateDir); err != nil {
+		if err := os.MkdirAll(stagingDir, perm.PrivateDir); err != nil {
 			return nil, fmt.Errorf("create storage's staging directory: %w", err)
 		}
 
-		databaseDir := filepath.Join(storage.Path, "database")
-		if err := os.Mkdir(databaseDir, perm.PrivateDir); err != nil && !errors.Is(err, fs.ErrExist) {
+		databaseDir := filepath.Join(internalDir, "database")
+		if err := os.MkdirAll(databaseDir, perm.PrivateDir); err != nil && !errors.Is(err, fs.ErrExist) {
 			return nil, fmt.Errorf("create storage's database directory: %w", err)
 		}
 
-		if err := safe.NewSyncer().SyncHierarchy(storage.Path, "database"); err != nil {
+		if err := safe.NewSyncer().SyncHierarchy(internalDir, "database"); err != nil {
 			return nil, fmt.Errorf("sync database directory: %w", err)
 		}
 
-		storageLogger := logger.WithField("storage", storage.Name)
+		storageLogger := logger.WithField("storage", configuredStorage.Name)
 		db, err := dbOpener.OpenDatabase(storageLogger.WithField("component", "database"), databaseDir)
 		if err != nil {
 			return nil, fmt.Errorf("create storage's database directory: %w", err)
 		}
 
-		pa, err := newPartitionAssigner(db, storage.Path)
+		pa, err := newPartitionAssigner(db, configuredStorage.Path)
 		if err != nil {
 			return nil, fmt.Errorf("new partition assigner: %w", err)
 		}
@@ -313,9 +313,9 @@ func NewPartitionManager(
 			}
 		}()
 
-		storages[storage.Name] = &storageManager{
+		storages[configuredStorage.Name] = &storageManager{
 			logger:           storageLogger,
-			path:             storage.Path,
+			path:             configuredStorage.Path,
 			repoFactory:      repoFactory,
 			stagingDirectory: stagingDir,
 			stopGC: func() {
@@ -324,7 +324,7 @@ func NewPartitionManager(
 			},
 			database:          db,
 			partitionAssigner: pa,
-			partitions:        map[partitionID]*partition{},
+			partitions:        map[storage.PartitionID]*partition{},
 		}
 	}
 
@@ -334,7 +334,7 @@ func NewPartitionManager(
 		storages:       storages,
 		commandFactory: cmdFactory,
 		transactionManagerFactory: func(
-			partitionID partitionID,
+			partitionID storage.PartitionID,
 			storageMgr *storageManager,
 			cmdFactory git.CommandFactory,
 			absoluteStateDir, stagingDir string,
@@ -342,17 +342,27 @@ func NewPartitionManager(
 			return NewTransactionManager(
 				partitionID,
 				logger,
-				storageMgr.database,
+				keyvalue.NewPrefixedTransactioner(storageMgr.database, keyPrefixPartition(partitionID)),
 				storageMgr.path,
 				absoluteStateDir,
 				stagingDir,
 				cmdFactory,
 				storageMgr.repoFactory,
 				metrics,
+				logConsumer,
 			)
 		},
 		metrics: metrics,
 	}, nil
+}
+
+func keyPrefixPartition(ptnID storage.PartitionID) []byte {
+	return []byte(fmt.Sprintf("p/%s/", ptnID.MarshalBinary()))
+}
+
+// internalDirectoryPath returns the full path of Gitaly's internal data directory for the storage.
+func internalDirectoryPath(storagePath string) string {
+	return filepath.Join(storagePath, config.GitalyDataPrefix)
 }
 
 func stagingDirectoryPath(storagePath string) string {
@@ -508,12 +518,13 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 
 // deriveStateDirectory hashes the partition ID and returns the state
 // directory where state related to the partition should be stored.
-func deriveStateDirectory(id partitionID) string {
+func deriveStateDirectory(id storage.PartitionID) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(id.String()))
 	hash := hex.EncodeToString(hasher.Sum(nil))
 
 	return filepath.Join(
+		config.GitalyDataPrefix,
 		"partitions",
 		// These two levels balance the state directories into smaller
 		// subdirectories to keep the directory sizes reasonable.

@@ -1,0 +1,2 @@
+# gitaly-init-cgroups
+gitaly-init-cgroups is a helper executable that will be used to configure cgroups for Gitaly to run in a Kubernetes environment. It will be containerized and run as an init container for the Gitaly pod. The main purpose of this helper executable is to modify permissions for cgroup paths so that the Gitaly Pod has access to write the cgroup controllers it manages. Finally it will output the pod cgroup path to a file which will be mounted to the Gitaly pod as a volume.

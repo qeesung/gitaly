@@ -275,6 +275,7 @@ func TestAccess_allowedResponseHandling(t *testing.T) {
 	WriteShellSecretFile(t, tempDir, "secret_token")
 
 	secretFilePath := filepath.Join(tempDir, ".gitlab_shell_secret")
+	pushOptions := []string{"mr.create"}
 
 	testCases := []struct {
 		desc           string
@@ -291,6 +292,7 @@ func TestAccess_allowedResponseHandling(t *testing.T) {
 				var reqBody allowedRequest
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&reqBody))
 				require.Equal(t, repo.RelativePath, reqBody.RelativePath)
+				require.Equal(t, pushOptions, reqBody.PushOptions)
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -415,6 +417,7 @@ func TestAccess_allowedResponseHandling(t *testing.T) {
 				GLID:                          "key-123",
 				GLProtocol:                    "http",
 				Changes:                       "a\nb\nc\nd",
+				PushOptions:                   pushOptions,
 			})
 			require.Equal(t, tc.allowed, allowed)
 			if err != nil {

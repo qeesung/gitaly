@@ -98,17 +98,33 @@ func NewTestServer(tb testing.TB, options TestServerOptions) (url string, cleanu
 	return server.URL, server.Close
 }
 
-func preReceiveFormToMap(u url.Values) map[string]string {
-	return map[string]string{
-		"action":        u.Get("action"),
-		"gl_repository": u.Get("gl_repository"),
-		"project":       u.Get("project"),
-		"changes":       u.Get("changes"),
-		"protocol":      u.Get("protocol"),
-		"env":           u.Get("env"),
-		"username":      u.Get("username"),
-		"key_id":        u.Get("key_id"),
-		"user_id":       u.Get("user_id"),
+type preReceiveForm struct {
+	Action       string   `json:"action,omitempty"`
+	GLRepository string   `json:"gl_repository,omitempty"`
+	Project      string   `json:"project,omitempty"`
+	Changes      string   `json:"changes,omitempty"`
+	Protocol     string   `json:"protocol,omitempty"`
+	RelativePath string   `json:"relative_path,omitempty"`
+	Env          string   `json:"env,omitempty"`
+	Username     string   `json:"username,omitempty"`
+	KeyID        string   `json:"key_id,omitempty"`
+	UserID       string   `json:"user_id,omitempty"`
+	PushOptions  []string `json:"push_options,omitempty"`
+}
+
+func parsePreReceiveForm(u url.Values) preReceiveForm {
+	return preReceiveForm{
+		Action:       u.Get("action"),
+		GLRepository: u.Get("gl_repository"),
+		Project:      u.Get("project"),
+		Changes:      u.Get("changes"),
+		Protocol:     u.Get("protocol"),
+		RelativePath: u.Get("relative_path"),
+		Env:          u.Get("env"),
+		Username:     u.Get("username"),
+		KeyID:        u.Get("key_id"),
+		UserID:       u.Get("user_id"),
+		PushOptions:  u["push_options[]"],
 	}
 }
 
@@ -142,11 +158,11 @@ func handleAllowed(tb testing.TB, options TestServerOptions) func(w http.Respons
 			return
 		}
 
-		params := make(map[string]string)
+		var params preReceiveForm
 
 		switch r.Header.Get("Content-Type") {
 		case "application/x-www-form-urlencoded":
-			params = preReceiveFormToMap(r.Form)
+			params = parsePreReceiveForm(r.Form)
 		case "application/json":
 			if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 				http.Error(w, "could not unmarshal json body", http.StatusBadRequest)
@@ -172,11 +188,11 @@ func handleAllowed(tb testing.TB, options TestServerOptions) func(w http.Respons
 			var glIDMatches bool
 			switch glKey {
 			case "user":
-				glIDMatches = glVal == params["user_id"]
+				glIDMatches = glVal == params.UserID
 			case "key":
-				glIDMatches = glVal == params["key_id"]
+				glIDMatches = glVal == params.KeyID
 			case "username":
-				glIDMatches = glVal == params["username"]
+				glIDMatches = glVal == params.Username
 			default:
 				http.Error(w, "gl_id invalid", http.StatusUnauthorized)
 				return
@@ -188,37 +204,37 @@ func handleAllowed(tb testing.TB, options TestServerOptions) func(w http.Respons
 			}
 		}
 
-		if params["gl_repository"] == "" {
+		if params.GLRepository == "" {
 			http.Error(w, "gl_repository is empty", http.StatusUnauthorized)
 			return
 		}
 
 		if options.GLRepository != "" {
-			if params["gl_repository"] != options.GLRepository {
+			if params.GLRepository != options.GLRepository {
 				http.Error(w, "gl_repository is invalid", http.StatusUnauthorized)
 				return
 			}
 		}
 
-		if params["protocol"] == "" {
+		if params.Protocol == "" {
 			http.Error(w, "protocol is empty", http.StatusUnauthorized)
 			return
 		}
 
 		if options.Protocol != "" {
-			if params["protocol"] != options.Protocol {
+			if params.Protocol != options.Protocol {
 				http.Error(w, "protocol is invalid", http.StatusUnauthorized)
 				return
 			}
 		}
 
 		if options.Changes != "" {
-			if params["changes"] != options.Changes {
+			if params.Changes != options.Changes {
 				http.Error(w, "changes is invalid", http.StatusUnauthorized)
 				return
 			}
 		} else {
-			changeLines := strings.Split(strings.TrimSuffix(params["changes"], "\n"), "\n")
+			changeLines := strings.Split(strings.TrimSuffix(params.Changes, "\n"), "\n")
 			for _, line := range changeLines {
 				if !changeLineRegex.MatchString(line) {
 					http.Error(w, "changes is invalid", http.StatusUnauthorized)
@@ -227,7 +243,7 @@ func handleAllowed(tb testing.TB, options TestServerOptions) func(w http.Respons
 			}
 		}
 
-		env := params["env"]
+		env := params.Env
 		if len(env) == 0 {
 			http.Error(w, "env is empty", http.StatusUnauthorized)
 			return

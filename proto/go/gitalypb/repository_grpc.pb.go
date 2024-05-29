@@ -37,6 +37,7 @@ const (
 	RepositoryService_CreateRepositoryFromURL_FullMethodName      = "/gitaly.RepositoryService/CreateRepositoryFromURL"
 	RepositoryService_CreateBundle_FullMethodName                 = "/gitaly.RepositoryService/CreateBundle"
 	RepositoryService_CreateBundleFromRefList_FullMethodName      = "/gitaly.RepositoryService/CreateBundleFromRefList"
+	RepositoryService_GenerateBundleURI_FullMethodName            = "/gitaly.RepositoryService/GenerateBundleURI"
 	RepositoryService_FetchBundle_FullMethodName                  = "/gitaly.RepositoryService/FetchBundle"
 	RepositoryService_CreateRepositoryFromBundle_FullMethodName   = "/gitaly.RepositoryService/CreateRepositoryFromBundle"
 	RepositoryService_GetConfig_FullMethodName                    = "/gitaly.RepositoryService/GetConfig"
@@ -57,10 +58,10 @@ const (
 	RepositoryService_ReplicateRepository_FullMethodName          = "/gitaly.RepositoryService/ReplicateRepository"
 	RepositoryService_OptimizeRepository_FullMethodName           = "/gitaly.RepositoryService/OptimizeRepository"
 	RepositoryService_PruneUnreachableObjects_FullMethodName      = "/gitaly.RepositoryService/PruneUnreachableObjects"
-	RepositoryService_RemoveAll_FullMethodName                    = "/gitaly.RepositoryService/RemoveAll"
 	RepositoryService_BackupRepository_FullMethodName             = "/gitaly.RepositoryService/BackupRepository"
 	RepositoryService_RestoreRepository_FullMethodName            = "/gitaly.RepositoryService/RestoreRepository"
 	RepositoryService_GetFileAttributes_FullMethodName            = "/gitaly.RepositoryService/GetFileAttributes"
+	RepositoryService_FastExport_FullMethodName                   = "/gitaly.RepositoryService/FastExport"
 )
 
 // RepositoryServiceClient is the client API for RepositoryService service.
@@ -143,6 +144,8 @@ type RepositoryServiceClient interface {
 	// CreateBundleFromRefList creates a bundle from a stream of ref patterns.
 	// When the bundle would be empty the FailedPrecondition error code is returned.
 	CreateBundleFromRefList(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_CreateBundleFromRefListClient, error)
+	// GenerateBundleURI generates a bundle on the server for bundle-URI use.
+	GenerateBundleURI(ctx context.Context, in *GenerateBundleURIRequest, opts ...grpc.CallOption) (*GenerateBundleURIResponse, error)
 	// FetchBundle fetches references from a bundle into the local repository.
 	// refs will be mirrored to the target repository with the refspec
 	// "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
@@ -229,10 +232,6 @@ type RepositoryServiceClient interface {
 	// to make proper use of this RPC you thus need to call OptimizeRepository,
 	// wait 30 minutes, and then call PruneUnreachableObjects.
 	PruneUnreachableObjects(ctx context.Context, in *PruneUnreachableObjectsRequest, opts ...grpc.CallOption) (*PruneUnreachableObjectsResponse, error)
-	// Deprecated: Do not use.
-	// RemoveAll deletes all repositories on a specified storage.
-	// Deprecated in favour of individually removing repositories with RemoveRepository.
-	RemoveAll(ctx context.Context, in *RemoveAllRequest, opts ...grpc.CallOption) (*RemoveAllResponse, error)
 	// BackupRepository creates a full or incremental backup streamed directly to
 	// object-storage. The backup is created synchronously. The destination must
 	// be configured in config.backup.go_cloud_url
@@ -243,6 +242,8 @@ type RepositoryServiceClient interface {
 	RestoreRepository(ctx context.Context, in *RestoreRepositoryRequest, opts ...grpc.CallOption) (*RestoreRepositoryResponse, error)
 	// GetFileAttributes queries given file attributes as specified in .gitattributes file
 	GetFileAttributes(ctx context.Context, in *GetFileAttributesRequest, opts ...grpc.CallOption) (*GetFileAttributesResponse, error)
+	// FastExport runs git-fast-export on the repository, streaming the data back through the response
+	FastExport(ctx context.Context, in *FastExportRequest, opts ...grpc.CallOption) (RepositoryService_FastExportClient, error)
 }
 
 type repositoryServiceClient struct {
@@ -507,6 +508,15 @@ func (x *repositoryServiceCreateBundleFromRefListClient) Recv() (*CreateBundleFr
 		return nil, err
 	}
 	return m, nil
+}
+
+func (c *repositoryServiceClient) GenerateBundleURI(ctx context.Context, in *GenerateBundleURIRequest, opts ...grpc.CallOption) (*GenerateBundleURIResponse, error) {
+	out := new(GenerateBundleURIResponse)
+	err := c.cc.Invoke(ctx, RepositoryService_GenerateBundleURI_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *repositoryServiceClient) FetchBundle(ctx context.Context, opts ...grpc.CallOption) (RepositoryService_FetchBundleClient, error) {
@@ -976,16 +986,6 @@ func (c *repositoryServiceClient) PruneUnreachableObjects(ctx context.Context, i
 	return out, nil
 }
 
-// Deprecated: Do not use.
-func (c *repositoryServiceClient) RemoveAll(ctx context.Context, in *RemoveAllRequest, opts ...grpc.CallOption) (*RemoveAllResponse, error) {
-	out := new(RemoveAllResponse)
-	err := c.cc.Invoke(ctx, RepositoryService_RemoveAll_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *repositoryServiceClient) BackupRepository(ctx context.Context, in *BackupRepositoryRequest, opts ...grpc.CallOption) (*BackupRepositoryResponse, error) {
 	out := new(BackupRepositoryResponse)
 	err := c.cc.Invoke(ctx, RepositoryService_BackupRepository_FullMethodName, in, out, opts...)
@@ -1011,6 +1011,38 @@ func (c *repositoryServiceClient) GetFileAttributes(ctx context.Context, in *Get
 		return nil, err
 	}
 	return out, nil
+}
+
+func (c *repositoryServiceClient) FastExport(ctx context.Context, in *FastExportRequest, opts ...grpc.CallOption) (RepositoryService_FastExportClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RepositoryService_ServiceDesc.Streams[16], RepositoryService_FastExport_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &repositoryServiceFastExportClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RepositoryService_FastExportClient interface {
+	Recv() (*FastExportResponse, error)
+	grpc.ClientStream
+}
+
+type repositoryServiceFastExportClient struct {
+	grpc.ClientStream
+}
+
+func (x *repositoryServiceFastExportClient) Recv() (*FastExportResponse, error) {
+	m := new(FastExportResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // RepositoryServiceServer is the server API for RepositoryService service.
@@ -1093,6 +1125,8 @@ type RepositoryServiceServer interface {
 	// CreateBundleFromRefList creates a bundle from a stream of ref patterns.
 	// When the bundle would be empty the FailedPrecondition error code is returned.
 	CreateBundleFromRefList(RepositoryService_CreateBundleFromRefListServer) error
+	// GenerateBundleURI generates a bundle on the server for bundle-URI use.
+	GenerateBundleURI(context.Context, *GenerateBundleURIRequest) (*GenerateBundleURIResponse, error)
 	// FetchBundle fetches references from a bundle into the local repository.
 	// refs will be mirrored to the target repository with the refspec
 	// "+refs/*:refs/*" and refs that do not exist in the bundle will be removed.
@@ -1179,10 +1213,6 @@ type RepositoryServiceServer interface {
 	// to make proper use of this RPC you thus need to call OptimizeRepository,
 	// wait 30 minutes, and then call PruneUnreachableObjects.
 	PruneUnreachableObjects(context.Context, *PruneUnreachableObjectsRequest) (*PruneUnreachableObjectsResponse, error)
-	// Deprecated: Do not use.
-	// RemoveAll deletes all repositories on a specified storage.
-	// Deprecated in favour of individually removing repositories with RemoveRepository.
-	RemoveAll(context.Context, *RemoveAllRequest) (*RemoveAllResponse, error)
 	// BackupRepository creates a full or incremental backup streamed directly to
 	// object-storage. The backup is created synchronously. The destination must
 	// be configured in config.backup.go_cloud_url
@@ -1193,6 +1223,8 @@ type RepositoryServiceServer interface {
 	RestoreRepository(context.Context, *RestoreRepositoryRequest) (*RestoreRepositoryResponse, error)
 	// GetFileAttributes queries given file attributes as specified in .gitattributes file
 	GetFileAttributes(context.Context, *GetFileAttributesRequest) (*GetFileAttributesResponse, error)
+	// FastExport runs git-fast-export on the repository, streaming the data back through the response
+	FastExport(*FastExportRequest, RepositoryService_FastExportServer) error
 	mustEmbedUnimplementedRepositoryServiceServer()
 }
 
@@ -1254,6 +1286,9 @@ func (UnimplementedRepositoryServiceServer) CreateBundle(*CreateBundleRequest, R
 func (UnimplementedRepositoryServiceServer) CreateBundleFromRefList(RepositoryService_CreateBundleFromRefListServer) error {
 	return status.Errorf(codes.Unimplemented, "method CreateBundleFromRefList not implemented")
 }
+func (UnimplementedRepositoryServiceServer) GenerateBundleURI(context.Context, *GenerateBundleURIRequest) (*GenerateBundleURIResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateBundleURI not implemented")
+}
 func (UnimplementedRepositoryServiceServer) FetchBundle(RepositoryService_FetchBundleServer) error {
 	return status.Errorf(codes.Unimplemented, "method FetchBundle not implemented")
 }
@@ -1314,9 +1349,6 @@ func (UnimplementedRepositoryServiceServer) OptimizeRepository(context.Context, 
 func (UnimplementedRepositoryServiceServer) PruneUnreachableObjects(context.Context, *PruneUnreachableObjectsRequest) (*PruneUnreachableObjectsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PruneUnreachableObjects not implemented")
 }
-func (UnimplementedRepositoryServiceServer) RemoveAll(context.Context, *RemoveAllRequest) (*RemoveAllResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RemoveAll not implemented")
-}
 func (UnimplementedRepositoryServiceServer) BackupRepository(context.Context, *BackupRepositoryRequest) (*BackupRepositoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BackupRepository not implemented")
 }
@@ -1325,6 +1357,9 @@ func (UnimplementedRepositoryServiceServer) RestoreRepository(context.Context, *
 }
 func (UnimplementedRepositoryServiceServer) GetFileAttributes(context.Context, *GetFileAttributesRequest) (*GetFileAttributesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFileAttributes not implemented")
+}
+func (UnimplementedRepositoryServiceServer) FastExport(*FastExportRequest, RepositoryService_FastExportServer) error {
+	return status.Errorf(codes.Unimplemented, "method FastExport not implemented")
 }
 func (UnimplementedRepositoryServiceServer) mustEmbedUnimplementedRepositoryServiceServer() {}
 
@@ -1683,6 +1718,24 @@ func (x *repositoryServiceCreateBundleFromRefListServer) Recv() (*CreateBundleFr
 		return nil, err
 	}
 	return m, nil
+}
+
+func _RepositoryService_GenerateBundleURI_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateBundleURIRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RepositoryServiceServer).GenerateBundleURI(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RepositoryService_GenerateBundleURI_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RepositoryServiceServer).GenerateBundleURI(ctx, req.(*GenerateBundleURIRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _RepositoryService_FetchBundle_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -2101,24 +2154,6 @@ func _RepositoryService_PruneUnreachableObjects_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RepositoryService_RemoveAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RemoveAllRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RepositoryServiceServer).RemoveAll(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RepositoryService_RemoveAll_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepositoryServiceServer).RemoveAll(ctx, req.(*RemoveAllRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _RepositoryService_BackupRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BackupRepositoryRequest)
 	if err := dec(in); err != nil {
@@ -2171,6 +2206,27 @@ func _RepositoryService_GetFileAttributes_Handler(srv interface{}, ctx context.C
 		return srv.(RepositoryServiceServer).GetFileAttributes(ctx, req.(*GetFileAttributesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
+}
+
+func _RepositoryService_FastExport_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(FastExportRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(RepositoryServiceServer).FastExport(m, &repositoryServiceFastExportServer{stream})
+}
+
+type RepositoryService_FastExportServer interface {
+	Send(*FastExportResponse) error
+	grpc.ServerStream
+}
+
+type repositoryServiceFastExportServer struct {
+	grpc.ServerStream
+}
+
+func (x *repositoryServiceFastExportServer) Send(m *FastExportResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 // RepositoryService_ServiceDesc is the grpc.ServiceDesc for RepositoryService service.
@@ -2237,6 +2293,10 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RepositoryService_CreateRepositoryFromURL_Handler,
 		},
 		{
+			MethodName: "GenerateBundleURI",
+			Handler:    _RepositoryService_GenerateBundleURI_Handler,
+		},
+		{
 			MethodName: "FindLicense",
 			Handler:    _RepositoryService_FindLicense_Handler,
 		},
@@ -2267,10 +2327,6 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PruneUnreachableObjects",
 			Handler:    _RepositoryService_PruneUnreachableObjects_Handler,
-		},
-		{
-			MethodName: "RemoveAll",
-			Handler:    _RepositoryService_RemoveAll_Handler,
 		},
 		{
 			MethodName: "BackupRepository",
@@ -2365,6 +2421,11 @@ var RepositoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "GetCustomHooks",
 			Handler:       _RepositoryService_GetCustomHooks_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "FastExport",
+			Handler:       _RepositoryService_FastExport_Handler,
 			ServerStreams: true,
 		},
 	},

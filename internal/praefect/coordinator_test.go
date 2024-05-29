@@ -23,6 +23,7 @@ import (
 	gconfig "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/client"
 	gitaly_metadata "gitlab.com/gitlab-org/gitaly/v16/internal/grpc/metadata"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/protoregistry"
@@ -659,93 +660,131 @@ func TestStreamDirectorMutator_SecondaryErrorHandling(t *testing.T) {
 }
 
 func TestStreamDirectorMutator_ReplicateRepository(t *testing.T) {
-	ctx := testhelper.Context(t)
-
-	socket := testhelper.GetTemporaryGitalySocketFileName(t)
-	testhelper.NewServerWithHealth(t, socket)
-
-	// Setup config with two virtual storages.
-	conf := config.Config{
-		VirtualStorages: []*config.VirtualStorage{
-			{
-				Name:  "praefect-1",
-				Nodes: []*config.Node{{Address: "unix://" + socket, Storage: "praefect-internal-1"}},
+	for _, tc := range []struct {
+		Name             string
+		Request          *gitalypb.ReplicateRepositoryRequest
+		PartitioningHint string
+	}{
+		{
+			Name: "invoked without a partitioning hint",
+			Request: &gitalypb.ReplicateRepositoryRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  "praefect-2",
+					RelativePath: "/path/to/hashed/storage",
+				},
+				Source: &gitalypb.Repository{
+					StorageName:  "praefect-1",
+					RelativePath: "/path/to/hashed/storage",
+				},
 			},
-			{
-				Name:  "praefect-2",
-				Nodes: []*config.Node{{Address: "unix://" + socket, Storage: "praefect-internal-2"}},
+		},
+		{
+			Name: "invoked with a partitioning hint",
+			Request: &gitalypb.ReplicateRepositoryRequest{
+				Repository: &gitalypb.Repository{
+					StorageName:  "praefect-2",
+					RelativePath: "/path/to/hashed/storage",
+				},
+				Source: &gitalypb.Repository{
+					StorageName:  "praefect-1",
+					RelativePath: "/path/to/hashed/storage",
+				},
 			},
+			PartitioningHint: "/path/to/hashed/storage/hint",
 		},
+	} {
+		t.Run(tc.Name, func(t *testing.T) {
+			ctx := testhelper.Context(t)
+
+			socket := testhelper.GetTemporaryGitalySocketFileName(t)
+			testhelper.NewServerWithHealth(t, socket)
+
+			// Setup config with two virtual storages.
+			conf := config.Config{
+				VirtualStorages: []*config.VirtualStorage{
+					{
+						Name:  "praefect-1",
+						Nodes: []*config.Node{{Address: "unix://" + socket, Storage: "praefect-internal-1"}},
+					},
+					{
+						Name:  "praefect-2",
+						Nodes: []*config.Node{{Address: "unix://" + socket, Storage: "praefect-internal-2"}},
+					},
+				},
+			}
+
+			nodeMgr, err := nodes.NewManager(testhelper.SharedLogger(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
+			require.NoError(t, err)
+			nodeMgr.Start(0, time.Hour)
+			defer nodeMgr.Stop()
+
+			incrementGenerationInvoked := false
+			rs := datastore.MockRepositoryStore{
+				GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (string, *datastructure.Set[string], error) {
+					return relativePath, datastructure.SetFromValues("praefect-internal-2"), nil
+				},
+				CreateRepositoryFunc: func(ctx context.Context, repositoryID int64, virtualStorage, relativePath, replicaPath, primary string, updatedSecondaries, outdatedSecondaries []string, storePrimary, storeAssignments bool) error {
+					require.Fail(t, "CreateRepository should not be called")
+					return nil
+				},
+				IncrementGenerationFunc: func(ctx context.Context, repositoryID int64, primary string, secondaries []string) error {
+					incrementGenerationInvoked = true
+					return nil
+				},
+			}
+
+			router := mockRouter{
+				// Simulate scenario where target repository already exists and error is returned.
+				routeRepositoryCreation: func(ctx context.Context, virtualStorage, relativePath, additionalRepoRelativePath string) (RepositoryMutatorRoute, error) {
+					return RepositoryMutatorRoute{}, fmt.Errorf("reserve repository id: %w", datastore.ErrRepositoryAlreadyExists)
+				},
+				// Pass through normally to handle route creation.
+				routeRepositoryMutator: func(ctx context.Context, virtualStorage, relativePath, additionalRepoRelativePath string) (RepositoryMutatorRoute, error) {
+					return NewNodeManagerRouter(nodeMgr, rs).RouteRepositoryMutator(ctx, virtualStorage, relativePath, additionalRepoRelativePath)
+				},
+			}
+
+			logger := testhelper.NewLogger(t)
+
+			coordinator := NewCoordinator(
+				logger,
+				&datastore.MockReplicationEventQueue{},
+				rs,
+				router,
+				transactions.NewManager(conf, logger),
+				conf,
+				protoregistry.GitalyProtoPreregistered,
+			)
+
+			fullMethod := "/gitaly.RepositoryService/ReplicateRepository"
+
+			frame, err := proto.Marshal(tc.Request)
+			require.NoError(t, err)
+			peeker := &mockPeeker{frame}
+
+			ctx = correlation.ContextWithCorrelation(ctx, "my-correlation-id")
+
+			if tc.PartitioningHint != "" {
+				ctx = storagectx.SetPartitioningHintToIncomingContext(ctx, tc.PartitioningHint)
+			}
+
+			// Validate that stream parameters can be constructed successfully for
+			// `ReplicateRepository` when the target repository already exists.
+			streamParams, err := coordinator.StreamDirector(ctx, fullMethod, peeker)
+			require.NoError(t, err)
+
+			// Validate the partitioning hint was passed through.
+			hint, err := storagectx.ExtractPartitioningHintFromIncomingContext(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tc.PartitioningHint, hint)
+
+			// Validate that `CreateRepository()` is not invoked and `IncrementGeneration()`
+			// is when target repository already exists.
+			err = streamParams.RequestFinalizer()
+			require.NoError(t, err)
+			require.True(t, incrementGenerationInvoked)
+		})
 	}
-
-	nodeMgr, err := nodes.NewManager(testhelper.SharedLogger(t), conf, nil, nil, promtest.NewMockHistogramVec(), protoregistry.GitalyProtoPreregistered, nil, nil, nil)
-	require.NoError(t, err)
-	nodeMgr.Start(0, time.Hour)
-	defer nodeMgr.Stop()
-
-	incrementGenerationInvoked := false
-	rs := datastore.MockRepositoryStore{
-		GetConsistentStoragesFunc: func(ctx context.Context, virtualStorage, relativePath string) (string, *datastructure.Set[string], error) {
-			return relativePath, datastructure.SetFromValues("praefect-internal-2"), nil
-		},
-		CreateRepositoryFunc: func(ctx context.Context, repositoryID int64, virtualStorage, relativePath, replicaPath, primary string, updatedSecondaries, outdatedSecondaries []string, storePrimary, storeAssignments bool) error {
-			require.Fail(t, "CreateRepository should not be called")
-			return nil
-		},
-		IncrementGenerationFunc: func(ctx context.Context, repositoryID int64, primary string, secondaries []string) error {
-			incrementGenerationInvoked = true
-			return nil
-		},
-	}
-
-	router := mockRouter{
-		// Simulate scenario where target repository already exists and error is returned.
-		routeRepositoryCreation: func(ctx context.Context, virtualStorage, relativePath, additionalRepoRelativePath string) (RepositoryMutatorRoute, error) {
-			return RepositoryMutatorRoute{}, fmt.Errorf("reserve repository id: %w", datastore.ErrRepositoryAlreadyExists)
-		},
-		// Pass through normally to handle route creation.
-		routeRepositoryMutator: func(ctx context.Context, virtualStorage, relativePath, additionalRepoRelativePath string) (RepositoryMutatorRoute, error) {
-			return NewNodeManagerRouter(nodeMgr, rs).RouteRepositoryMutator(ctx, virtualStorage, relativePath, additionalRepoRelativePath)
-		},
-	}
-
-	logger := testhelper.NewLogger(t)
-
-	coordinator := NewCoordinator(
-		logger,
-		&datastore.MockReplicationEventQueue{},
-		rs,
-		router,
-		transactions.NewManager(conf, logger),
-		conf,
-		protoregistry.GitalyProtoPreregistered,
-	)
-
-	fullMethod := "/gitaly.RepositoryService/ReplicateRepository"
-
-	frame, err := proto.Marshal(&gitalypb.ReplicateRepositoryRequest{
-		Repository: &gitalypb.Repository{
-			StorageName:  "praefect-2",
-			RelativePath: "/path/to/hashed/storage",
-		},
-		Source: &gitalypb.Repository{
-			StorageName:  "praefect-1",
-			RelativePath: "/path/to/hashed/storage",
-		},
-	})
-	require.NoError(t, err)
-	peeker := &mockPeeker{frame}
-
-	// Validate that stream parameters can be constructed successfully for
-	// `ReplicateRepository` when the target repository already exists.
-	streamParams, err := coordinator.StreamDirector(correlation.ContextWithCorrelation(ctx, "my-correlation-id"), fullMethod, peeker)
-	require.NoError(t, err)
-
-	// Validate that `CreateRepository()` is not invoked and `IncrementGeneration()`
-	// is when target repository already exists.
-	err = streamParams.RequestFinalizer()
-	require.NoError(t, err)
-	require.True(t, incrementGenerationInvoked)
 }
 
 func TestStreamDirector_maintenance(t *testing.T) {
@@ -1879,25 +1918,6 @@ func TestStreamDirectorStorageScope(t *testing.T) {
 	)
 	ctx := testhelper.Context(t)
 
-	t.Run("mutator", func(t *testing.T) {
-		fullMethod := "/gitaly.RepositoryService/RemoveAll"
-		requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpMutator)
-
-		frame, err := proto.Marshal(&gitalypb.RemoveAllRequest{
-			StorageName: conf.VirtualStorages[0].Name,
-		})
-		require.NoError(t, err)
-
-		streamParams, err := coordinator.StreamDirector(ctx, fullMethod, &mockPeeker{frame})
-		require.NoError(t, err)
-
-		require.Equal(t, primaryAddress, streamParams.Primary().Conn.Target(), "stream director didn't redirect to gitaly storage")
-
-		rewritten := gitalypb.RemoveAllRequest{}
-		require.NoError(t, proto.Unmarshal(streamParams.Primary().Msg, &rewritten))
-		require.Equal(t, primaryGitaly.Storage, rewritten.StorageName, "stream director didn't rewrite storage")
-	})
-
 	t.Run("accessor", func(t *testing.T) {
 		fullMethod := "/gitaly.InternalGitaly/WalkRepos"
 		requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpAccessor)
@@ -2013,38 +2033,6 @@ func TestStreamDirectorStorageScopeError(t *testing.T) {
 			require.True(t, ok)
 			require.Equal(t, codes.Internal, result.Code())
 			require.Equal(t, `accessor storage scoped: route storage accessor "fake": primary gitaly is not healthy`, result.Message())
-		})
-
-		t.Run("mutator", func(t *testing.T) {
-			mgr := &nodes.MockManager{
-				GetShardFunc: func(s string) (nodes.Shard, error) {
-					require.Equal(t, "fake", s)
-					return nodes.Shard{}, nodes.ErrPrimaryNotHealthy
-				},
-			}
-			rs := datastore.MockRepositoryStore{}
-			coordinator := NewCoordinator(
-				testhelper.NewLogger(t),
-				nil,
-				rs,
-				NewNodeManagerRouter(mgr, rs),
-				nil,
-				config.Config{},
-				protoregistry.GitalyProtoPreregistered,
-			)
-
-			fullMethod := "/gitaly.RepositoryService/RemoveAll"
-			requireScopeOperation(t, coordinator.registry, fullMethod, protoregistry.ScopeStorage, protoregistry.OpMutator)
-
-			frame, err := proto.Marshal(&gitalypb.RemoveAllRequest{StorageName: "fake"})
-			require.NoError(t, err)
-
-			_, err = coordinator.StreamDirector(ctx, fullMethod, &mockPeeker{frame})
-			require.Error(t, err)
-			result, ok := status.FromError(err)
-			require.True(t, ok)
-			require.Equal(t, codes.Internal, result.Code())
-			require.Equal(t, `mutator storage scoped: get shard "fake": primary gitaly is not healthy`, result.Message())
 		})
 	})
 }

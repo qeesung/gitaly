@@ -18,7 +18,7 @@ Fault-tolerant horizontal scaling of Git storage in GitLab, and particularly, on
 
 ## Current Status
 
-Almost all application code accesses Git repositories via Gitaly (with the exception of Rugged which we're working on removing).
+All application code accesses Git repositories via Gitaly.
 
 Besides "Git over RPC" functionality, Gitaly also offers an optional [high-availability solution](#high-availability).
 
@@ -66,8 +66,6 @@ graph LR
     Shell[gitlab-shell] -- command-line\nclient --> Gitaly
     Gitaly -. Authorization .-> Rails
   end
-
-  Rails -. Rugged .-> Filesystem
 ```
 
 In [High Availability](#high-availability) mode, the current implementation looks like this (some details omitted):

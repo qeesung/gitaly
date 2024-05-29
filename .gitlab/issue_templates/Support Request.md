@@ -86,5 +86,5 @@ For S1 or S2 issues, please follow https://about.gitlab.com/handbook/engineering
 <!-- Please include specifics such as - architecture review, meeting attendance, product management involvement, etc... -->
 
 
-/label ~"Gitaly Customer Issue" ~"customer" ~"group::gitaly" ~"devops::systems" ~"section::enablement" ~"workflow::problem validation"
+/label ~"Gitaly Customer Issue" ~"customer" ~"group::gitaly" ~"devops::systems" ~"section::core platform" ~"workflow::problem validation"
 /cc @mjwood @andrashorvath @jcaigitlab @john.mcdonnell @gerardo

@@ -24,10 +24,31 @@ type TreeEntry struct {
 	Content string
 }
 
+type requireTreeConfig struct {
+	hash git.ObjectHash
+}
+
+type requireTreeOption func(cfg *requireTreeConfig)
+
+// WithSha256 allows RequireTree to test against a sha256 repository
+func WithSha256() requireTreeOption {
+	return func(cfg *requireTreeConfig) {
+		cfg.hash = git.ObjectHashSHA256
+	}
+}
+
 // RequireTree looks up the given treeish and asserts that its entries match
 // the given expected entries. Tree entries are checked recursively.
-func RequireTree(tb testing.TB, cfg config.Cfg, repoPath, treeish string, expectedEntries []TreeEntry) {
+func RequireTree(tb testing.TB, cfg config.Cfg, repoPath, treeish string, expectedEntries []TreeEntry, options ...requireTreeOption) {
 	tb.Helper()
+
+	requireTreeCfg := requireTreeConfig{
+		hash: DefaultObjectHash,
+	}
+
+	for _, option := range options {
+		option(&requireTreeCfg)
+	}
 
 	for i, entry := range expectedEntries {
 		if entry.OID != "" {
@@ -36,7 +57,7 @@ func RequireTree(tb testing.TB, cfg config.Cfg, repoPath, treeish string, expect
 
 		blob := fmt.Sprintf("blob %d\000%s", len(entry.Content), entry.Content)
 
-		hasher := DefaultObjectHash.Hash()
+		hasher := requireTreeCfg.hash.Hash()
 		_, err := hasher.Write([]byte(blob))
 		require.NoError(tb, err)
 
@@ -58,7 +79,7 @@ func RequireTree(tb testing.TB, cfg config.Cfg, repoPath, treeish string, expect
 
 			path := string(tabSplit[1])
 
-			objectID, err := DefaultObjectHash.FromHex(string(spaceSplit[2]))
+			objectID, err := requireTreeCfg.hash.FromHex(string(spaceSplit[2]))
 			require.NoError(tb, err)
 
 			actualEntries = append(actualEntries, TreeEntry{

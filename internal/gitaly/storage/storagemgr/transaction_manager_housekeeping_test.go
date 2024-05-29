@@ -12,11 +12,12 @@ import (
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 )
 
-func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) []transactionTestCase {
-	customSetup := func(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) testTransactionSetup {
+func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) []transactionTestCase {
+	customSetup := func(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) testTransactionSetup {
 		setup := setupTest(t, ctx, testPartitionID, relativePath)
 		gittest.WriteRef(t, setup.Config, setup.RepositoryPath, "refs/heads/main", setup.Commits.First.OID)
 		gittest.WriteRef(t, setup.Config, setup.RepositoryPath, "refs/heads/branch-1", setup.Commits.Second.OID)
@@ -85,7 +86,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -159,7 +160,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -211,7 +212,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -263,7 +264,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -318,7 +319,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -374,7 +375,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -431,7 +432,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -491,7 +492,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -554,7 +555,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					relativePath: {
@@ -640,7 +641,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(5).toProto(),
+					string(keyAppliedLSN): storage.LSN(5).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -696,7 +697,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -766,7 +767,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					relativePath: {
@@ -872,7 +873,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					relativePath: {
@@ -950,7 +951,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+					string(keyAppliedLSN): storage.LSN(4).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -1013,7 +1014,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					relativePath: {
@@ -1069,7 +1070,7 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					relativePath: {
@@ -1087,8 +1088,8 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 
 // generateHousekeepingRepackingStrategyTests returns a set of tests which run repacking with different strategies and
 // settings.
-func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) []transactionTestCase {
-	customSetup := func(t *testing.T, ctx context.Context, testPartitionID partitionID, relativePath string) testTransactionSetup {
+func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) []transactionTestCase {
+	customSetup := func(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) testTransactionSetup {
 		setup := setupTest(t, ctx, testPartitionID, relativePath)
 		gittest.WriteRef(t, setup.Config, setup.RepositoryPath, "refs/heads/main", setup.Commits.Third.OID)
 		gittest.WriteRef(t, setup.Config, setup.RepositoryPath, "refs/heads/branch", setup.Commits.Diverging.OID)
@@ -1207,7 +1208,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1257,7 +1258,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1307,7 +1308,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1360,7 +1361,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1417,7 +1418,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1473,7 +1474,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1525,7 +1526,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1580,7 +1581,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1661,7 +1662,7 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1765,7 +1766,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1820,7 +1821,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1901,7 +1902,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -1989,7 +1990,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -2073,7 +2074,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -2178,7 +2179,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(5).toProto(),
+					string(keyAppliedLSN): storage.LSN(5).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -2285,7 +2286,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+					string(keyAppliedLSN): storage.LSN(4).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -2372,7 +2373,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(4).toProto(),
+					string(keyAppliedLSN): storage.LSN(4).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -2464,7 +2465,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(3).toProto(),
+					string(keyAppliedLSN): storage.LSN(3).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -2480,6 +2481,258 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 									Objects: []git.ObjectID{
 										gittest.DefaultObjectHash.EmptyTreeOID,
 										setup.Commits.First.OID,
+										setup.Commits.Second.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "run repacking (FullWithCruft) concurrently with another transaction depending on object in an in-between reference update",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-1": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+					IncludeObjects: []git.ObjectID{setup.Commits.Diverging.OID},
+					QuarantinedPacks: [][]byte{
+						setup.Commits.First.Pack,
+						setup.Commits.Diverging.Pack,
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				UpdateReferences{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-2": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Diverging.OID},
+					},
+				},
+				UpdateReferences{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/branch-2": {OldOID: setup.Commits.Diverging.OID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Commit{
+					TransactionID: 2,
+				},
+				RunRepack{
+					TransactionID: 3,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
+					},
+				},
+				Commit{
+					TransactionID: 3,
+					ExpectedError: errRepackConflictPrunedObject,
+				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":  1,
+					"housekeeping_task=total,stage=verify":   1,
+					"housekeeping_task=repack,stage=prepare": 1,
+					"housekeeping_task=repack,stage=verify":  1,
+				}},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/branch-1": setup.Commits.First.OID,
+								"refs/heads/branch-2": setup.Commits.First.OID,
+							},
+						},
+						Packfiles: &PackfilesState{
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+										setup.Commits.Diverging.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "run repacking (FullWithCruft) concurrently with another transaction's packfile depending on pruned objects",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID:    1,
+					IncludeObjects:   []git.ObjectID{setup.Commits.First.OID},
+					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID: 2,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+					QuarantinedPacks: [][]byte{
+						setup.Commits.Second.Pack,
+					},
+				},
+				RunRepack{
+					TransactionID: 3,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
+					},
+				},
+				Commit{
+					TransactionID: 3,
+					ExpectedError: errRepackConflictPrunedObject,
+				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":  1,
+					"housekeeping_task=total,stage=verify":   1,
+					"housekeeping_task=repack,stage=prepare": 1,
+					"housekeeping_task=repack,stage=verify":  1,
+				}},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
+						Packfiles: &PackfilesState{
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
+								{
+									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
+										setup.Commits.Second.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "run repacking (FullWithCruft) concurrently with another transaction including but not referencing an object",
+			steps: steps{
+				Prune{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID:    1,
+					IncludeObjects:   []git.ObjectID{setup.Commits.First.OID},
+					QuarantinedPacks: [][]byte{setup.Commits.First.Pack},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				Commit{
+					TransactionID:  2,
+					IncludeObjects: []git.ObjectID{setup.Commits.Second.OID},
+					QuarantinedPacks: [][]byte{
+						setup.Commits.Second.Pack,
+					},
+				},
+				RunRepack{
+					TransactionID: 3,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithCruft,
+					},
+				},
+				Commit{
+					TransactionID: 3,
+					ExpectedError: errRepackConflictPrunedObject,
+				},
+				AssertMetrics{histogramMetric("gitaly_housekeeping_tasks_latency"): {
+					"housekeeping_task=total,stage=prepare":  1,
+					"housekeeping_task=total,stage=verify":   1,
+					"housekeeping_task=repack,stage=prepare": 1,
+					"housekeeping_task=repack,stage=verify":  1,
+				}},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						Packfiles: &PackfilesState{
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
+								{
+									Objects: []git.ObjectID{
+										gittest.DefaultObjectHash.EmptyTreeOID,
 										setup.Commits.Second.OID,
 									},
 									HasReverseIndex: true,
@@ -2578,7 +2831,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(6).toProto(),
+					string(keyAppliedLSN): storage.LSN(6).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -2722,7 +2975,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(5).toProto(),
+					string(keyAppliedLSN): storage.LSN(5).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -2862,7 +3115,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(6).toProto(),
+					string(keyAppliedLSN): storage.LSN(6).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -3011,7 +3264,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(5).toProto(),
+					string(keyAppliedLSN): storage.LSN(5).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -3120,7 +3373,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -3186,7 +3439,7 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -3263,7 +3516,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -3317,7 +3570,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -3364,7 +3617,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -3476,7 +3729,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(5).toProto(),
+					string(keyAppliedLSN): storage.LSN(5).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -3543,7 +3796,7 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {

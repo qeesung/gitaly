@@ -106,6 +106,7 @@ func (c infoRefCache) tryCache(ctx context.Context, in *gitalypb.InfoRefsRequest
 					c.logger.WithError(err).
 						ErrorContext(ctx, "unable to discard remaining InfoRefsUploadPack cache stream")
 				}
+				_ = pr.CloseWithError(err) // always returns nil
 			}
 		}()
 

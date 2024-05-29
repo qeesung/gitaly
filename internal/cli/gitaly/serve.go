@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/bootstrap"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/bootstrap/starter"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/bundleuri"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cgroups"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -31,6 +32,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/setup"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/counter"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitlab"
@@ -50,6 +52,7 @@ import (
 	"gitlab.com/gitlab-org/labkit/fips"
 	"gitlab.com/gitlab-org/labkit/monitoring"
 	labkittracing "gitlab.com/gitlab-org/labkit/tracing"
+	"go.uber.org/automaxprocs/maxprocs"
 	"google.golang.org/grpc"
 
 	// Import to register the proxy codec with gRPC.
@@ -130,6 +133,13 @@ func configure(configPath string) (config.Cfg, log.Logger, error) {
 	logger, err := log.Configure(os.Stdout, cfg.Logging.Format, cfg.Logging.Level, urlSanitizer)
 	if err != nil {
 		return config.Cfg{}, nil, fmt.Errorf("configuring logger failed: %w", err)
+	}
+
+	if undo, err := maxprocs.Set(maxprocs.Logger(func(s string, i ...interface{}) {
+		logger.Info(fmt.Sprintf(s, i...))
+	})); err != nil {
+		logger.WithError(err).Error("failed to set GOMAXPROCS")
+		undo()
 	}
 
 	sentry.ConfigureSentry(logger, version.GetVersion(), sentry.Config(cfg.Logging.Sentry))
@@ -347,9 +357,10 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			gitCmdFactory,
 			localrepo.NewFactory(logger, locator, gitCmdFactory, catfileCache),
 			logger,
-			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
+			storagemgr.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
 			helper.NewTimerTickerFactory(time.Minute),
 			cfg.Prometheus,
+			nil,
 		)
 		if err != nil {
 			return fmt.Errorf("new partition manager: %w", err)
@@ -398,6 +409,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		gitlabClient,
 		hook.NewTransactionRegistry(txRegistry),
 		hook.NewProcReceiveRegistry(),
+		partitionMgr,
 	)
 
 	updaterWithHooks := updateref.NewUpdaterWithHooks(cfg, logger, locator, hookManager, gitCmdFactory, catfileCache)
@@ -415,6 +427,14 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		backupLocator, err = backup.ResolveLocator(cfg.Backup.Layout, backupSink)
 		if err != nil {
 			return fmt.Errorf("resolve backup locator: %w", err)
+		}
+	}
+
+	var bundleURISink *bundleuri.Sink
+	if cfg.BundleURI.GoCloudURL != "" {
+		bundleURISink, err = bundleuri.NewSink(ctx, cfg.BundleURI.GoCloudURL)
+		if err != nil {
+			return fmt.Errorf("create bundle-URI sink: %w", err)
 		}
 	}
 
@@ -459,6 +479,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			HousekeepingManager: housekeepingManager,
 			BackupSink:          backupSink,
 			BackupLocator:       backupLocator,
+			BundleURISink:       bundleURISink,
 		})
 		b.RegisterStarter(starter.New(c, srv, logger))
 	}

@@ -6,6 +6,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	grpc_metadata "google.golang.org/grpc/metadata"
 )
@@ -22,6 +23,7 @@ type Transaction interface {
 	PackRefs()
 	Repack(housekeepingcfg.RepackObjectsConfig)
 	WriteCommitGraphs(housekeepingcfg.WriteCommitGraphConfig)
+	SnapshotLSN() storage.LSN
 }
 
 type keyTransaction struct{}
@@ -72,4 +74,17 @@ func ExtractPartitioningHintFromIncomingContext(ctx context.Context) (string, er
 	}
 
 	return relativePaths[0], nil
+}
+
+// RemovePartitioningHintFromIncomingContext removes the partitioning hint from the provided context.
+func RemovePartitioningHintFromIncomingContext(ctx context.Context) context.Context {
+	md, ok := grpc_metadata.FromIncomingContext(ctx)
+	if !ok {
+		md = grpc_metadata.New(nil)
+	} else {
+		md = md.Copy()
+	}
+	md.Delete(keyPartitioningHint)
+
+	return grpc_metadata.NewIncomingContext(ctx, md)
 }

@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -50,7 +51,7 @@ func testUserSquashSuccessful(t *testing.T, ctx context.Context) {
 
 	var opts []testserver.GitalyServerOpt
 	if featureflag.GPGSigning.IsEnabled(ctx) {
-		opts = append(opts, testserver.WithSigningKey("testdata/signing_ssh_key_ed25519"))
+		opts = append(opts, testserver.WithSigningKey(filepath.Join(testhelper.TestdataAbsolutePath(t), "signing_ssh_key_ed25519")))
 	}
 
 	ctx, cfg, client := setupOperationsService(t, ctx, opts...)

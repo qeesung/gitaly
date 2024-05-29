@@ -17,9 +17,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/pktline"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
+	gitalyhook "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/hook"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
@@ -474,6 +476,92 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 			cmd.Dir = repoPath
 
 			tc.verify(t, cmd, &stdout, &stderr)
+		})
+	}
+}
+
+func TestHooksProcReceive(t *testing.T) {
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+	hooksPath := testcfg.BuildGitalyHooks(t, cfg)
+	registry := gitalyhook.NewProcReceiveRegistry()
+	runHookServiceServer(t, cfg, false, testserver.WithProcReceiveRegistry(registry))
+
+	repo, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		SkipCreationViaService: true,
+	})
+
+	for _, tc := range []struct {
+		desc             string
+		transactionID    storage.TransactionID
+		expectedStdout   string
+		expectedStderr   string
+		expectedExitCode int
+	}{
+		{
+			desc:             "failed proc-receive execution",
+			transactionID:    0, // A transaction ID with a value of zero is invalid.
+			expectedStderr:   "error executing git hook\n",
+			expectedExitCode: 1,
+		},
+		{
+			desc:             "successful proc-receive execution",
+			transactionID:    1,
+			expectedStdout:   "0015version=1\x00 atomic00000018ok refs/heads/main_10000",
+			expectedExitCode: 0,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			handlers, cleanup, err := registry.RegisterWaiter(tc.transactionID)
+			require.NoError(t, err)
+			defer cleanup()
+
+			hooksPayload, err := git.NewHooksPayload(
+				cfg,
+				repo,
+				gittest.DefaultObjectHash,
+				nil,
+				nil,
+				git.ProcReceiveHook,
+				featureFlags(ctx),
+				tc.transactionID,
+			).Env()
+			require.NoError(t, err)
+
+			env := envForHooks(t, ctx, cfg, repo, glHookValues{}, proxyValues{})
+			env = append(env, hooksPayload)
+
+			var stdin bytes.Buffer
+			_, err = pktline.WriteString(&stdin, "version=1\000 atomic")
+			require.NoError(t, err)
+			require.NoError(t, pktline.WriteFlush(&stdin))
+			ref := git.ReferenceName(fmt.Sprintf("refs/heads/main_%d", tc.transactionID))
+			_, err = pktline.WriteString(&stdin, fmt.Sprintf("%s %s %s",
+				gittest.DefaultObjectHash.ZeroOID, gittest.DefaultObjectHash.EmptyTreeOID, ref))
+			require.NoError(t, err)
+			require.NoError(t, pktline.WriteFlush(&stdin))
+
+			var stdout, stderr bytes.Buffer
+			cmd := exec.Command(hooksPath)
+			cmd.Args = []string{"proc-receive"}
+			cmd.Env = env
+			cmd.Stdin = &stdin
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			require.NoError(t, cmd.Start())
+
+			if tc.expectedExitCode == 0 {
+				handler := <-handlers
+				require.Equal(t, tc.transactionID, handler.TransactionID())
+				require.NoError(t, handler.AcceptUpdate(ref))
+				require.NoError(t, handler.Close(nil))
+			}
+
+			err = cmd.Wait()
+			code, _ := command.ExitStatus(err)
+			require.Equal(t, tc.expectedExitCode, code)
+			require.Equal(t, tc.expectedStdout, stdout.String())
+			require.Equal(t, tc.expectedStderr, stderr.String())
 		})
 	}
 }
@@ -957,6 +1045,11 @@ func (svc baggageAsserter) UpdateHook(request *gitalypb.UpdateHookRequest, strea
 func (svc baggageAsserter) ReferenceTransactionHook(stream gitalypb.HookService_ReferenceTransactionHookServer) error {
 	svc.assert(stream.Context())
 	return svc.wrapped.ReferenceTransactionHook(stream)
+}
+
+func (svc baggageAsserter) ProcReceiveHook(stream gitalypb.HookService_ProcReceiveHookServer) error {
+	svc.assert(stream.Context())
+	return svc.wrapped.ProcReceiveHook(stream)
 }
 
 func (svc baggageAsserter) PackObjectsHookWithSidechannel(ctx context.Context, req *gitalypb.PackObjectsHookWithSidechannelRequest) (*gitalypb.PackObjectsHookWithSidechannelResponse, error) {

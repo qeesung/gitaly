@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cache"
@@ -304,6 +305,60 @@ func testInfoRefsUploadPackGitProtocol(t *testing.T, ctx context.Context) {
 
 	envData := protocolDetectingFactory.ReadProtocol(t)
 	require.Contains(t, envData, fmt.Sprintf("GIT_PROTOCOL=%s\n", git.ProtocolV2))
+}
+
+func TestInfoRefsUploadPack_cacheNotStuckUponContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	testhelper.NewFeatureSets(
+		featureflag.BundleURI,
+	).Run(t, testInfoRefsUploadPackCacheNotStuckUponContextCancellation)
+}
+
+// We mainly test for goroutine leakage here, so if the server is hanging on finishing the request,
+// we will be leaking a goroutine and the test framework will panic.
+func testInfoRefsUploadPackCacheNotStuckUponContextCancellation(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	cfg := testcfg.Build(t)
+
+	locator := config.NewLocator(cfg)
+	logger := testhelper.NewLogger(t)
+	cache := cache.New(cfg, locator, logger)
+
+	streamer := mockStreamer{
+		Streamer: cache,
+	}
+	mockInfoRefCache := newInfoRefCache(logger, &streamer)
+
+	// This is to simulate a long-running `git upload-pack` command so that we can have time to cancel the request abruptly.
+	gitCmdFactory := gittest.NewInterceptingCommandFactory(t, ctx, cfg, func(execEnv git.ExecutionEnvironment) string {
+		return fmt.Sprintf(`#!/usr/bin/env bash
+						if [[ "$@" =~ "upload-pack" ]]; then
+							while true; do echo "foo"; done
+							exit 1
+						fi
+						exec %q "$@"`, execEnv.BinaryPath)
+	})
+	server := startSmartHTTPServerWithOptions(t, cfg,
+		[]ServerOpt{withInfoRefCache(mockInfoRefCache)},
+		[]testserver.GitalyServerOpt{testserver.WithGitCommandFactory(gitCmdFactory)},
+	)
+	cfg.SocketPath = server.Address()
+
+	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+	commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithParents())
+	_ = gittest.WriteTag(t, cfg, repoPath, "v1.0.0", commitID.Revision(), gittest.WriteTagConfig{
+		Message: "annotated tag",
+	})
+
+	requestCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
+	rpcRequest := &gitalypb.InfoRefsRequest{Repository: repo}
+	_, err := makeInfoRefsUploadPackRequest(t, requestCtx, cfg.SocketPath, cfg.Auth.Token, rpcRequest)
+	require.Error(t, err)
 }
 
 func makeInfoRefsUploadPackRequest(t *testing.T, ctx context.Context, serverSocketPath, token string, rpcRequest *gitalypb.InfoRefsRequest) ([]byte, error) {

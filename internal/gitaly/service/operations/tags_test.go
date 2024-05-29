@@ -611,7 +611,7 @@ tagger Jane Doe <janedoe@gitlab.com> 1600000000 +0800
 
 message`, commitID)
 
-	testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("reference update denied by custom hooks").WithDetail(
+	testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("reference update denied by custom hooks: running pre-receive hooks: %s", expectedObject).WithDetail(
 		&gitalypb.UserCreateTagError{
 			Error: &gitalypb.UserCreateTagError_CustomHook{
 				CustomHook: &gitalypb.CustomHookError{
@@ -1214,7 +1214,7 @@ func TestUserCreateTag_hookFailure(t *testing.T) {
 				TargetRevision: []byte(commitID),
 				User:           gittest.TestUser,
 			})
-			testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("reference update denied by custom hooks").WithDetail(
+			testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("reference update denied by custom hooks: running %s hooks: GL_ID=user-123\n", tc.hook).WithDetail(
 				&gitalypb.UserCreateTagError{
 					Error: &gitalypb.UserCreateTagError_CustomHook{
 						CustomHook: &gitalypb.CustomHookError{
@@ -1501,7 +1501,7 @@ func TestTagHookOutput(t *testing.T) {
 						User:           gittest.TestUser,
 					})
 
-					testhelper.RequireGrpcError(t, structerr.NewPermissionDenied("reference update denied by custom hooks").WithDetail(
+					testhelper.RequireGrpcErrorContains(t, structerr.NewPermissionDenied("reference update denied by custom hooks: running %s hooks:", hookTC.hook).WithDetail(
 						&gitalypb.UserCreateTagError{
 							Error: &gitalypb.UserCreateTagError_CustomHook{
 								CustomHook: &gitalypb.CustomHookError{

@@ -21,12 +21,6 @@ import (
 )
 
 func TestProcReceiveHook(t *testing.T) {
-	testhelper.SkipQuarantinedTest(
-		t,
-		"https://gitlab.com/gitlab-org/gitaly/-/issues/5966",
-		"TestProcReceiveHook",
-	)
-
 	procReceiveRegistry := gitalyhook.NewProcReceiveRegistry()
 
 	cfg := testcfg.Build(t)
@@ -65,7 +59,7 @@ func TestProcReceiveHook(t *testing.T) {
 		ref := git.ReferenceName(fmt.Sprintf("refs/heads/main_%d", transactionID))
 
 		var stdin bytes.Buffer
-		_, err = pktline.WriteString(&stdin, "version=1\000atomic")
+		_, err = pktline.WriteString(&stdin, "version=1\000 atomic")
 		assert.NoError(t, err)
 		err = pktline.WriteFlush(&stdin)
 		assert.NoError(t, err)
@@ -112,7 +106,7 @@ func TestProcReceiveHook(t *testing.T) {
 
 				return []func(buf bytes.Buffer) *gitalypb.ProcReceiveHookResponse{
 					func(buf bytes.Buffer) *gitalypb.ProcReceiveHookResponse {
-						_, err := pktline.WriteString(&buf, "version=1\000atomic")
+						_, err := pktline.WriteString(&buf, "version=1\000 atomic")
 						assert.NoError(t, err)
 
 						return &gitalypb.ProcReceiveHookResponse{
@@ -170,7 +164,7 @@ func TestProcReceiveHook(t *testing.T) {
 			clientSteps: func(t *testing.T, transactionID storage.TransactionID) []func(buf bytes.Buffer) *gitalypb.ProcReceiveHookResponse {
 				return []func(buf bytes.Buffer) *gitalypb.ProcReceiveHookResponse{
 					func(buf bytes.Buffer) *gitalypb.ProcReceiveHookResponse {
-						_, err := pktline.WriteString(&buf, "version=1\000atomic")
+						_, err := pktline.WriteString(&buf, "version=1\000 atomic")
 						assert.NoError(t, err)
 
 						return &gitalypb.ProcReceiveHookResponse{

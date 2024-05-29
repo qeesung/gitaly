@@ -1,5 +1,37 @@
 # Gitaly changelog
 
+## 17.0.1 (2024-05-21)
+
+No changes.
+
+## 17.0.0 (2024-05-15)
+
+### Added (2 changes)
+
+- [git: Wire up Git v2.45 execution environment](gitlab-org/gitaly@8f889e1461f31b898ea8a2fe3381df049b3c1f96) ([merge request](gitlab-org/gitaly!6879))
+- [Add Sign field to commit UserCommitFiles RPC](gitlab-org/gitaly@a0d1ccf1a95c99ff42fea15a2710d27d7f144329) ([merge request](gitlab-org/gitaly!6795))
+
+### Fixed (2 changes)
+
+- [backup: create directory if it does not exist](gitlab-org/gitaly@def62f21f3768ff4fed19dd11223efddc25dff13) ([merge request](gitlab-org/gitaly!6851))
+- [Handle accessing revision and path in empty repository in FindCommits](gitlab-org/gitaly@48b86ff773dd0142c2ca9a0ed827ab7a549b2e47) ([merge request](gitlab-org/gitaly!6826))
+
+### Changed (1 change)
+
+- [config: Don't allow storages to share a path](gitlab-org/gitaly@1f2789d97fd7b7d104a1ebaabbea90f9e5e4bff8) ([merge request](gitlab-org/gitaly!6849))
+
+## 16.11.3 (2024-05-21)
+
+No changes.
+
+## 16.11.2 (2024-05-07)
+
+No changes.
+
+## 16.11.1 (2024-04-24)
+
+No changes.
+
 ## 16.11.0 (2024-04-17)
 
 ### Added (1 change)
@@ -10,6 +42,18 @@
 
 - [Fix FindCommits in repositories missing default branches](gitlab-org/gitaly@6e011ae3ecff6d8797de15df19b23c3000eea111) ([merge request](gitlab-org/gitaly!6801))
 - [Allow unauthenticated access to health checking service](gitlab-org/gitaly@fcdbc76dc24f946a84155d91c1a8a5a55de0e5a1) ([merge request](gitlab-org/gitaly!6715))
+
+## 16.10.6 (2024-05-21)
+
+No changes.
+
+## 16.10.5 (2024-05-07)
+
+No changes.
+
+## 16.10.4 (2024-04-24)
+
+No changes.
 
 ## 16.10.3 (2024-04-12)
 
@@ -36,6 +80,18 @@ No changes.
 - [commit: Fix nil panic in LastCommitForPath](gitlab-org/gitaly@f1250677f3f3cacb575aad20bac22a3410ff5f40) ([merge request](gitlab-org/gitaly!6677))
 - [proxy: Register proxy codec](gitlab-org/gitaly@e16ef95d0e08e3144e67b63b4446b4996e44da1c) ([merge request](gitlab-org/gitaly!6662))
 - [Always use CLONE_INTO_CGROUP when supported](gitlab-org/gitaly@057f4e9d177c018774bf036cc952542f2e3ec833) ([merge request](gitlab-org/gitaly!6653))
+
+## 16.9.8 (2024-05-09)
+
+No changes.
+
+## 16.9.7 (2024-05-07)
+
+No changes.
+
+## 16.9.6 (2024-04-24)
+
+No changes.
 
 ## 16.9.5 (2024-04-12)
 

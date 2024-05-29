@@ -41,6 +41,7 @@ variables:
   PGBOUNCER_VERSION: !reference [.versions, pgbouncer]
   GOCACHE: "${CI_PROJECT_DIR}/_build/cache/go-build"
   GOMODCACHE: "${CI_PROJECT_DIR}/_build/cache/go-mod"
+  SAST_EXCLUDED_PATHS: "spec,test,tests,tmp,${CI_PROJECT_DIR}/_build/*"
   # We run the build as an untrusted user in a source directory owned by
   # "root". Running Git commands in that repository will thus fail due to
   # Git's `safe.directory` protections, and that in turns breaks the Go
@@ -298,8 +299,7 @@ test:reftable:
   allow_failure: true
   variables:
     <<: *test_variables
-    SKIP_OVERRIDING_GIT_VERSION: "YesPlease"
-    GIT_VERSION: "master"
+    GIT_VERSION: "v2.45.0"
     TEST_TARGET: test-with-reftable
 
 test:nightly:

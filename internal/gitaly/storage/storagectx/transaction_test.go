@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	grpc_metadata "google.golang.org/grpc/metadata"
 )
@@ -37,6 +38,7 @@ func (nilTransaction) PackRefs()                                                
 func (nilTransaction) Repack(housekeepingcfg.RepackObjectsConfig)               {}
 func (nilTransaction) WriteCommitGraphs(housekeepingcfg.WriteCommitGraphConfig) {}
 func (nilTransaction) AfterCommit(func(error))                                  {}
+func (nilTransaction) SnapshotLSN() storage.LSN                                 { return 0 }
 
 func TestContextWithTransaction(t *testing.T) {
 	t.Run("no transaction in context", func(t *testing.T) {
@@ -103,5 +105,18 @@ func TestPartitioningHint(t *testing.T) {
 		)
 		require.Equal(t, errors.New("multiple partitioning hints"), err)
 		require.Empty(t, relativePath)
+	})
+
+	t.Run("removes the hint", func(t *testing.T) {
+		ctx := SetPartitioningHintToIncomingContext(context.Background(), "relative-path")
+
+		relativePath, err := ExtractPartitioningHintFromIncomingContext(ctx)
+		require.NoError(t, err)
+		require.Equal(t, relativePath, "relative-path")
+
+		ctx = RemovePartitioningHintFromIncomingContext(ctx)
+		relativePath, err = ExtractPartitioningHintFromIncomingContext(ctx)
+		require.NoError(t, err)
+		require.Equal(t, relativePath, "")
 	})
 }

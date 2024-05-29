@@ -64,21 +64,17 @@ func TestCreate(t *testing.T) {
 		}
 	}
 
-	for _, tc := range []struct {
-		desc   string
-		opts   []CreateOption
-		setup  func(t *testing.T, repo *gitalypb.Repository, repoPath string)
-		seed   func(t *testing.T, repo *gitalypb.Repository, repoPath string) error
-		verify func(
-			t *testing.T,
-			tempRepo *gitalypb.Repository,
-			tempRepoPath string,
-			realRepo *gitalypb.Repository,
-			realRepoPath string,
-		)
-		transactional bool
+	type setup struct {
+		setup         func(t *testing.T, repo *gitalypb.Repository, repoPath string)
+		seed          func(t *testing.T, repo *gitalypb.Repository, repoPath string) error
+		verify        func(t *testing.T, tempRepo *gitalypb.Repository, tempRepoPath string, realRepo *gitalypb.Repository, realRepoPath string)
 		requireError  requireErrorFunc
-	}{
+		desc          string
+		opts          []CreateOption
+		transactional bool
+	}
+
+	for _, tc := range []setup{
 		{
 			desc: "no seeding",
 			verify: func(t *testing.T, tempRepo *gitalypb.Repository, tempRepoPath string, realRepo *gitalypb.Repository, realRepoPath string) {
@@ -108,6 +104,26 @@ func TestCreate(t *testing.T) {
 			verify: func(t *testing.T, tempRepo *gitalypb.Repository, tempRepoPath string, realRepo *gitalypb.Repository, realRepoPath string) {
 				value := gittest.Exec(t, cfg, "-C", realRepoPath, "config", "custom.key")
 				require.Equal(t, "value", text.ChompBytes(value))
+
+				requireFullRepackTimestampExists(t, realRepoPath, true)
+			},
+		},
+		{
+			desc: "seeding with branch",
+			seed: func(t *testing.T, repo *gitalypb.Repository, _ string) error {
+				repoPath, err := locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+				if err != nil {
+					return err
+				}
+
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("b1"), gittest.WithTreeEntries(
+					gittest.TreeEntry{Path: "file", Mode: "100644", Content: "can't touch this"},
+				))
+
+				return nil
+			},
+			verify: func(t *testing.T, tempRepo *gitalypb.Repository, tempRepoPath string, realRepo *gitalypb.Repository, realRepoPath string) {
+				gittest.Exec(t, cfg, "-C", realRepoPath, "show-ref", "--verify", "--quiet", "refs/heads/b1")
 
 				requireFullRepackTimestampExists(t, realRepoPath, true)
 			},
@@ -270,54 +286,46 @@ func TestCreate(t *testing.T) {
 			},
 			requireError: equalError(fmt.Errorf("locking repository: %w", errors.New("file already locked"))),
 		},
-		{
-			desc:          "vote is deterministic",
-			transactional: true,
-			setup: func(t *testing.T, repo *gitalypb.Repository, repoPath string) {
-				txManager.VoteFn = func(_ context.Context, _ txinfo.Transaction, vote voting.Vote, _ voting.Phase) error {
-					require.Equal(t, voting.VoteFromData([]byte("headcfgfoo")), vote)
+		func() setup {
+			hash := voting.NewVoteHash()
+
+			return setup{
+				desc:          "vote is deterministic",
+				transactional: true,
+				setup: func(t *testing.T, repo *gitalypb.Repository, repoPath string) {
+					txManager.VoteFn = func(_ context.Context, _ txinfo.Transaction, vote voting.Vote, _ voting.Phase) error {
+						expectedVote, err := hash.Vote()
+						require.NoError(t, err)
+
+						require.Equal(t, expectedVote, vote)
+						return nil
+					}
+				},
+				seed: func(t *testing.T, repo *gitalypb.Repository, repoPath string) error {
+					// Objects should both be ignored. They may contain indeterministic data
+					// that's different across replicas and would thus cause us to not reach quorum.
+					require.NoError(t, os.WriteFile(filepath.Join(repoPath, "objects", "object"), []byte("object"), perm.PublicFile))
+
+					gittest.BackendSpecificRepoHash(t, ctx, cfg, hash, repoPath)
+
 					return nil
-				}
-			},
-			seed: func(t *testing.T, repo *gitalypb.Repository, repoPath string) error {
-				// Remove the repository first so we can start from a clean state.
-				require.NoError(t, os.RemoveAll(repoPath))
-				require.NoError(t, os.Mkdir(repoPath, perm.PublicDir))
+				},
+				verify: func(t *testing.T, _ *gitalypb.Repository, tempRepoPath string, _ *gitalypb.Repository, realRepoPath string) {
+					require.NoDirExists(t, tempRepoPath)
+					require.DirExists(t, realRepoPath)
 
-				// Objects and FETCH_HEAD should both be ignored. They may contain
-				// indeterministic data that's different across replicas and would
-				// thus cause us to not reach quorum.
-				require.NoError(t, os.Mkdir(filepath.Join(repoPath, "objects"), perm.PublicDir))
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "objects", "object"), []byte("object"), perm.PublicFile))
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "FETCH_HEAD"), []byte("fetch-head"), perm.PublicFile))
+					// Even though a subset of data wasn't voted on, it should still be
+					// part of the final repository.
+					for expectedPath, expectedContents := range map[string]string{
+						filepath.Join(realRepoPath, "objects", "object"): "object",
+					} {
+						require.Equal(t, expectedContents, string(testhelper.MustReadFile(t, expectedPath)))
+					}
 
-				// All the other files should be hashed though.
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "HEAD"), []byte("head"), perm.PublicFile))
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "config"), []byte("cfg"), perm.PublicFile))
-				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "refs", "heads"), perm.PublicDir))
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "refs", "heads", "foo"), []byte("foo"), perm.PublicFile))
-
-				return nil
-			},
-			verify: func(t *testing.T, _ *gitalypb.Repository, tempRepoPath string, _ *gitalypb.Repository, realRepoPath string) {
-				require.NoDirExists(t, tempRepoPath)
-				require.DirExists(t, realRepoPath)
-
-				// Even though a subset of data wasn't voted on, it should still be
-				// part of the final repository.
-				for expectedPath, expectedContents := range map[string]string{
-					filepath.Join(realRepoPath, "objects", "object"):    "object",
-					filepath.Join(realRepoPath, "HEAD"):                 "head",
-					filepath.Join(realRepoPath, "FETCH_HEAD"):           "fetch-head",
-					filepath.Join(realRepoPath, "config"):               "cfg",
-					filepath.Join(realRepoPath, "refs", "heads", "foo"): "foo",
-				} {
-					require.Equal(t, expectedContents, string(testhelper.MustReadFile(t, expectedPath)))
-				}
-
-				requireFullRepackTimestampExists(t, realRepoPath, true)
-			},
-		},
+					requireFullRepackTimestampExists(t, realRepoPath, true)
+				},
+			}
+		}(),
 		{
 			desc: "override branch",
 			opts: []CreateOption{
@@ -326,16 +334,6 @@ func TestCreate(t *testing.T) {
 			verify: func(t *testing.T, _ *gitalypb.Repository, _ string, _ *gitalypb.Repository, realRepoPath string) {
 				defaultBranch := text.ChompBytes(gittest.Exec(t, cfg, "-C", realRepoPath, "symbolic-ref", "HEAD"))
 				require.Equal(t, "refs/heads/default", defaultBranch)
-			},
-		},
-		{
-			desc: "override hash",
-			opts: []CreateOption{
-				WithObjectHash(git.ObjectHashSHA256),
-			},
-			verify: func(t *testing.T, _ *gitalypb.Repository, _ string, _ *gitalypb.Repository, realRepoPath string) {
-				objectFormat := text.ChompBytes(gittest.Exec(t, cfg, "-C", realRepoPath, "rev-parse", "--show-object-format"))
-				require.Equal(t, "sha256", objectFormat)
 			},
 		},
 		{
@@ -365,6 +363,10 @@ func TestCreate(t *testing.T) {
 			ctx := ctx
 			*txManager = transaction.MockManager{}
 			repoCounter := counter.NewRepositoryCounter(cfg.Storages)
+
+			if gittest.ObjectHashIsSHA256() {
+				tc.opts = append(tc.opts, WithObjectHash(git.ObjectHashSHA256))
+			}
 
 			repo := &gitalypb.Repository{
 				StorageName:  cfg.Storages[0].Name,

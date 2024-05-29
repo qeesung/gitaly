@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gitalyauth "gitlab.com/gitlab-org/gitaly/v16/auth"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/bundleuri"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
@@ -24,6 +25,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/counter"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitlab"
@@ -199,7 +201,6 @@ func runGitaly(tb testing.TB, cfg config.Cfg, registrar func(srv *grpc.Server, d
 	if cfg.RuntimeDir != "" {
 		internalServer, err := serverFactory.CreateInternal(serverOpts...)
 		require.NoError(tb, err)
-		tb.Cleanup(internalServer.Stop)
 
 		registrar(internalServer, deps)
 		registerHealthServerIfNotRegistered(internalServer)
@@ -221,7 +222,8 @@ func runGitaly(tb testing.TB, cfg config.Cfg, registrar func(srv *grpc.Server, d
 
 	externalServer, err := serverFactory.CreateExternal(secure, serverOpts...)
 	require.NoError(tb, err)
-	tb.Cleanup(externalServer.Stop)
+
+	tb.Cleanup(serverFactory.GracefulStop)
 
 	registrar(externalServer, deps)
 	registerHealthServerIfNotRegistered(externalServer)
@@ -284,6 +286,7 @@ type gitalyServerDeps struct {
 	housekeepingManager housekeepingmgr.Manager
 	backupSink          backup.Sink
 	backupLocator       backup.Locator
+	bundleURISink       *bundleuri.Sink
 	signingKey          string
 	transactionRegistry *storagemgr.TransactionRegistry
 	procReceiveRegistry *hook.ProcReceiveRegistry
@@ -328,6 +331,23 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 		gsd.procReceiveRegistry = hook.NewProcReceiveRegistry()
 	}
 
+	var partitionManager *storagemgr.PartitionManager
+	if testhelper.IsWALEnabled() {
+		var err error
+		partitionManager, err = storagemgr.NewPartitionManager(
+			cfg.Storages,
+			gsd.gitCmdFactory,
+			localrepo.NewFactory(gsd.logger, gsd.locator, gsd.gitCmdFactory, gsd.catfileCache),
+			gsd.logger,
+			storagemgr.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
+			helper.NewNullTickerFactory(),
+			cfg.Prometheus,
+			nil,
+		)
+		require.NoError(tb, err)
+		tb.Cleanup(partitionManager.Close)
+	}
+
 	if gsd.hookMgr == nil {
 		gsd.hookMgr = hook.NewManager(
 			cfg, gsd.locator,
@@ -337,6 +357,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 			gsd.gitlabClient,
 			hook.NewTransactionRegistry(gsd.transactionRegistry),
 			gsd.procReceiveRegistry,
+			partitionManager,
 		)
 	}
 
@@ -377,22 +398,6 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 		gsd.updaterWithHooks = updateref.NewUpdaterWithHooks(cfg, gsd.logger, gsd.locator, gsd.hookMgr, gsd.gitCmdFactory, gsd.catfileCache)
 	}
 
-	var partitionManager *storagemgr.PartitionManager
-	if testhelper.IsWALEnabled() {
-		var err error
-		partitionManager, err = storagemgr.NewPartitionManager(
-			cfg.Storages,
-			gsd.gitCmdFactory,
-			localrepo.NewFactory(gsd.logger, gsd.locator, gsd.gitCmdFactory, gsd.catfileCache),
-			gsd.logger,
-			storagemgr.DatabaseOpenerFunc(storagemgr.OpenDatabase),
-			helper.NewNullTickerFactory(),
-			cfg.Prometheus,
-		)
-		require.NoError(tb, err)
-		tb.Cleanup(partitionManager.Close)
-	}
-
 	if gsd.housekeepingManager == nil {
 		gsd.housekeepingManager = housekeepingmgr.New(cfg.Prometheus, gsd.logger, gsd.txMgr, partitionManager)
 	}
@@ -423,6 +428,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 		PartitionManager:    partitionManager,
 		BackupSink:          gsd.backupSink,
 		BackupLocator:       gsd.backupLocator,
+		BundleURISink:       gsd.bundleURISink,
 		ProcReceiveRegistry: gsd.procReceiveRegistry,
 	}
 }
@@ -541,6 +547,14 @@ func WithBackupSink(backupSink backup.Sink) GitalyServerOpt {
 func WithBackupLocator(backupLocator backup.Locator) GitalyServerOpt {
 	return func(deps gitalyServerDeps) gitalyServerDeps {
 		deps.backupLocator = backupLocator
+		return deps
+	}
+}
+
+// WithBundleURISink sets the bundleuri.Sink that will be used for Gitaly services
+func WithBundleURISink(sink *bundleuri.Sink) GitalyServerOpt {
+	return func(deps gitalyServerDeps) gitalyServerDeps {
+		deps.bundleURISink = sink
 		return deps
 	}
 }

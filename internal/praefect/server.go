@@ -167,6 +167,7 @@ func NewGRPCServer(
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			Time: 5 * time.Minute,
 		}),
+		grpc.WaitForHandlers(true),
 	}...)
 
 	// Accept backchannel connections so that we can proxy sidechannels
@@ -185,10 +186,8 @@ func NewGRPCServer(
 
 	if deps.Config.Failover.ElectionStrategy == config.ElectionStrategyPerRepository {
 		proxy.RegisterStreamHandlers(srv, "gitaly.RepositoryService", map[string]grpc.StreamHandler{
-			"RemoveAll":           RemoveAllHandler(deps.RepositoryStore, deps.Conns),
-			"RemoveRepository":    RemoveRepositoryHandler(deps.RepositoryStore, deps.Logger, deps.Conns),
-			"ReplicateRepository": ReplicateRepositoryHandler(deps.Coordinator),
-			"RepositoryExists":    RepositoryExistsHandler(deps.RepositoryStore),
+			"RemoveRepository": RemoveRepositoryHandler(deps.RepositoryStore, deps.Logger, deps.Conns),
+			"RepositoryExists": RepositoryExistsHandler(deps.RepositoryStore),
 		})
 		proxy.RegisterStreamHandlers(srv, "gitaly.ObjectPoolService", map[string]grpc.StreamHandler{
 			"DeleteObjectPool": DeleteObjectPoolHandler(deps.RepositoryStore, deps.Logger, deps.Conns),

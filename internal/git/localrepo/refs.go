@@ -17,6 +17,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/safe"
 )
 
+// ErrMismatchingState is similar to updateref.MismatchingStateError. It's declared separately to avoid
+// an import cycle and to allow us to compare error types in the FetchSourceBranch RPC.
+var ErrMismatchingState = errors.New("reference does not point to expected object")
+
 // HasRevision checks if a revision in the repository exists. This will not
 // verify whether the target object exists. To do so, you can peel the revision
 // to a given object type, e.g. by passing `refs/heads/master^{commit}`.
@@ -130,7 +134,18 @@ func (repo *Repo) UpdateRef(ctx context.Context, reference git.ReferenceName, ne
 		git.WithStderr(&stderr),
 		git.WithRefTxHook(repo),
 	); err != nil {
-		return fmt.Errorf("UpdateRef: failed updating reference %q from %q to %q: %w", reference, oldValue, newValue, errorWithStderr(err, stderr.Bytes()))
+		formattedErr := fmt.Errorf("UpdateRef: failed updating reference %q from %q to %q: %w", reference, oldValue, newValue, errorWithStderr(err, stderr.Bytes()))
+
+		refBackend, err := repo.ReferenceBackend(ctx)
+		if err != nil {
+			return fmt.Errorf("get reference backend: %w", err)
+		}
+
+		if matches := refBackend.MismatchingStateRegex.FindSubmatch(stderr.Bytes()); len(matches) > 2 {
+			return errors.Join(ErrMismatchingState, formattedErr)
+		}
+
+		return formattedErr
 	}
 
 	return nil

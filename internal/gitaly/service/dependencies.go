@@ -2,6 +2,7 @@ package service
 
 import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/bundleuri"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/cache"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
@@ -45,6 +46,7 @@ type Dependencies struct {
 	PartitionManager    *storagemgr.PartitionManager
 	BackupSink          backup.Sink
 	BackupLocator       backup.Locator
+	BundleURISink       *bundleuri.Sink
 	ProcReceiveRegistry *gitalyhook.ProcReceiveRegistry
 }
 
@@ -151,6 +153,11 @@ func (dc *Dependencies) GetBackupSink() backup.Sink {
 // GetBackupLocator returns the backup.Locator.
 func (dc *Dependencies) GetBackupLocator() backup.Locator {
 	return dc.BackupLocator
+}
+
+// GetBundleURISink return the bundleuri.Sink.
+func (dc *Dependencies) GetBundleURISink() *bundleuri.Sink {
+	return dc.BundleURISink
 }
 
 // GetProcReceiveRegistry returns the ProcReceiveRegistry.

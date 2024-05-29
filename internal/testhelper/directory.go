@@ -125,7 +125,7 @@ func RequireTarState(tb testing.TB, tarball io.Reader, expected DirectoryState) 
 		expected = DirectoryState{}
 	}
 
-	require.Equal(tb, expected, actual)
+	ProtoEqual(tb, expected, actual)
 }
 
 // MustCreateCustomHooksTar creates a temporary custom hooks tar archive on disk

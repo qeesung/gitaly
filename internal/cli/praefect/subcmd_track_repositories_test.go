@@ -231,11 +231,14 @@ func TestTrackRepositoriesSubcommand(t *testing.T) {
 		)
 	}
 
-	formatOutput := func(inputPath string, requestCt int, lines []string) string {
-		header := fmt.Sprintf("Validating repository information in %q\n", inputPath)
-		header += fmt.Sprintf("Found %v invalid request(s) in %q:\n", requestCt, inputPath)
-		rest := strings.Join(lines, "\n")
-		return header + rest + "\n"
+	outputLines := func(inputPath string, requestCt int, lines []string) []string {
+		var output []string
+
+		output = append(output, fmt.Sprintf("Validating repository information in %q", inputPath))
+		output = append(output, fmt.Sprintf("Found %v invalid request(s) in %q:", requestCt, inputPath))
+		output = append(output, lines...)
+
+		return output
 	}
 
 	const invalidEntryErr = "invalid entries found, aborting"
@@ -368,7 +371,7 @@ func TestTrackRepositoriesSubcommand(t *testing.T) {
 				require.Error(t, err)
 
 				if len(tc.expectedOutput) > 0 {
-					require.Equal(t, formatOutput(inputPath, tc.requestCt, tc.expectedOutput), stdout)
+					require.Subset(t, strings.Split(stdout, "\n"), outputLines(inputPath, tc.requestCt, tc.expectedOutput))
 				}
 
 				require.Contains(t, err.Error(), tc.expectedError)

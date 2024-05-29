@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
@@ -77,7 +78,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Directory: testhelper.DirectoryState{
 					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
@@ -114,7 +115,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(1).toProto(),
+					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
 				Directory: testhelper.DirectoryState{
 					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
@@ -188,7 +189,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Directory: testhelper.DirectoryState{
 					"/":    {Mode: fs.ModeDir | perm.PrivateDir},
@@ -240,7 +241,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -285,7 +286,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -345,7 +346,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -399,7 +400,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -453,7 +454,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -524,7 +525,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN(setup.PartitionID)): LSN(2).toProto(),
+					string(keyAppliedLSN): storage.LSN(2).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
