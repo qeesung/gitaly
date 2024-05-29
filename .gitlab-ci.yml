@@ -17,7 +17,7 @@ default:
   git_minimum: "v2.42.0"
   gitlab_dangerfiles: "4.5.1"
   go_default: "1.22"
-  go_supported: [ "1.21", "1.22" ]
+  go_supported: [ "1.22" ]
   macos: "macos-12-xcode-14"
   pgbouncer: "1.17.0"
   postgres_default: "12-alpine"
