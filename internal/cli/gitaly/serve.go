@@ -352,15 +352,16 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	if cfg.Transactions.Enabled {
 		logger.WarnContext(ctx, "Transactions enabled. Transactions are an experimental feature. The feature is not production ready yet and might lead to various issues including data loss.")
 
-		var walArchiver *backup.LogEntryArchiver
+		var logConsumer storagemgr.LogConsumer
 		if cfg.Backup.WALGoCloudURL != "" {
 			walSink, err := backup.ResolveSink(ctx, cfg.Backup.WALGoCloudURL)
 			if err != nil {
 				return fmt.Errorf("resolving write-ahead log backup sink: %w", err)
 			}
-			walArchiver = backup.NewLogEntryArchiver(logger, walSink, cfg.Backup.WALWorkerCount)
+			walArchiver := backup.NewLogEntryArchiver(logger, walSink, cfg.Backup.WALWorkerCount)
 			prometheus.MustRegister(walArchiver)
 
+			logConsumer = walArchiver
 		}
 
 		partitionMgr, err = storagemgr.NewPartitionManager(
@@ -371,7 +372,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			storagemgr.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
 			helper.NewTimerTickerFactory(time.Minute),
 			cfg.Prometheus,
-			walArchiver,
+			logConsumer,
 		)
 		if err != nil {
 			return fmt.Errorf("new partition manager: %w", err)
