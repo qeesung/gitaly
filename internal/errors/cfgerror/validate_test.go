@@ -340,3 +340,13 @@ func TestNotEmptySlice(t *testing.T) {
 	require.Equal(t, NewValidationError(ErrNotSet), NotEmptySlice([]string{}))
 	require.Equal(t, NewValidationError(ErrNotSet), NotEmptySlice[any](nil))
 }
+
+func TestNotEmptyMap(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, NotEmptyMap(map[int]int{1: 2, 2: 3}))
+	require.NoError(t, NotEmptyMap(map[int]string{1: "hello", 2: "hi"}))
+	require.NoError(t, NotEmptyMap(map[string]int{"a": 1, "b": 1}))
+	require.Equal(t, NewValidationError(ErrNotSet), NotEmptyMap(map[int]int{}))
+	require.Equal(t, NewValidationError(ErrNotSet), NotEmptyMap(map[int]string{}))
+	require.Equal(t, NewValidationError(ErrNotSet), NotEmptyMap(map[string]int{}))
+}

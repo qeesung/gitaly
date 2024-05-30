@@ -130,6 +130,7 @@ type Cfg struct {
 	Timeout                TimeoutConfig       `toml:"timeout,omitempty" json:"timeout"`
 	Transactions           Transactions        `toml:"transactions,omitempty" json:"transactions,omitempty"`
 	AdaptiveLimiting       AdaptiveLimiting    `toml:"adaptive_limiting,omitempty" json:"adaptive_limiting,omitempty"`
+	Raft                   Raft                `toml:"raft,omitempty" json:"raft,omitempty"`
 }
 
 // Transactions configures transaction related options.
@@ -803,6 +804,7 @@ func (cfg *Cfg) ValidateV2() error {
 		{field: "pack_objects_cache", validate: cfg.PackObjectsCache.Validate},
 		{field: "pack_objects_limiting", validate: cfg.PackObjectsLimiting.Validate},
 		{field: "backup", validate: cfg.Backup.Validate},
+		{field: "raft", validate: cfg.Raft.Validate},
 	} {
 		var fields []string
 		if check.field != "" {
@@ -1183,4 +1185,23 @@ func trySocketCreation(dir string) error {
 	}
 
 	return l.Close()
+}
+
+type Raft struct {
+	Enabled        bool              `toml:"enabled" json:"enabled"`
+	ClusterID      string            `toml:"cluster_id" json:"cluster_id"`
+	NodeID         uint64            `toml:"node_id" json:"node_id"`
+	InitialMembers map[string]string `toml:"initial_members" json:"initial_members"`
+	RTTMillisecond uint64            `toml:"rtt_millisecond" json:"rtt_millisecond"`
+	ElectionRTT    uint64            `toml:"election_rtt" json:"election_rtt"`
+	HeartbeatRTT   uint64            `toml:"heartbeat_rtt" json:"heartbeat_rtt"`
+}
+
+// Validate runs validation on all fields and compose all found errors.
+func (r Raft) Validate() error {
+	return cfgerror.New().
+		Append(cfgerror.NotEmptyMap(r.InitialMembers), "initial_members").
+		Append(cfgerror.NotEmpty(r.ClusterID), "cluster_id").
+		Append(cfgerror.Comparable(r.RTTMillisecond).GreaterOrEqual(0), "rtt_millisecond").
+		AsError()
 }

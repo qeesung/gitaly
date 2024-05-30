@@ -315,3 +315,11 @@ func NotEmptySlice[T any](slice []T) error {
 	}
 	return nil
 }
+
+// NotEmptyMap returns an error if provided map has no elements.
+func NotEmptyMap[K comparable, V any](m map[K]V) error {
+	if len(m) == 0 {
+		return NewValidationError(ErrNotSet)
+	}
+	return nil
+}
