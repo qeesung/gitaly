@@ -112,7 +112,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							setup.Commits.Second.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
@@ -191,7 +191,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
+								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
@@ -318,7 +318,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							},
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
@@ -404,7 +404,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							setup.Commits.First.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
@@ -861,7 +861,7 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
+								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
