@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package gitaly;
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb";
+
+message Cluster {
+    string cluster_id = 1;
+    uint64 storage_id = 2;
+}
+
+message CreateClusterRequest {
+    string cluster_id = 1;
+}
+
+message CreateClusterResponse {
+    string cluster_id = 1;
+}
+
+message GetClusterRequest {
+}
+
+message GetClusterResponse {
+    Cluster cluster = 1;
+}
+
+message IncreaseStorageIDRequest {
+}
+
+message IncreaseStorageIDResponse {
+    uint64 storage_id = 1;
+}
