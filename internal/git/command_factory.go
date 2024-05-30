@@ -438,6 +438,24 @@ func (cf *ExecCommandFactory) GitVersion(ctx context.Context) (Version, error) {
 // environment variables for git, but doesn't run in the directory itself. If a directory
 // is given, then the command will be run in that directory.
 func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repository, sc Command, opts ...CmdOpt) (*command.Command, error) {
+	// In Git change 2386535511, we introduced a feature, "attr: read attributes from HEAD when bare repo".
+	// This causes a performance degradation. Current workaround is to get rid of the default behavior
+	// in bare repos of reading from HEAD by setting attr.tree to empty tree.
+	// See https://lore.kernel.org/git/xmqqzft6aozg.fsf_-_@gitster.g/ and
+	// https://gitlab.com/gitlab-org/gitaly/-/issues/6064 for details.
+	//
+	// For gitaly, there are commands that specifically need attr.tree to be set to HEAD. We have a white list
+	// of commands who should be excluded, see AttrTreeConfig. Those commands in the white list
+	// need to set "attr.tree" to HEAD
+	//
+	// This can be removed once https://gitlab.com/gitlab-org/git/-/issues/316 is implemented and put in git upstream
+	if featureflag.SetAttrTreeConfig.IsEnabled(ctx) {
+		attrTreeConfig := cf.AttrTreeConfig(ctx, repo, sc, opts...)
+		if attrTreeConfig != nil {
+			opts = append(opts, WithConfig(*attrTreeConfig))
+		}
+	}
+
 	config, err := cf.combineOpts(ctx, sc, opts)
 	if err != nil {
 		return nil, err
@@ -686,4 +704,78 @@ func (cf *ExecCommandFactory) trace2Finalizer(manager *trace2.Manager) func(cont
 			}
 		}
 	}
+}
+
+// AttrTreeConfig adds `attr.tree = HEAD` to the commands in the whiteList have,
+// others has `attr.tree = emptyTreeHash`.
+func (cf *ExecCommandFactory) AttrTreeConfig(ctx context.Context, repo storage.Repository, sc Command, opts ...CmdOpt) *ConfigPair {
+	repoPath := cf.findRepoPath(ctx, repo, sc, opts...)
+	if len(repoPath) == 0 {
+		// Add tree config only when repo exists, because some git command, e.g. diff
+		// can exec without a repo, If we add an attr.tree when a command is executing
+		// without a repo, it leads to error, e.g. attempting to get main_ref_store outside of repository.
+		return nil
+	}
+
+	whiteList := map[string]struct{}{
+		"diff":         {},
+		"merge":        {},
+		"check-attr":   {},
+		"worktree":     {},
+		"archive":      {},
+		"log":          {},
+		"format-patch": {},
+	}
+	if _, ok := whiteList[sc.Name]; ok {
+		return &ConfigPair{Key: "attr.tree", Value: "HEAD"}
+	}
+
+	// Execute git -C <repo path> rev-parse --show-object-format before setting
+	// attr.tree to an empty tree. We need to decide the object format of the repo. SHA1 and SHA256
+	// have different empty tree object ID.
+	//
+	// Note that we're not using `newCommand()` or `DetectObjectHash()`, but instead hand-craft the command.
+	// This is required to avoid recursive git command spawning.
+	execEnv := cf.GetExecutionEnvironment(ctx)
+	var objectFormat bytes.Buffer
+	findFormatCmd, err := command.New(ctx, cf.logger, []string{
+		execEnv.BinaryPath,
+		"-C", repoPath,
+		"rev-parse", "--show-object-format",
+	},
+		command.WithEnvironment(execEnv.EnvironmentVariables),
+		command.WithStdout(&objectFormat),
+	)
+	if err != nil {
+		return nil
+	}
+	if err := findFormatCmd.Wait(); err != nil {
+		return nil
+	}
+
+	switch strings.TrimSpace(objectFormat.String()) {
+	case ObjectHashSHA1.Format:
+		return &ConfigPair{Key: "attr.tree", Value: ObjectHashSHA1.EmptyTreeOID.String()}
+	case ObjectHashSHA256.Format:
+		return &ConfigPair{Key: "attr.tree", Value: ObjectHashSHA256.EmptyTreeOID.String()}
+	default:
+		return nil
+	}
+}
+
+// findRepoPath find the repo to execute git rev-parse --show-object-format
+func (cf *ExecCommandFactory) findRepoPath(ctx context.Context, repo storage.Repository, sc Command, opts ...CmdOpt) string {
+	config, _ := cf.combineOpts(ctx, sc, opts)
+
+	var repoPath string
+	if repo != nil {
+		repoPath, _ = cf.locator.GetRepoPath(repo)
+	}
+
+	if config.worktreePath != "" {
+		return config.worktreePath
+	} else if repoPath != "" {
+		return repoPath
+	}
+	return ""
 }
