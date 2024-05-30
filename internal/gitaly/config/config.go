@@ -577,29 +577,39 @@ func (pol PackObjectsLimiting) Validate() error {
 		AsError()
 }
 
-// BackupConfig configures server-side backups.
+// BackupConfig configures server-side and write-ahead log backups.
 type BackupConfig struct {
 	// GoCloudURL is the blob storage GoCloud URL that will be used to store
 	// server-side backups.
 	GoCloudURL string `toml:"go_cloud_url,omitempty" json:"go_cloud_url,omitempty"`
+	// WALGoCloudURL is the blob storage GoCloud URL that will be used to store
+	// write-ahead log backups.
+	WALGoCloudURL string `toml:"wal_backup_go_cloud_url,omitempty" json:"wal_backup_go_cloud_url,omitempty"`
+	// WALWorkerCount controls the number of goroutines used to backup write-ahead log entries.
+	WALWorkerCount uint `toml:"wal_backup_worker_count,omitempty" json:"wal_backup_worker_count,omitempty"`
 	// Layout determines how backup files are located.
 	Layout string `toml:"layout,omitempty" json:"layout,omitempty"`
 }
 
 // Validate runs validation on all fields and returns any errors found.
 func (bc BackupConfig) Validate() error {
-	if bc.GoCloudURL == "" {
-		return nil
-	}
 	var errs cfgerror.ValidationErrors
 
-	if _, err := url.Parse(bc.GoCloudURL); err != nil {
-		errs = errs.Append(err, "go_cloud_url")
+	if bc.GoCloudURL != "" {
+		if _, err := url.Parse(bc.GoCloudURL); err != nil {
+			errs = errs.Append(err, "go_cloud_url")
+		}
+
+		errs = errs.Append(cfgerror.NotBlank(bc.Layout), "layout")
 	}
 
-	return errs.
-		Append(cfgerror.NotBlank(bc.Layout), "layout").
-		AsError()
+	if bc.WALGoCloudURL != "" {
+		if _, err := url.Parse(bc.WALGoCloudURL); err != nil {
+			errs = errs.Append(err, "wal_backup_go_cloud_url")
+		}
+	}
+
+	return errs.AsError()
 }
 
 // BundleURIConfig configures use of Bundle-URI
@@ -839,6 +849,10 @@ func (cfg *Cfg) SetDefaults() error {
 
 	if cfg.Backup.Layout == "" {
 		cfg.Backup.Layout = "pointer"
+	}
+
+	if cfg.Backup.WALWorkerCount == 0 {
+		cfg.Backup.WALWorkerCount = 1
 	}
 
 	if cfg.Timeout.UploadPackNegotiation == 0 {

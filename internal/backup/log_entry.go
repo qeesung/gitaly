@@ -108,9 +108,9 @@ type LogEntryArchiver struct {
 	activePartitions map[storage.PartitionID]struct{}
 
 	// activeJobs tracks how many entries are currently being backed up.
-	activeJobs int
+	activeJobs uint
 	// workerCount sets the number of goroutines used to perform backups.
-	workerCount int
+	workerCount uint
 
 	// waitDur controls how long to wait before retrying when a backup attempt fails.
 	waitDur time.Duration
@@ -124,12 +124,12 @@ type LogEntryArchiver struct {
 }
 
 // NewLogEntryArchiver constructs a new LogEntryArchiver.
-func NewLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount int) *LogEntryArchiver {
+func NewLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint) *LogEntryArchiver {
 	return newLogEntryArchiver(logger, archiveSink, workerCount, helper.NewTimerTicker)
 }
 
 // newLogEntryArchiver constructs a new LogEntryArchiver with a configurable ticker function.
-func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount int, tickerFunc func(time.Duration) helper.Ticker) *LogEntryArchiver {
+func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, tickerFunc func(time.Duration) helper.Ticker) *LogEntryArchiver {
 	if workerCount < 1 {
 		workerCount = 1
 	}
@@ -195,7 +195,7 @@ func (la *LogEntryArchiver) Run() {
 		recvCh := make(chan *logEntry)
 
 		var wg sync.WaitGroup
-		for i := 0; i < la.workerCount; i++ {
+		for i := uint(0); i < la.workerCount; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
