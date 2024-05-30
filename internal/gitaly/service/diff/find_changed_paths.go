@@ -218,12 +218,27 @@ func nextPath(reader *bufio.Reader) ([]*gitalypb.ChangedPaths, error) {
 		return nil, fmt.Errorf("git diff-tree parsing failed on: %v", line)
 	}
 
+	// An old path is present in the output before the new path if the change status is a rename or
+	// copy. Combined diffs never include an old path as part of the output. Since a combined diff
+	// has more than one status, we skip setting old path when there is not one status.
+	var oldPath []byte
+	if len(pathStatus) == 1 {
+		switch statusTypeMap[pathStatus[0]] {
+		case gitalypb.ChangedPaths_RENAMED, gitalypb.ChangedPaths_COPIED:
+			path, err := reader.ReadBytes(numStatDelimiter)
+			if err != nil {
+				return nil, err
+			}
+			oldPath = bytes.TrimSuffix(path, []byte("\x00"))
+		}
+	}
+
 	// Read the path (until the next NUL delimiter)
 	path, err := reader.ReadBytes(numStatDelimiter)
 	if err != nil {
 		return nil, err
 	}
-	path = path[:len(path)-1]
+	path = bytes.TrimSuffix(path, []byte("\x00"))
 
 	// Produce a gitalypb.ChangedPaths for each source
 	changedPaths := make([]*gitalypb.ChangedPaths, srcCount)
@@ -245,6 +260,7 @@ func nextPath(reader *bufio.Reader) ([]*gitalypb.ChangedPaths, error) {
 
 		changedPaths[i] = &gitalypb.ChangedPaths{
 			Status:    parsedPath,
+			OldPath:   oldPath,
 			Path:      path,
 			OldMode:   int32(oldMode),
 			NewMode:   int32(newMode),
