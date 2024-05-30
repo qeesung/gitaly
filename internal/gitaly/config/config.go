@@ -130,6 +130,7 @@ type Cfg struct {
 	Timeout                TimeoutConfig       `toml:"timeout,omitempty" json:"timeout"`
 	Transactions           Transactions        `toml:"transactions,omitempty" json:"transactions,omitempty"`
 	AdaptiveLimiting       AdaptiveLimiting    `toml:"adaptive_limiting,omitempty" json:"adaptive_limiting,omitempty"`
+	Raft                   Raft                `toml:"raft,omitempty" json:"raft,omitempty"`
 }
 
 // Transactions configures transaction related options.
@@ -803,6 +804,7 @@ func (cfg *Cfg) ValidateV2() error {
 		{field: "pack_objects_cache", validate: cfg.PackObjectsCache.Validate},
 		{field: "pack_objects_limiting", validate: cfg.PackObjectsLimiting.Validate},
 		{field: "backup", validate: cfg.Backup.Validate},
+		{field: "raft", validate: cfg.Raft.Validate},
 	} {
 		var fields []string
 		if check.field != "" {
@@ -861,6 +863,10 @@ func (cfg *Cfg) SetDefaults() error {
 
 	if cfg.Timeout.UploadArchiveNegotiation == 0 {
 		cfg.Timeout.UploadArchiveNegotiation = duration.Duration(time.Minute)
+	}
+
+	if cfg.Raft.Enabled {
+		cfg.Raft = cfg.Raft.fulfillDefaults()
 	}
 
 	return nil
@@ -1183,4 +1189,82 @@ func trySocketCreation(dir string) error {
 	}
 
 	return l.Close()
+}
+
+// Raft contains configuration for the experimental Gitaly Raft cluster.
+type Raft struct {
+	// Enabled enables the experimental Gitaly Raft cluster.
+	Enabled bool `toml:"enabled" json:"enabled"`
+	// ClusterID is the unique ID of the cluster. It ensures the current node joins the right cluster.
+	ClusterID string `toml:"cluster_id" json:"cluster_id"`
+	// NodeID is the unique ID of the node.
+	NodeID uint64 `toml:"node_id" json:"node_id"`
+	// RaftAddr is the exposed address used for all inter-node communication in the Raft protocol. This
+	// option is temporary until we implement a networking layer that allows Raft to co-exist with the
+	// cluster's gRPC port.
+	RaftAddr string `toml:"raft_addr" json:"raft_addr"`
+	// InitialMembers contains the list of initial members of the cluster. It's a map of NodeID to
+	// RaftAddr. Due to limitations of the TOML format, it's not possible to set the map key as a uint64.
+	InitialMembers map[string]string `toml:"initial_members" json:"initial_members"`
+	// RTTMilliseconds is the maximum round trip between two nodes in the cluster. It's used to
+	// calculate multiple types of timeouts of Raft protocol.
+	RTTMilliseconds uint64 `toml:"rtt_milliseconds" json:"rtt_milliseconds"`
+	// ElectionTicks is the minimum number of message RTT between elections.
+	ElectionTicks uint64 `toml:"election_rtt" json:"election_rtt"`
+	// HeartbeatTicks is the number of message RTT between heartbeats
+	HeartbeatTicks uint64 `toml:"heartbeat_rtt" json:"heartbeat_rtt"`
+}
+
+const (
+	// RaftDefaultRTT is the default Round Trip Time (RTT) in milliseconds between two nodes in the Raft
+	// cluster. It's used to calculate the election timeout and heartbeat timeout.
+	RaftDefaultRTT = 200
+	// RaftDefaultElectionTicks is the default election RTT for the Raft cluster. It's the multiplier of
+	// RTT between two nodes. The estimated election timeout is DefaultRTT * DefaultElectionTicks.
+	RaftDefaultElectionTicks = 20
+	// RaftDefaultHeartbeatTicks is the default heartbeat RTT for the Raft cluster. The estimated election
+	// timeout is DefaultRTT * DefaultHeartbeatTicks.
+	RaftDefaultHeartbeatTicks = 2
+)
+
+func (r Raft) fulfillDefaults() Raft {
+	if r.RTTMilliseconds == 0 {
+		r.RTTMilliseconds = RaftDefaultRTT
+	}
+	if r.ElectionTicks == 0 {
+		r.ElectionTicks = RaftDefaultElectionTicks
+	}
+	if r.HeartbeatTicks == 0 {
+		r.HeartbeatTicks = RaftDefaultHeartbeatTicks
+	}
+	return r
+}
+
+// Validate runs validation on all fields and compose all found errors.
+func (r Raft) Validate() error {
+	if !r.Enabled {
+		return nil
+	}
+	cfgErr := cfgerror.New().
+		Append(cfgerror.NotEmptyMap(r.InitialMembers), "initial_members").
+		Append(cfgerror.NotEmpty(r.ClusterID), "cluster_id").
+		Append(cfgerror.Comparable(r.NodeID).GreaterThan(0), "node_id").
+		Append(cfgerror.NotEmpty(r.RaftAddr), "raft_addr").
+		Append(cfgerror.Comparable(r.RTTMilliseconds).GreaterThan(0), "rtt_millisecond").
+		Append(cfgerror.Comparable(r.ElectionTicks).GreaterThan(0), "election_rtt").
+		Append(cfgerror.Comparable(r.HeartbeatTicks).GreaterThan(0), "heartbeat_rtt")
+
+	// Validate RaftAddr to have hosts:port format
+	if _, _, err := net.SplitHostPort(r.RaftAddr); err != nil {
+		cfgErr = cfgErr.Append(fmt.Errorf("invalid address format: %s", err.Error()), "raft_addr")
+	}
+
+	// Validate InitialMembers to have node_id:raft_addr format
+	for nodeID, raftAddr := range r.InitialMembers {
+		if _, _, err := net.SplitHostPort(raftAddr); err != nil {
+			cfgErr = cfgErr.Append(fmt.Errorf("invalid address format: %s", err.Error()), fmt.Sprintf("initial_members[%s]", nodeID))
+		}
+	}
+
+	return cfgErr.AsError()
 }

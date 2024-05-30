@@ -2640,3 +2640,276 @@ func TestStreamCacheConfig_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestRaftConfig_Validate(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		cfg         Raft
+		expectedErr error
+	}{
+		{
+			name: "disable",
+			cfg:  Raft{},
+		},
+		{
+			name: "valid",
+			cfg: Raft{
+				Enabled:   true,
+				ClusterID: "4f04a0e2-0db8-4bfa-b846-01b5b4a093fb",
+				NodeID:    1,
+				RaftAddr:  "localhost:3001",
+				InitialMembers: map[string]string{
+					"1": "localhost:3001",
+					"2": "localhost:3002",
+					"3": "localhost:3003",
+				},
+				RTTMilliseconds: 200,
+				ElectionTicks:   20,
+				HeartbeatTicks:  2,
+			},
+		},
+		{
+			name: "invalid cluster ID",
+			cfg: Raft{
+				Enabled:   true,
+				ClusterID: "",
+				NodeID:    1,
+				RaftAddr:  "localhost:3001",
+				InitialMembers: map[string]string{
+					"1": "localhost:3001",
+					"2": "localhost:3002",
+					"3": "localhost:3003",
+				},
+				RTTMilliseconds: 200,
+				ElectionTicks:   20,
+				HeartbeatTicks:  2,
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					cfgerror.ErrNotSet,
+					"cluster_id",
+				),
+			},
+		},
+		{
+			name: "invalid node ID",
+			cfg: Raft{
+				Enabled:   true,
+				ClusterID: "4f04a0e2-0db8-4bfa-b846-01b5b4a093fb",
+				NodeID:    0,
+				RaftAddr:  "localhost:3001",
+				InitialMembers: map[string]string{
+					"1": "localhost:3001",
+					"2": "localhost:3002",
+					"3": "localhost:3003",
+				},
+				RTTMilliseconds: 200,
+				ElectionTicks:   20,
+				HeartbeatTicks:  2,
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					fmt.Errorf("%w: 0 is not greater than 0", cfgerror.ErrNotInRange),
+					"node_id",
+				),
+			},
+		},
+		{
+			name: "invalid raft address",
+			cfg: Raft{
+				Enabled:   true,
+				ClusterID: "4f04a0e2-0db8-4bfa-b846-01b5b4a093fb",
+				NodeID:    1,
+				RaftAddr:  "1:2:3",
+				InitialMembers: map[string]string{
+					"1": "localhost:3001",
+					"2": "localhost:3002",
+					"3": "localhost:3003",
+				},
+				RTTMilliseconds: 200,
+				ElectionTicks:   20,
+				HeartbeatTicks:  2,
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					errors.New("invalid address format: address 1:2:3: too many colons in address"),
+					"raft_addr",
+				),
+			},
+		},
+		{
+			name: "empty initial members",
+			cfg: Raft{
+				Enabled:         true,
+				ClusterID:       "4f04a0e2-0db8-4bfa-b846-01b5b4a093fb",
+				NodeID:          1,
+				RaftAddr:        "localhost:3001",
+				InitialMembers:  map[string]string{},
+				RTTMilliseconds: 200,
+				ElectionTicks:   20,
+				HeartbeatTicks:  2,
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					cfgerror.ErrNotSet,
+					"initial_members",
+				),
+			},
+		},
+		{
+			name: "an initial member is empty",
+			cfg: Raft{
+				Enabled:   true,
+				ClusterID: "4f04a0e2-0db8-4bfa-b846-01b5b4a093fb",
+				NodeID:    1,
+				RaftAddr:  "localhost:3001",
+				InitialMembers: map[string]string{
+					"1": "localhost:3001",
+					"2": "localhost:3002",
+					"3": "localhost:3003",
+					"4": "",
+				},
+				RTTMilliseconds: 200,
+				ElectionTicks:   20,
+				HeartbeatTicks:  2,
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					errors.New("invalid address format: missing port in address"),
+					"initial_members[4]",
+				),
+			},
+		},
+		{
+			name: "an initial member is invalid",
+			cfg: Raft{
+				Enabled:   true,
+				ClusterID: "4f04a0e2-0db8-4bfa-b846-01b5b4a093fb",
+				NodeID:    1,
+				RaftAddr:  "localhost:3001",
+				InitialMembers: map[string]string{
+					"1": "localhost:3001",
+					"2": "localhost:3002",
+					"3": "localhost:3003",
+					"4": "1:2:3",
+				},
+				RTTMilliseconds: 200,
+				ElectionTicks:   20,
+				HeartbeatTicks:  2,
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					errors.New("invalid address format: address 1:2:3: too many colons in address"),
+					"initial_members[4]",
+				),
+			},
+		},
+		{
+			name: "invalid RTT",
+			cfg: Raft{
+				Enabled:   true,
+				ClusterID: "4f04a0e2-0db8-4bfa-b846-01b5b4a093fb",
+				NodeID:    1,
+				RaftAddr:  "localhost:3001",
+				InitialMembers: map[string]string{
+					"1": "localhost:3001",
+					"2": "localhost:3002",
+					"3": "localhost:3003",
+				},
+				RTTMilliseconds: 0,
+				ElectionTicks:   20,
+				HeartbeatTicks:  2,
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					fmt.Errorf("%w: 0 is not greater than 0", cfgerror.ErrNotInRange),
+					"rtt_millisecond",
+				),
+			},
+		},
+		{
+			name: "invalid election RTT",
+			cfg: Raft{
+				Enabled:   true,
+				ClusterID: "4f04a0e2-0db8-4bfa-b846-01b5b4a093fb",
+				NodeID:    1,
+				RaftAddr:  "localhost:3001",
+				InitialMembers: map[string]string{
+					"1": "localhost:3001",
+					"2": "localhost:3002",
+					"3": "localhost:3003",
+				},
+				RTTMilliseconds: 200,
+				ElectionTicks:   0,
+				HeartbeatTicks:  2,
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					fmt.Errorf("%w: 0 is not greater than 0", cfgerror.ErrNotInRange),
+					"election_rtt",
+				),
+			},
+		},
+		{
+			name: "invalid heartbeat RTT",
+			cfg: Raft{
+				Enabled:   true,
+				ClusterID: "4f04a0e2-0db8-4bfa-b846-01b5b4a093fb",
+				NodeID:    1,
+				RaftAddr:  "localhost:3001",
+				InitialMembers: map[string]string{
+					"1": "localhost:3001",
+					"2": "localhost:3002",
+					"3": "localhost:3003",
+				},
+				RTTMilliseconds: 200,
+				ElectionTicks:   20,
+				HeartbeatTicks:  0,
+			},
+			expectedErr: cfgerror.ValidationErrors{
+				cfgerror.NewValidationError(
+					fmt.Errorf("%w: 0 is not greater than 0", cfgerror.ErrNotInRange),
+					"heartbeat_rtt",
+				),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.Validate()
+			require.Equal(t, tc.expectedErr, err)
+		})
+	}
+}
+
+func TestDefaultRaft(t *testing.T) {
+	tmpFile := strings.NewReader(`[raft]
+enabled = true
+cluster_id = "7766d7c1-7266-4bc9-9dad-5ee8617c455b"
+node_id = 1
+raft_addr = "localhost:4001"
+initial_members = {1 = "localhost:4001", 2 = "localhost:4002", 3 = "localhost:4003"}`)
+
+	cfg, err := Load(tmpFile)
+	require.NoError(t, err)
+
+	expectedCfg := Cfg{
+		Raft: Raft{
+			Enabled:   true,
+			ClusterID: "7766d7c1-7266-4bc9-9dad-5ee8617c455b",
+			NodeID:    1,
+			RaftAddr:  "localhost:4001",
+			InitialMembers: map[string]string{
+				"1": "localhost:4001",
+				"2": "localhost:4002",
+				"3": "localhost:4003",
+			},
+			RTTMilliseconds: 200,
+			ElectionTicks:   20,
+			HeartbeatTicks:  0,
+		},
+	}
+	require.NoError(t, expectedCfg.SetDefaults())
+	require.Equal(t, expectedCfg.Raft, cfg.Raft)
+}
