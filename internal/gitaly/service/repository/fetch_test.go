@@ -436,10 +436,11 @@ UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, st
 
 				// We simulate a failed fetch where we actually fetch but just exit
 				// with status 1, this will actually fetch the refs but gitaly will think
-				// git failed.
+				// git failed. We match against a config value that is only present during
+				// a fetch.
 				gitCmdFactory := gittest.NewInterceptingCommandFactory(t, ctx, cfg, func(execEnv git.ExecutionEnvironment) string {
 					return fmt.Sprintf(`#!/usr/bin/env bash
-						if [[ "$@" =~ "fetch" ]]; then
+						if [[ "$@" =~ "fetch.writeCommitGraph" ]]; then
 							%q "$@"
 							exit 1
 						fi

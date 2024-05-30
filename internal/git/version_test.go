@@ -97,6 +97,96 @@ func TestVersion_LessThan(t *testing.T) {
 	})
 }
 
+func TestVersion_GreaterOrEqual(t *testing.T) {
+	for _, tc := range []struct {
+		smaller, larger string
+	}{
+		{"0.0.0", "0.0.0"},
+		{"0.0.0", "0.0.1"},
+		{"0.0.0", "0.1.0"},
+		{"0.0.0", "0.1.1"},
+		{"0.0.0", "1.0.0"},
+		{"0.0.0", "1.0.1"},
+		{"0.0.0", "1.1.0"},
+		{"0.0.0", "1.1.1"},
+
+		{"0.0.1", "0.0.1"},
+		{"0.0.1", "0.1.0"},
+		{"0.0.1", "0.1.1"},
+		{"0.0.1", "1.0.0"},
+		{"0.0.1", "1.0.1"},
+		{"0.0.1", "1.1.0"},
+		{"0.0.1", "1.1.1"},
+
+		{"0.1.0", "0.1.0"},
+		{"0.1.0", "0.1.1"},
+		{"0.1.0", "1.0.0"},
+		{"0.1.0", "1.0.1"},
+		{"0.1.0", "1.1.0"},
+		{"0.1.0", "1.1.1"},
+
+		{"0.1.1", "0.1.1"},
+		{"0.1.1", "1.0.0"},
+		{"0.1.1", "1.0.1"},
+		{"0.1.1", "1.1.0"},
+		{"0.1.1", "1.1.1"},
+
+		{"1.0.0", "1.0.0"},
+		{"1.0.0", "1.0.1"},
+		{"1.0.0", "1.1.0"},
+		{"1.0.0", "1.1.1"},
+
+		{"1.0.1", "1.0.1"},
+		{"1.0.1", "1.1.0"},
+		{"1.0.1", "1.1.1"},
+
+		{"1.1.0", "1.1.0"},
+		{"1.1.0", "1.1.1"},
+
+		{"1.1.1", "1.1.1"},
+
+		{"1.1.1.rc0", "1.1.1.rc0"},
+		{"1.1.1.rc0", "1.1.1"},
+		{"1.1.0", "1.1.1.rc0"},
+
+		{"1.1.GIT", "1.1.1"},
+		{"1.0.0", "1.1.GIT"},
+
+		{"1.1.1", "1.1.1.gl1"},
+		{"1.1.1.gl0", "1.1.1.gl1"},
+		{"1.1.1.gl1", "1.1.1.gl2"},
+		{"1.1.1.gl1", "1.1.2"},
+	} {
+		t.Run(fmt.Sprintf("%s >= %s", tc.larger, tc.smaller), func(t *testing.T) {
+			smaller, err := parseVersion(tc.smaller)
+			require.NoError(t, err)
+
+			larger, err := parseVersion(tc.larger)
+			require.NoError(t, err)
+
+			if tc.smaller == tc.larger {
+				require.True(t, smaller.GreaterOrEqual(larger))
+				require.True(t, larger.GreaterOrEqual(smaller))
+			} else {
+				require.True(t, larger.GreaterOrEqual(smaller))
+				require.False(t, smaller.GreaterOrEqual(larger))
+			}
+		})
+	}
+
+	t.Run("1.1.GIT == 1.1.0", func(t *testing.T) {
+		first, err := parseVersion("1.1.GIT")
+		require.NoError(t, err)
+
+		second, err := parseVersion("1.1.0")
+		require.NoError(t, err)
+
+		// This is a special case: "GIT" is treated the same as "0".
+		require.True(t, first.GreaterOrEqual(second))
+		require.True(t, second.GreaterOrEqual(first))
+	})
+}
+
 func TestVersion_IsSupported(t *testing.T) {
 	for _, tc := range []struct {
 		version string

@@ -109,6 +109,11 @@ func (v Version) LessThan(other Version) bool {
 	}
 }
 
+// GreaterOrEqual determines whether the version is newer than or equal to another version.
+func (v Version) GreaterOrEqual(other Version) bool {
+	return !v.LessThan(other)
+}
+
 func parseVersion(versionStr string) (Version, error) {
 	versionSplit := strings.SplitN(versionStr, ".", 4)
 	if len(versionSplit) < 3 {
