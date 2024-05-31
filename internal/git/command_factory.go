@@ -472,21 +472,24 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repos
 
 		env = append(alternates.Env(repoPath, repo.GetGitObjectDirectory(), repo.GetGitAlternateObjectDirectories()), env...)
 	} else {
-		// If the Git command is running outside the context of a repo, we set repoPath to a fixed scratch
-		// directory here which is later used to restrict the working directory of the process.
-		repoPath, err = cf.scratchDir()
+		// If the Git command is running outside the context of a repo, we restrict the working directory of the
+		// process to a fixed scratch directory.
+		scratchDir, err := cf.scratchDir()
 		if err != nil {
 			return nil, err
 		}
+
+		// Ensure Git doesn't traverse up the directory tree.
+		env = append([]string{fmt.Sprintf("GIT_CEILING_DIRECTORIES=%s", scratchDir)}, env...)
+
+		args = append([]string{"-C", scratchDir}, args...)
 	}
 
 	if config.worktreePath != "" {
-		repoPath = config.worktreePath
+		args = append([]string{"-C", config.worktreePath}, args...)
+	} else if repoPath != "" {
+		args = append([]string{"--git-dir", repoPath}, args...)
 	}
-
-	// Ensure Git doesn't traverse upwards to find a Git repository.
-	env = append([]string{fmt.Sprintf("GIT_CEILING_DIRECTORIES=%s", repoPath)}, env...)
-	args = append([]string{"-C", repoPath}, args...)
 
 	execEnv := cf.GetExecutionEnvironment(ctx)
 

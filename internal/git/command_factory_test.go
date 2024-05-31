@@ -661,9 +661,10 @@ func TestExecCommandFactory_WorkingDirectoryNew(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		require.Contains(t, cmd.Env(), "GIT_CEILING_DIRECTORIES="+expectedWorkingDirectory)
-		require.Contains(t, cmd.Args(), "-C")
+		require.Contains(t, cmd.Args(), "--git-dir")
 		require.Contains(t, cmd.Args(), expectedWorkingDirectory)
+
+		require.NotContains(t, cmd.Args(), "-C")
 	})
 
 	t.Run("with a repository and worktree", func(t *testing.T) {
@@ -681,9 +682,10 @@ func TestExecCommandFactory_WorkingDirectoryNew(t *testing.T) {
 		}, git.WithWorktree(expectedWorkingDirectory))
 
 		require.NoError(t, err)
-		require.Contains(t, cmd.Env(), "GIT_CEILING_DIRECTORIES="+expectedWorkingDirectory)
 		require.Contains(t, cmd.Args(), "-C")
 		require.Contains(t, cmd.Args(), expectedWorkingDirectory)
+
+		require.NotContains(t, cmd.Args(), "--git-dir")
 	})
 }
 
