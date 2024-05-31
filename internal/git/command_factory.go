@@ -481,12 +481,10 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repos
 	}
 
 	if config.worktreePath != "" {
-		repoPath = config.worktreePath
+		args = append([]string{"-C", config.worktreePath}, args...)
+	} else if repoPath != "" {
+		args = append([]string{"--git-dir", repoPath}, args...)
 	}
-
-	// Ensure Git doesn't traverse upwards to find a Git repository.
-	env = append([]string{fmt.Sprintf("GIT_CEILING_DIRECTORIES=%s", repoPath)}, env...)
-	args = append([]string{"-C", repoPath}, args...)
 
 	execEnv := cf.GetExecutionEnvironment(ctx)
 
