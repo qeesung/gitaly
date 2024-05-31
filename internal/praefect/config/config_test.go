@@ -1118,7 +1118,7 @@ func TestConfig_ConfigCommand(t *testing.T) {
 					},
 					expectedCfg: modifyDefaultConfig(func(cfg *Config) {
 						cfg.ConfigCommand = cmd
-						cfg.SocketPath = filepath.Join(testhelper.WorkingDirectory(t), "value")
+						cfg.SocketPath = "value"
 					}),
 				}
 			},
@@ -1135,7 +1135,7 @@ func TestConfig_ConfigCommand(t *testing.T) {
 					},
 					expectedCfg: modifyDefaultConfig(func(cfg *Config) {
 						cfg.ConfigCommand = cmd
-						cfg.SocketPath = filepath.Join(testhelper.WorkingDirectory(t), "overridden_value")
+						cfg.SocketPath = "overridden_value"
 					}),
 				}
 			},
@@ -1152,7 +1152,7 @@ func TestConfig_ConfigCommand(t *testing.T) {
 					},
 					expectedCfg: modifyDefaultConfig(func(cfg *Config) {
 						cfg.ConfigCommand = cmd
-						cfg.SocketPath = filepath.Join(testhelper.WorkingDirectory(t), "socket_path")
+						cfg.SocketPath = "socket_path"
 						cfg.ListenAddr = "listen_addr"
 					}),
 				}
