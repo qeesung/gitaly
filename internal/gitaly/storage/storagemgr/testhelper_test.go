@@ -751,6 +751,50 @@ type UpdateReferences struct {
 	ReferenceUpdates ReferenceUpdates
 }
 
+// SetKey calls SetKey on a transaction.
+type SetKey struct {
+	// TransactionID identifies the transaction to set a key in.
+	TransactionID int
+	// Key is the key to set.
+	Key string
+	// Value is the value to set the key to.
+	Value string
+	// ExpectedError is the expected error of the set operation.
+	ExpectedError error
+}
+
+// DeleteKey calls DeleteKey on a transaction.
+type DeleteKey struct {
+	// TransactionID identifies the transaction to delete a key in.
+	TransactionID int
+	// Key is the key to delete.
+	Key string
+	// ExpectedError is the expected error of the delete operation.
+	ExpectedError error
+}
+
+// ReadKey reads a key in a transaction.
+type ReadKey struct {
+	// TransactionID identifies the transaction to read a key in.
+	TransactionID int
+	// Key is the key to read.
+	Key string
+	// ExpectedValue is the expected value of the key.
+	ExpectedValue string
+	// ExpectedError is the expected error of the read operation.
+	ExpectedError error
+}
+
+// ReadKeyPrefix reads a key prefix in a transaction.
+type ReadKeyPrefix struct {
+	// TransactionID identifies the transaction to read a key prfix in.
+	TransactionID int
+	// Prefix is the prefix to read.
+	Prefix string
+	// ExpectedValue is the expected value of the key.
+	ExpectedValues map[string]string
+}
+
 // Rollback calls Rollback on a transaction.
 type Rollback struct {
 	// TransactionID identifies the transaction to rollback.
@@ -1123,6 +1167,54 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			)
 
 			performReferenceUpdates(t, ctx, transaction, rewrittenRepo, step.ReferenceUpdates)
+		case ReadKey:
+			require.Contains(t, openTransactions, step.TransactionID, "test error: read key called on transaction before beginning it")
+
+			transaction := openTransactions[step.TransactionID]
+			item, err := transaction.KV().Get([]byte(step.Key))
+			if step.ExpectedError != nil {
+				require.Equal(t, step.ExpectedError, err)
+				break
+			}
+
+			require.NoError(t, err)
+			value, err := item.ValueCopy(nil)
+			require.NoError(t, err)
+			require.Equal(t, step.ExpectedValue, string(value))
+		case ReadKeyPrefix:
+			func() {
+				require.Contains(t, openTransactions, step.TransactionID, "test error: read key prefix called on transaction before beginning it")
+
+				transaction := openTransactions[step.TransactionID]
+
+				iterator := transaction.KV().NewIterator(keyvalue.IteratorOptions{Prefix: []byte(step.Prefix)})
+				defer iterator.Close()
+
+				actualValues := map[string]string{}
+				for iterator.Rewind(); iterator.Valid(); iterator.Next() {
+					value, err := iterator.Item().ValueCopy(nil)
+					require.NoError(t, err)
+
+					actualValues[string(iterator.Item().Key())] = string(value)
+				}
+
+				expectedValues := step.ExpectedValues
+				if step.ExpectedValues == nil {
+					expectedValues = map[string]string{}
+				}
+
+				require.Equal(t, expectedValues, actualValues)
+			}()
+		case SetKey:
+			require.Contains(t, openTransactions, step.TransactionID, "test error: set key called on transaction before beginning it")
+
+			transaction := openTransactions[step.TransactionID]
+			require.Equal(t, step.ExpectedError, transaction.KV().Set([]byte(step.Key), []byte(step.Value)))
+		case DeleteKey:
+			require.Contains(t, openTransactions, step.TransactionID, "test error: delete key called on transaction before beginning it")
+
+			transaction := openTransactions[step.TransactionID]
+			require.Equal(t, step.ExpectedError, transaction.KV().Delete([]byte(step.Key)))
 		case Rollback:
 			require.Contains(t, openTransactions, step.TransactionID, "test error: transaction rollbacked before beginning it")
 			require.Equal(t, step.ExpectedError, openTransactions[step.TransactionID].Rollback())

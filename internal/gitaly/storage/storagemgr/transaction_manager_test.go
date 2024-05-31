@@ -225,6 +225,7 @@ func TestTransactionManager(t *testing.T) {
 		generateHousekeepingRepackingConcurrentTests(t, ctx, setup),
 		generateHousekeepingCommitGraphsTests(t, ctx, setup),
 		generateConsumerTests(t, setup),
+		generateKeyValueTests(setup),
 	}
 	for _, subCases := range subTests {
 		testCases = append(testCases, subCases...)
