@@ -335,7 +335,8 @@ func TestFindChangedPathsRequest_success(t *testing.T) {
 					},
 					{
 						Status:    gitalypb.ChangedPaths_RENAMED,
-						Path:      []byte("rename-me.txt"),
+						OldPath:   []byte("rename-me.txt"),
+						Path:      []byte("rename-you.txt"),
 						OldMode:   0o100644,
 						NewMode:   0o100644,
 						OldBlobId: renameBlobID.String(),

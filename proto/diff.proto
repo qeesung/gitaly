@@ -421,6 +421,9 @@ message ChangedPaths {
   string old_blob_id = 5;
   // new_blob_id is the blob oid of the changed path after the changed.
   string new_blob_id = 6;
+  // old_path is the pre-image path of a renamed or copied object. This field is empty for all other
+  // change types.
+  bytes old_path = 7;
 }
 
 // GetPatchIDRequest is a request for the GetPatchID RPC.
