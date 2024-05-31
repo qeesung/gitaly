@@ -799,6 +799,58 @@ func TestExecCommandFactory_config(t *testing.T) {
 	require.Equal(t, expectedEnv, strings.Split(strings.TrimSpace(stdout.String()), "\n"))
 }
 
+func TestExecCommandFactory_WorkingDirectoryNew(t *testing.T) {
+	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
+
+	t.Run("without a repository", func(t *testing.T) {
+		expectedWorkingDirectory := cfg.GitScratchDir()
+
+		cmd, err := gitCmdFactory.NewWithoutRepo(ctx, git.Command{Name: "version"})
+		require.NoError(t, err)
+		require.Contains(t, cmd.Args(), "--git-dir")
+		require.Contains(t, cmd.Args(), expectedWorkingDirectory)
+	})
+
+	t.Run("with a repository", func(t *testing.T) {
+		repo, repoDir := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
+
+		expectedWorkingDirectory := repoDir
+
+		cmd, err := gitCmdFactory.New(ctx, repo, git.Command{
+			Name: "rev-list",
+			Flags: []git.Option{
+				git.Flag{Name: "--all"},
+			},
+		})
+		require.NoError(t, err)
+		require.Contains(t, cmd.Args(), "--git-dir")
+		require.Contains(t, cmd.Args(), expectedWorkingDirectory)
+	})
+
+	t.Run("with a repository and worktree", func(t *testing.T) {
+		repo, repoDir := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+			SkipCreationViaService: true,
+		})
+
+		expectedWorkingDirectory := filepath.Join(repoDir, "my-worktree")
+
+		cmd, err := gitCmdFactory.New(ctx, repo, git.Command{
+			Name: "rev-list",
+			Flags: []git.Option{
+				git.Flag{Name: "--all"},
+			},
+		}, git.WithWorktree(expectedWorkingDirectory))
+
+		require.NoError(t, err)
+		require.Contains(t, cmd.Args(), "-C")
+		require.Contains(t, cmd.Args(), expectedWorkingDirectory)
+	})
+}
+
 // TestFsckConfiguration tests the hardcoded configuration of the
 // git fsck subcommand generated through the command factory.
 func TestFsckConfiguration(t *testing.T) {
