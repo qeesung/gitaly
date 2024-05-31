@@ -958,6 +958,12 @@ func (cfg *Cfg) InternalSocketPath() string {
 	return filepath.Join(cfg.InternalSocketDir(), "intern")
 }
 
+// GitScratchDir is a fixed directory for running Git commands that don't operate
+// against a repository.
+func (cfg *Cfg) GitScratchDir() string {
+	return filepath.Join(cfg.RuntimeDir, "git-scratch")
+}
+
 func (cfg *Cfg) validateBinDir() error {
 	if len(cfg.BinDir) == 0 {
 		return fmt.Errorf("bin_dir: is not set")
