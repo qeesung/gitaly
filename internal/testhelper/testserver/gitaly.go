@@ -333,14 +333,21 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 
 	var partitionManager *storagemgr.PartitionManager
 	if testhelper.IsWALEnabled() {
-		var err error
+		dbMgr, err := keyvalue.NewDBManager(
+			cfg.Storages,
+			keyvalue.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
+			helper.NewNullTickerFactory(),
+			gsd.logger,
+		)
+		require.NoError(tb, err)
+		tb.Cleanup(dbMgr.Close)
+
 		partitionManager, err = storagemgr.NewPartitionManager(
 			cfg.Storages,
 			gsd.gitCmdFactory,
 			localrepo.NewFactory(gsd.logger, gsd.locator, gsd.gitCmdFactory, gsd.catfileCache),
 			gsd.logger,
-			storagemgr.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
-			helper.NewNullTickerFactory(),
+			dbMgr,
 			cfg.Prometheus,
 			nil,
 		)

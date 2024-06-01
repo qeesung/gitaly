@@ -352,6 +352,17 @@ func run(cfg config.Cfg, logger log.Logger) error {
 	if cfg.Transactions.Enabled {
 		logger.WarnContext(ctx, "Transactions enabled. Transactions are an experimental feature. The feature is not production ready yet and might lead to various issues including data loss.")
 
+		dbMgr, err := keyvalue.NewDBManager(
+			cfg.Storages,
+			keyvalue.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
+			helper.NewTimerTickerFactory(time.Minute),
+			logger,
+		)
+		if err != nil {
+			return fmt.Errorf("new partition manager: %w", err)
+		}
+		defer dbMgr.Close()
+
 		var logConsumer storagemgr.LogConsumer
 		if cfg.Backup.WALGoCloudURL != "" {
 			walSink, err := backup.ResolveSink(ctx, cfg.Backup.WALGoCloudURL)
@@ -369,8 +380,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			gitCmdFactory,
 			localrepo.NewFactory(logger, locator, gitCmdFactory, catfileCache),
 			logger,
-			storagemgr.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
-			helper.NewTimerTickerFactory(time.Minute),
+			dbMgr,
 			cfg.Prometheus,
 			logConsumer,
 		)

@@ -82,13 +82,22 @@ func testWithAndWithoutTransaction(t *testing.T, desc string, testFunc func(*tes
 			t.Cleanup(catfileCache.Stop)
 
 			localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
+
+			dbMgr, err := keyvalue.NewDBManager(
+				cfg.Storages,
+				keyvalue.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
+				helper.NewNullTickerFactory(),
+				logger,
+			)
+			require.NoError(t, err)
+			t.Cleanup(dbMgr.Close)
+
 			partitionManager, err := storagemgr.NewPartitionManager(
 				cfg.Storages,
 				cmdFactory,
 				localRepoFactory,
 				logger,
-				storagemgr.DatabaseOpenerFunc(keyvalue.NewBadgerStore),
-				helper.NewNullTickerFactory(),
+				dbMgr,
 				cfg.Prometheus,
 				nil,
 			)
