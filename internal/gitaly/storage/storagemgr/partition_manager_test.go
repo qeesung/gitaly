@@ -2,17 +2,13 @@ package storagemgr
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"testing"
 
-	"github.com/dgraph-io/badger/v4"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -783,7 +779,10 @@ func TestPartitionManager(t *testing.T) {
 				)
 			}
 
-			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(keyvalue.NewBadgerStore), helper.NewNullTickerFactory(), cfg.Prometheus, nil)
+			dbMgr, err := keyvalue.NewDBManager(cfg.Storages, keyvalue.NewBadgerStore, helper.NewNullTickerFactory(), logger)
+			require.NoError(t, err)
+
+			partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, dbMgr, cfg.Prometheus, nil)
 			require.NoError(t, err)
 
 			if setup.transactionManagerFactory != nil {
@@ -792,6 +791,7 @@ func TestPartitionManager(t *testing.T) {
 
 			defer func() {
 				partitionManager.Close()
+				dbMgr.Close()
 				for _, storage := range cfg.Storages {
 					// Assert all staging directories have been emptied at the end.
 					testhelper.RequireDirectoryState(t, internalDirectoryPath(storage.Path), "staging", testhelper.DirectoryState{
@@ -897,105 +897,6 @@ func TestPartitionManager(t *testing.T) {
 	}
 }
 
-type dbWrapper struct {
-	keyvalue.Store
-	runValueLogGC func(float64) error
-}
-
-func (db dbWrapper) RunValueLogGC(discardRatio float64) error {
-	return db.runValueLogGC(discardRatio)
-}
-
-func TestPartitionManager_garbageCollection(t *testing.T) {
-	t.Parallel()
-
-	cfg := testcfg.Build(t)
-
-	logger := testhelper.NewLogger(t)
-	loggerHook := testhelper.AddLoggerHook(logger)
-
-	cmdFactory := gittest.NewCommandFactory(t, cfg)
-	catfileCache := catfile.NewCache(cfg)
-	defer catfileCache.Stop()
-
-	localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
-
-	gcRunCount := 0
-	gcCompleted := make(chan struct{})
-	errExpected := errors.New("some gc failure")
-
-	partitionManager, err := NewPartitionManager(
-		cfg.Storages,
-		cmdFactory,
-		localRepoFactory,
-		logger,
-		DatabaseOpenerFunc(func(logger log.Logger, path string) (keyvalue.Store, error) {
-			db, err := keyvalue.NewBadgerStore(logger, path)
-			return dbWrapper{
-				Store: db,
-				runValueLogGC: func(discardRatio float64) error {
-					gcRunCount++
-					if gcRunCount < 3 {
-						return nil
-					}
-
-					if gcRunCount == 3 {
-						return badger.ErrNoRewrite
-					}
-
-					return errExpected
-				},
-			}, err
-		}),
-		helper.TickerFactoryFunc(func() helper.Ticker {
-			return helper.NewCountTicker(1, func() {
-				close(gcCompleted)
-			})
-		}),
-		cfg.Prometheus,
-		nil,
-	)
-	require.NoError(t, err)
-	defer partitionManager.Close()
-
-	// The ticker has exhausted and we've performed the two GC runs we wanted to test.
-	<-gcCompleted
-
-	// Close the manager to ensure the GC goroutine also stops.
-	partitionManager.Close()
-
-	var gcLogs []*logrus.Entry
-	for _, entry := range loggerHook.AllEntries() {
-		if !strings.HasPrefix(entry.Message, "value log") {
-			continue
-		}
-
-		gcLogs = append(gcLogs, entry)
-	}
-
-	// We're testing the garbage collection goroutine through multiple loops.
-	//
-	// The first runs immediately on startup before the ticker even ticks. The
-	// First RunValueLogGC pretends to have performed a GC, so another GC is
-	// immediately attempted. The second round returns badger.ErrNoRewrite, so
-	// the GC loop stops and waits for another tick
-	require.Equal(t, "value log garbage collection started", gcLogs[0].Message)
-	require.Equal(t, "value log file garbage collected", gcLogs[1].Message)
-	require.Equal(t, "value log file garbage collected", gcLogs[2].Message)
-	require.Equal(t, "value log garbage collection finished", gcLogs[3].Message)
-
-	// The second tick results in a garbage collection run that pretend to have
-	// failed with errExpected.
-	require.Equal(t, "value log garbage collection started", gcLogs[4].Message)
-	require.Equal(t, "value log garbage collection failed", gcLogs[5].Message)
-	require.Equal(t, errExpected, gcLogs[5].Data[logrus.ErrorKey])
-	require.Equal(t, "value log garbage collection finished", gcLogs[6].Message)
-
-	// After the second round, the PartititionManager is closed and we assert that the
-	// garbage collection goroutine has also stopped.
-	require.Equal(t, "value log garbage collection goroutine stopped", gcLogs[7].Message)
-}
-
 func TestPartitionManager_concurrentClose(t *testing.T) {
 	t.Parallel()
 
@@ -1010,7 +911,11 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 
 	localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
 
-	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, DatabaseOpenerFunc(keyvalue.NewBadgerStore), helper.NewNullTickerFactory(), cfg.Prometheus, nil)
+	dbMgr, err := keyvalue.NewDBManager(cfg.Storages, keyvalue.NewBadgerStore, helper.NewNullTickerFactory(), logger)
+	require.NoError(t, err)
+	defer dbMgr.Close()
+
+	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, dbMgr, cfg.Prometheus, nil)
 	require.NoError(t, err)
 	defer partitionManager.Close()
 
