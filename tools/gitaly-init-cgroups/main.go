@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -59,9 +58,9 @@ func findPodCgroup(path string, uid string) string {
 // changePermissions changes permissions of cgroup paths enabling write access for the Gitaly pod
 func changePermissions(podCgroupPath string, paths []string) error {
 	for _, path := range paths {
-		chownCmd := fmt.Sprintf("chown 1000:1000 %s/%s", podCgroupPath, path)
-		if err := exec.Command("/bin/sh", "-c", chownCmd).Run(); err != nil {
-			return fmt.Errorf("failed to chown %q: %w", path, err)
+		filePath := filepath.Join(podCgroupPath, path)
+		if err := os.Chown(filePath, 1000, 1000); err != nil {
+			return fmt.Errorf("chown cgroup path %q: %w", path, err)
 		}
 	}
 	return nil
