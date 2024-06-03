@@ -92,13 +92,22 @@ func (pt *partitionAssignmentTable) setPartitionID(relativePath string, id stora
 	return nil
 }
 
+// repositoryLock guards access to a single repository. It's used to ensure only a single
+// goroutine is attempting to assign a partition at a time.
+type repositoryLock struct {
+	// semaphore is used to pass the lock to other goroutines waiting to get or assign the repository's
+	// partition.
+	semaphore chan struct{}
+	// goroutines is the number of goroutines waiting to get or assign the repository's partition.
+	goroutines int
+}
+
 // partitionAssigner manages assignment of repositories in to partitions.
 type partitionAssigner struct {
 	// mutex synchronizes access to repositoryLocks.
 	mutex sync.Mutex
-	// repositoryLocks holds per-repository locks. The key is a relative path and the
-	// channel closing signals the lock being released.
-	repositoryLocks map[string]chan struct{}
+	// repositoryLocks holds per-repository locks. The key is a relative path of the repository.
+	repositoryLocks map[string]*repositoryLock
 	// idSequence is the sequence used to mint partition IDs.
 	idSequence *badger.Sequence
 	// partitionAssignmentTable contains the partition assignment records.
@@ -117,7 +126,7 @@ func newPartitionAssigner(db keyvalue.Store, storagePath string) (*partitionAssi
 	}
 
 	return &partitionAssigner{
-		repositoryLocks:          make(map[string]chan struct{}),
+		repositoryLocks:          make(map[string]*repositoryLock),
 		idSequence:               seq,
 		partitionAssignmentTable: newPartitionAssignmentTable(db),
 		storagePath:              storagePath,
@@ -185,45 +194,65 @@ func (pa *partitionAssigner) getPartitionID(ctx context.Context, relativePath, p
 	return ptnID, nil
 }
 
+func (pa *partitionAssigner) acquireRepositoryLock(ctx context.Context, relativePath string) (func(), error) {
+	pa.mutex.Lock()
+	// See if some other goroutine already locked the repository. If so, wait for it to complete.
+	if lock, ok := pa.repositoryLocks[relativePath]; ok {
+		// Register ourselves as a waiter.
+		lock.goroutines++
+		pa.mutex.Unlock()
+		select {
+		case <-lock.semaphore:
+			// It's our turn now.
+		case <-ctx.Done():
+			pa.releaseRepositoryLock(relativePath, false)
+			return nil, ctx.Err()
+		}
+	} else {
+		// No other goroutine had locked the repository yet. Lock the repository so other goroutines
+		// wait while we assign the repository a partition.
+		pa.repositoryLocks[relativePath] = &repositoryLock{
+			semaphore:  make(chan struct{}, 1),
+			goroutines: 1,
+		}
+		pa.mutex.Unlock()
+	}
+
+	return func() { pa.releaseRepositoryLock(relativePath, true) }, nil
+}
+
+func (pa *partitionAssigner) releaseRepositoryLock(relativePath string, hadToken bool) {
+	pa.mutex.Lock()
+	defer pa.mutex.Unlock()
+
+	lock := pa.repositoryLocks[relativePath]
+	if hadToken {
+		lock.semaphore <- struct{}{}
+	}
+
+	lock.goroutines--
+	if lock.goroutines == 0 {
+		delete(pa.repositoryLocks, relativePath)
+	}
+}
+
 func (pa *partitionAssigner) getPartitionIDRecursive(ctx context.Context, relativePath string, recursiveCall bool, partitionHint storage.PartitionID, isRepositoryCreation bool) (storage.PartitionID, error) {
+	// Check first whether the repository is already assigned into a partition. If so, just return the assignment.
 	ptnID, err := pa.partitionAssignmentTable.getPartitionID(relativePath)
 	if err != nil {
 		if !errors.Is(err, errPartitionAssignmentNotFound) {
 			return 0, fmt.Errorf("get partition: %w", err)
 		}
 
-		// Repository wasn't yet assigned into a partition.
+		// Repository wasn't yet assigned into a partition. This is the slow path. Requests attempting
+		// to get or assign a partition ID concurrently are serialized.
 
-		pa.mutex.Lock()
-		// See if some other goroutine already locked the repository. If so, wait for it to complete
-		// and get the partition ID it set.
-		if lock, ok := pa.repositoryLocks[relativePath]; ok {
-			pa.mutex.Unlock()
-			// Some other goroutine is already assigning a partition for the
-			// repository. Wait for it to complete and then get the partition.
-			select {
-			case <-lock:
-				ptnID, err := pa.partitionAssignmentTable.getPartitionID(relativePath)
-				if err != nil {
-					return 0, fmt.Errorf("get partition ID after waiting: %w", err)
-				}
-				return ptnID, nil
-			case <-ctx.Done():
-				return 0, ctx.Err()
-			}
+		releaseLock, err := pa.acquireRepositoryLock(ctx, relativePath)
+		if err != nil {
+			return 0, fmt.Errorf("acquire repository lock: %w", err)
 		}
 
-		// No other goroutine had locked the repository yet. Lock the repository so other goroutines
-		// wait while we assign the repository a partition.
-		lock := make(chan struct{})
-		pa.repositoryLocks[relativePath] = lock
-		pa.mutex.Unlock()
-		defer func() {
-			close(lock)
-			pa.mutex.Lock()
-			delete(pa.repositoryLocks, relativePath)
-			pa.mutex.Unlock()
-		}()
+		defer releaseLock()
 
 		// With the repository locked, check first whether someone else assigned it into a partition
 		// while we weren't holding the lock between the first failed attempt getting the assignment
