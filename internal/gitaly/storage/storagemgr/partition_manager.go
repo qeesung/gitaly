@@ -39,6 +39,7 @@ type transactionManager interface {
 }
 
 type transactionManagerFactory func(
+	logger log.Logger,
 	partitionID storage.PartitionID,
 	storageMgr *storageManager,
 	cmdFactory git.CommandFactory,
@@ -334,6 +335,7 @@ func NewPartitionManager(
 		storages:       storages,
 		commandFactory: cmdFactory,
 		transactionManagerFactory: func(
+			logger log.Logger,
 			partitionID storage.PartitionID,
 			storageMgr *storageManager,
 			cmdFactory git.CommandFactory,
@@ -438,7 +440,9 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 				return nil, fmt.Errorf("create staging directory: %w", err)
 			}
 
-			mgr := pm.transactionManagerFactory(partitionID, storageMgr, pm.commandFactory, absoluteStateDir, stagingDir)
+			logger := storageMgr.logger.WithField("partition_id", partitionID)
+
+			mgr := pm.transactionManagerFactory(logger, partitionID, storageMgr, pm.commandFactory, absoluteStateDir, stagingDir)
 
 			ptn.transactionManager = mgr
 
@@ -446,10 +450,8 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 
 			storageMgr.activePartitions.Add(1)
 			go func() {
-				logger := storageMgr.logger.WithField("partition", relativePath)
-
 				if err := mgr.Run(); err != nil {
-					logger.WithError(err).Error("partition failed")
+					logger.WithError(err).WithField("partition_state_directory", relativeStateDir).Error("partition failed")
 				}
 
 				// In the event that TransactionManager stops running, a new TransactionManager will
