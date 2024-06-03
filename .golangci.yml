@@ -165,6 +165,10 @@ issues:
   # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
   max-same-issues: 0
   exclude:
+    # Issue: https://gitlab.com/gitlab-org/gitaly/-/issues/6100
+    - "Error return value of `fmt.Fprint` is not checked"
+    - "Error return value of `fmt.Fprintf` is not checked"
+    - "Error return value of `fmt.Fprintln` is not checked"
     # Migration issue: https://gitlab.com/gitlab-org/gitaly/-/issues/5971
     - "grpc.Dial is deprecated: use NewClient instead.  Will be supported throughout 1.x."
     - "grpc.DialContext is deprecated: use NewClient instead.  Will be supported throughout 1.x."
