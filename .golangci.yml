@@ -26,7 +26,6 @@ linters:
     - govet
     - ineffassign
     - makezero
-    - megacheck
     - misspell
     - noctx
     - nolintlint
