@@ -42,7 +42,6 @@ func TestPartitionManager(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 	umask := testhelper.Umask()
-	logger := testhelper.NewLogger(t)
 
 	// steps defines execution steps in a test. Each test case can define multiple steps to exercise
 	// more complex behavior.
@@ -381,6 +380,7 @@ func TestPartitionManager(t *testing.T) {
 						},
 					},
 					transactionManagerFactory: func(
+						logger log.Logger,
 						testPartitionID storage.PartitionID,
 						storageMgr *storageManager,
 						commandFactory git.CommandFactory,
@@ -389,7 +389,7 @@ func TestPartitionManager(t *testing.T) {
 						return stoppedTransactionManager{
 							transactionManager: NewTransactionManager(
 								testPartitionID,
-								storageMgr.logger,
+								logger,
 								storageMgr.database,
 								storageMgr.path,
 								absoluteStateDir,
@@ -428,6 +428,7 @@ func TestPartitionManager(t *testing.T) {
 						},
 					},
 					transactionManagerFactory: func(
+						logger log.Logger,
 						testPartitionID storage.PartitionID,
 						storageMgr *storageManager,
 						commandFactory git.CommandFactory,
