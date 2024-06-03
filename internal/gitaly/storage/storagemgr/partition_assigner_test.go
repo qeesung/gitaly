@@ -482,3 +482,58 @@ func TestPartitionAssigner_concurrentAccess(t *testing.T) {
 		})
 	}
 }
+
+type wrappedContext struct {
+	context.Context
+	doneCalled chan struct{}
+}
+
+func (w wrappedContext) Done() <-chan struct{} {
+	close(w.doneCalled)
+	return w.Context.Done()
+}
+
+func TestPartitionAssigner_concurrent_access_non_existent(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	db, err := keyvalue.NewBadgerStore(testhelper.SharedLogger(t), t.TempDir())
+	require.NoError(t, err)
+	defer testhelper.MustClose(t, db)
+
+	cfg := testcfg.Build(t)
+
+	pa, err := newPartitionAssigner(db, cfg.Storages[0].Path)
+	require.NoError(t, err)
+	defer testhelper.MustClose(t, pa)
+
+	relativePath := "relative-path"
+	pa.repositoryLocks[relativePath] = make(chan struct{})
+
+	var (
+		isBlocked         = make(chan struct{})
+		actualPartitionID storage.PartitionID
+		actualError       error
+		wg                sync.WaitGroup
+	)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		actualPartitionID, actualError = pa.getPartitionID(wrappedContext{
+			Context:    ctx,
+			doneCalled: isBlocked,
+		}, relativePath, "", false)
+	}()
+
+	<-isBlocked
+	close(pa.repositoryLocks[relativePath])
+
+	wg.Wait()
+
+	// This is a bug. We'd actually want a relativePathNotFoundError returned
+	// here as returned when there's no concurrency.
+	require.ErrorIs(t, actualError, errPartitionAssignmentNotFound)
+	require.Zero(t, actualPartitionID)
+}
