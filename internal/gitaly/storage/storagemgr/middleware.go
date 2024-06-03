@@ -365,20 +365,21 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 	txID := txRegistry.register(tx.Transaction)
 	ctx = storage.ContextWithTransactionID(ctx, txID)
 
+	// If the post-receive hook is invoked, the transaction may already be committed to ensure
+	// the new data is readable for the post-receive hook. Ignore the already committed errors
+	// here.
 	finishTX := func(handlerErr error) error {
 		defer span.Finish()
 		defer txRegistry.unregister(txID)
 
 		if handlerErr != nil {
-			if err := tx.Rollback(); err != nil {
+			if err := tx.Rollback(); err != nil && !errors.Is(err, ErrTransactionAlreadyCommitted) {
 				logger.WithError(err).ErrorContext(ctx, "failed rolling back transaction")
 			}
 
 			return handlerErr
 		}
 
-		// If the post-receive hook is invoked, the transaction may already be committed to ensure
-		// the new data is readable for the post-receive hook. Ignore the error indicating that here.
 		if err := tx.Commit(ctx); err != nil && !errors.Is(err, ErrTransactionAlreadyCommitted) {
 			return fmt.Errorf("commit: %w", err)
 		}
