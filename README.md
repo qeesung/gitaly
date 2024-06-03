@@ -28,7 +28,7 @@ We are building features according to our [roadmap][roadmap].
 
 Most users won't install Gitaly on its own. It is already included in [your GitLab installation](https://about.gitlab.com/install/).
 
-Gitaly requires Go 1.22. Run `make` to compile the executables
+Gitaly requires Go 1.21. Run `make` to compile the executables
 required by Gitaly.
 
 Gitaly uses `git`. Versions `2.42.0` and newer are supported.
