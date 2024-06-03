@@ -493,7 +493,7 @@ func (w wrappedContext) Done() <-chan struct{} {
 	return w.Context.Done()
 }
 
-func TestPartitionAssigner_concurrent_access_non_existent(t *testing.T) {
+func TestPartitionAssigner_non_existent(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -509,31 +509,50 @@ func TestPartitionAssigner_concurrent_access_non_existent(t *testing.T) {
 	defer testhelper.MustClose(t, pa)
 
 	relativePath := "relative-path"
-	pa.repositoryLocks[relativePath] = make(chan struct{})
 
-	var (
-		isBlocked         = make(chan struct{})
-		actualPartitionID storage.PartitionID
-		actualError       error
-		wg                sync.WaitGroup
-	)
+	t.Run("context cancellation", func(t *testing.T) {
+		releaseLock, err := pa.acquireRepositoryLock(ctx, relativePath)
+		require.NoError(t, err)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		actualPartitionID, actualError = pa.getPartitionID(wrappedContext{
-			Context:    ctx,
-			doneCalled: isBlocked,
-		}, relativePath, "", false)
-	}()
+		ctx, cancel := context.WithCancel(ctx)
+		cancel()
 
-	<-isBlocked
-	close(pa.repositoryLocks[relativePath])
+		ptnID, err := pa.getPartitionID(ctx, relativePath, "", false)
+		require.ErrorIs(t, err, context.Canceled)
+		require.Zero(t, ptnID)
 
-	wg.Wait()
+		releaseLock()
+		require.Empty(t, pa.repositoryLocks)
+	})
 
-	// This is a bug. We'd actually want a relativePathNotFoundError returned
-	// here as returned when there's no concurrency.
-	require.ErrorIs(t, actualError, errPartitionAssignmentNotFound)
-	require.Zero(t, actualPartitionID)
+	t.Run("concurrent access", func(t *testing.T) {
+		releaseLock, err := pa.acquireRepositoryLock(ctx, relativePath)
+		require.NoError(t, err)
+
+		var (
+			isBlocked         = make(chan struct{})
+			actualPartitionID storage.PartitionID
+			actualError       error
+			wg                sync.WaitGroup
+		)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			actualPartitionID, actualError = pa.getPartitionID(wrappedContext{
+				Context:    ctx,
+				doneCalled: isBlocked,
+			}, relativePath, "", false)
+		}()
+
+		<-isBlocked
+		releaseLock()
+
+		wg.Wait()
+
+		require.ErrorIs(t, actualError, relativePathNotFoundError(relativePath))
+		require.Zero(t, actualPartitionID)
+
+		require.Empty(t, pa.repositoryLocks)
+	})
 }
