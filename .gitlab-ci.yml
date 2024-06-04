@@ -293,7 +293,8 @@ test:reftable:
   allow_failure: true
   variables:
     <<: *test_variables
-    GIT_VERSION: "v2.45.0"
+    OVERRIDE_GIT_VERSION: "v99.99.99"
+    GIT_VERSION: "261-support-transactional-symbolic-reference-updates"
     TEST_TARGET: test-with-reftable
 
 test:nightly:
