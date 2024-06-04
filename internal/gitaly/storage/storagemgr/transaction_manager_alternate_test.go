@@ -1251,7 +1251,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
+								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
@@ -1306,7 +1306,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 							setup.Commits.First.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),

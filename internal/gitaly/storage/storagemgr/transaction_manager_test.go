@@ -401,7 +401,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							},
 						},
 					}),
-					"/wal/0000000000001/1": {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
+					"/wal/0000000000001/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
 				},
 			},
 		},
@@ -497,7 +497,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								setup.Commits.Diverging.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: fs.ModeDir | perm.SharedDir},
+								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
@@ -1270,7 +1270,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
+								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
@@ -1305,7 +1305,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							setup.Commits.First.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.SharedDir)},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
@@ -1354,6 +1354,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 			i++
 		}
 	}
+	umask := testhelper.Umask()
 
 	return []transactionTestCase{
 		{
@@ -1633,10 +1634,10 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID)),
-						"/0000000000002/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000002/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-2", setup.Commits.First.OID)),
-						"/0000000000003/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000003/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
 				StartManager{},
@@ -1732,13 +1733,13 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID)),
-						"/0000000000002/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000002/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-2", setup.Commits.First.OID)),
-						"/0000000000003/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000003/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000004":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000004/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-3", setup.Commits.First.OID)),
-						"/0000000000004/1":        {Mode: perm.SharedFile, Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000004/1":        {Mode: umask.Mask(perm.SharedFile), Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
 				StartManager{},

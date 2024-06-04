@@ -124,7 +124,7 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: fs.ModeDir | perm.SharedDir},
+							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
