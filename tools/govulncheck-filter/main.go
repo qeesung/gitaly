@@ -16,7 +16,11 @@ var (
 	// vulnerability is deemed non-critical, an exception can be added to the ignore list below. Please create a
 	// **confidential** issue using the "Ignored Vulnerability" template on gitlab-org/gitaly before adding a new
 	// entry here.
-	defaultIgnoreList = ignoreList{}
+	defaultIgnoreList = ignoreList{
+		"GO-2024-2887": {
+			GitLabIssueURL: "https://gitlab.com/gitlab-org/gitaly/-/issues/6116",
+		},
+	}
 
 	outputPrologue = `
 ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️
