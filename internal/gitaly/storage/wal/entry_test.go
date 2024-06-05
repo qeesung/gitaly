@@ -569,6 +569,39 @@ func TestRecordReferenceUpdates(t *testing.T) {
 				}
 			},
 		},
+		{
+			desc: "deletion creates a directory",
+			setup: func(t *testing.T, oids []git.ObjectID) setupData {
+				return setupData{
+					referenceTransactions: []referenceTransaction{
+						{
+							"refs/remotes/upstream/deleted-branch": gittest.DefaultObjectHash.ZeroOID,
+						},
+						{
+							"refs/remotes/upstream/created-branch": oids[0],
+						},
+					},
+					expectedOperations: func() operations {
+						var ops operations
+						// refs/remotes does not exist in the repository at the beginning of the test.
+						// The deletion performed however creates it. As Git has special cased the refs/remotes
+						// directory, it doesn't delete it unlike the `refs/remotes/upstream`.
+						//
+						// We assert here the directory created by the deletion is properly logged to ensure
+						// it exists when we attempt to create the child directory.
+						//
+						// BUG: We're currently not logging the creation of the 'refs/remotes' directory.
+						ops.createDirectory("relative-path/refs/remotes/upstream", umask.Mask(fs.ModePerm))
+						ops.createHardLink("1", "relative-path/refs/remotes/upstream/created-branch", false)
+						return ops
+					}(),
+					expectedDirectory: testhelper.DirectoryState{
+						"/":  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
+						"/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[0] + "\n")},
+					},
+				}
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
