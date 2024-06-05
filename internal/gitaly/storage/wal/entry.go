@@ -367,7 +367,25 @@ func (e *Entry) RecordReferenceUpdates(ctx context.Context, storageRoot, snapsho
 
 		return nil
 	}); err != nil {
-		return fmt.Errorf("walk pre-order: %w", err)
+		return fmt.Errorf("walk creations pre-order: %w", err)
+	}
+
+	// Check if the deletion created directories. This can happen if Git has special cased a directory
+	// to not be deleted, such as 'refs/heads', 'refs/tags' and 'refs/remotes'. Git may create the
+	// directory to create a lock and leave it in place after the transaction.
+	if err := deletions.WalkPreOrder(func(path string, isDir bool) error {
+		info, err := os.Stat(filepath.Join(storageRoot, snapshotPrefix, relativePath, path))
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("stat for dir permissions: %w", err)
+		}
+
+		if _, existedPreImaged := preImagePaths[path]; info != nil && !existedPreImaged {
+			e.operations.createDirectory(filepath.Join(relativePath, path), info.Mode().Perm())
+		}
+
+		return nil
+	}); err != nil {
+		return fmt.Errorf("walk deletion directory creations pre-order: %w", err)
 	}
 
 	// Walk down from the leaves of reference deletions towards the root.
@@ -391,7 +409,7 @@ func (e *Entry) RecordReferenceUpdates(ctx context.Context, storageRoot, snapsho
 		// The path existed. Continue checking other paths whether they've been removed or not.
 		return nil
 	}); err != nil {
-		return fmt.Errorf("walk post-order: %w", err)
+		return fmt.Errorf("walk deletions post-order: %w", err)
 	}
 
 	return nil
