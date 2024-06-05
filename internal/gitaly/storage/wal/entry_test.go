@@ -589,8 +589,7 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						//
 						// We assert here the directory created by the deletion is properly logged to ensure
 						// it exists when we attempt to create the child directory.
-						//
-						// BUG: We're currently not logging the creation of the 'refs/remotes' directory.
+						ops.createDirectory("relative-path/refs/remotes", umask.Mask(fs.ModePerm))
 						ops.createDirectory("relative-path/refs/remotes/upstream", umask.Mask(fs.ModePerm))
 						ops.createHardLink("1", "relative-path/refs/remotes/upstream/created-branch", false)
 						return ops

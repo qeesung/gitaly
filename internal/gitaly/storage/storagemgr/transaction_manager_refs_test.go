@@ -1761,5 +1761,73 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 			},
 		},
+		{
+			desc: "remotes directory created by a reference deletion",
+			steps: steps{
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  setup.RelativePath,
+				},
+				Commit{
+					TransactionID: 1,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/remotes/upstream/deleted-branch": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Begin{
+					TransactionID:       2,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 1,
+				},
+				// Move the to-be-deleted reference to packed-refs. Our packing task deletes all empty
+				// directories including `refs/remote`.
+				RunPackRefs{
+					TransactionID: 2,
+				},
+				Commit{
+					TransactionID: 2,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        setup.RelativePath,
+					ExpectedSnapshotLSN: 2,
+				},
+				UpdateReferences{
+					TransactionID: 3,
+					// Delete the branch in the same transaction as we create another one in the `refs/remotes`
+					// directory. The reference deletion creates the `refs/remotes` directory that was removed
+					// by the repacking task.
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/remotes/upstream/deleted-branch": {OldOID: setup.Commits.First.OID, NewOID: setup.ObjectHash.ZeroOID},
+					},
+				},
+				UpdateReferences{
+					TransactionID: 3,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/remotes/upstream/created-branch": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
+					},
+				},
+				Commit{
+					TransactionID: 3,
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN): storage.LSN(3).ToProto(),
+				},
+				Repositories: RepositoryStates{
+					setup.RelativePath: {
+						DefaultBranch: "refs/heads/main",
+						References: &ReferencesState{
+							PackedReferences: map[git.ReferenceName]git.ObjectID{},
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/remotes/upstream/created-branch": setup.Commits.First.OID,
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
