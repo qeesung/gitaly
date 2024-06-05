@@ -137,17 +137,12 @@ func TestFetchSourceBranch(t *testing.T) {
 						TargetRef:            []byte(git.DefaultRef),
 						ExpectedTargetOldOid: firstCommit.String(),
 					},
-					expectedErr: structerr.NewFailedPrecondition(
-						//nolint:gitaly-linters
-						fmt.Sprintf(`reference does not point to expected object
-UpdateRef: failed updating reference "%s" from "%s" to "%s": exit status 128, stderr: "fatal: cannot lock ref '%s': is at %s but expected %s\n"`,
-							git.DefaultRef,
-							firstCommit.String(),
-							sourceCommit.String(),
-							git.DefaultRef,
-							concurrentCommit.String(),
-							firstCommit.String(),
-						)),
+					expectedErr: testhelper.WithInterceptedMetadataItems(
+						structerr.NewInternal("commit: reference does not point to expected object"),
+						structerr.MetadataItem{Key: "actual_object_id", Value: concurrentCommit.String()},
+						structerr.MetadataItem{Key: "expected_object_id", Value: sourceCommit.String()},
+						structerr.MetadataItem{Key: "reference", Value: "refs/heads/main"},
+					),
 				}
 			},
 		},

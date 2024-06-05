@@ -60,6 +60,7 @@ type Transaction interface {
 	Commit(context.Context) error
 	OriginalRepository(*gitalypb.Repository) *gitalypb.Repository
 	RewriteRepository(*gitalypb.Repository) *gitalypb.Repository
+	MarkDefaultBranchUpdated()
 }
 
 // TransactionRegistry is the interface of storagemgr.TransactionRegistry. It's used for mocking

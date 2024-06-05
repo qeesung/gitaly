@@ -14,22 +14,21 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 )
 
-func setupUpdater(tb testing.TB, ctx context.Context) (config.Cfg, *localrepo.Repo, string, *Updater) {
+func setupUpdater(tb testing.TB, ctx context.Context) (config.Cfg, gittest.RepositoryPathExecutor, string, *Updater) {
 	tb.Helper()
 
 	cfg := testcfg.Build(tb)
 
-	repoProto, repoPath := gittest.CreateRepository(tb, ctx, cfg, gittest.CreateRepositoryConfig{
+	_, repoPath := gittest.CreateRepository(tb, ctx, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
 	})
-	repo := localrepo.NewTestRepo(tb, cfg, repoProto, git.WithSkipHooks())
+	repo := gittest.NewRepositoryPathExecutor(tb, cfg, repoPath)
 
 	updater, err := New(ctx, repo)
 	require.NoError(tb, err)
@@ -451,7 +450,7 @@ func TestUpdater_delete(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 
-	cfg, repo, repoPath, updater := setupUpdater(t, ctx)
+	cfg, _, repoPath, updater := setupUpdater(t, ctx)
 	defer testhelper.MustClose(t, updater)
 
 	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"))
@@ -460,9 +459,11 @@ func TestUpdater_delete(t *testing.T) {
 	require.NoError(t, updater.Delete("refs/heads/main"))
 	require.NoError(t, updater.Commit())
 
-	// Check that the reference was removed.
-	_, err := repo.ReadCommit(ctx, "refs/heads/main")
-	require.Equal(t, localrepo.ErrObjectNotFound, err)
+	// The ref shouldn't exist
+	cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "rev-parse", "--verify", "refs/heads/main^{commit}")
+	output, err := cmd.CombinedOutput()
+	require.Error(t, err)
+	require.Equal(t, "fatal: Needed a single revision\n", string(output))
 }
 
 func TestUpdater_prepareLocksTransaction(t *testing.T) {
@@ -489,18 +490,11 @@ func TestUpdater_invalidReferenceName(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
+	cfg, _, repoPath, updater := setupUpdater(t, ctx)
 
-	cfg := testcfg.Build(t)
-
-	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
-		SkipCreationViaService: true,
-	})
-	repo := localrepo.NewTestRepo(t, cfg, repoProto, git.WithSkipHooks())
 	commitID := gittest.WriteCommit(t, cfg, repoPath)
-
 	const referenceName = `refs/heads\master`
-	updater, err := New(ctx, repo)
-	require.NoError(t, err)
+
 	defer func() { require.Equal(t, InvalidReferenceFormatError{ReferenceName: referenceName}, updater.Close()) }()
 
 	require.NoError(t, updater.Start())
@@ -515,10 +509,10 @@ func TestUpdater_concurrentLocking(t *testing.T) {
 
 	cfg := testcfg.Build(t)
 
-	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+	_, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 		SkipCreationViaService: true,
 	})
-	repo := localrepo.NewTestRepo(t, cfg, repoProto, git.WithSkipHooks())
+	repo := gittest.NewRepositoryPathExecutor(t, cfg, repoPath)
 	commitID := gittest.WriteCommit(t, cfg, repoPath)
 
 	for _, tc := range []struct {
@@ -609,8 +603,7 @@ func TestUpdater_contextCancellation(t *testing.T) {
 	ctx := testhelper.Context(t)
 	childCtx, childCancel := context.WithCancel(ctx)
 
-	cfg, repoProto, repoPath, _ := setupUpdater(t, ctx)
-	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+	cfg, repo, repoPath, _ := setupUpdater(t, ctx)
 
 	commitID := gittest.WriteCommit(t, cfg, repoPath)
 
@@ -683,7 +676,7 @@ func TestUpdater_closingStdinAbortsChanges(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 
-	cfg, repo, repoPath, updater := setupUpdater(t, ctx)
+	cfg, _, repoPath, updater := setupUpdater(t, ctx)
 	defer testhelper.MustClose(t, updater)
 
 	commitID := gittest.WriteCommit(t, cfg, repoPath)
@@ -700,8 +693,10 @@ func TestUpdater_closingStdinAbortsChanges(t *testing.T) {
 
 	// ... but as we now use explicit transactional behaviour, this is no
 	// longer the case.
-	_, err := repo.ReadCommit(ctx, "refs/heads/main")
-	require.Equal(t, localrepo.ErrObjectNotFound, err, "expected 'not found' error got %v", err)
+	cmd := gittest.NewCommand(t, cfg, "-C", repoPath, "rev-parse", "--verify", "refs/heads/main^{commit}")
+	output, err := cmd.CombinedOutput()
+	require.Error(t, err)
+	require.Equal(t, "fatal: Needed a single revision\n", string(output))
 }
 
 func TestUpdater_capturesStderr(t *testing.T) {
