@@ -922,6 +922,8 @@ type TransactionManager struct {
 	commandFactory git.CommandFactory
 	// repositoryFactory is used to build localrepo.Repo instances.
 	repositoryFactory localrepo.StorageScopedFactory
+	// storageName is the name of the storage the TransactionManager's partition is a member of.
+	storageName string
 	// storagePath is an absolute path to the root of the storage this TransactionManager
 	// is operating in.
 	storagePath string
@@ -998,6 +1000,7 @@ func NewTransactionManager(
 	ptnID storage.PartitionID,
 	logger log.Logger,
 	db keyvalue.Transactioner,
+	storageName,
 	storagePath,
 	stateDir,
 	stagingDir string,
@@ -1018,6 +1021,7 @@ func NewTransactionManager(
 		closed:               make(chan struct{}),
 		commandFactory:       cmdFactory,
 		repositoryFactory:    repositoryFactory,
+		storageName:          storageName,
 		storagePath:          storagePath,
 		partitionID:          ptnID,
 		db:                   db,

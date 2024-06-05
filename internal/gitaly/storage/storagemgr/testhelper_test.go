@@ -925,7 +925,8 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 	logger := testhelper.NewLogger(t)
 	umask := testhelper.Umask()
 
-	storageScopedFactory, err := setup.RepositoryFactory.ScopeByStorage(setup.Config.Storages[0].Name)
+	storageName := setup.Config.Storages[0].Name
+	storageScopedFactory, err := setup.RepositoryFactory.ScopeByStorage(storageName)
 	require.NoError(t, err)
 	repo := storageScopedFactory.Build(setup.RelativePath)
 
@@ -948,7 +949,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 		// managerRunning tracks whether the manager is running or closed.
 		managerRunning bool
 		// transactionManager is the current TransactionManager instance.
-		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
+		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storageName, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
 		// managerErr is used for synchronizing manager closing and returning
 		// the error from Run.
 		managerErr chan error
@@ -995,7 +996,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.NoError(t, os.RemoveAll(stagingDir))
 			require.NoError(t, os.Mkdir(stagingDir, perm.PrivateDir))
 
-			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
+			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, setup.Config.Storages[0].Name, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
 			installHooks(transactionManager, &inflightTransactions, step.Hooks)
 
 			go func() {

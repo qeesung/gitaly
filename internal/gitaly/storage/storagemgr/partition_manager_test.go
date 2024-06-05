@@ -387,6 +387,7 @@ func TestPartitionManager(t *testing.T) {
 								testPartitionID,
 								logger,
 								storageMgr.database,
+								storageMgr.name,
 								storageMgr.path,
 								absoluteStateDir,
 								stagingDir,
@@ -434,6 +435,7 @@ func TestPartitionManager(t *testing.T) {
 							testPartitionID,
 							logger,
 							storageMgr.database,
+							storageMgr.name,
 							storageMgr.path,
 							absoluteStateDir,
 							stagingDir,
@@ -954,4 +956,56 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 	close(start)
 
 	wg.Wait()
+}
+
+func TestPartitionManager_callLogManager(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg := testcfg.Build(t)
+	logger := testhelper.SharedLogger(t)
+
+	cmdFactory := gittest.NewCommandFactory(t, cfg)
+	catfileCache := catfile.NewCache(cfg)
+	defer catfileCache.Stop()
+
+	localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
+
+	dbMgr, err := keyvalue.NewDBManager(cfg.Storages, keyvalue.NewBadgerStore, helper.NewNullTickerFactory(), logger)
+	require.NoError(t, err)
+
+	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, dbMgr, cfg.Prometheus, nil)
+	require.NoError(t, err)
+
+	defer func() {
+		partitionManager.Close()
+		dbMgr.Close()
+	}()
+
+	storageMgr, ok := partitionManager.storages[cfg.Storages[0].Name]
+	require.True(t, ok)
+
+	ptnID := storage.PartitionID(1)
+	requirePartitionOpen := func(expectOpen bool) {
+		t.Helper()
+
+		storageMgr.mu.Lock()
+		defer storageMgr.mu.Unlock()
+		_, ptnOpen := storageMgr.partitions[ptnID]
+		require.Equal(t, expectOpen, ptnOpen)
+	}
+
+	requirePartitionOpen(false)
+
+	require.NoError(t, partitionManager.CallLogManager(ctx, cfg.Storages[0].Name, ptnID, func(lm LogManager) {
+		requirePartitionOpen(true)
+		tm, ok := lm.(*TransactionManager)
+		require.True(t, ok)
+
+		require.False(t, tm.isClosing())
+	}))
+
+	blockOnPartitionClosing(t, partitionManager)
+	requirePartitionOpen(false)
 }
