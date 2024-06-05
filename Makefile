@@ -132,10 +132,11 @@ GIT_VERSION_2_44 ?= v2.44.1.gl1
 ## The Git version used for bundled Git v2.45.
 GIT_VERSION_2_45 ?= v2.45.1
 
-## Skip overriding the Git version and instead use the Git version as specified
-## in the Git sources. This is required when building Git from a version that
-## cannot be parsed by Gitaly.
-SKIP_OVERRIDING_GIT_VERSION ?=
+## Override the Git version with a custom version if specified. If set to empty
+## we do not add the version file and instead use the Git version as specified i
+## the Git sources. This is useful to build upon Git features which aren't yet
+## part of a release or a version that cannot be parsed by Gitaly (custom refs).
+OVERRIDE_GIT_VERSION ?= ${GIT_VERSION}
 
 # The default version is used in case the caller does not set the variable or
 # if it is either set to the empty string or "default".
@@ -622,13 +623,15 @@ ${DEPENDENCY_DIR}/git-%/Makefile: ${DEPENDENCY_DIR}/git-%.version
 	${Q}${GIT} -C "${@D}" fetch --depth 1 ${GIT_QUIET} origin ${GIT_VERSION}
 	${Q}${GIT} -C "${@D}" reset --hard
 	${Q}${GIT} -C "${@D}" checkout ${GIT_QUIET} --detach FETCH_HEAD
-ifdef SKIP_OVERRIDING_GIT_VERSION
+ifeq ($(OVERRIDE_GIT_VERSION),)
 	${Q}rm -f "${@D}"/version
+	echo "one"
 else
 	@ # We're writing the version into the "version" file in Git's own source
 	@ # directory. If it exists, Git's Makefile will pick it up and use it as
 	@ # the version instead of auto-detecting via git-describe(1).
-	${Q}echo ${GIT_VERSION} >"${@D}"/version
+	${Q}echo ${OVERRIDE_GIT_VERSION} >"${@D}"/version
+	echo "two"
 endif
 	${Q}touch $@
 

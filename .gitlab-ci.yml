@@ -306,7 +306,7 @@ test:nightly:
   <<: *test_definition
   variables:
     <<: *test_variables
-    SKIP_OVERRIDING_GIT_VERSION: "YesPlease"
+    OVERRIDE_GIT_VERSION: ""
   parallel:
     matrix:
       - GIT_VERSION: [ "master", "next" ]
