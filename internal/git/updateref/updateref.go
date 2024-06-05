@@ -394,6 +394,20 @@ func (u *Updater) Update(reference git.ReferenceName, newOID, oldOID git.ObjectI
 	return u.write("update %s\x00%s\x00%s\x00", reference.String(), newOID, oldOID)
 }
 
+// SymrefUpdate is used to do a symbolic reference update. We can potentially provide the oldTarget
+// or the oldOID.
+func (u *Updater) SymrefUpdate(version git.Version, reference, newTarget git.ReferenceName) error {
+	if !version.SupportSymrefUpdates() {
+		return fmt.Errorf("incompatible version for symref-updates")
+	}
+
+	if err := u.expectState(stateStarted); err != nil {
+		return err
+	}
+
+	return u.write("symref-update %s\x00%s\x00\x00\x00", reference.String(), newTarget)
+}
+
 // Create commands the reference to be created with the given object ID. The ref must not exist.
 //
 // A reference transaction must be started before calling Create.
