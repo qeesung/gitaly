@@ -272,8 +272,7 @@ func TestListBlobs(t *testing.T) {
 					blob.Data = nil
 				}
 
-				// This is a bug. Chunked blobs are corrupted.
-				require.NotEqual(t, chunkedBlob, completeBlob)
+				require.Equal(t, chunkedBlob, completeBlob)
 
 				// The first message contains the header.
 				testhelper.ProtoEqual(t, &gitalypb.ListBlobsResponse_Blob{
@@ -402,8 +401,7 @@ func TestListAllBlobs(t *testing.T) {
 					blob.Data = nil
 				}
 
-				// This is a bug. Chunked blobs are corrupted.
-				require.NotEqual(t, chunkedBlob, completeBlob)
+				require.Equal(t, chunkedBlob, completeBlob)
 
 				// The first message contains the header.
 				testhelper.ProtoEqual(t, &gitalypb.ListAllBlobsResponse_Blob{
