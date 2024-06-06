@@ -591,8 +591,6 @@ func TestRepo_UpdateRef(t *testing.T) {
 }
 
 func TestRepo_SetDefaultBranch(t *testing.T) {
-	testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
-
 	t.Parallel()
 
 	testCases := []struct {
@@ -619,6 +617,8 @@ func TestRepo_SetDefaultBranch(t *testing.T) {
 
 			ctx := testhelper.Context(t)
 			cfg, repo, repoPath := setupRepo(t)
+
+			gittest.SkipIfGitVersion(t, ctx, cfg, git.NewVersion(99, 99, 99, 0), "These tests don't work with symref-update")
 
 			gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
 			gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("feature"))
@@ -656,12 +656,12 @@ func TestRepo_SetDefaultBranch(t *testing.T) {
 }
 
 func TestRepo_HeadReference(t *testing.T) {
-	testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
-
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
-	_, repo, _ := setupRepo(t)
+	cfg, repo, _ := setupRepo(t)
+
+	gittest.SkipIfGitVersion(t, ctx, cfg, git.NewVersion(99, 99, 99, 0), "These tests don't work with symref-update")
 
 	referenceName, err := repo.HeadReference(ctx)
 	require.NoError(t, err)
@@ -702,7 +702,8 @@ func TestRepo_SetDefaultBranch_errors(t *testing.T) {
 	t.Run("malformed refname", func(t *testing.T) {
 		t.Parallel()
 
-		_, repo, _ := setupRepo(t)
+		cfg, repo, _ := setupRepo(t)
+		gittest.SkipIfGitVersion(t, ctx, cfg, git.NewVersion(99, 99, 99, 0), "These tests don't work with symref-update")
 
 		err := repo.SetDefaultBranch(ctx, &transaction.MockManager{}, "./.lock")
 		require.EqualError(t, err, `"./.lock" is a malformed refname`)
@@ -711,7 +712,8 @@ func TestRepo_SetDefaultBranch_errors(t *testing.T) {
 	t.Run("HEAD is locked by another process", func(t *testing.T) {
 		t.Parallel()
 
-		_, repo, _ := setupRepo(t)
+		cfg, repo, _ := setupRepo(t)
+		gittest.SkipIfGitVersion(t, ctx, cfg, git.NewVersion(99, 99, 99, 0), "These tests don't work with symref-update")
 
 		ref, err := repo.HeadReference(ctx)
 		require.NoError(t, err)
@@ -743,7 +745,8 @@ func TestRepo_SetDefaultBranch_errors(t *testing.T) {
 
 		require.NoError(t, err)
 
-		_, repo, _ := setupRepo(t)
+		cfg, repo, _ := setupRepo(t)
+		gittest.SkipIfGitVersion(t, ctx, cfg, git.NewVersion(99, 99, 99, 0), "These tests don't work with symref-update")
 
 		ch := make(chan struct{})
 		doneCh := make(chan struct{})
@@ -778,7 +781,8 @@ func TestRepo_SetDefaultBranch_errors(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		_, repo, repoPath := setupRepo(t)
+		cfg, repo, repoPath := setupRepo(t)
+		gittest.SkipIfGitVersion(t, ctx, cfg, git.NewVersion(99, 99, 99, 0), "These tests don't work with symref-update")
 
 		failingTxManager := &transaction.MockManager{
 			VoteFn: func(context.Context, txinfo.Transaction, voting.Vote, voting.Phase) error {

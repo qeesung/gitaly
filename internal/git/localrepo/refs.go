@@ -151,12 +151,52 @@ func (repo *Repo) UpdateRef(ctx context.Context, reference git.ReferenceName, ne
 // SetDefaultBranch sets the repository's HEAD to point to the given reference.
 // It will not verify the reference actually exists.
 func (repo *Repo) SetDefaultBranch(ctx context.Context, txManager transaction.Manager, reference git.ReferenceName) error {
-	return repo.setDefaultBranchWithTransaction(ctx, txManager, reference)
+	version, err := repo.GitVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("detecting Git version: %w", err)
+	}
+
+	if version.SupportSymrefUpdates() {
+		return repo.setDefaultBranchWithUpdateRef(ctx, txManager, reference, version)
+	}
+
+	return repo.setDefaultBranchManually(ctx, txManager, reference)
+}
+
+// setDefaultBranchWithUpdateRef uses 'symref-update' command to update HEAD.
+func (repo *Repo) setDefaultBranchWithUpdateRef(
+	ctx context.Context,
+	txManager transaction.Manager,
+	reference git.ReferenceName,
+	version git.Version,
+) error {
+	updater, err := updateref.New(ctx, repo, updateref.WithNoDeref())
+	if err != nil {
+		return fmt.Errorf("creating updateref: %w", err)
+	}
+
+	if err := updater.Start(); err != nil {
+		return fmt.Errorf("start: %w", err)
+	}
+
+	if err := updater.SymrefUpdate(version, "HEAD", reference); err != nil {
+		return fmt.Errorf("update: %w", err)
+	}
+
+	if err := updater.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
+	if err := updater.Close(); err != nil {
+		return fmt.Errorf("close: %w", err)
+	}
+
+	return nil
 }
 
 // setDefaultBranchWithTransaction sets the repository's HEAD to point to the given reference
 // using a safe locking file writer and commits the transaction if one exists in the context
-func (repo *Repo) setDefaultBranchWithTransaction(ctx context.Context, txManager transaction.Manager, reference git.ReferenceName) error {
+func (repo *Repo) setDefaultBranchManually(ctx context.Context, txManager transaction.Manager, reference git.ReferenceName) error {
 	if err := git.ValidateReference(reference.String()); err != nil {
 		return fmt.Errorf("%q is a malformed refname", reference)
 	}
