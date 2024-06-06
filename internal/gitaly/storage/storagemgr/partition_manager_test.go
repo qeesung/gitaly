@@ -33,6 +33,30 @@ type stoppedTransactionManager struct{ transactionManager }
 
 func (stoppedTransactionManager) Run() error { return nil }
 
+// blockOnPartitionClosing checks if any partitions are currently in the process of
+// closing. If some are, the function waits for the closing process to complete before
+// continuing. This is required in order to accurately validate partition state.
+func blockOnPartitionClosing(t *testing.T, pm *PartitionManager) {
+	t.Helper()
+
+	var waitFor []chan struct{}
+	for _, sp := range pm.storages {
+		sp.mu.Lock()
+		for _, ptn := range sp.partitions {
+			// The closePartition step closes the transaction manager directly without calling close
+			// on the partition, so we check the manager directly here as well.
+			if ptn.isClosing() || ptn.transactionManager.isClosing() {
+				waitFor = append(waitFor, ptn.transactionManagerClosed)
+			}
+		}
+		sp.mu.Unlock()
+	}
+
+	for _, closed := range waitFor {
+		<-closed
+	}
+}
+
 func TestPartitionManager(t *testing.T) {
 	t.Parallel()
 
@@ -102,30 +126,6 @@ func TestPartitionManager(t *testing.T) {
 	// closeManager closes the partition manager. This is done to simulate errors for transactions
 	// being processed without a running partition manager.
 	type closeManager struct{}
-
-	// blockOnPartitionClosing checks if any partitions are currently in the process of
-	// closing. If some are, the function waits for the closing process to complete before
-	// continuing. This is required in order to accurately validate partition state.
-	blockOnPartitionClosing := func(t *testing.T, pm *PartitionManager) {
-		t.Helper()
-
-		var waitFor []chan struct{}
-		for _, sp := range pm.storages {
-			sp.mu.Lock()
-			for _, ptn := range sp.partitions {
-				// The closePartition step closes the transaction manager directly without calling close
-				// on the partition, so we check the manager directly here as well.
-				if ptn.isClosing() || ptn.transactionManager.isClosing() {
-					waitFor = append(waitFor, ptn.transactionManagerClosed)
-				}
-			}
-			sp.mu.Unlock()
-		}
-
-		for _, closed := range waitFor {
-			<-closed
-		}
-	}
 
 	// checkExpectedState validates that the partition manager contains the correct partitions and
 	// associated transaction count at the point of execution.
