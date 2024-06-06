@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package gitaly;
+
+option go_package = "gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb";
+
+// Cluster represents the metadata of a Raft Cluster.
+message Cluster {
+  // cluster_id is the cluster's UUID. It's used to verify that a storage has joined the correct
+  // cluster.
+  string cluster_id = 1;
+  // next_storage_id is a monotonically increasing value used to identify new storages. Whenever a
+  // storage joins the cluster, a new ID is allocated to that storage and is used for subsequent
+  // connections to the cluster.
+  uint64 next_storage_id = 2;
+  // storages is a map of storage identifiers to Storage messages, representing all the storages in the cluster.
+  map<uint64, Storage> storages = 3;
+}
+
+// Storage represents a storage unit within a cluster.
+message Storage {
+  // storage_id is the unique identifier for the storage.
+  uint64 storage_id = 1;
+  // name is the human-readable name of the storage.
+  string name = 2;
+  // replica_groups is a list of identifiers for the replica groups associated with this storage.
+  repeated uint64 replica_groups = 3;
+}
+
+// LeaderState represents the current leader state of a Raft group.
+message LeaderState {
+  // group_id is the identifier of the Raft group.
+  uint64 group_id = 1;
+  // leader_id is the replica ID of the current leader. The replica ID of a group member varies,
+  // depends on the type of the Raft group.
+  uint64 leader_id = 2;
+  // term is a monotonically increasing value used for leader elections.
+  uint64 term = 3;
+  // valid indicates whether the leader state represented by this message is
+  // currently valid or not.
+  bool valid = 4;
+}
+
+// BootstrapClusterRequest is the request message for creating a new cluster.
+message BootstrapClusterRequest {
+  // cluster_id is the unique identifier for the new cluster.
+  string cluster_id = 1;
+}
+
+// BootstrapClusterResponse is the response message for creating a new cluster.
+message BootstrapClusterResponse {
+  // cluster contains the details of the newly created cluster.
+  Cluster cluster = 1;
+}
+
+// GetClusterRequest is the request message for retrieving information about a cluster.
+message GetClusterRequest {
+}
+
+// GetClusterResponse is the response message for retrieving information about a cluster.
+message GetClusterResponse{
+  // cluster contains the details of the requested cluster.
+  Cluster cluster = 1;
+}
+
+// RegisterStorageRequest is the request message for registering a new storage in a cluster.
+message RegisterStorageRequest {
+  // storage_name is the human-readable name of the new storage.
+  string storage_name = 1;
+}
+
+// RegisterStorageResponse is the response message for registering a new storage in a cluster.
+message RegisterStorageResponse {
+  // storage contains the details of the newly registered storage.
+  Storage storage = 1;
+}
