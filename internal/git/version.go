@@ -117,6 +117,11 @@ func (v Version) LessThan(other Version) bool {
 	}
 }
 
+// Equal determines whether the version is the same as another version.
+func (v Version) Equal(other Version) bool {
+	return v == other
+}
+
 // GreaterOrEqual determines whether the version is newer than or equal to another version.
 func (v Version) GreaterOrEqual(other Version) bool {
 	return !v.LessThan(other)
