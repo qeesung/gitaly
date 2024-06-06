@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,19 +15,11 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
-	"gitlab.com/gitlab-org/gitaly/v16/streamio"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestListBlobs(t *testing.T) {
-	// In order to get deterministic behaviour with regards to how streamio splits up values,
-	// we're going to limit the write batch size to something smallish. Otherwise, tests will
-	// depend on both the batch size of streamio and the batch size of io.Copy.
-	defer func(oldValue int) {
-		streamio.WriteBufferSize = oldValue
-	}(streamio.WriteBufferSize)
-	streamio.WriteBufferSize = 200
 	ctx := testhelper.Context(t)
 
 	cfg, client := setup(t, ctx)
@@ -40,9 +33,6 @@ func TestListBlobs(t *testing.T) {
 	blobBData := bytes.Repeat([]byte{'b'}, int(blobBSize))
 	blobBOID := gittest.WriteBlob(t, cfg, repoPath, blobBData)
 
-	bigBlobData := bytes.Repeat([]byte{1}, streamio.WriteBufferSize*2+1)
-	bigBlobOID := gittest.WriteBlob(t, cfg, repoPath, bigBlobData)
-
 	treeOID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
 		{Path: "a", Mode: "100644", OID: blobAOID},
 		{Path: "b", Mode: "100644", OID: blobBOID},
@@ -53,6 +43,14 @@ func TestListBlobs(t *testing.T) {
 		gittest.WithBranch("master"),
 	)
 
+	// Test with a large blob to ensure the response is correctly chunked. Use 8MiB
+	// to ensure we exceed maximum gRPC message size of 4MiB.
+	var chunkedBlob []byte
+	for i := 0; len(chunkedBlob) <= 8*1024*1024; i++ {
+		chunkedBlob = append(chunkedBlob, []byte(strconv.Itoa(i)+"\n")...)
+	}
+	chunkedBlobID := gittest.WriteBlob(t, cfg, repoPath, chunkedBlob)
+
 	for _, tc := range []struct {
 		desc          string
 		revisions     []string
@@ -61,6 +59,7 @@ func TestListBlobs(t *testing.T) {
 		withPaths     bool
 		expectedErr   error
 		expectedBlobs []*gitalypb.ListBlobsResponse_Blob
+		verify        func(*testing.T, []*gitalypb.ListBlobsResponse_Blob)
 	}{
 		{
 			desc:        "missing revisions",
@@ -263,17 +262,31 @@ func TestListBlobs(t *testing.T) {
 			},
 		},
 		{
-			desc: "blob with content bigger than a gRPC message",
-			revisions: []string{
-				bigBlobOID.String(),
-				repoInfo.lfsPointers[0].Oid,
-			},
+			desc:       "blob with content bigger than a gRPC message",
 			bytesLimit: -1,
-			expectedBlobs: []*gitalypb.ListBlobsResponse_Blob{
-				{Oid: bigBlobOID.String(), Size: int64(len(bigBlobData)), Data: bigBlobData[:streamio.WriteBufferSize]},
-				{Data: bigBlobData[streamio.WriteBufferSize : 2*streamio.WriteBufferSize]},
-				{Data: bigBlobData[2*streamio.WriteBufferSize:]},
-				{Oid: repoInfo.lfsPointers[0].Oid, Size: repoInfo.lfsPointers[0].Size, Data: repoInfo.lfsPointers[0].Data},
+			revisions:  []string{chunkedBlobID.String()},
+			verify: func(t *testing.T, blobs []*gitalypb.ListBlobsResponse_Blob) {
+				completeBlob := make([]byte, 0, len(chunkedBlob))
+				for _, blob := range blobs {
+					completeBlob = append(completeBlob, blob.Data...)
+					blob.Data = nil
+				}
+
+				require.Equal(t, chunkedBlob, completeBlob)
+
+				// The first message contains the header.
+				testhelper.ProtoEqual(t, &gitalypb.ListBlobsResponse_Blob{
+					Oid:  chunkedBlobID.String(),
+					Size: int64(len(chunkedBlob)),
+				}, blobs[0])
+
+				require.Greater(t, len(blobs), 1, "expected a chunked response")
+
+				// The rest are just data chunks. The actual number doesn't matter as it
+				// depends on the buffer sizes used.
+				for _, blob := range blobs[1:] {
+					testhelper.ProtoEqual(t, &gitalypb.ListBlobsResponse_Blob{}, blob)
+				}
 			},
 		},
 	} {
@@ -298,6 +311,11 @@ func TestListBlobs(t *testing.T) {
 				}
 
 				blobs = append(blobs, resp.Blobs...)
+			}
+
+			if tc.verify != nil {
+				tc.verify(t, blobs)
+				return
 			}
 
 			testhelper.ProtoEqual(t, tc.expectedBlobs, blobs)
@@ -333,6 +351,15 @@ func TestListAllBlobs(t *testing.T) {
 	singleBlobRepo, singleBlobRepoPath := gittest.CreateRepository(t, ctx, cfg)
 	blobID := gittest.WriteBlob(t, cfg, singleBlobRepoPath, []byte("foobar"))
 
+	// Test with a large blob to ensure the response is correctly chunked. Use 8MiB
+	// to ensure we exceed maximum gRPC message size of 4MiB.
+	chunkedBlobRepo, chunkedBlobRepoPath := gittest.CreateRepository(t, ctx, cfg)
+	var chunkedBlob []byte
+	for i := 0; len(chunkedBlob) <= 8*1024*1024; i++ {
+		chunkedBlob = append(chunkedBlob, []byte(strconv.Itoa(i)+"\n")...)
+	}
+	chunkedBlobID := gittest.WriteBlob(t, cfg, chunkedBlobRepoPath, chunkedBlob)
+
 	for _, tc := range []struct {
 		desc    string
 		request *gitalypb.ListAllBlobsRequest
@@ -359,6 +386,36 @@ func TestListAllBlobs(t *testing.T) {
 					Size: 6,
 					Data: []byte("foobar"),
 				}}, blobs)
+			},
+		},
+		{
+			desc: "blob with content bigger than a gRPC message",
+			request: &gitalypb.ListAllBlobsRequest{
+				Repository: chunkedBlobRepo,
+				BytesLimit: -1,
+			},
+			verify: func(t *testing.T, blobs []*gitalypb.ListAllBlobsResponse_Blob) {
+				completeBlob := make([]byte, 0, len(chunkedBlob))
+				for _, blob := range blobs {
+					completeBlob = append(completeBlob, blob.Data...)
+					blob.Data = nil
+				}
+
+				require.Equal(t, chunkedBlob, completeBlob)
+
+				// The first message contains the header.
+				testhelper.ProtoEqual(t, &gitalypb.ListAllBlobsResponse_Blob{
+					Oid:  chunkedBlobID.String(),
+					Size: int64(len(chunkedBlob)),
+				}, blobs[0])
+
+				require.Greater(t, len(blobs), 1, "expected a chunked response")
+
+				// The rest are just data chunks. The actual number doesn't matter as it
+				// depends on the buffer sizes used.
+				for _, blob := range blobs[1:] {
+					testhelper.ProtoEqual(t, &gitalypb.ListAllBlobsResponse_Blob{}, blob)
+				}
 			},
 		},
 		{
