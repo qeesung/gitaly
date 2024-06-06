@@ -18,7 +18,7 @@ able to derive required information:
 
 - We inject the `core.hooksPath` config entry, which points to the directory
   containing our global hooks. Global hooks are set up as a temporary directory
-  containing symlinks to a wrapper script which is able to locato the
+  containing symlinks to a wrapper script which is able to locate the
   `gitaly-hooks` executable.
 - We inject `GITALY_HOOKS_PAYLOAD`, which contains JSON-formatted data. This
   payload encodes various information:
