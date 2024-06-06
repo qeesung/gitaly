@@ -117,6 +117,26 @@ func (v Version) LessThan(other Version) bool {
 	}
 }
 
+// Equal determines whether the version is the same as another version.
+func (v Version) Equal(other Version) bool {
+	switch {
+	case v.major != other.major:
+		return false
+	case v.minor != other.minor:
+		return false
+	case v.patch != other.patch:
+		return false
+	case v.rc != other.rc:
+		return false
+	case v.gl != other.gl:
+		return false
+
+	default:
+		// this should only be reachable when versions are equal
+		return true
+	}
+}
+
 // GreaterOrEqual determines whether the version is newer than or equal to another version.
 func (v Version) GreaterOrEqual(other Version) bool {
 	return !v.LessThan(other)
