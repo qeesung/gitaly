@@ -24,6 +24,7 @@ type Transaction interface {
 	Repack(housekeepingcfg.RepackObjectsConfig)
 	WriteCommitGraphs(housekeepingcfg.WriteCommitGraphConfig)
 	SnapshotLSN() storage.LSN
+	Root() string
 }
 
 type keyTransaction struct{}

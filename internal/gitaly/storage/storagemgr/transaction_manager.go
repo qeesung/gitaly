@@ -569,6 +569,11 @@ func (txn *Transaction) SnapshotLSN() storage.LSN {
 	return txn.snapshotLSN
 }
 
+// Root returns the path to the read snapshot.
+func (txn *Transaction) Root() string {
+	return txn.snapshot.root
+}
+
 // SkipVerificationFailures configures the transaction to skip reference updates that fail verification.
 // If a reference update fails verification with this set, the update is dropped from the transaction but
 // other successful reference updates will be made. By default, the entire transaction is aborted if a
