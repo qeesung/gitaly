@@ -15,7 +15,7 @@ func (p prefixedTransactioner) NewTransaction(readWrite bool) Transaction {
 	txn := p.transactioner.NewTransaction(readWrite)
 
 	return prefixedTransaction{
-		ReadWriter:  newPrefixedReadWriter(txn, p.prefix),
+		ReadWriter:  NewPrefixedReadWriter(txn, p.prefix),
 		transaction: txn,
 		prefix:      p.prefix,
 	}
@@ -30,13 +30,13 @@ func (p prefixedTransactioner) NewWriteBatch() WriteBatch {
 
 func (p prefixedTransactioner) Update(handle func(ReadWriter) error) error {
 	return p.transactioner.Update(func(txn ReadWriter) error {
-		return handle(newPrefixedReadWriter(txn, p.prefix))
+		return handle(NewPrefixedReadWriter(txn, p.prefix))
 	})
 }
 
 func (p prefixedTransactioner) View(handle func(ReadWriter) error) error {
 	return p.transactioner.View(func(txn ReadWriter) error {
-		return handle(newPrefixedReadWriter(txn, p.prefix))
+		return handle(NewPrefixedReadWriter(txn, p.prefix))
 	})
 }
 
@@ -80,7 +80,9 @@ type prefixedReadWriter struct {
 	prefix     []byte
 }
 
-func newPrefixedReadWriter(readWriter ReadWriter, prefix []byte) ReadWriter {
+// NewPrefixedReadWriter returns ReadWriter that wraps the given read writer
+// and prefixes every key with the given prefix.
+func NewPrefixedReadWriter(readWriter ReadWriter, prefix []byte) ReadWriter {
 	return prefixedReadWriter{
 		readWriter: readWriter,
 		prefix:     prefix,

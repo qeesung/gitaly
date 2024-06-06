@@ -88,6 +88,7 @@ var (
 	errReadOnlyRepositoryDeletion  = errors.New("repository deletion staged in a read-only transaction")
 	errReadOnlyObjectsIncluded     = errors.New("objects staged in a read-only transaction")
 	errReadOnlyHousekeeping        = errors.New("housekeeping in a read-only transaction")
+	errReadOnlyKeyValue            = errors.New("key-value writes in a read-only transaction")
 
 	// keyAppliedLSN is the database key storing a partition's last applied log entry's LSN.
 	keyAppliedLSN = []byte("applied_lsn")
@@ -102,6 +103,12 @@ type InvalidReferenceFormatError struct {
 // Error returns the formatted error string.
 func (err InvalidReferenceFormatError) Error() string {
 	return fmt.Sprintf("invalid reference format: %q", err.ReferenceName)
+}
+
+// newConflictingKeyValueOperationError returns an error that is raised when a transaction
+// attempts to commit a key-value operation that conflicted with other concurrently committed transactions.
+func newConflictingKeyValueOperationError(key string) error {
+	return structerr.NewAborted("conflicting key-value operations").WithMetadata("key", key)
 }
 
 // ReferenceVerificationError is returned when a reference's old OID did not match the expected.
@@ -245,9 +252,16 @@ type Transaction struct {
 	// snapshotLSN is the log sequence number which this transaction is reading the repository's
 	// state at.
 	snapshotLSN storage.LSN
-	// snapshot is the transaction's snapshot of the partition. It's used to rewrite relative paths to
-	// point to the snapshot instead of the actual repositories.
+	// snapshot is the transaction's snapshot of the partition file system state. It's used to rewrite
+	// relative paths to point to the snapshot instead of the actual repositories.
 	snapshot snapshot
+	// db is the transaction's snapshot of the partition's key-value state. The keyvalue.Transaction is
+	// discarded when the transaction finishes. The recorded writes are write-ahead logged and applied
+	// to the partition from the WAL.
+	db keyvalue.Transaction
+	// recordingReadWriter is a ReadWriter operating on db that also records operations performed. This
+	// is used to record the operations performed so they can be conflict checked and write-ahead logged.
+	recordingReadWriter keyvalue.RecordingReadWriter
 	// stagingRepository is a repository that is used to stage the transaction. If there are quarantined
 	// objects, it has the quarantine applied so the objects are available for verification and packing.
 	// Generally the staging repository is the actual repository instance. If the repository doesn't exist
@@ -342,6 +356,10 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 	txn.finish = func() error {
 		defer close(txn.finished)
 		defer func() {
+			if txn.db != nil {
+				txn.db.Discard()
+			}
+
 			if !txn.readOnly {
 				var removedAnyEntry bool
 
@@ -425,6 +443,9 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 			}
 		}
 
+		txn.db = mgr.db.NewTransaction(!txn.readOnly)
+		txn.recordingReadWriter = keyvalue.NewRecordingReadWriter(txn.db)
+
 		return txn, nil
 	}
 }
@@ -505,6 +526,8 @@ func (txn *Transaction) Commit(ctx context.Context) (returnedErr error) {
 			return errReadOnlyObjectsIncluded
 		case txn.runHousekeeping != nil:
 			return errReadOnlyHousekeeping
+		case len(txn.recordingReadWriter.WriteSet()) > 0:
+			return errReadOnlyKeyValue
 		default:
 			return nil
 		}
@@ -711,6 +734,11 @@ func (txn *Transaction) IncludeObject(oid git.ObjectID) {
 	}
 
 	txn.includedObjects[oid] = struct{}{}
+}
+
+// KV returns a handle to the key-value store snapshot of the transaction.
+func (txn *Transaction) KV() keyvalue.ReadWriter {
+	return keyvalue.NewPrefixedReadWriter(txn.recordingReadWriter, []byte("kv/"))
 }
 
 // MarkAlternateUpdated hints to the transaction manager that  'objects/info/alternates' file has been updated or
@@ -2017,6 +2045,10 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 			logEntry.Housekeeping = housekeepingEntry
 		}
 
+		if err := mgr.verifyKeyValueOperations(transaction); err != nil {
+			return fmt.Errorf("verify key-value operations: %w", err)
+		}
+
 		logEntry.Operations = transaction.walEntry.Operations()
 
 		return mgr.appendLogEntry(transaction.objectDependencies, logEntry, transaction.walFilesPath())
@@ -2026,6 +2058,63 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 	}
 
 	mgr.awaitingTransactions[mgr.appendedLSN] = transaction.result
+
+	return nil
+}
+
+// verifyKeyValueOperations checks the key-value operations of the transaction for conflicts and includes
+// them in the log entry. The conflict checking ensures serializability. Transaction is considered to
+// conflict if it read a key a concurrently committed transaction set or deleted. Iterated key prefixes
+// are predicate locked.
+func (mgr *TransactionManager) verifyKeyValueOperations(tx *Transaction) error {
+	if readSet := tx.recordingReadWriter.ReadSet(); len(readSet) > 0 {
+		if err := mgr.walkCommittedEntries(tx, func(entry *gitalypb.LogEntry, _ map[git.ObjectID]struct{}) error {
+			for _, op := range entry.Operations {
+				var key []byte
+				switch op := op.Operation.(type) {
+				case *gitalypb.LogEntry_Operation_SetKey_:
+					key = op.SetKey.Key
+				case *gitalypb.LogEntry_Operation_DeleteKey_:
+					key = op.DeleteKey.Key
+				}
+
+				stringKey := string(key)
+				if _, ok := readSet[stringKey]; ok {
+					return newConflictingKeyValueOperationError(stringKey)
+				}
+
+				for prefix := range tx.recordingReadWriter.PrefixesRead() {
+					if bytes.HasPrefix(key, []byte(prefix)) {
+						return newConflictingKeyValueOperationError(stringKey)
+					}
+				}
+			}
+
+			return nil
+		}); err != nil {
+			return fmt.Errorf("walking committed entries: %w", err)
+		}
+	}
+
+	for key := range tx.recordingReadWriter.WriteSet() {
+		key := []byte(key)
+		item, err := tx.db.Get(key)
+		if err != nil {
+			if errors.Is(err, badger.ErrKeyNotFound) {
+				tx.walEntry.DeleteKey(key)
+				continue
+			}
+
+			return fmt.Errorf("get: %w", err)
+		}
+
+		value, err := item.ValueCopy(nil)
+		if err != nil {
+			return fmt.Errorf("value copy: %w", err)
+		}
+
+		tx.walEntry.SetKey(key, value)
+	}
 
 	return nil
 }
@@ -2909,7 +2998,7 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn storage.LS
 
 	mgr.testHooks.beforeApplyLogEntry()
 
-	if err := applyOperations(safe.NewSyncer().Sync, mgr.storagePath, walFilesPathForLSN(mgr.stateDirectory, lsn), logEntry); err != nil {
+	if err := applyOperations(safe.NewSyncer().Sync, mgr.storagePath, walFilesPathForLSN(mgr.stateDirectory, lsn), logEntry, mgr.db); err != nil {
 		return fmt.Errorf("apply operations: %w", err)
 	}
 

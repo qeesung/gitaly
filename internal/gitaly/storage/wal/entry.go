@@ -55,6 +55,16 @@ func (e *Entry) stageFile(path string) (string, error) {
 	return fileName, nil
 }
 
+// SetKey adds an operation to set a key with a value in the partition's key-value store.
+func (e *Entry) SetKey(key, value []byte) {
+	e.operations.setKey(key, value)
+}
+
+// DeleteKey adds an operation to delete a key from the partition's key-value store.
+func (e *Entry) DeleteKey(key []byte) {
+	e.operations.deleteKey(key)
+}
+
 // RecordFileCreation stages the file at the source and adds an operation to link it
 // to the given destination relative path in the storage.
 func (e *Entry) RecordFileCreation(sourceAbsolutePath string, relativePath string) error {

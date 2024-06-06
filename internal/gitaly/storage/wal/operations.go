@@ -54,3 +54,26 @@ func (ops *operations) removeDirectoryEntry(relativePath string) {
 		},
 	})
 }
+
+// setKey appends an operation to set a key with a value in the key-value store.
+func (ops *operations) setKey(key, value []byte) {
+	ops.append(&gitalypb.LogEntry_Operation{
+		Operation: &gitalypb.LogEntry_Operation_SetKey_{
+			SetKey: &gitalypb.LogEntry_Operation_SetKey{
+				Key:   key,
+				Value: value,
+			},
+		},
+	})
+}
+
+// deleteKey appends an operation to delete a key from the key-value store.
+func (ops *operations) deleteKey(key []byte) {
+	ops.append(&gitalypb.LogEntry_Operation{
+		Operation: &gitalypb.LogEntry_Operation_DeleteKey_{
+			DeleteKey: &gitalypb.LogEntry_Operation_DeleteKey{
+				Key: key,
+			},
+		},
+	})
+}

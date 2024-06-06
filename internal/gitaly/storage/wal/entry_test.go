@@ -202,6 +202,23 @@ func TestEntry(t *testing.T) {
 				"/": {Mode: fs.ModeDir | rootDirPerm},
 			},
 		},
+		{
+			desc: "key value operations",
+			run: func(t *testing.T, entry *Entry) {
+				entry.SetKey([]byte("set-key"), []byte("value"))
+				entry.DeleteKey([]byte("deleted-key"))
+			},
+			expectedOperations: func() operations {
+				var ops operations
+				ops.removeDirectoryEntry("sentinel-op")
+				ops.setKey([]byte("set-key"), []byte("value"))
+				ops.deleteKey([]byte("deleted-key"))
+				return ops
+			}(),
+			expectedFiles: testhelper.DirectoryState{
+				"/": {Mode: fs.ModeDir | perm.SharedDir},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
