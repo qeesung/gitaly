@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -19,7 +18,6 @@ import (
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/safe"
@@ -61,20 +59,6 @@ type PartitionManager struct {
 	metrics *metrics
 }
 
-// DatabaseOpener is responsible for opening a database handle.
-type DatabaseOpener interface {
-	// OpenDatabase opens a database at the given path.
-	OpenDatabase(log.Logger, string) (keyvalue.Store, error)
-}
-
-// DatabaseOpenerFunc is a function that implements DatabaseOpener.
-type DatabaseOpenerFunc func(log.Logger, string) (keyvalue.Store, error)
-
-// OpenDatabase opens a handle to the database at the given path.
-func (fn DatabaseOpenerFunc) OpenDatabase(logger log.Logger, path string) (keyvalue.Store, error) {
-	return fn(logger, path)
-}
-
 // storageManager represents a single storage.
 type storageManager struct {
 	// mu synchronizes access to the fields of storageManager.
@@ -91,8 +75,6 @@ type storageManager struct {
 	// closed tracks whether the storageManager has been closed. If it is closed,
 	// no new transactions are allowed to begin.
 	closed bool
-	// stopGC stops the garbage collection and waits for it to return.
-	stopGC func()
 	// db is the handle to the key-value store used for storing the storage's database state.
 	database keyvalue.Store
 	// partitionAssigner manages partition assignments of repositories.
@@ -119,13 +101,6 @@ func (sm *storageManager) close() {
 
 	if err := sm.partitionAssigner.Close(); err != nil {
 		sm.logger.WithError(err).Error("failed closing partition assigner")
-	}
-
-	// Wait until the database's garbage collection goroutine has returned.
-	sm.stopGC()
-
-	if err := sm.database.Close(); err != nil {
-		sm.logger.WithError(err).Error("failed closing storage's database")
 	}
 }
 
@@ -219,8 +194,7 @@ func NewPartitionManager(
 	cmdFactory git.CommandFactory,
 	localRepoFactory localrepo.Factory,
 	logger log.Logger,
-	dbOpener DatabaseOpener,
-	gcTickerFactory helper.TickerFactory,
+	dbMgr *keyvalue.DBManager,
 	promCfg gitalycfgprom.Config,
 	logConsumer LogConsumer,
 ) (*PartitionManager, error) {
@@ -243,19 +217,10 @@ func NewPartitionManager(
 			return nil, fmt.Errorf("create storage's staging directory: %w", err)
 		}
 
-		databaseDir := filepath.Join(internalDir, "database")
-		if err := os.MkdirAll(databaseDir, perm.PrivateDir); err != nil && !errors.Is(err, fs.ErrExist) {
-			return nil, fmt.Errorf("create storage's database directory: %w", err)
-		}
-
-		if err := safe.NewSyncer().SyncHierarchy(internalDir, "database"); err != nil {
-			return nil, fmt.Errorf("sync database directory: %w", err)
-		}
-
 		storageLogger := logger.WithField("storage", configuredStorage.Name)
-		db, err := dbOpener.OpenDatabase(storageLogger.WithField("component", "database"), databaseDir)
+		db, err := dbMgr.GetDB(configuredStorage.Name)
 		if err != nil {
-			return nil, fmt.Errorf("create storage's database directory: %w", err)
+			return nil, err
 		}
 
 		pa, err := newPartitionAssigner(db, configuredStorage.Path)
@@ -263,66 +228,11 @@ func NewPartitionManager(
 			return nil, fmt.Errorf("new partition assigner: %w", err)
 		}
 
-		gcCtx, stopGC := context.WithCancel(context.Background())
-		gcStopped := make(chan struct{})
-		go func() {
-			defer func() {
-				storageLogger.Info("value log garbage collection goroutine stopped")
-				close(gcStopped)
-			}()
-
-			// Configure the garbage collection discard ratio at 0.5. This means the value log is garbage
-			// collected if we can reclaim more than half of the space.
-			const gcDiscardRatio = 0.5
-
-			ticker := gcTickerFactory.NewTicker()
-			for {
-				storageLogger.Info("value log garbage collection started")
-
-				for {
-					if err := db.RunValueLogGC(gcDiscardRatio); err != nil {
-						if errors.Is(err, badger.ErrNoRewrite) {
-							// No log files were rewritten. This means there was nothing
-							// to garbage collect.
-							break
-						}
-
-						storageLogger.WithError(err).Error("value log garbage collection failed")
-						break
-					}
-
-					// Log files were garbage collected. Check immediately if there are more
-					// files that need garbage collection.
-					storageLogger.Info("value log file garbage collected")
-
-					if gcCtx.Err() != nil {
-						// As we'd keep going until no log files were rewritten, break the loop
-						// if GC has run.
-						break
-					}
-				}
-
-				storageLogger.Info("value log garbage collection finished")
-
-				ticker.Reset()
-				select {
-				case <-ticker.C():
-				case <-gcCtx.Done():
-					ticker.Stop()
-					return
-				}
-			}
-		}()
-
 		storages[configuredStorage.Name] = &storageManager{
-			logger:           storageLogger,
-			path:             configuredStorage.Path,
-			repoFactory:      repoFactory,
-			stagingDirectory: stagingDir,
-			stopGC: func() {
-				stopGC()
-				<-gcStopped
-			},
+			logger:            storageLogger,
+			path:              configuredStorage.Path,
+			repoFactory:       repoFactory,
+			stagingDirectory:  stagingDir,
 			database:          db,
 			partitionAssigner: pa,
 			partitions:        map[storage.PartitionID]*partition{},
