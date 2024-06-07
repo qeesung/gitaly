@@ -141,10 +141,10 @@ func TestExecCommandFactory_gitConfiguration(t *testing.T) {
 	}
 
 	var fsckSymlinkConfig []string
-	if gitVersion.GreaterOrEqual(git.NewVersion(2, 45, 1, 0)) ||
-		(gitVersion.GreaterOrEqual(git.NewVersion(2, 44, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 45, 0, 0))) ||
-		(gitVersion.GreaterOrEqual(git.NewVersion(2, 43, 4, 0)) && gitVersion.LessThan(git.NewVersion(2, 44, 0, 0))) ||
-		(gitVersion.GreaterOrEqual(git.NewVersion(2, 42, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 43, 0, 0))) {
+	if (gitVersion.GreaterOrEqual(git.NewVersion(2, 45, 1, 0))) && gitVersion.LessThan(git.NewVersion(2, 45, 2, 0)) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 44, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 44, 2, 0))) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 43, 4, 0)) && gitVersion.LessThan(git.NewVersion(2, 43, 5, 0))) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 42, 2, 0)) && gitVersion.LessThan(git.NewVersion(2, 42, 3, 0))) {
 		fsckSymlinkConfig = []string{
 			"fsck.symlinkpointstogitdir=ignore",
 			"fetch.fsck.symlinkpointstogitdir=ignore",
@@ -775,10 +775,10 @@ func TestExecCommandFactory_config(t *testing.T) {
 	gitVersion, err := gitCmdFactory.GitVersion(ctx)
 	require.NoError(t, err)
 
-	if gitVersion.GreaterOrEqual(git.NewVersion(2, 45, 1, 0)) ||
-		(gitVersion.GreaterOrEqual(git.NewVersion(2, 44, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 45, 0, 0))) ||
-		(gitVersion.GreaterOrEqual(git.NewVersion(2, 43, 4, 0)) && gitVersion.LessThan(git.NewVersion(2, 44, 0, 0))) ||
-		(gitVersion.GreaterOrEqual(git.NewVersion(2, 42, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 43, 0, 0))) {
+	if (gitVersion.GreaterOrEqual(git.NewVersion(2, 45, 1, 0))) && gitVersion.LessThan(git.NewVersion(2, 45, 2, 0)) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 44, 1, 0)) && gitVersion.LessThan(git.NewVersion(2, 44, 2, 0))) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 43, 4, 0)) && gitVersion.LessThan(git.NewVersion(2, 43, 5, 0))) ||
+		(gitVersion.GreaterOrEqual(git.NewVersion(2, 42, 2, 0)) && gitVersion.LessThan(git.NewVersion(2, 42, 3, 0))) {
 		expectedEnv = append(expectedEnv,
 			"fsck.symlinkpointstogitdir=ignore",
 			"fetch.fsck.symlinkpointstogitdir=ignore",
