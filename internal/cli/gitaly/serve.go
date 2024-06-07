@@ -363,16 +363,20 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		}
 		defer dbMgr.Close()
 
-		var logConsumer storagemgr.LogConsumer
+		var consumerFactory storagemgr.LogConsumerFactory
 		if cfg.Backup.WALGoCloudURL != "" {
 			walSink, err := backup.ResolveSink(ctx, cfg.Backup.WALGoCloudURL)
 			if err != nil {
 				return fmt.Errorf("resolving write-ahead log backup sink: %w", err)
 			}
-			walArchiver := backup.NewLogEntryArchiver(logger, walSink, cfg.Backup.WALWorkerCount)
-			prometheus.MustRegister(walArchiver)
 
-			logConsumer = walArchiver
+			consumerFactory = func(lma storagemgr.LogManagerAccessor) (storagemgr.LogConsumer, func()) {
+				walArchiver := backup.NewLogEntryArchiver(logger, walSink, cfg.Backup.WALWorkerCount)
+				prometheus.MustRegister(walArchiver)
+				walArchiver.Run()
+
+				return walArchiver, walArchiver.Close
+			}
 		}
 
 		partitionMgr, err = storagemgr.NewPartitionManager(
@@ -382,7 +386,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			logger,
 			dbMgr,
 			cfg.Prometheus,
-			logConsumer,
+			consumerFactory,
 		)
 		if err != nil {
 			return fmt.Errorf("new partition manager: %w", err)

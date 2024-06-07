@@ -53,6 +53,8 @@ type PartitionManager struct {
 	// transactionManagerFactory is a factory to create TransactionManagers. This shouldn't ever be changed
 	// during normal operation, but can be used to adjust the transaction manager's behaviour in tests.
 	transactionManagerFactory transactionManagerFactory
+	// consumerCleanup closes the LogConsumer.
+	consumerCleanup func()
 	// metrics accounts for all metrics of transaction operations. It will be
 	// passed down to each transaction manager and is shared between them. The
 	// metrics must be registered to be collected by prometheus collector.
@@ -198,7 +200,7 @@ func NewPartitionManager(
 	logger log.Logger,
 	dbMgr *keyvalue.DBManager,
 	promCfg gitalycfgprom.Config,
-	logConsumer LogConsumer,
+	consumerFactory LogConsumerFactory,
 ) (*PartitionManager, error) {
 	storages := make(map[string]*storageManager, len(configuredStorages))
 	for _, configuredStorage := range configuredStorages {
@@ -244,32 +246,42 @@ func NewPartitionManager(
 
 	metrics := newMetrics(promCfg)
 
-	return &PartitionManager{
+	pm := &PartitionManager{
 		storages:       storages,
 		commandFactory: cmdFactory,
-		transactionManagerFactory: func(
-			logger log.Logger,
-			partitionID storage.PartitionID,
-			storageMgr *storageManager,
-			cmdFactory git.CommandFactory,
-			absoluteStateDir, stagingDir string,
-		) transactionManager {
-			return NewTransactionManager(
-				partitionID,
-				logger,
-				keyvalue.NewPrefixedTransactioner(storageMgr.database, keyPrefixPartition(partitionID)),
-				storageMgr.name,
-				storageMgr.path,
-				absoluteStateDir,
-				stagingDir,
-				cmdFactory,
-				storageMgr.repoFactory,
-				metrics,
-				logConsumer,
-			)
-		},
-		metrics: metrics,
-	}, nil
+		metrics:        metrics,
+	}
+
+	var logConsumer LogConsumer
+	var cleanup func()
+	if consumerFactory != nil {
+		logConsumer, cleanup = consumerFactory(pm)
+	}
+
+	pm.consumerCleanup = cleanup
+	pm.transactionManagerFactory = func(
+		logger log.Logger,
+		partitionID storage.PartitionID,
+		storageMgr *storageManager,
+		cmdFactory git.CommandFactory,
+		absoluteStateDir, stagingDir string,
+	) transactionManager {
+		return NewTransactionManager(
+			partitionID,
+			logger,
+			keyvalue.NewPrefixedTransactioner(storageMgr.database, keyPrefixPartition(partitionID)),
+			storageMgr.name,
+			storageMgr.path,
+			absoluteStateDir,
+			stagingDir,
+			cmdFactory,
+			storageMgr.repoFactory,
+			metrics,
+			logConsumer,
+		)
+	}
+
+	return pm, nil
 }
 
 func keyPrefixPartition(ptnID storage.PartitionID) []byte {
@@ -504,6 +516,10 @@ func (pm *PartitionManager) Close() {
 			storageMgr.close()
 			activeStorages.Done()
 		}()
+	}
+
+	if pm.consumerCleanup != nil {
+		pm.consumerCleanup()
 	}
 
 	activeStorages.Wait()

@@ -810,6 +810,10 @@ type LogManagerAccessor interface {
 	CallLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID, fn func(LogManager)) error
 }
 
+// LogConsumerFactory returns a LogConsumer that requires a LogManagerAccessor for construction and
+// a function to close the LogConsumer.
+type LogConsumerFactory func(LogManagerAccessor) (_ LogConsumer, cleanup func())
+
 // LogManager is the interface used on the consumer side of the integration. The consumer
 // has the ability to acknowledge transactions as having been processed with AcknowledgeTransaction.
 type LogManager interface {
