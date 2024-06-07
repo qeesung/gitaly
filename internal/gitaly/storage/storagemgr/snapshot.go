@@ -15,6 +15,9 @@ import (
 
 // snapshot represents a snapshot of a partition's state at a given time.
 type snapshot struct {
+	// root is the absolute path of the snapshot.
+	root string
+	// prefix is the snapshot root relative to the storage root.
 	prefix string
 }
 
@@ -35,7 +38,7 @@ func newSnapshot(ctx context.Context, storagePath, snapshotPath string, relative
 		return snapshot{}, fmt.Errorf("create repository snapshots: %w", err)
 	}
 
-	return snapshot{prefix: snapshotPrefix}, nil
+	return snapshot{root: snapshotPath, prefix: snapshotPrefix}, nil
 }
 
 // createRepositorySnapshots creates a snapshot of the partition containing all repositories at the given relative paths
