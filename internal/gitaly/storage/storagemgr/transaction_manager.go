@@ -800,6 +800,16 @@ type LogConsumer interface {
 	NotifyNewTransactions(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr LogManager)
 }
 
+// LogManagerAccessor is the interface used by the LogManager coordinator. It is called by
+// by LogConsumers to access LogManagers. A LogManager that notified a LogConsumer of a transaction
+// may have closed by the time the consumer has finished acting on the log entry. The LogManagerAccessor
+// ensures that the LogManager is available to receive the consumer's response.
+type LogManagerAccessor interface {
+	// CallLogManager executes the provided function against the requested LogManager, starting it
+	// if necessary.
+	CallLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID, fn func(LogManager)) error
+}
+
 // LogManager is the interface used on the consumer side of the integration. The consumer
 // has the ability to acknowledge transactions as having been processed with AcknowledgeTransaction.
 type LogManager interface {
