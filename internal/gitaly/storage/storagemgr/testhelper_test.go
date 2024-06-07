@@ -866,7 +866,7 @@ type MockLogConsumer struct {
 	highWaterMark storage.LSN
 }
 
-func (lc *MockLogConsumer) NotifyNewTransactions(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr LogManager) {
+func (lc *MockLogConsumer) NotifyNewTransactions(storageName string, partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr LogManager) {
 	lc.highWaterMark = highWaterMark
 }
 
