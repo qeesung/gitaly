@@ -1031,6 +1031,8 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.ErrorIs(t, err, step.ExpectedError)
 			if err == nil {
 				require.Equalf(t, step.ExpectedSnapshotLSN, transaction.SnapshotLSN(), "mismatched ExpectedSnapshotLSN")
+				require.NotEmpty(t, transaction.Root(), "empty Root")
+				require.Contains(t, transaction.Root(), transaction.stagingDirectory)
 			}
 
 			if step.ReadOnly {

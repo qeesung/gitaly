@@ -569,6 +569,11 @@ func (txn *Transaction) SnapshotLSN() storage.LSN {
 	return txn.snapshotLSN
 }
 
+// Root returns the path to the read snapshot.
+func (txn *Transaction) Root() string {
+	return txn.snapshot.root
+}
+
 // SkipVerificationFailures configures the transaction to skip reference updates that fail verification.
 // If a reference update fails verification with this set, the update is dropped from the transaction but
 // other successful reference updates will be made. By default, the entire transaction is aborted if a
@@ -1088,7 +1093,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 		}
 
 		if err := transaction.walEntry.RecordRepositoryCreation(
-			mgr.getAbsolutePath(transaction.snapshot.prefix),
+			transaction.snapshot.root,
 			transaction.relativePath,
 		); err != nil {
 			return fmt.Errorf("record repository creation: %w", err)
@@ -1120,7 +1125,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 			// If the transaction removed the custom hooks, we won't have anything to log. We'll ignore the
 			// ErrNotExist and stage the deletion later.
 			if err := transaction.walEntry.RecordDirectoryCreation(
-				mgr.getAbsolutePath(transaction.snapshot.prefix),
+				transaction.snapshot.root,
 				filepath.Join(transaction.relativePath, repoutil.CustomHooksDir),
 			); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("record custom hook directory: %w", err)
@@ -1142,7 +1147,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 
 		if transaction.defaultBranchUpdated {
 			if err := transaction.walEntry.RecordFileUpdate(
-				mgr.getAbsolutePath(transaction.snapshot.prefix),
+				transaction.snapshot.root,
 				filepath.Join(transaction.relativePath, "HEAD"),
 			); err != nil {
 				return fmt.Errorf("record HEAD update: %w", err)
