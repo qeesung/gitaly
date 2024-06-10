@@ -276,7 +276,7 @@ func TestFetchIntoObjectPool_Failure(t *testing.T) {
 				Origin: repo,
 			},
 			code:   codes.InvalidArgument,
-			errMsg: "object pool is empty",
+			errMsg: testhelper.WithOrWithoutWAL("repository not set", "object pool is empty"),
 		},
 		{
 			description: "origin and pool do not share the same storage",
@@ -285,7 +285,7 @@ func TestFetchIntoObjectPool_Failure(t *testing.T) {
 				ObjectPool: poolWithDifferentStorage,
 			},
 			code:   codes.InvalidArgument,
-			errMsg: "origin has different storage than object pool",
+			errMsg: testhelper.WithOrWithoutWAL("storage name not found", "origin has different storage than object pool"),
 		},
 	} {
 		t.Run(tc.description, func(t *testing.T) {
