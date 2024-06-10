@@ -72,6 +72,8 @@ func featureFlags(ctx context.Context) map[featureflag.FeatureFlag]bool {
 
 // envForHooks generates a set of environment variables for gitaly hooks
 func envForHooks(tb testing.TB, ctx context.Context, cfg config.Cfg, repo *gitalypb.Repository, glHookValues glHookValues, proxyValues proxyValues, gitPushOptions ...string) []string {
+	tb.Helper()
+
 	payload, err := git.NewHooksPayload(
 		cfg,
 		repo,
@@ -127,6 +129,8 @@ func envForHooks(tb testing.TB, ctx context.Context, cfg config.Cfg, repo *gital
 }
 
 func TestHooksPrePostWithSymlinkedStoragePath(t *testing.T) {
+	t.Parallel()
+
 	tempDir := testhelper.TempDir(t)
 
 	ctx := testhelper.Context(t)
@@ -147,6 +151,8 @@ func TestHooksPrePostWithSymlinkedStoragePath(t *testing.T) {
 }
 
 func TestHooksPrePostReceive(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 	cfg := testcfg.Build(t)
 
@@ -280,6 +286,8 @@ func testHooksPrePostReceive(t *testing.T, cfg config.Cfg, repo *gitalypb.Reposi
 }
 
 func TestHooksUpdate(t *testing.T) {
+	t.Parallel()
+
 	ctx := testhelper.Context(t)
 
 	glProtocol := "ssh"
@@ -358,62 +366,16 @@ func testHooksUpdate(t *testing.T, ctx context.Context, cfg config.Cfg, glValues
 func TestHooksPostReceiveFailed(t *testing.T) {
 	t.Parallel()
 
-	secretToken := "secret token"
-	glProtocol := "ssh"
-	changes := "oldhead newhead"
-
-	logger := testhelper.NewLogger(t)
-
-	ctx := testhelper.Context(t)
-	cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{Auth: auth.Config{Token: "abc123"}}))
-
-	repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
-		SkipCreationViaService: true,
-	})
-
-	gitalyHooksPath := testcfg.BuildGitalyHooks(t, cfg)
-	testcfg.BuildGitalySSH(t, cfg)
-
-	// By setting the last parameter to false, the post-receive API call will
-	// send back {"reference_counter_increased": false}, indicating something went wrong
-	// with the call
-
-	c := gitlab.TestServerOptions{
-		User:                        "",
-		Password:                    "",
-		SecretToken:                 secretToken,
-		Changes:                     changes,
-		GLID:                        glID,
-		GLRepository:                repo.GetGlRepository(),
-		PostReceiveCounterDecreased: false,
-		Protocol:                    "ssh",
-	}
-	serverURL, cleanup := gitlab.NewTestServer(t, c)
-	defer cleanup()
-	cfg.Gitlab.URL = serverURL
-	cfg.Gitlab.SecretFile = gitlab.WriteShellSecretFile(t, cfg.GitlabShell.Dir, secretToken)
-
-	gitlabClient, err := gitlab.NewHTTPClient(logger, cfg.Gitlab, cfg.TLS, prometheus.Config{})
-	require.NoError(t, err)
-
-	txManager := transaction.NewTrackingManager()
-
-	runHookServiceWithGitlabClient(t, cfg, true, gitlabClient, testserver.WithTransactionManager(txManager))
-
-	customHookOutputPath := gittest.WriteEnvToCustomHook(t, repoPath, "post-receive")
-
-	var stdout, stderr bytes.Buffer
-
 	testcases := []struct {
 		desc    string
 		primary bool
-		verify  func(*testing.T, *exec.Cmd, *bytes.Buffer, *bytes.Buffer)
+		verify  func(*testing.T, *exec.Cmd, *bytes.Buffer, *bytes.Buffer, *transaction.TrackingManager, string)
 	}{
 		{
 			desc:    "Primary calls out to post_receive endpoint",
 			primary: true,
-			verify: func(t *testing.T, cmd *exec.Cmd, stdout, stderr *bytes.Buffer) {
-				err = cmd.Run()
+			verify: func(t *testing.T, cmd *exec.Cmd, stdout, stderr *bytes.Buffer, txManager *transaction.TrackingManager, customHookOutputPath string) {
+				err := cmd.Run()
 				code, ok := command.ExitStatus(err)
 				require.True(t, ok, "expect exit status in %v", err)
 
@@ -427,8 +389,8 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 		{
 			desc:    "Secondary does not call out to post_receive endpoint",
 			primary: false,
-			verify: func(t *testing.T, cmd *exec.Cmd, stdout, stderr *bytes.Buffer) {
-				err = cmd.Run()
+			verify: func(t *testing.T, cmd *exec.Cmd, stdout, stderr *bytes.Buffer, txManager *transaction.TrackingManager, customHookOutputPath string) {
+				err := cmd.Run()
 				require.NoError(t, err)
 
 				require.Empty(t, stdout.String())
@@ -440,8 +402,56 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
+		tc := tc
+
 		t.Run(tc.desc, func(t *testing.T) {
-			txManager.Reset()
+			t.Parallel()
+
+			secretToken := "secret token"
+			glProtocol := "ssh"
+			changes := "oldhead newhead"
+
+			logger := testhelper.NewLogger(t)
+
+			ctx := testhelper.Context(t)
+			cfg := testcfg.Build(t, testcfg.WithBase(config.Cfg{Auth: auth.Config{Token: "abc123"}}))
+
+			repo, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+				SkipCreationViaService: true,
+			})
+
+			gitalyHooksPath := testcfg.BuildGitalyHooks(t, cfg)
+			testcfg.BuildGitalySSH(t, cfg)
+
+			// By setting the last parameter to false, the post-receive API call will
+			// send back {"reference_counter_increased": false}, indicating something went wrong
+			// with the call
+
+			c := gitlab.TestServerOptions{
+				User:                        "",
+				Password:                    "",
+				SecretToken:                 secretToken,
+				Changes:                     changes,
+				GLID:                        glID,
+				GLRepository:                repo.GetGlRepository(),
+				PostReceiveCounterDecreased: false,
+				Protocol:                    "ssh",
+			}
+			serverURL, cleanup := gitlab.NewTestServer(t, c)
+			defer cleanup()
+			cfg.Gitlab.URL = serverURL
+			cfg.Gitlab.SecretFile = gitlab.WriteShellSecretFile(t, cfg.GitlabShell.Dir, secretToken)
+
+			gitlabClient, err := gitlab.NewHTTPClient(logger, cfg.Gitlab, cfg.TLS, prometheus.Config{})
+			require.NoError(t, err)
+
+			txManager := transaction.NewTrackingManager()
+
+			runHookServiceWithGitlabClient(t, cfg, true, gitlabClient, testserver.WithTransactionManager(txManager))
+
+			customHookOutputPath := gittest.WriteEnvToCustomHook(t, repoPath, "post-receive")
+
+			var stdout, stderr bytes.Buffer
 
 			hooksPayload, err := git.NewHooksPayload(
 				cfg,
@@ -475,7 +485,7 @@ func TestHooksPostReceiveFailed(t *testing.T) {
 			cmd.Stdin = bytes.NewBuffer([]byte(changes))
 			cmd.Dir = repoPath
 
-			tc.verify(t, cmd, &stdout, &stderr)
+			tc.verify(t, cmd, &stdout, &stderr, txManager, customHookOutputPath)
 		})
 	}
 }
@@ -567,6 +577,8 @@ func TestHooksProcReceive(t *testing.T) {
 }
 
 func TestHooksNotAllowed(t *testing.T) {
+	t.Parallel()
+
 	secretToken := "secret token"
 	glProtocol := "ssh"
 	changes := "oldhead newhead"
@@ -637,8 +649,13 @@ func TestRequestedHooks(t *testing.T) {
 		git.PostReceiveHook:          {"post-receive"},
 		git.PackObjectsHook:          {"gitaly-hooks", "git"},
 	} {
+		hook := hook
+		hookArgs := hookArgs
+
 		t.Run(hookArgs[0], func(t *testing.T) {
 			t.Run("unrequested hook is ignored", func(t *testing.T) {
+				t.Parallel()
+
 				cfg := testcfg.Build(t)
 				testcfg.BuildGitalyHooks(t, cfg)
 				testcfg.BuildGitalySSH(t, cfg)
@@ -662,6 +679,8 @@ func TestRequestedHooks(t *testing.T) {
 			})
 
 			t.Run("requested hook runs", func(t *testing.T) {
+				t.Parallel()
+
 				cfg := testcfg.Build(t)
 				testcfg.BuildGitalyHooks(t, cfg)
 				testcfg.BuildGitalySSH(t, cfg)
@@ -693,6 +712,8 @@ func TestRequestedHooks(t *testing.T) {
 }
 
 func TestGitalyHooksPackObjects(t *testing.T) {
+	t.Parallel()
+
 	logDir := testhelper.TempDir(t)
 
 	ctx := testhelper.Context(t)
@@ -780,7 +801,11 @@ func TestGitalyServerReturnsError(t *testing.T) {
 			expectedStderr: "error executing git hook\n",
 		},
 	} {
+		tc := tc
+
 		t.Run(tc.hook, func(t *testing.T) {
+			t.Parallel()
+
 			logDir := testhelper.TempDir(t)
 
 			ctx := testhelper.Context(t)
@@ -879,12 +904,10 @@ remote: error executing git hook
 			expectedLogs: `RPC failed: rpc error: code = Unavailable desc = server is not available`,
 		},
 	} {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
-			testhelper.SkipQuarantinedTest(t,
-				"https://gitlab.com/gitlab-org/gitaly/-/issues/5105",
-				"TestGitalyServerReturnsError_packObjects/resource_exhausted_with_LimitError_detail",
-				"TestGitalyServerReturnsError_packObjects/resource_exhausted_without_LimitError_detail",
-			)
+			t.Parallel()
 
 			logDir := testhelper.TempDir(t)
 
@@ -1058,6 +1081,8 @@ func (svc baggageAsserter) PackObjectsHookWithSidechannel(ctx context.Context, r
 }
 
 func requireContainsOnce(t *testing.T, s string, contains string) {
+	t.Helper()
+
 	r := regexp.MustCompile(contains)
 	matches := r.FindAllStringIndex(s, -1)
 	require.Equal(t, 1, len(matches))
