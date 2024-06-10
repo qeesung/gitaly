@@ -25,6 +25,7 @@ type Transaction interface {
 	WriteCommitGraphs(housekeepingcfg.WriteCommitGraphConfig)
 	SnapshotLSN() storage.LSN
 	Root() string
+	Commit(context.Context) error
 }
 
 type keyTransaction struct{}
