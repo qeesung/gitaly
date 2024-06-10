@@ -30,7 +30,7 @@ func TestInitLanguageStats(t *testing.T) {
 		{
 			desc: "non-existing cache",
 			run: func(t *testing.T, repo *localrepo.Repo, repoPath string) {
-				stats, err := initLanguageStats(repo)
+				stats, err := initLanguageStats(ctx, repo)
 				require.NoError(t, err)
 				require.Empty(t, stats.Totals)
 				require.Empty(t, stats.ByFile)
@@ -39,11 +39,11 @@ func TestInitLanguageStats(t *testing.T) {
 		{
 			desc: "pre-existing cache",
 			run: func(t *testing.T, repo *localrepo.Repo, repoPath string) {
-				stats, err := initLanguageStats(repo)
+				stats, err := initLanguageStats(ctx, repo)
 				require.NoError(t, err)
 
 				stats.Totals["C"] = 555
-				require.NoError(t, stats.save(repo, "badcafe"))
+				require.NoError(t, stats.save(ctx, repo, "badcafe"))
 
 				require.Equal(t, ByteCountPerLanguage{"C": 555}, stats.Totals)
 			},
@@ -53,7 +53,7 @@ func TestInitLanguageStats(t *testing.T) {
 			run: func(t *testing.T, repo *localrepo.Repo, repoPath string) {
 				require.NoError(t, os.WriteFile(filepath.Join(repoPath, languageStatsFilename), []byte("garbage"), perm.SharedFile))
 
-				stats, err := initLanguageStats(repo)
+				stats, err := initLanguageStats(ctx, repo)
 				require.Errorf(t, err, "new language stats zlib reader: invalid header")
 				require.Empty(t, stats.Totals)
 				require.Empty(t, stats.ByFile)
@@ -62,7 +62,7 @@ func TestInitLanguageStats(t *testing.T) {
 		{
 			desc: "incorrect version cache",
 			run: func(t *testing.T, repo *localrepo.Repo, repoPath string) {
-				stats, err := initLanguageStats(repo)
+				stats, err := initLanguageStats(ctx, repo)
 				require.NoError(t, err)
 
 				stats.Totals["C"] = 555
@@ -77,7 +77,7 @@ func TestInitLanguageStats(t *testing.T) {
 				require.NoError(t, file.Sync())
 				require.NoError(t, file.Close())
 
-				newStats, err := initLanguageStats(repo)
+				newStats, err := initLanguageStats(ctx, repo)
 				require.Error(t, err, fmt.Errorf("new language stats version mismatch %s vs %s", languageStatsVersion, "faulty"))
 				require.Empty(t, newStats.Totals)
 			},
@@ -156,7 +156,7 @@ func TestLanguageStats_add(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			s, err := initLanguageStats(repo)
+			s, err := initLanguageStats(ctx, repo)
 			require.NoError(t, err)
 
 			tc.run(t, s)
@@ -211,7 +211,7 @@ func TestLanguageStats_drop(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			s, err := initLanguageStats(repo)
+			s, err := initLanguageStats(ctx, repo)
 			require.NoError(t, err)
 
 			s.Totals["Go"] = 100
@@ -233,18 +233,18 @@ func TestLanguageStats_save(t *testing.T) {
 	})
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	s, err := initLanguageStats(repo)
+	s, err := initLanguageStats(ctx, repo)
 	require.NoError(t, err)
 
 	s.Totals["Go"] = 100
 	s.ByFile["main.go"] = ByteCountPerLanguage{"Go": 80}
 	s.ByFile["main_test.go"] = ByteCountPerLanguage{"Go": 20}
 
-	err = s.save(repo, "buzz")
+	err = s.save(ctx, repo, "buzz")
 	require.NoError(t, err)
 	require.FileExists(t, filepath.Join(repoPath, languageStatsFilename))
 
-	loaded, err := initLanguageStats(repo)
+	loaded, err := initLanguageStats(ctx, repo)
 	require.NoError(t, err)
 
 	require.Equal(t, git.ObjectID("buzz"), loaded.CommitID)

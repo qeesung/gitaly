@@ -17,8 +17,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func verifyListBlobsRequest(locator storage.Locator, req *gitalypb.ListBlobsRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func verifyListBlobsRequest(ctx context.Context, locator storage.Locator, req *gitalypb.ListBlobsRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 	if len(req.GetRevisions()) == 0 {
@@ -35,7 +35,7 @@ func verifyListBlobsRequest(locator storage.Locator, req *gitalypb.ListBlobsRequ
 // ListBlobs finds all blobs which are transitively reachable via a graph walk of the given set of
 // revisions.
 func (s *server) ListBlobs(req *gitalypb.ListBlobsRequest, stream gitalypb.BlobService_ListBlobsServer) error {
-	if err := verifyListBlobsRequest(s.locator, req); err != nil {
+	if err := verifyListBlobsRequest(stream.Context(), s.locator, req); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -240,7 +240,7 @@ func (s *server) ListAllBlobs(req *gitalypb.ListAllBlobsRequest, stream gitalypb
 	ctx := stream.Context()
 
 	repository := req.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), repository); err != nil {
 		return err
 	}
 

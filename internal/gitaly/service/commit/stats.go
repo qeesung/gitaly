@@ -13,8 +13,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func validateCommitStatsRequest(locator storage.Locator, in *gitalypb.CommitStatsRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateCommitStatsRequest(ctx context.Context, locator storage.Locator, in *gitalypb.CommitStatsRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(in.Revision); err != nil {
@@ -24,7 +24,7 @@ func validateCommitStatsRequest(locator storage.Locator, in *gitalypb.CommitStat
 }
 
 func (s *server) CommitStats(ctx context.Context, in *gitalypb.CommitStatsRequest) (*gitalypb.CommitStatsResponse, error) {
-	if err := validateCommitStatsRequest(s.locator, in); err != nil {
+	if err := validateCommitStatsRequest(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

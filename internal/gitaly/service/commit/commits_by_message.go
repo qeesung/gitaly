@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"context"
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -25,7 +26,7 @@ func (sender *commitsByMessageSender) Send() error {
 }
 
 func (s *server) CommitsByMessage(in *gitalypb.CommitsByMessageRequest, stream gitalypb.CommitService_CommitsByMessageServer) error {
-	if err := validateCommitsByMessageRequest(s.locator, in); err != nil {
+	if err := validateCommitsByMessageRequest(stream.Context(), s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -69,8 +70,8 @@ func (s *server) commitsByMessage(in *gitalypb.CommitsByMessageRequest, stream g
 	return s.sendCommits(stream.Context(), sender, repo, []string{string(revision)}, paths, in.GetGlobalOptions(), gitLogExtraOptions...)
 }
 
-func validateCommitsByMessageRequest(locator storage.Locator, in *gitalypb.CommitsByMessageRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateCommitsByMessageRequest(ctx context.Context, locator storage.Locator, in *gitalypb.CommitsByMessageRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

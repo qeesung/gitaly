@@ -20,7 +20,7 @@ func (s *server) SetCustomHooks(stream gitalypb.RepositoryService_SetCustomHooks
 	}
 
 	repo := firstRequest.GetRepository()
-	if err := s.locator.ValidateRepository(repo); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repo); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -58,7 +58,7 @@ func (s *server) RestoreCustomHooks(stream gitalypb.RepositoryService_RestoreCus
 	}
 
 	repo := firstRequest.GetRepository()
-	if err := s.locator.ValidateRepository(repo); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repo); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

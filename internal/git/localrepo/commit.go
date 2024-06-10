@@ -137,7 +137,7 @@ func (repo *Repo) WriteCommit(ctx context.Context, cfg WriteCommitConfig) (git.O
 	// --allow-empty".
 	commitArgs := []string{string(cfg.TreeID)}
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getting repo path: %w", err)
 	}

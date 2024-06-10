@@ -26,7 +26,7 @@ const (
 
 // CleanupWorktrees cleans up stale and disconnected worktrees for the given repository.
 func CleanupWorktrees(ctx context.Context, repo *localrepo.Repo) error {
-	if _, err := repo.Path(); err != nil {
+	if _, err := repo.Path(ctx); err != nil {
 		return err
 	}
 
@@ -43,7 +43,7 @@ func CleanupWorktrees(ctx context.Context, repo *localrepo.Repo) error {
 }
 
 func cleanStaleWorktrees(ctx context.Context, repo *localrepo.Repo, threshold time.Time) error {
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func isExitWithCode(err error, code int) bool {
 }
 
 func cleanDisconnectedWorktrees(ctx context.Context, repo *localrepo.Repo) error {
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return err
 	}

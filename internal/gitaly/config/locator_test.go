@@ -115,7 +115,7 @@ on the storage implementation to handle broken storage on initialization.`,
 				testhelper.SkipWithWAL(t, tc.skipWithWAL)
 			}
 
-			path, err := locator.GetRepoPath(tc.repo, tc.opts...)
+			path, err := locator.GetRepoPath(ctx, tc.repo, tc.opts...)
 			require.Equal(t, tc.expPath, path)
 			require.Equal(t, tc.expErr, err)
 		})
@@ -179,7 +179,7 @@ func TestConfigLocator_ValidateRepository(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			err := locator.ValidateRepository(tc.repo, tc.opts...)
+			err := locator.ValidateRepository(ctx, tc.repo, tc.opts...)
 			require.Equal(t, tc.expErr, err)
 		})
 	}

@@ -22,7 +22,7 @@ func (s *server) PruneUnreachableObjects(
 	request *gitalypb.PruneUnreachableObjectsRequest,
 ) (*gitalypb.PruneUnreachableObjectsResponse, error) {
 	repository := request.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -30,7 +30,7 @@ func (s *server) PruneUnreachableObjects(
 
 	// Verify that the repository exists on-disk such that we can return a proper gRPC code in
 	// case it doesn't.
-	if _, err := repo.Path(); err != nil {
+	if _, err := repo.Path(ctx); err != nil {
 		return nil, err
 	}
 

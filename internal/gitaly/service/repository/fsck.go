@@ -11,7 +11,7 @@ import (
 
 func (s *server) Fsck(ctx context.Context, req *gitalypb.FsckRequest) (*gitalypb.FsckResponse, error) {
 	repository := req.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

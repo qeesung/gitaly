@@ -67,13 +67,13 @@ func NewFrom(other *Repo, repo storage.Repository) *Repo {
 
 // Quarantine return the repository quarantined. The quarantine directory becomes the repository's
 // main object directory and the original object directory is configured as an alternate.
-func (repo *Repo) Quarantine(quarantineDirectory string) (*Repo, error) {
+func (repo *Repo) Quarantine(ctx context.Context, quarantineDirectory string) (*Repo, error) {
 	pbRepo, ok := repo.Repository.(*gitalypb.Repository)
 	if !ok {
 		return nil, fmt.Errorf("unexpected repository type %t", repo.Repository)
 	}
 
-	repoPath, err := repo.locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+	repoPath, err := repo.locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return nil, fmt.Errorf("repo path: %w", err)
 	}

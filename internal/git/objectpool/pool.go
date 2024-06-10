@@ -47,6 +47,7 @@ type ObjectPool struct {
 // FromProto returns an object pool object from its Protobuf representation. This function verifies
 // that the object pool exists and is a valid pool repository.
 func FromProto(
+	ctx context.Context,
 	logger log.Logger,
 	locator storage.Locator,
 	gitCmdFactory git.CommandFactory,
@@ -55,7 +56,7 @@ func FromProto(
 	housekeepingManager housekeepingmgr.Manager,
 	proto *gitalypb.ObjectPool,
 ) (*ObjectPool, error) {
-	poolPath, err := locator.GetRepoPath(proto.GetRepository(), storage.WithRepositoryVerificationSkipped())
+	poolPath, err := locator.GetRepoPath(ctx, proto.GetRepository(), storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func FromProto(
 		housekeepingManager: housekeepingManager,
 	}
 
-	if !pool.IsValid() {
+	if !pool.IsValid(ctx) {
 		return nil, ErrInvalidPoolRepository
 	}
 
@@ -101,8 +102,8 @@ func (o *ObjectPool) ToProto() *gitalypb.ObjectPool {
 }
 
 // Exists will return true if the pool path exists and is a directory
-func (o *ObjectPool) Exists() bool {
-	path, err := o.Path()
+func (o *ObjectPool) Exists(ctx context.Context) bool {
+	path, err := o.Path(ctx)
 	if err != nil {
 		return false
 	}
@@ -116,8 +117,8 @@ func (o *ObjectPool) Exists() bool {
 }
 
 // IsValid checks if a repository exists, and if its valid.
-func (o *ObjectPool) IsValid() bool {
-	return o.locator.ValidateRepository(o.Repo) == nil
+func (o *ObjectPool) IsValid(ctx context.Context) bool {
+	return o.locator.ValidateRepository(ctx, o.Repo) == nil
 }
 
 // Remove will remove the pool, and all its contents without preparing and/or
@@ -125,7 +126,7 @@ func (o *ObjectPool) IsValid() bool {
 // Subdirectories will remain to exist, and will never be cleaned up, even when
 // these are empty.
 func (o *ObjectPool) Remove(ctx context.Context) (err error) {
-	path, err := o.Path()
+	path, err := o.Path(ctx)
 	if err != nil {
 		return nil
 	}
@@ -143,6 +144,7 @@ func (o *ObjectPool) Remove(ctx context.Context) (err error) {
 
 // FromRepo returns an instance of ObjectPool that the repository points to
 func FromRepo(
+	ctx context.Context,
 	logger log.Logger,
 	locator storage.Locator,
 	gitCmdFactory git.CommandFactory,
@@ -151,12 +153,12 @@ func FromRepo(
 	housekeepingManager housekeepingmgr.Manager,
 	repo *localrepo.Repo,
 ) (*ObjectPool, error) {
-	storagePath, err := locator.GetStorageByName(repo.GetStorageName())
+	storagePath, err := locator.GetStorageByName(ctx, repo.GetStorageName())
 	if err != nil {
 		return nil, err
 	}
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -183,9 +185,9 @@ func FromRepo(
 		},
 	}
 
-	if locator.ValidateRepository(objectPoolProto.Repository) != nil {
+	if locator.ValidateRepository(ctx, objectPoolProto.Repository) != nil {
 		return nil, ErrInvalidPoolRepository
 	}
 
-	return FromProto(logger, locator, gitCmdFactory, catfileCache, txManager, housekeepingManager, objectPoolProto)
+	return FromProto(ctx, logger, locator, gitCmdFactory, catfileCache, txManager, housekeepingManager, objectPoolProto)
 }

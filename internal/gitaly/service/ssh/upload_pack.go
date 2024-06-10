@@ -35,7 +35,7 @@ func (s *server) SSHUploadPack(stream gitalypb.SSHService_SSHUploadPackServer) e
 		"GitProtocol":      req.GitProtocol,
 	}).DebugContext(ctx, "SSHUploadPack")
 
-	if err = validateFirstUploadPackRequest(s.locator, req); err != nil {
+	if err = validateFirstUploadPackRequest(ctx, s.locator, req); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -75,7 +75,7 @@ type sshUploadPackRequest interface {
 
 func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, stdin io.Reader, stdout, stderr io.Writer) (negotiation *stats.PackfileNegotiation, _ int, _ error) {
 	repo := req.GetRepository()
-	repoPath, err := s.locator.GetRepoPath(repo)
+	repoPath, err := s.locator.GetRepoPath(ctx, repo)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -146,8 +146,8 @@ func (s *server) sshUploadPack(ctx context.Context, req sshUploadPackRequest, st
 	return nil, 0, nil
 }
 
-func validateFirstUploadPackRequest(locator storage.Locator, req *gitalypb.SSHUploadPackRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateFirstUploadPackRequest(ctx context.Context, locator storage.Locator, req *gitalypb.SSHUploadPackRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 	if req.Stdin != nil {

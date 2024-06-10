@@ -89,6 +89,7 @@ func createObjectPool(
 	tb.Cleanup(catfileCache.Stop)
 
 	pool, err := objectpool.FromProto(
+		ctx,
 		logger,
 		config.NewLocator(cfg),
 		gittest.NewCommandFactory(tb, cfg),

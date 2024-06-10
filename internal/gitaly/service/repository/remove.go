@@ -12,7 +12,7 @@ import (
 
 func (s *server) RemoveRepository(ctx context.Context, in *gitalypb.RemoveRepositoryRequest) (*gitalypb.RemoveRepositoryResponse, error) {
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository, storage.WithSkipRepositoryExistenceCheck()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository, storage.WithSkipRepositoryExistenceCheck()); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

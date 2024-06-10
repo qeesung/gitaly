@@ -1,6 +1,7 @@
 package objectpool
 
 import (
+	"context"
 	"errors"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/objectpool"
@@ -31,8 +32,8 @@ func ExtractPool(req PoolRequest) (*gitalypb.Repository, error) {
 	return poolRepo, nil
 }
 
-func (s *server) poolForRequest(req PoolRequest) (*objectpool.ObjectPool, error) {
-	pool, err := objectpool.FromProto(s.logger, s.locator, s.gitCmdFactory, s.catfileCache, s.txManager, s.housekeepingManager, req.GetObjectPool())
+func (s *server) poolForRequest(ctx context.Context, req PoolRequest) (*objectpool.ObjectPool, error) {
+	pool, err := objectpool.FromProto(ctx, s.logger, s.locator, s.gitCmdFactory, s.catfileCache, s.txManager, s.housekeepingManager, req.GetObjectPool())
 	if err != nil {
 		if errors.Is(err, objectpool.ErrInvalidPoolDir) {
 			return nil, errInvalidPoolDir

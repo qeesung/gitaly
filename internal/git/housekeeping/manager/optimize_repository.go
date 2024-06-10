@@ -411,7 +411,7 @@ func (m *RepositoryManager) CleanStaleData(ctx context.Context, repo *localrepo.
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "housekeeping.CleanStaleData", nil)
 	defer span.Finish()
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		m.logger.WithError(err).WarnContext(ctx, "housekeeping failed to get repo path")
 		if structerr.GRPCCode(err) == codes.NotFound {

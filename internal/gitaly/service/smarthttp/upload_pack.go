@@ -86,10 +86,10 @@ func (s *server) runStatsCollector(ctx context.Context, r io.Reader) (io.Reader,
 
 func (s *server) validateUploadPackRequest(ctx context.Context, req *gitalypb.PostUploadPackWithSidechannelRequest) (string, []git.ConfigPair, error) {
 	repository := req.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return "", nil, err
 	}
-	repoPath, err := s.locator.GetRepoPath(repository)
+	repoPath, err := s.locator.GetRepoPath(ctx, repository)
 	if err != nil {
 		return "", nil, err
 	}

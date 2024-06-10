@@ -9,7 +9,7 @@ import (
 )
 
 func (s *server) RepositoryExists(ctx context.Context, in *gitalypb.RepositoryExistsRequest) (*gitalypb.RepositoryExistsResponse, error) {
-	err := s.locator.ValidateRepository(in.GetRepository())
+	err := s.locator.ValidateRepository(ctx, in.GetRepository())
 	switch {
 	case err == nil:
 		return &gitalypb.RepositoryExistsResponse{Exists: true}, nil

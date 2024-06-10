@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -35,7 +36,7 @@ func (s *server) SSHReceivePack(stream gitalypb.SSHService_SSHReceivePackServer)
 		"GitProtocol":      req.GitProtocol,
 	}).DebugContext(stream.Context(), "SSHReceivePack")
 
-	if err = validateFirstReceivePackRequest(s.locator, req); err != nil {
+	if err = validateFirstReceivePackRequest(stream.Context(), s.locator, req); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -85,7 +86,7 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 	})
 	stderr = io.MultiWriter(&stderrBuilder, stderr)
 
-	repoPath, err := s.locator.GetRepoPath(req.Repository)
+	repoPath, err := s.locator.GetRepoPath(ctx, req.Repository)
 	if err != nil {
 		return err
 	}
@@ -188,12 +189,12 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 	return nil
 }
 
-func validateFirstReceivePackRequest(locator storage.Locator, req *gitalypb.SSHReceivePackRequest) error {
+func validateFirstReceivePackRequest(ctx context.Context, locator storage.Locator, req *gitalypb.SSHReceivePackRequest) error {
 	if req.GlId == "" {
 		return errors.New("empty GlId")
 	}
 	if req.Stdin != nil {
 		return errors.New("non-empty data in first request")
 	}
-	return locator.ValidateRepository(req.GetRepository())
+	return locator.ValidateRepository(ctx, req.GetRepository())
 }

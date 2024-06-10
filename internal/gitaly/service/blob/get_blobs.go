@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 
@@ -154,7 +155,7 @@ func sendBlobTreeEntry(
 }
 
 func (s *server) GetBlobs(req *gitalypb.GetBlobsRequest, stream gitalypb.BlobService_GetBlobsServer) error {
-	if err := validateGetBlobsRequest(s.locator, req); err != nil {
+	if err := validateGetBlobsRequest(stream.Context(), s.locator, req); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -175,8 +176,8 @@ func (s *server) GetBlobs(req *gitalypb.GetBlobsRequest, stream gitalypb.BlobSer
 	return sendGetBlobsResponse(req, stream, objectReader, objectInfoReader)
 }
 
-func validateGetBlobsRequest(locator storage.Locator, req *gitalypb.GetBlobsRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateGetBlobsRequest(ctx context.Context, locator storage.Locator, req *gitalypb.GetBlobsRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 

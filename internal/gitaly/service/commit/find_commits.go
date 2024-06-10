@@ -23,8 +23,8 @@ import (
 
 var statsPattern = regexp.MustCompile(`\s(\d+)\sfiles? changed(,\s(\d+)\sinsertions?\(\+\))?(,\s(\d+)\sdeletions?\(-\))?`)
 
-func validateFindCommitsRequest(locator storage.Locator, in *gitalypb.FindCommitsRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateFindCommitsRequest(ctx context.Context, locator storage.Locator, in *gitalypb.FindCommitsRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(in.GetRevision(), git.AllowEmptyRevision()); err != nil {
@@ -36,7 +36,7 @@ func validateFindCommitsRequest(locator storage.Locator, in *gitalypb.FindCommit
 func (s *server) FindCommits(req *gitalypb.FindCommitsRequest, stream gitalypb.CommitService_FindCommitsServer) error {
 	ctx := stream.Context()
 
-	if err := validateFindCommitsRequest(s.locator, req); err != nil {
+	if err := validateFindCommitsRequest(ctx, s.locator, req); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

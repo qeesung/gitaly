@@ -20,7 +20,7 @@ func (s *server) CreateBundleFromRefList(stream gitalypb.RepositoryService_Creat
 	}
 
 	repository := firstRequest.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

@@ -130,7 +130,7 @@ enabled. For more details, see: https://gitlab.com/gitlab-org/gitaly/-/issues/56
 	// hooks/ and config were excluded, but the RPC should create them
 	require.FileExists(t, filepath.Join(repoAbsolutePath, "config"), "Config file not created")
 
-	targetPath, err := config.NewLocator(cfg).GetRepoPath(gittest.RewrittenRepository(t, ctx, cfg, repo))
+	targetPath, err := config.NewLocator(cfg).GetRepoPath(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo))
 	require.NoError(t, err)
 
 	require.ElementsMatch(t,
@@ -263,7 +263,7 @@ func TestCreateRepositoryFromSnapshot_malformedArchive(t *testing.T) {
 		StorageName:  cfg.Storages[0].Name,
 		RelativePath: gittest.NewRepositoryName(t),
 	}
-	repoPath, err := config.NewLocator(cfg).GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+	repoPath, err := config.NewLocator(cfg).GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 	require.NoError(t, err)
 
 	response, err := client.CreateRepositoryFromSnapshot(ctx, &gitalypb.CreateRepositoryFromSnapshotRequest{

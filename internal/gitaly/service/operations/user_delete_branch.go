@@ -13,8 +13,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func validateUserDeleteBranchRequest(locator storage.Locator, in *gitalypb.UserDeleteBranchRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateUserDeleteBranchRequest(ctx context.Context, locator storage.Locator, in *gitalypb.UserDeleteBranchRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if len(in.GetBranchName()) == 0 {
@@ -29,7 +29,7 @@ func validateUserDeleteBranchRequest(locator storage.Locator, in *gitalypb.UserD
 // UserDeleteBranch force-deletes a single branch in the context of a specific user. It executes
 // hooks and contacts Rails to verify that the user is indeed allowed to delete that branch.
 func (s *Server) UserDeleteBranch(ctx context.Context, req *gitalypb.UserDeleteBranchRequest) (*gitalypb.UserDeleteBranchResponse, error) {
-	if err := validateUserDeleteBranchRequest(s.locator, req); err != nil {
+	if err := validateUserDeleteBranchRequest(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 	referenceName := git.NewReferenceNameFromBranchName(string(req.BranchName))

@@ -12,8 +12,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func validateUserUpdateBranchGo(locator storage.Locator, req *gitalypb.UserUpdateBranchRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateUserUpdateBranchGo(ctx context.Context, locator storage.Locator, req *gitalypb.UserUpdateBranchRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 
@@ -40,7 +40,7 @@ func validateUserUpdateBranchGo(locator storage.Locator, req *gitalypb.UserUpdat
 // contacts Rails to verify that the user is allowed to update the branch.
 func (s *Server) UserUpdateBranch(ctx context.Context, req *gitalypb.UserUpdateBranchRequest) (*gitalypb.UserUpdateBranchResponse, error) {
 	// Validate the request
-	if err := validateUserUpdateBranchGo(s.locator, req); err != nil {
+	if err := validateUserUpdateBranchGo(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

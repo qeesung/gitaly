@@ -84,7 +84,7 @@ func (s *server) FindRemoteRootRef(ctx context.Context, in *gitalypb.FindRemoteR
 	if in.GetRemoteUrl() == "" {
 		return nil, structerr.NewInvalidArgument("missing remote URL")
 	}
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

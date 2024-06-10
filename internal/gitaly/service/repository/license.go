@@ -48,7 +48,7 @@ func newLicenseCache() *unarycache.Cache[git.ObjectID, *gitalypb.FindLicenseResp
 
 func (s *server) FindLicense(ctx context.Context, req *gitalypb.FindLicenseRequest) (*gitalypb.FindLicenseResponse, error) {
 	repository := req.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 	repo := localrepo.New(s.logger, s.locator, s.gitCmdFactory, s.catfileCache, repository)

@@ -35,7 +35,7 @@ type Dir struct {
 // New creates a new quarantine directory and returns the directory. The repository is cleaned
 // up when the user invokes the Migrate() functionality on the Dir.
 func New(ctx context.Context, repo *gitalypb.Repository, logger log.Logger, locator storage.Locator) (*Dir, error) {
-	repoPath, err := locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+	repoPath, err := locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return nil, structerr.NewInternal("getting repo path: %w", err)
 	}
@@ -95,8 +95,8 @@ func (d *Dir) QuarantinedRepo() *gitalypb.Repository {
 
 // Migrate migrates all objects part of the quarantine directory into the repository and thus makes
 // them generally available. This implementation follows the git.git's `tmp_objdir_migrate()`.
-func (d *Dir) Migrate() error {
-	repoPath, err := d.locator.GetRepoPath(d.repo, storage.WithRepositoryVerificationSkipped())
+func (d *Dir) Migrate(ctx context.Context) error {
+	repoPath, err := d.locator.GetRepoPath(ctx, d.repo, storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return fmt.Errorf("migrating quarantine: %w", err)
 	}

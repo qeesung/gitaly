@@ -51,7 +51,7 @@ func Color(language string) string {
 
 // Stats returns the repository's language statistics.
 func (inst *Instance) Stats(ctx context.Context, commitID git.ObjectID) (ByteCountPerLanguage, error) {
-	stats, err := initLanguageStats(inst.repo)
+	stats, err := initLanguageStats(ctx, inst.repo)
 	if err != nil {
 		inst.logger.WithError(err).InfoContext(ctx, "linguist load from cache")
 	}
@@ -178,7 +178,7 @@ func (inst *Instance) Stats(ctx context.Context, commitID git.ObjectID) (ByteCou
 		return nil, fmt.Errorf("linguist object iterator: %w", err)
 	}
 
-	if err := stats.save(inst.repo, commitID); err != nil {
+	if err := stats.save(ctx, inst.repo, commitID); err != nil {
 		return nil, fmt.Errorf("linguist language stats save: %w", err)
 	}
 

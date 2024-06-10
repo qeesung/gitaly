@@ -33,7 +33,7 @@ func TestDisconnectGitAlternates(t *testing.T) {
 
 	// Corrupt the repository to check that the commit we have created can no longer be read.
 	// This is done to ensure that the object really only exists in the pool repository now.
-	altPath, err := repo.InfoAlternatesPath()
+	altPath, err := repo.InfoAlternatesPath(ctx)
 	require.NoError(t, err)
 	require.NoError(t, os.Remove(altPath))
 	gittest.RequireObjectNotExists(t, cfg, repoPath, commitID)
@@ -61,7 +61,7 @@ func TestDisconnectGitAlternatesNoAlternates(t *testing.T) {
 	cfg, repoProto, repoPath, _, client := setup(t, ctx)
 	repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-	altPath, err := repo.InfoAlternatesPath()
+	altPath, err := repo.InfoAlternatesPath(ctx)
 	require.NoError(t, err, "find info/alternates")
 	require.NoFileExists(t, altPath)
 
@@ -91,7 +91,7 @@ func TestDisconnectGitAlternatesUnexpectedAlternates(t *testing.T) {
 			repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
 			repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-			altPath, err := repo.InfoAlternatesPath()
+			altPath, err := repo.InfoAlternatesPath(ctx)
 			require.NoError(t, err)
 			require.NoError(t, os.WriteFile(altPath, []byte(tc.altContent), perm.SharedFile))
 

@@ -208,7 +208,7 @@ func (repo *Repo) setDefaultBranchWithUpdateRef(
 func (repo *Repo) setDefaultBranchManually(ctx context.Context, txManager transaction.Manager, reference git.ReferenceName) error {
 	newHeadContent := []byte(fmt.Sprintf("ref: %s\n", reference.String()))
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return fmt.Errorf("getting repository path: %w", err)
 	}

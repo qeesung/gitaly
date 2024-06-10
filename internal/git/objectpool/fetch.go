@@ -28,11 +28,11 @@ type LocalRepoFactory func(repo *gitalypb.Repository) *localrepo.Repo
 
 // FetchFromOrigin initializes the pool and fetches the objects from its origin repository
 func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *localrepo.Repo, newLocalRepo LocalRepoFactory) error {
-	if !o.Exists() {
+	if !o.Exists(ctx) {
 		return structerr.NewInvalidArgument("object pool does not exist")
 	}
 
-	originPath, err := origin.Path()
+	originPath, err := origin.Path(ctx)
 	if err != nil {
 		return fmt.Errorf("computing origin repo's path: %w", err)
 	}
@@ -144,7 +144,7 @@ func (o *ObjectPool) FetchFromOrigin(ctx context.Context, origin *localrepo.Repo
 
 // pruneReferences prunes any references that have been deleted in the origin repository.
 func (o *ObjectPool) pruneReferences(ctx context.Context, origin *localrepo.Repo) (returnedErr error) {
-	originPath, err := origin.Path()
+	originPath, err := origin.Path(ctx)
 	if err != nil {
 		return fmt.Errorf("computing origin repo's path: %w", err)
 	}

@@ -90,7 +90,7 @@ func TestDisconnect(t *testing.T) {
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		altPath, err := repo.InfoAlternatesPath()
+		altPath, err := repo.InfoAlternatesPath(ctx)
 		require.NoError(t, err)
 		require.NoError(t, os.WriteFile(altPath, []byte(altContent), perm.SharedFile))
 
@@ -108,14 +108,14 @@ func TestDisconnect(t *testing.T) {
 
 				// Write a commit directly to the object pool. This commit is later checked to make
 				// sure it is present after the disconnect.
-				poolPath, err := pool.Path()
+				poolPath, err := pool.Path(ctx)
 				require.NoError(t, err)
 				commitID := gittest.WriteCommit(t, cfg, poolPath)
 
 				// Write a reference in the main repository to the commit in the object pool. This
 				// makes the repository dependent on the object pool and enables connectivity
 				// validation of the repository.
-				repoPath, err := repo.Path()
+				repoPath, err := repo.Path(ctx)
 				require.NoError(t, err)
 				gittest.WriteRef(t, cfg, repoPath, "refs/heads/main", commitID)
 
@@ -132,14 +132,14 @@ func TestDisconnect(t *testing.T) {
 
 				// Write a commit directly to the object pool. This commit will be referenced by the
 				// main repository.
-				poolPath, err := pool.Path()
+				poolPath, err := pool.Path(ctx)
 				require.NoError(t, err)
 				commitID := gittest.WriteCommit(t, cfg, poolPath)
 
 				// Write a reference in the main repository to the commit in the object pool. This
 				// makes the repository dependent on the object pool and enables connectivity
 				// validation of the repository.
-				repoPath, err := repo.Path()
+				repoPath, err := repo.Path(ctx)
 				require.NoError(t, err)
 				gittest.WriteRef(t, cfg, repoPath, "refs/heads/main", commitID)
 
@@ -176,7 +176,7 @@ func TestDisconnect(t *testing.T) {
 			desc: "Git alternates with comments",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				repo, _ := setupRepoWithObjectPool(t, ctx)
-				repoPath, err := repo.Path()
+				repoPath, err := repo.Path(ctx)
 				require.NoError(t, err)
 
 				// A Git alternates file may contain comments, it is important that the alternate
@@ -186,7 +186,7 @@ func TestDisconnect(t *testing.T) {
 				require.NoError(t, err)
 				altObjectDir := fmt.Sprintf("# foo\n%s\n# bar\n", altInfo.ObjectDirectories[0])
 
-				altPath, err := repo.InfoAlternatesPath()
+				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 				require.NoError(t, os.WriteFile(altPath, []byte(altObjectDir), perm.SharedFile))
 
@@ -303,7 +303,7 @@ func TestDisconnect(t *testing.T) {
 
 			setup := tc.setup(t, ctx)
 
-			repoPath, err := setup.repository.Path()
+			repoPath, err := setup.repository.Path(ctx)
 			require.NoError(t, err)
 
 			altInfoBefore, err := stats.AlternatesInfoForRepository(repoPath)
@@ -379,7 +379,7 @@ func TestRemoveAlternatesIfOk(t *testing.T) {
 		// Change the alternates file to point to an empty directory. This is only done to
 		// assert that we correctly restore the file if the repository doesn't pass the
 		// consistency checks when trying to remove the alternates file.
-		altPath, err := repo.InfoAlternatesPath()
+		altPath, err := repo.InfoAlternatesPath(ctx)
 		require.NoError(t, err)
 		altContent := testhelper.TempDir(t) + "\n"
 		require.NoError(t, os.WriteFile(altPath, []byte(altContent), perm.SharedFile))
@@ -409,7 +409,7 @@ func TestRemoveAlternatesIfOk(t *testing.T) {
 
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		altPath, err := repo.InfoAlternatesPath()
+		altPath, err := repo.InfoAlternatesPath(ctx)
 		require.NoError(t, err)
 		altContent := testhelper.TempDir(t) + "\n"
 		require.NoError(t, os.WriteFile(altPath, []byte(altContent), perm.SharedFile))

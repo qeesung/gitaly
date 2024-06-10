@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"context"
 	"errors"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -12,8 +13,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func verifyListCommitsRequest(locator storage.Locator, request *gitalypb.ListCommitsRequest) error {
-	if err := locator.ValidateRepository(request.GetRepository()); err != nil {
+func verifyListCommitsRequest(ctx context.Context, locator storage.Locator, request *gitalypb.ListCommitsRequest) error {
+	if err := locator.ValidateRepository(ctx, request.GetRepository()); err != nil {
 		return err
 	}
 	if len(request.GetRevisions()) == 0 {
@@ -31,11 +32,11 @@ func (s *server) ListCommits(
 	request *gitalypb.ListCommitsRequest,
 	stream gitalypb.CommitService_ListCommitsServer,
 ) error {
-	if err := verifyListCommitsRequest(s.locator, request); err != nil {
+	ctx := stream.Context()
+	if err := verifyListCommitsRequest(ctx, s.locator, request); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
-	ctx := stream.Context()
 	repo := s.localrepo(request.GetRepository())
 
 	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)

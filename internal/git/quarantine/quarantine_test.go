@@ -105,7 +105,7 @@ func TestQuarantine_Migrate(t *testing.T) {
 		quarantine, err := New(ctx, repo, logger, locator)
 		require.NoError(t, err)
 
-		require.NoError(t, quarantine.Migrate())
+		require.NoError(t, quarantine.Migrate(ctx))
 
 		require.Equal(t, oldContents, listEntries(t, repoPath))
 	})
@@ -124,7 +124,7 @@ func TestQuarantine_Migrate(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, os.WriteFile(filepath.Join(quarantine.dir.Path(), "file"), []byte("foobar"), perm.PublicFile))
-		require.NoError(t, quarantine.Migrate())
+		require.NoError(t, quarantine.Migrate(ctx))
 
 		newContents := listEntries(t, repoPath)
 		require.Contains(t, newContents, "objects/file")
@@ -155,7 +155,7 @@ func TestQuarantine_Migrate(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, os.WriteFile(filepath.Join(recursiveQuarantine.dir.Path(), "file"), []byte("foobar"), perm.PublicFile))
-		require.NoError(t, recursiveQuarantine.Migrate())
+		require.NoError(t, recursiveQuarantine.Migrate(ctx))
 
 		// The main repo should be untouched and still not contain the object.
 		require.Equal(t, repoContents, listEntries(t, repoPath))

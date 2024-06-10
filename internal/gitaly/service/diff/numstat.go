@@ -13,7 +13,7 @@ import (
 var maxNumStatBatchSize = 1000
 
 func (s *server) DiffStats(in *gitalypb.DiffStatsRequest, stream gitalypb.DiffService_DiffStatsServer) error {
-	if err := validateRequest(s.locator, in); err != nil {
+	if err := validateRequest(stream.Context(), s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

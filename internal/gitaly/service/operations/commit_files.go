@@ -129,7 +129,7 @@ func (s *Server) UserCommitFiles(stream gitalypb.OperationService_UserCommitFile
 		return structerr.NewInvalidArgument("empty UserCommitFilesRequestHeader")
 	}
 
-	if err := s.locator.ValidateRepository(header.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, header.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -523,7 +523,7 @@ func (s *Server) userCommitFiles(
 		return err
 	}
 
-	repoPath, err := quarantineRepo.Path()
+	repoPath, err := quarantineRepo.Path(ctx)
 	if err != nil {
 		return err
 	}

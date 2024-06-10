@@ -11,8 +11,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func validateFindCommitRequest(locator storage.Locator, in *gitalypb.FindCommitRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateFindCommitRequest(ctx context.Context, locator storage.Locator, in *gitalypb.FindCommitRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(in.GetRevision()); err != nil {
@@ -22,7 +22,7 @@ func validateFindCommitRequest(locator storage.Locator, in *gitalypb.FindCommitR
 }
 
 func (s *server) FindCommit(ctx context.Context, in *gitalypb.FindCommitRequest) (*gitalypb.FindCommitResponse, error) {
-	if err := validateFindCommitRequest(s.locator, in); err != nil {
+	if err := validateFindCommitRequest(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 	repo := s.localrepo(in.GetRepository())

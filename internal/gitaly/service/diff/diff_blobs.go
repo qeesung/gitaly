@@ -19,7 +19,7 @@ import (
 func (s *server) DiffBlobs(request *gitalypb.DiffBlobsRequest, stream gitalypb.DiffService_DiffBlobsServer) error {
 	ctx := stream.Context()
 
-	if err := s.locator.ValidateRepository(request.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, request.GetRepository()); err != nil {
 		return err
 	}
 

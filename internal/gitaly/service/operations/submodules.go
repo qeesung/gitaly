@@ -21,7 +21,7 @@ const (
 
 // UserUpdateSubmodule updates a submodule to point to a new commit.
 func (s *Server) UserUpdateSubmodule(ctx context.Context, req *gitalypb.UserUpdateSubmoduleRequest) (*gitalypb.UserUpdateSubmoduleResponse, error) {
-	if err := s.locator.ValidateRepository(req.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

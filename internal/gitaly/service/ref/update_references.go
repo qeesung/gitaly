@@ -21,7 +21,7 @@ func (s *server) UpdateReferences(server gitalypb.RefService_UpdateReferencesSer
 		return fmt.Errorf("receiving initial request: %w", err)
 	}
 
-	if err := s.locator.ValidateRepository(request.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, request.GetRepository()); err != nil {
 		return err
 	}
 	repo := s.localrepo(request.GetRepository())

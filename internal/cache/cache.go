@@ -25,7 +25,7 @@ type Streamer interface {
 // be called. Once the operation is complete, the returned LeaseEnder should
 // be invoked to end the lease.
 type Invalidator interface {
-	StartLease(*gitalypb.Repository) (LeaseEnder, error)
+	StartLease(context.Context, *gitalypb.Repository) (LeaseEnder, error)
 }
 
 // LeaseEnder allows the caller to indicate when a lease is no longer needed

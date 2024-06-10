@@ -45,7 +45,7 @@ func (s *Server) UserApplyPatch(stream gitalypb.OperationService_UserApplyPatchS
 		return structerr.NewInvalidArgument("empty UserApplyPatch_Header")
 	}
 
-	if err := validateUserApplyPatchHeader(s.locator, header); err != nil {
+	if err := validateUserApplyPatchHeader(stream.Context(), s.locator, header); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -57,7 +57,7 @@ func (s *Server) UserApplyPatch(stream gitalypb.OperationService_UserApplyPatchS
 }
 
 func (s *Server) userApplyPatch(ctx context.Context, header *gitalypb.UserApplyPatchRequest_Header, stream gitalypb.OperationService_UserApplyPatchServer) error {
-	path, err := s.locator.GetRepoPath(header.Repository)
+	path, err := s.locator.GetRepoPath(ctx, header.Repository)
 	if err != nil {
 		return err
 	}
@@ -212,8 +212,8 @@ func (s *Server) userApplyPatch(ctx context.Context, header *gitalypb.UserApplyP
 	return nil
 }
 
-func validateUserApplyPatchHeader(locator storage.Locator, header *gitalypb.UserApplyPatchRequest_Header) error {
-	if err := locator.ValidateRepository(header.GetRepository()); err != nil {
+func validateUserApplyPatchHeader(ctx context.Context, locator storage.Locator, header *gitalypb.UserApplyPatchRequest_Header) error {
+	if err := locator.ValidateRepository(ctx, header.GetRepository()); err != nil {
 		return err
 	}
 

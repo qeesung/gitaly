@@ -331,8 +331,8 @@ func (c *DiskCache) KeyPath(ctx context.Context, repo *gitalypb.Repository, req 
 // StartLease will mark the repository as being in an indeterministic state. This is typically used
 // when modifying the repo, since the cache is not stable until after the modification is complete.
 // A lease object will be returned that allows the caller to signal the end of the lease.
-func (c *DiskCache) StartLease(repo *gitalypb.Repository) (LeaseEnder, error) {
-	pendingPath, err := c.keyer.newPendingLease(repo)
+func (c *DiskCache) StartLease(ctx context.Context, repo *gitalypb.Repository) (LeaseEnder, error) {
+	pendingPath, err := c.keyer.newPendingLease(ctx, repo)
 	if err != nil {
 		return lease{}, err
 	}

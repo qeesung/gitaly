@@ -127,7 +127,7 @@ doesn't seem to test a realistic scenario.`)
 			setup: func(t *testing.T) setupData {
 				_, repo, repoPath := setupRepo(t)
 
-				altFile, err := repo.InfoAlternatesPath()
+				altFile, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 
 				// Write a non-existent object database to the repository's alternates file. The RPC
@@ -155,7 +155,7 @@ doesn't seem to test a realistic scenario.`)
 			setup: func(t *testing.T) setupData {
 				_, repo, repoPath := setupRepo(t)
 
-				altFile, err := repo.InfoAlternatesPath()
+				altFile, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 
 				// Write an object database with bad permissions to the repository's alternates
@@ -180,7 +180,7 @@ doesn't seem to test a realistic scenario.`)
 			setup: func(t *testing.T) setupData {
 				cfg, repo, repoPath := setupRepo(t)
 
-				altFile, err := repo.InfoAlternatesPath()
+				altFile, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 
 				altObjectDir := filepath.Join(cfg.Storages[0].Path, gittest.NewObjectPoolName(t), "objects")
@@ -225,7 +225,7 @@ doesn't seem to test a realistic scenario.`)
 			setup: func(t *testing.T) setupData {
 				cfg, repo, repoPath := setupRepo(t)
 
-				altFile, err := repo.InfoAlternatesPath()
+				altFile, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 
 				altObjectDir := filepath.Join(cfg.Storages[0].Path, gittest.NewObjectPoolName(t), "objects")

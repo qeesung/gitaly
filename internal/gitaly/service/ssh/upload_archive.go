@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -19,7 +20,7 @@ func (s *server) SSHUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveSer
 	if err != nil {
 		return structerr.NewInternal("%w", err)
 	}
-	if err = validateFirstUploadArchiveRequest(s.locator, req); err != nil {
+	if err = validateFirstUploadArchiveRequest(stream.Context(), s.locator, req); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -33,7 +34,7 @@ func (s *server) SSHUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveSer
 func (s *server) sshUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveServer, req *gitalypb.SSHUploadArchiveRequest) error {
 	ctx := stream.Context()
 
-	repoPath, err := s.locator.GetRepoPath(req.Repository)
+	repoPath, err := s.locator.GetRepoPath(ctx, req.Repository)
 	if err != nil {
 		return err
 	}
@@ -75,8 +76,8 @@ func (s *server) sshUploadArchive(stream gitalypb.SSHService_SSHUploadArchiveSer
 	})
 }
 
-func validateFirstUploadArchiveRequest(locator storage.Locator, req *gitalypb.SSHUploadArchiveRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateFirstUploadArchiveRequest(ctx context.Context, locator storage.Locator, req *gitalypb.SSHUploadArchiveRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 	if req.Stdin != nil {

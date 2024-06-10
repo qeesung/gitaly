@@ -56,7 +56,7 @@ func TestCreate(t *testing.T) {
 			return nil, "", err
 		}
 
-		return pool, gittest.RepositoryPath(t, pool), nil
+		return pool, gittest.RepositoryPath(t, ctx, pool), nil
 	}
 
 	t.Run("successful", func(t *testing.T) {

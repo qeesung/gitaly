@@ -2,6 +2,7 @@ package blob
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -28,7 +29,7 @@ func (s *server) ListLFSPointers(in *gitalypb.ListLFSPointersRequest, stream git
 	ctx := stream.Context()
 
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), repository); err != nil {
 		return err
 	}
 	if len(in.Revisions) == 0 {
@@ -80,7 +81,7 @@ func (s *server) ListAllLFSPointers(in *gitalypb.ListAllLFSPointersRequest, stre
 	ctx := stream.Context()
 
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -124,7 +125,7 @@ func (s *server) ListAllLFSPointers(in *gitalypb.ListAllLFSPointersRequest, stre
 func (s *server) GetLFSPointers(req *gitalypb.GetLFSPointersRequest, stream gitalypb.BlobService_GetLFSPointersServer) error {
 	ctx := stream.Context()
 
-	if err := validateGetLFSPointersRequest(s.locator, req); err != nil {
+	if err := validateGetLFSPointersRequest(stream.Context(), s.locator, req); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -177,8 +178,8 @@ func (s *server) GetLFSPointers(req *gitalypb.GetLFSPointersRequest, stream gita
 	return nil
 }
 
-func validateGetLFSPointersRequest(locator storage.Locator, req *gitalypb.GetLFSPointersRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateGetLFSPointersRequest(ctx context.Context, locator storage.Locator, req *gitalypb.GetLFSPointersRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 

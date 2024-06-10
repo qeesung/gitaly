@@ -197,7 +197,7 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		// We now repack the repository with cruft packs. The result should be that we have
 		// two packs in the repository.
 		gittest.Exec(t, cfg, "-C", repoPath, "repack", "--cruft", "-d")
-		packfilesInfo, err := stats.PackfilesInfoForRepository(repo)
+		packfilesInfo, err := stats.PackfilesInfoForRepository(ctx, repo)
 		require.NoError(t, err)
 		require.EqualValues(t, 2, packfilesInfo.Count)
 		require.EqualValues(t, 1, packfilesInfo.CruftCount)
@@ -243,7 +243,7 @@ func TestPruneUnreachableObjects(t *testing.T) {
 		// We now repack the repository with cruft packs. The result should be that we have
 		// two packs in the repository.
 		gittest.Exec(t, cfg, "-C", repoPath, "repack", "--cruft", "-d")
-		packfilesInfo, err := stats.PackfilesInfoForRepository(repo)
+		packfilesInfo, err := stats.PackfilesInfoForRepository(ctx, repo)
 		require.NoError(t, err)
 		require.EqualValues(t, 2, packfilesInfo.Count)
 		require.EqualValues(t, 1, packfilesInfo.CruftCount)

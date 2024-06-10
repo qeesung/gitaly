@@ -627,7 +627,7 @@ func testInfoRefsUploadPackCache(t *testing.T, ctx context.Context) {
 	require.Equal(t, strings.Join(replacedContents, "\n"), string(response))
 
 	invalidateCacheForRepo := func() {
-		ender, err := cache.StartLease(rewrittenRequest.Repository)
+		ender, err := cache.StartLease(ctx, rewrittenRequest.Repository)
 		require.NoError(t, err)
 		require.NoError(t, ender.EndLease(setInfoRefsUploadPackMethod(ctx)))
 	}

@@ -31,7 +31,7 @@ func (s *server) ResolveConflicts(stream gitalypb.ConflictsService_ResolveConfli
 		return structerr.NewInvalidArgument("empty ResolveConflictsRequestHeader")
 	}
 
-	if err = validateResolveConflictsHeader(s.locator, header); err != nil {
+	if err = validateResolveConflictsHeader(stream.Context(), s.locator, header); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -69,11 +69,11 @@ func (s *server) handleResolveConflictsErr(err error, stream gitalypb.ConflictsS
 	return stream.SendAndClose(&gitalypb.ResolveConflictsResponse{})
 }
 
-func validateResolveConflictsHeader(locator storage.Locator, header *gitalypb.ResolveConflictsRequestHeader) error {
+func validateResolveConflictsHeader(ctx context.Context, locator storage.Locator, header *gitalypb.ResolveConflictsRequestHeader) error {
 	if header.GetOurCommitOid() == "" {
 		return errors.New("empty OurCommitOid")
 	}
-	if err := locator.ValidateRepository(header.GetRepository()); err != nil {
+	if err := locator.ValidateRepository(ctx, header.GetRepository()); err != nil {
 		return err
 	}
 	if header.GetTargetRepository() == nil {

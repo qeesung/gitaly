@@ -26,7 +26,7 @@ func isExitWithCode(err error, code int) bool {
 // SetConfig will set a configuration value. Any preexisting values will be overwritten with the new
 // value. The change will use transactional semantics.
 func (repo *Repo) SetConfig(ctx context.Context, key, value string, txManager transaction.Manager) (returnedErr error) {
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (repo *Repo) UnsetMatchingConfig(
 		return err
 	}
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return fmt.Errorf("getting repo path: %w", err)
 	}

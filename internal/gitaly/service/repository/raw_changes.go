@@ -21,7 +21,7 @@ func (s *server) GetRawChanges(req *gitalypb.GetRawChangesRequest, stream gitaly
 	ctx := stream.Context()
 
 	repository := req.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

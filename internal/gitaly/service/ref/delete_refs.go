@@ -17,7 +17,7 @@ import (
 )
 
 func (s *server) DeleteRefs(ctx context.Context, in *gitalypb.DeleteRefsRequest) (_ *gitalypb.DeleteRefsResponse, returnedErr error) {
-	if err := validateDeleteRefRequest(s.locator, in); err != nil {
+	if err := validateDeleteRefRequest(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -159,8 +159,8 @@ func hasAnyPrefix(s string, prefixes []string) bool {
 	return false
 }
 
-func validateDeleteRefRequest(locator storage.Locator, req *gitalypb.DeleteRefsRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateDeleteRefRequest(ctx context.Context, locator storage.Locator, req *gitalypb.DeleteRefsRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 

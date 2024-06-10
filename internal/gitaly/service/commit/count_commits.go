@@ -15,7 +15,7 @@ import (
 )
 
 func (s *server) CountCommits(ctx context.Context, in *gitalypb.CountCommitsRequest) (*gitalypb.CountCommitsResponse, error) {
-	if err := validateCountCommitsRequest(s.locator, in); err != nil {
+	if err := validateCountCommitsRequest(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -70,8 +70,8 @@ func (s *server) CountCommits(ctx context.Context, in *gitalypb.CountCommitsRequ
 	return &gitalypb.CountCommitsResponse{Count: int32(count)}, nil
 }
 
-func validateCountCommitsRequest(locator storage.Locator, in *gitalypb.CountCommitsRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateCountCommitsRequest(ctx context.Context, locator storage.Locator, in *gitalypb.CountCommitsRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

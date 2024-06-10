@@ -19,7 +19,7 @@ func (s *server) CommitDelta(in *gitalypb.CommitDeltaRequest, stream gitalypb.Di
 		"Paths":         logPaths(in.Paths),
 	}).DebugContext(ctx, "CommitDelta")
 
-	if err := validateRequest(s.locator, in); err != nil {
+	if err := validateRequest(ctx, s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

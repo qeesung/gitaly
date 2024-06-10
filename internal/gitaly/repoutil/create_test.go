@@ -111,7 +111,7 @@ func TestCreate(t *testing.T) {
 		{
 			desc: "seeding with branch",
 			seed: func(t *testing.T, repo *gitalypb.Repository, _ string) error {
-				repoPath, err := locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+				repoPath, err := locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 				if err != nil {
 					return err
 				}
@@ -380,7 +380,7 @@ func TestCreate(t *testing.T) {
 				ctx = peer.NewContext(ctx, &peer.Peer{})
 			}
 
-			repoPath, err := locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+			repoPath, err := locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 			require.NoError(t, err)
 
 			if tc.setup != nil {
@@ -397,7 +397,7 @@ func TestCreate(t *testing.T) {
 				require.Equal(t, repo.StorageName, tempRepo.StorageName)
 				require.True(t, strings.HasPrefix(tempRepo.RelativePath, "+gitaly/tmp/repo"))
 
-				tempRepoPath, err := locator.GetRepoPath(tempRepo, storage.WithRepositoryVerificationSkipped())
+				tempRepoPath, err := locator.GetRepoPath(ctx, tempRepo, storage.WithRepositoryVerificationSkipped())
 				require.NoError(t, err)
 
 				if tc.seed != nil {
@@ -419,7 +419,7 @@ func TestCreate(t *testing.T) {
 
 			var tempRepoPath string
 			if tempRepo != nil {
-				tempRepoPath, err = locator.GetRepoPath(tempRepo, storage.WithRepositoryVerificationSkipped())
+				tempRepoPath, err = locator.GetRepoPath(ctx, tempRepo, storage.WithRepositoryVerificationSkipped())
 				require.NoError(t, err)
 			}
 

@@ -2,6 +2,7 @@ package linguist
 
 import (
 	"compress/zlib"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -48,8 +49,8 @@ func newLanguageStats() languageStats {
 
 // initLanguageStats tries to load the optionally available stats from file or
 // returns a blank languageStats struct.
-func initLanguageStats(repo *localrepo.Repo) (languageStats, error) {
-	objPath, err := repo.Path()
+func initLanguageStats(ctx context.Context, repo *localrepo.Repo) (languageStats, error) {
+	objPath, err := repo.Path(ctx)
 	if err != nil {
 		return newLanguageStats(), fmt.Errorf("new language stats get repo path: %w", err)
 	}
@@ -116,11 +117,11 @@ func (c *languageStats) drop(filenames ...string) {
 }
 
 // save the language stats to file in the repository
-func (c *languageStats) save(repo *localrepo.Repo, commitID git.ObjectID) error {
+func (c *languageStats) save(ctx context.Context, repo *localrepo.Repo, commitID git.ObjectID) error {
 	c.CommitID = commitID
 	c.Version = languageStatsVersion
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return fmt.Errorf("languageStats save get repo path: %w", err)
 	}

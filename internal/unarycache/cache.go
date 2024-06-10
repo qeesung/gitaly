@@ -58,7 +58,7 @@ func New[Key comparable, Value any](maxEntries int, generator Generator[Key, Val
 func (c *Cache[Key, Value]) GetOrCompute(ctx context.Context, repo *localrepo.Repo, key Key) (Value, error) {
 	var defaultValue Value
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return defaultValue, fmt.Errorf("getting repo path: %w", err)
 	}

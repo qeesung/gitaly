@@ -1860,7 +1860,7 @@ func BenchmarkTransactionManager(b *testing.B) {
 
 			repositoryFactory, err := localrepo.NewFactory(
 				logger, config.NewLocator(cfg), cmdFactory, cache,
-			).ScopeByStorage(cfg.Storages[0].Name)
+			).ScopeByStorage(ctx, cfg.Storages[0].Name)
 			require.NoError(b, err)
 
 			// Set up the repositories and start their TransactionManagers.
