@@ -98,6 +98,8 @@ type LogEntryArchiver struct {
 	logger log.Logger
 	// archiveSink is the Sink used to backup log entries.
 	archiveSink Sink
+	// partitionMgr is the LogManagerAccessor used to access LogManagers.
+	partitionMgr storagemgr.LogManagerAccessor
 
 	// notificationCh is the channel used to signal that a new notification has arrived.
 	notificationCh chan struct{}
@@ -133,12 +135,12 @@ type LogEntryArchiver struct {
 }
 
 // NewLogEntryArchiver constructs a new LogEntryArchiver.
-func NewLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint) *LogEntryArchiver {
-	return newLogEntryArchiver(logger, archiveSink, workerCount, helper.NewTimerTicker)
+func NewLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, partitionMgr storagemgr.LogManagerAccessor) *LogEntryArchiver {
+	return newLogEntryArchiver(logger, archiveSink, workerCount, partitionMgr, helper.NewTimerTicker)
 }
 
 // newLogEntryArchiver constructs a new LogEntryArchiver with a configurable ticker function.
-func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, tickerFunc func(time.Duration) helper.Ticker) *LogEntryArchiver {
+func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, partitionMgr storagemgr.LogManagerAccessor, tickerFunc func(time.Duration) helper.Ticker) *LogEntryArchiver {
 	if workerCount < 1 {
 		workerCount = 1
 	}
@@ -146,6 +148,7 @@ func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, 
 	archiver := &LogEntryArchiver{
 		logger:           logger,
 		archiveSink:      archiveSink,
+		partitionMgr:     partitionMgr,
 		notificationCh:   make(chan struct{}, 1),
 		workCh:           make(chan struct{}, 1),
 		doneCh:           make(chan struct{}),
@@ -212,7 +215,7 @@ func (la *LogEntryArchiver) Run() {
 			}()
 		}
 
-		la.main(sendCh, recvCh)
+		la.main(ctx, sendCh, recvCh)
 
 		close(sendCh)
 
@@ -231,7 +234,7 @@ func (la *LogEntryArchiver) Close() {
 
 // main is the main loop of the LogEntryArchiver. New notifications are ingested, jobs
 // are sent to workers, and the result of jobs are received.
-func (la *LogEntryArchiver) main(sendCh, recvCh chan *logEntry) {
+func (la *LogEntryArchiver) main(ctx context.Context, sendCh, recvCh chan *logEntry) {
 	for {
 		// Triggering sendEntries via workCh may not process all entries if there
 		// are more active partitions than workers or more than one entry to process
@@ -243,9 +246,9 @@ func (la *LogEntryArchiver) main(sendCh, recvCh chan *logEntry) {
 		case <-la.workCh:
 			la.sendEntries(sendCh)
 		case <-la.notificationCh:
-			la.ingestNotifications()
+			la.ingestNotifications(ctx)
 		case entry := <-recvCh:
-			la.receiveEntry(entry)
+			la.receiveEntry(ctx, entry)
 		case <-la.doneCh:
 			return
 		}
@@ -276,7 +279,7 @@ func (la *LogEntryArchiver) sendEntries(sendCh chan *logEntry) {
 }
 
 // ingestNotifications read all new notifications and updates partition states.
-func (la *LogEntryArchiver) ingestNotifications() {
+func (la *LogEntryArchiver) ingestNotifications(ctx context.Context) {
 	for {
 		notification := la.popNextNotification()
 		if notification == nil {
@@ -292,7 +295,11 @@ func (la *LogEntryArchiver) ingestNotifications() {
 		// We have already backed up all entries sent by the LogManager, but the manager is
 		// not aware of this. Acknowledge again with our last processed entry.
 		if state.nextLSN > notification.highWaterMark {
-			notification.mgr.AcknowledgeTransaction(la, state.nextLSN-1)
+			if err := la.partitionMgr.CallLogManager(ctx, notification.partitionInfo.storageName, notification.partitionInfo.partitionID, func(lm storagemgr.LogManager) {
+				lm.AcknowledgeTransaction(la, state.nextLSN-1)
+			}); err != nil {
+				la.logger.WithError(err).Error("log entry archiver: failed to get LogManager for already completed entry")
+			}
 			continue
 		}
 
@@ -329,7 +336,7 @@ func (la *LogEntryArchiver) ingestNotifications() {
 // receiveEntry handles the result of a backup job. If the backup failed, then it
 // will block for la.waitDur to allow the conditions that caused the failure to resolve
 // themselves. Continued failure results in an exponential backoff.
-func (la *LogEntryArchiver) receiveEntry(entry *logEntry) {
+func (la *LogEntryArchiver) receiveEntry(ctx context.Context, entry *logEntry) {
 	la.activeJobs--
 
 	state := la.partitionStates[entry.partitionInfo]
@@ -344,8 +351,6 @@ func (la *LogEntryArchiver) receiveEntry(entry *logEntry) {
 		return
 	}
 
-	entry.logManager.AcknowledgeTransaction(la, entry.lsn)
-
 	state.nextLSN++
 
 	// All entries in partition have been backed up, the partition is dormant.
@@ -357,6 +362,17 @@ func (la *LogEntryArchiver) receiveEntry(entry *logEntry) {
 	la.waitDur /= 2
 	if la.waitDur < minRetryWait {
 		la.waitDur = minRetryWait
+	}
+
+	if err := la.partitionMgr.CallLogManager(ctx, entry.partitionInfo.storageName, entry.partitionInfo.partitionID, func(lm storagemgr.LogManager) {
+		lm.AcknowledgeTransaction(la, entry.lsn)
+	}); err != nil {
+		la.logger.WithError(err).WithFields(
+			log.Fields{
+				"storage":      entry.partitionInfo.storageName,
+				"partition_id": entry.partitionInfo.partitionID,
+				"lsn":          entry.lsn,
+			}).Error("log entry archiver: failed to get LogManager for newly completed entry")
 	}
 }
 
@@ -370,14 +386,22 @@ func (la *LogEntryArchiver) processEntries(ctx context.Context, inCh, outCh chan
 
 // processEntry checks if an existing backup exists, and performs a backup if not present.
 func (la *LogEntryArchiver) processEntry(ctx context.Context, entry *logEntry) {
-	entryPath := entry.logManager.GetTransactionPath(entry.lsn)
-	archiveRelPath := filepath.Join(entry.partitionInfo.storageName, fmt.Sprintf("%d", entry.partitionInfo.partitionID), entry.lsn.String()+".tar")
-
 	logger := la.logger.WithFields(log.Fields{
 		"storage":      entry.partitionInfo.storageName,
 		"partition_id": entry.partitionInfo.partitionID,
 		"lsn":          entry.lsn,
 	})
+
+	var entryPath string
+	if err := la.partitionMgr.CallLogManager(context.Background(), entry.partitionInfo.storageName, entry.partitionInfo.partitionID, func(lm storagemgr.LogManager) {
+		entryPath = lm.GetTransactionPath(entry.lsn)
+	}); err != nil {
+		la.backupCounter.WithLabelValues("fail").Add(1)
+		la.logger.WithError(err).Error("log entry archiver: failed to get LogManager for entry path")
+		return
+	}
+
+	archiveRelPath := filepath.Join(entry.partitionInfo.storageName, fmt.Sprintf("%d", entry.partitionInfo.partitionID), entry.lsn.String()+".tar")
 
 	backupExists, err := la.checkForExistingBackup(ctx, archiveRelPath)
 	if err != nil {

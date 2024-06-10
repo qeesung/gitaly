@@ -371,7 +371,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			}
 
 			consumerFactory = func(lma storagemgr.LogManagerAccessor) (storagemgr.LogConsumer, func()) {
-				walArchiver := backup.NewLogEntryArchiver(logger, walSink, cfg.Backup.WALWorkerCount)
+				walArchiver := backup.NewLogEntryArchiver(logger, walSink, cfg.Backup.WALWorkerCount, lma)
 				prometheus.MustRegister(walArchiver)
 				walArchiver.Run()
 
