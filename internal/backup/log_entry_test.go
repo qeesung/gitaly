@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
@@ -32,6 +33,25 @@ type mockLogManager struct {
 	finishFunc    func()
 
 	sync.Mutex
+}
+
+type mockLogManagerAccessor struct {
+	managers map[partitionInfo]*mockLogManager
+	t        *testing.T
+
+	sync.Mutex
+}
+
+func (lma *mockLogManagerAccessor) AccessLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID) (storagemgr.LogManager, func(), error) {
+	lma.Lock()
+	defer lma.Unlock()
+
+	info := partitionInfo{storageName, partitionID}
+	mgr, ok := lma.managers[info]
+	assert.True(lma.t, ok)
+
+	// TODO
+	return mgr, func() {}, nil
 }
 
 func (lm *mockLogManager) AcknowledgeTransaction(_ storagemgr.LogConsumer, lsn storage.LSN) {
@@ -247,7 +267,12 @@ func TestLogEntryArchiver(t *testing.T) {
 			hook := testhelper.AddLoggerHook(logger)
 			var wg sync.WaitGroup
 
-			archiver := NewLogEntryArchiver(logger, archiveSink, tc.workerCount)
+			accessor := &mockLogManagerAccessor{
+				managers: make(map[partitionInfo]*mockLogManager, len(tc.partitions)),
+				t:        t,
+			}
+
+			archiver := NewLogEntryArchiver(logger, archiveSink, tc.workerCount, accessor)
 			archiver.Run()
 			defer archiver.Close()
 
@@ -269,6 +294,10 @@ func TestLogEntryArchiver(t *testing.T) {
 					finishFunc:    wg.Done,
 				}
 				managers[info] = manager
+
+				accessor.Lock()
+				accessor.managers[info] = manager
+				accessor.Unlock()
 
 				partitionID := partitionID
 
@@ -302,7 +331,7 @@ func TestLogEntryArchiver(t *testing.T) {
 			cmpDir := testhelper.TempDir(t)
 			require.NoError(t, os.Mkdir(filepath.Join(cmpDir, storageName), perm.PrivateDir))
 
-			for info, manager := range managers {
+			for info, manager := range accessor.managers {
 				lastAck := manager.acknowledged[len(manager.acknowledged)-1]
 				require.Equal(t, tc.finalLSN, lastAck)
 
@@ -361,7 +390,12 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 	archiveSink, err := ResolveSink(ctx, archivePath)
 	require.NoError(t, err)
 
-	archiver := newLogEntryArchiver(logger, archiveSink, workerCount, tickerFunc)
+	accessor := &mockLogManagerAccessor{
+		managers: make(map[partitionInfo]*mockLogManager, 1),
+		t:        t,
+	}
+
+	archiver := newLogEntryArchiver(logger, archiveSink, workerCount, accessor, tickerFunc)
 	archiver.Run()
 	defer archiver.Close()
 
@@ -383,6 +417,10 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 		finalLSN:   1,
 		finishFunc: wg.Done,
 	}
+
+	accessor.Lock()
+	accessor.managers[info] = manager
+	accessor.Unlock()
 
 	wg.Add(1)
 	manager.SendNotification()
