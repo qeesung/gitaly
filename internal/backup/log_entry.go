@@ -28,16 +28,14 @@ const (
 type logEntry struct {
 	partitionInfo partitionInfo
 	lsn           storage.LSN
-	logManager    storagemgr.LogManager
 	success       bool
 }
 
 // newLogEntry constructs a new logEntry.
-func newLogEntry(partitionInfo partitionInfo, lsn storage.LSN, mgr storagemgr.LogManager) *logEntry {
+func newLogEntry(partitionInfo partitionInfo, lsn storage.LSN) *logEntry {
 	return &logEntry{
 		partitionInfo: partitionInfo,
 		lsn:           lsn,
-		logManager:    mgr,
 	}
 }
 
@@ -46,11 +44,10 @@ type partitionNotification struct {
 	lowWaterMark  storage.LSN
 	highWaterMark storage.LSN
 	partitionInfo partitionInfo
-	mgr           storagemgr.LogManager
 }
 
 // newPartitionNotification constructs a new partitionNotification.
-func newPartitionNotification(storageName string, partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) *partitionNotification {
+func newPartitionNotification(storageName string, partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN) *partitionNotification {
 	return &partitionNotification{
 		partitionInfo: partitionInfo{
 			storageName: storageName,
@@ -58,7 +55,6 @@ func newPartitionNotification(storageName string, partitionID storage.PartitionI
 		},
 		lowWaterMark:  lowWaterMark,
 		highWaterMark: highWaterMark,
-		mgr:           mgr,
 	}
 }
 
@@ -68,18 +64,15 @@ type partitionState struct {
 	nextLSN storage.LSN
 	// highWaterMark is the highest LSN to be backed up.
 	highWaterMark storage.LSN
-	// logManager is the LogManager for this partition.
-	logManager storagemgr.LogManager
 	// hasJob indicates if a backup job is currently being processed for this partition.
 	hasJob bool
 }
 
 // newPartitionState constructs a new partitionState.
-func newPartitionState(nextLSN, highWaterMark storage.LSN, logManager storagemgr.LogManager) *partitionState {
+func newPartitionState(nextLSN, highWaterMark storage.LSN) *partitionState {
 	return &partitionState{
 		nextLSN:       nextLSN,
 		highWaterMark: highWaterMark,
-		logManager:    logManager,
 	}
 }
 
@@ -177,11 +170,11 @@ func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, 
 }
 
 // NotifyNewTransactions passes the transaction information to the LogEntryArchiver for processing.
-func (la *LogEntryArchiver) NotifyNewTransactions(storageName string, partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) {
+func (la *LogEntryArchiver) NotifyNewTransactions(storageName string, partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN) {
 	la.notificationsMutex.Lock()
 	defer la.notificationsMutex.Unlock()
 
-	la.notifications.PushBack(newPartitionNotification(storageName, partitionID, lowWaterMark, highWaterMark, mgr))
+	la.notifications.PushBack(newPartitionNotification(storageName, partitionID, lowWaterMark, highWaterMark))
 
 	select {
 	case la.notificationCh <- struct{}{}:
@@ -272,7 +265,7 @@ func (la *LogEntryArchiver) sendEntries(sendCh chan *logEntry) {
 		}
 
 		state.hasJob = true
-		sendCh <- newLogEntry(partitionInfo, state.nextLSN, state.logManager)
+		sendCh <- newLogEntry(partitionInfo, state.nextLSN)
 
 		la.activeJobs++
 	}
@@ -288,7 +281,7 @@ func (la *LogEntryArchiver) ingestNotifications(ctx context.Context) {
 
 		state, ok := la.partitionStates[notification.partitionInfo]
 		if !ok {
-			state = newPartitionState(notification.lowWaterMark, notification.highWaterMark, notification.mgr)
+			state = newPartitionState(notification.lowWaterMark, notification.highWaterMark)
 			la.partitionStates[notification.partitionInfo] = state
 		}
 
@@ -321,10 +314,6 @@ func (la *LogEntryArchiver) ingestNotifications(ctx context.Context) {
 		}
 
 		state.highWaterMark = notification.highWaterMark
-
-		// LogManagers may close and restart. Always store the most recent
-		// one to maximize our chances of reaching an active manager.
-		state.logManager = notification.mgr
 
 		// Mark partition as active.
 		la.activePartitions[notification.partitionInfo] = struct{}{}

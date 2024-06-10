@@ -73,7 +73,7 @@ func (lm *mockLogManager) AcknowledgeTransaction(_ storagemgr.LogConsumer, lsn s
 
 func (lm *mockLogManager) SendNotification() {
 	n := lm.notifications[0]
-	lm.archiver.NotifyNewTransactions(lm.partitionInfo.storageName, lm.partitionInfo.partitionID, n.lowWaterMark, n.highWaterMark, lm)
+	lm.archiver.NotifyNewTransactions(lm.partitionInfo.storageName, lm.partitionInfo.partitionID, n.lowWaterMark, n.highWaterMark)
 
 	lm.notifications = lm.notifications[1:]
 }

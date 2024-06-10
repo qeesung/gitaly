@@ -793,11 +793,7 @@ type LogConsumer interface {
 	// initializes and when new transactions are committed. Both the low and high water mark
 	// LSNs are sent so that a newly initialized consumer is aware of the full range of
 	// entries it can process.
-	//
-	// A single LogConsumer may interact simultaneously with many LogManagers. The
-	// LogManager passes itself as a parameter so that the LogConsumer may call back to
-	// it when the operation is finished.
-	NotifyNewTransactions(storageName string, partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr LogManager)
+	NotifyNewTransactions(storageName string, partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN)
 }
 
 // LogManagerAccessor is the interface used by the LogManager coordinator. It is called by
@@ -2274,7 +2270,7 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	}
 
 	if mgr.consumer != nil {
-		mgr.consumer.NotifyNewTransactions(mgr.storageName, mgr.partitionID, mgr.oldestLSN, mgr.appendedLSN, mgr)
+		mgr.consumer.NotifyNewTransactions(mgr.storageName, mgr.partitionID, mgr.oldestLSN, mgr.appendedLSN)
 	}
 
 	// Create a snapshot lock for the applied LSN as it is used for synchronizing
@@ -2998,7 +2994,7 @@ func (mgr *TransactionManager) appendLogEntry(objectDependencies map[git.ObjectI
 	mgr.mutex.Unlock()
 
 	if mgr.consumer != nil {
-		mgr.consumer.NotifyNewTransactions(mgr.storageName, mgr.partitionID, mgr.lowWaterMark(), nextLSN, mgr)
+		mgr.consumer.NotifyNewTransactions(mgr.storageName, mgr.partitionID, mgr.lowWaterMark(), nextLSN)
 	}
 	return nil
 }
