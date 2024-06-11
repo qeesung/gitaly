@@ -51,6 +51,10 @@ No changes.
 - [Fix FindCommits in repositories missing default branches](gitlab-org/gitaly@6e011ae3ecff6d8797de15df19b23c3000eea111) ([merge request](gitlab-org/gitaly!6801))
 - [Allow unauthenticated access to health checking service](gitlab-org/gitaly@fcdbc76dc24f946a84155d91c1a8a5a55de0e5a1) ([merge request](gitlab-org/gitaly!6715))
 
+## 16.10.7 (2024-06-11)
+
+No changes.
+
 ## 16.10.6 (2024-05-21)
 
 No changes.
