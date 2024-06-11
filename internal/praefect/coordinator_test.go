@@ -22,6 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	gconfig "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/repository"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/client"
@@ -950,14 +951,14 @@ func TestStreamDirector_maintenanceRPCs(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	primaryStorage := "internal-gitaly-0"
-	primaryServer, primarySocketPath := runMockMaintenanceServer(
-		t, testcfg.Build(t, testcfg.WithStorages(primaryStorage)),
-	)
+	primaryCfg := testcfg.Build(t, testcfg.WithStorages(primaryStorage))
+	primaryServer, primarySocketPath := runMockMaintenanceServer(t, primaryCfg)
+	primaryCfg.SocketPath = primarySocketPath
 
 	secondaryStorage := "internal-gitaly-1"
-	secondaryServer, secondarySocketPath := runMockMaintenanceServer(t, testcfg.Build(
-		t, testcfg.WithStorages(secondaryStorage)),
-	)
+	secondaryCfg := testcfg.Build(t, testcfg.WithStorages(secondaryStorage))
+	secondaryServer, secondarySocketPath := runMockMaintenanceServer(t, secondaryCfg)
+	secondaryCfg.SocketPath = secondarySocketPath
 
 	cc, _, cleanup := RunPraefectServer(t, ctx, config.Config{
 		VirtualStorages: []*config.VirtualStorage{
@@ -992,6 +993,14 @@ func TestStreamDirector_maintenanceRPCs(t *testing.T) {
 	}
 
 	repositoryClient := gitalypb.NewRepositoryServiceClient(cc)
+
+	gittest.CreateRepository(t, ctx, primaryCfg, gittest.CreateRepositoryConfig{
+		RelativePath: repository.RelativePath,
+	})
+
+	gittest.CreateRepository(t, ctx, secondaryCfg, gittest.CreateRepositoryConfig{
+		RelativePath: repository.RelativePath,
+	})
 
 	for _, tc := range []struct {
 		desc                     string
@@ -1040,7 +1049,7 @@ func TestStreamDirector_maintenanceRPCs(t *testing.T) {
 
 type mockMaintenanceServer struct {
 	requestCh chan proto.Message
-	gitalypb.UnimplementedRepositoryServiceServer
+	gitalypb.RepositoryServiceServer
 }
 
 func runMockMaintenanceServer(t *testing.T, cfg gconfig.Cfg) (*mockMaintenanceServer, string) {
@@ -1049,6 +1058,7 @@ func runMockMaintenanceServer(t *testing.T, cfg gconfig.Cfg) (*mockMaintenanceSe
 	}
 
 	addr := testserver.RunGitalyServer(t, cfg, func(srv *grpc.Server, deps *service.Dependencies) {
+		server.RepositoryServiceServer = repository.NewServer(deps)
 		gitalypb.RegisterRepositoryServiceServer(srv, server)
 	}, testserver.WithDisablePraefect())
 
@@ -1061,6 +1071,10 @@ func (m *mockMaintenanceServer) OptimizeRepository(ctx context.Context, in *gita
 }
 
 func (m *mockMaintenanceServer) PruneUnreachableObjects(ctx context.Context, in *gitalypb.PruneUnreachableObjectsRequest) (*gitalypb.PruneUnreachableObjectsResponse, error) {
+	storagectx.RunWithTransaction(ctx, func(tx storagectx.Transaction) {
+		in.Repository = tx.OriginalRepository(in.Repository)
+	})
+
 	m.requestCh <- in
 	return &gitalypb.PruneUnreachableObjectsResponse{}, nil
 }
