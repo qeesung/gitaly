@@ -58,7 +58,7 @@ Gitaly and Gitaly Cluster.
    |  `-id`                |  string   |  no      |  Used to determine a unique path for the backup when a full backup is created. |
    |  `-layout`            |  string   |  no      |  How backup files are located. One of `manifest` (default), `pointer`, or `legacy`. |
    |  `-incremental`       |  bool     |  no      |  Indicates whether to create an incremental backup. |
-   |  `-server-side`       |  bool     |  no      |  Indicates whether to use server-side backups. Note: The feature is not ready for production use. |
+   |  `-server-side`       |  bool     |  no      |  Indicates whether to use server-side backups. |
 
 ## Directly restore repository data
 
@@ -117,7 +117,7 @@ Gitaly and Gitaly Cluster.
    |  `-id`                      |  string                |  no      |  ID of full backup to restore. If not specified, the latest backup is restored (default). |
    |  `-layout`                  |  string                |  no      |  How backup files are located. One of `manifest` (default), `pointer`, or `legacy`. |
    |  `-remove-all-repositories` |  comma-separated list  |  no      |  List of storage names to have all repositories removed from before restoring. You must specify `GITALY_SERVERS` for the listed storage names. |
-   |  `-server-side`             |  bool                  |  no      |  Indicates whether to use server-side backups. Note: The feature is not ready for production use. |
+   |  `-server-side`             |  bool                  |  no      |  Indicates whether to use server-side backups. |
 
 ## Path
 
@@ -330,7 +330,7 @@ To use server-side backups:
    ```toml
    [backup]
    go_cloud_url = "gs://gitaly-backups"
-   # layout = "pointer"
+   # layout = "manifest"
    ```
 
 1. Add the `-server-side` flag when invoking `gitaly-backup`. The `-path` and `-layout` flags cannot be used in server-side mode.
