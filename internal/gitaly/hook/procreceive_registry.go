@@ -28,6 +28,9 @@ type ProcReceiveHandler interface {
 	// Atomic denotes whether the push was atomic.
 	Atomic() bool
 
+	// PushOptions provides the set of push options provided to the proc-receive hook.
+	PushOptions() []string
+
 	// ReferenceUpdates provides the reference updates to be made.
 	ReferenceUpdates() []ReferenceUpdate
 

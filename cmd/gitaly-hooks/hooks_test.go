@@ -517,7 +517,7 @@ func TestHooksProcReceive(t *testing.T) {
 		{
 			desc:             "successful proc-receive execution",
 			transactionID:    1,
-			expectedStdout:   "0015version=1\x00 atomic00000018ok refs/heads/main_10000",
+			expectedStdout:   "0014version=1\x00atomic00000018ok refs/heads/main_10000",
 			expectedExitCode: 0,
 		},
 	} {
