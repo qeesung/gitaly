@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/pktline"
@@ -16,6 +17,7 @@ type procReceiveHandler struct {
 	updates       []ReferenceUpdate
 	transactionID storage.TransactionID
 	atomic        bool
+	pushOptions   []string
 }
 
 // NewProcReceiveHandler returns a ProcReceiveHandler implementation.
@@ -51,11 +53,10 @@ func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (Pro
 		return nil, nil, fmt.Errorf("receiving header: %w", err)
 	}
 
-	after, ok := bytes.CutPrefix(data, []byte("version=1"))
-	if !ok {
+	version, features, _ := bytes.Cut(data, []byte{0})
+	if !bytes.Equal(version, []byte("version=1")) {
 		return nil, nil, fmt.Errorf("unsupported version: %s", data)
 	}
-	featureRequests := parseFeatureRequest(after)
 
 	if !scanner.Scan() {
 		return nil, nil, fmt.Errorf("expected flush: %w", scanner.Err())
@@ -65,6 +66,7 @@ func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (Pro
 		return nil, nil, fmt.Errorf("expected pkt flush")
 	}
 
+	featureRequests := parseFeatureRequest(features)
 	if _, err := pktline.WriteString(stdout, fmt.Sprintf("version=1%s", featureRequests)); err != nil {
 		return nil, nil, fmt.Errorf("writing version: %w", err)
 	}
@@ -73,7 +75,7 @@ func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (Pro
 		return nil, nil, fmt.Errorf("flushing version: %w", err)
 	}
 
-	updates := []ReferenceUpdate{}
+	var updates []ReferenceUpdate
 	for scanner.Scan() {
 		line := scanner.Bytes()
 
@@ -94,6 +96,25 @@ func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (Pro
 		updates = append(updates, update)
 	}
 
+	var pushOptions []string
+	if featureRequests.pushOptions {
+		for scanner.Scan() {
+			line := scanner.Bytes()
+
+			// When all push options are transmitted, we expect a flush.
+			if pktline.IsFlush(line) {
+				break
+			}
+
+			pushOption, err := pktline.Payload(line)
+			if err != nil {
+				return nil, nil, fmt.Errorf("getting push option payload: %w", err)
+			}
+
+			pushOptions = append(pushOptions, string(pushOption))
+		}
+	}
+
 	if err := scanner.Err(); err != nil {
 		return nil, nil, fmt.Errorf("parsing stdin: %w", err)
 	}
@@ -106,6 +127,7 @@ func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (Pro
 		stdout:        stdout,
 		updates:       updates,
 		doneCh:        ch,
+		pushOptions:   pushOptions,
 	}, ch, nil
 }
 
@@ -118,6 +140,11 @@ func (h *procReceiveHandler) TransactionID() storage.TransactionID {
 // Atomic denotes whether the push was atomic.
 func (h *procReceiveHandler) Atomic() bool {
 	return h.atomic
+}
+
+// PushOptions provides the set of push options provided to the proc-receive hook.
+func (h *procReceiveHandler) PushOptions() []string {
+	return h.pushOptions
 }
 
 // ReferenceUpdates provides the reference updates to be made.
@@ -179,24 +206,36 @@ func parseRefUpdate(data []byte) (ReferenceUpdate, error) {
 }
 
 type procReceiveFeatureRequests struct {
-	atomic bool
+	atomic      bool
+	pushOptions bool
 }
 
 func (r *procReceiveFeatureRequests) String() string {
-	s := ""
-	if r.atomic {
-		s = "\000 atomic"
+	var features []string
+	if r.pushOptions {
+		features = append(features, "push-options")
 	}
 
-	return s
+	if r.atomic {
+		features = append(features, "atomic")
+	}
+
+	if len(features) == 0 {
+		return ""
+	}
+
+	return "\000" + strings.Join(features, " ")
 }
 
 // parseFeatureRequest parses the features requested.
 func parseFeatureRequest(data []byte) *procReceiveFeatureRequests {
 	var featureRequests procReceiveFeatureRequests
 
-	for _, feature := range bytes.Split(data, []byte(" ")) {
-		if bytes.Equal(feature, []byte("atomic")) {
+	for _, feature := range bytes.Split(bytes.TrimSpace(data), []byte(" ")) {
+		switch {
+		case bytes.Equal(feature, []byte("push-options")):
+			featureRequests.pushOptions = true
+		case bytes.Equal(feature, []byte("atomic")):
 			featureRequests.atomic = true
 		}
 	}

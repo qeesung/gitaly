@@ -90,7 +90,7 @@ func TestProcReceiveHandler(t *testing.T) {
 			desc: "single reference with atomic",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				var stdin bytes.Buffer
-				_, err := pktline.WriteString(&stdin, "version=1\000 push-options atomic")
+				_, err := pktline.WriteString(&stdin, "version=1\000push-options atomic")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdin)
 				require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestProcReceiveHandler(t *testing.T) {
 				require.NoError(t, err)
 
 				var stdout bytes.Buffer
-				_, err = pktline.WriteString(&stdout, "version=1\000 atomic")
+				_, err = pktline.WriteString(&stdout, "version=1\000push-options atomic")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdout)
 				require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestProcReceiveHandler(t *testing.T) {
 			desc: "single reference without atomic",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				var stdin bytes.Buffer
-				_, err := pktline.WriteString(&stdin, "version=1\000 push-options")
+				_, err := pktline.WriteString(&stdin, "version=1\000push-options")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdin)
 				require.NoError(t, err)
@@ -145,7 +145,7 @@ func TestProcReceiveHandler(t *testing.T) {
 				require.NoError(t, err)
 
 				var stdout bytes.Buffer
-				_, err = pktline.WriteString(&stdout, "version=1")
+				_, err = pktline.WriteString(&stdout, "version=1\000push-options")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdout)
 				require.NoError(t, err)
@@ -177,7 +177,7 @@ func TestProcReceiveHandler(t *testing.T) {
 			desc: "single reference but close midway with error",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				var stdin bytes.Buffer
-				_, err := pktline.WriteString(&stdin, "version=1\000 push-options")
+				_, err := pktline.WriteString(&stdin, "version=1\000push-options")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdin)
 				require.NoError(t, err)
@@ -188,7 +188,7 @@ func TestProcReceiveHandler(t *testing.T) {
 				require.NoError(t, err)
 
 				var stdout bytes.Buffer
-				_, err = pktline.WriteString(&stdout, "version=1")
+				_, err = pktline.WriteString(&stdout, "version=1\000push-options")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdout)
 				require.NoError(t, err)
@@ -216,7 +216,7 @@ func TestProcReceiveHandler(t *testing.T) {
 			desc: "multiple references",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				var stdin bytes.Buffer
-				_, err := pktline.WriteString(&stdin, "version=1\000 push-options")
+				_, err := pktline.WriteString(&stdin, "version=1\000push-options")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdin)
 				require.NoError(t, err)
@@ -230,7 +230,7 @@ func TestProcReceiveHandler(t *testing.T) {
 				require.NoError(t, err)
 
 				var stdout bytes.Buffer
-				_, err = pktline.WriteString(&stdout, "version=1")
+				_, err = pktline.WriteString(&stdout, "version=1\000push-options")
 				require.NoError(t, err)
 				err = pktline.WriteFlush(&stdout)
 				require.NoError(t, err)
@@ -261,6 +261,44 @@ func TestProcReceiveHandler(t *testing.T) {
 					handlerSteps: func(handler ProcReceiveHandler) error {
 						require.NoError(t, handler.AcceptUpdate("refs/heads/main"))
 						require.NoError(t, handler.RejectUpdate("refs/heads/branch", "for fun"))
+						return handler.Close(nil)
+					},
+				}
+			},
+		},
+		{
+			desc: "push options",
+			setup: func(t *testing.T, ctx context.Context) setupData {
+				var stdin bytes.Buffer
+				_, err := pktline.WriteString(&stdin, "version=1\000push-options")
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdin)
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdin)
+				require.NoError(t, err)
+				_, err = pktline.WriteString(&stdin, "push-option-1")
+				require.NoError(t, err)
+				_, err = pktline.WriteString(&stdin, "push-option-2")
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdin)
+				require.NoError(t, err)
+
+				var stdout bytes.Buffer
+				_, err = pktline.WriteString(&stdout, "version=1\000push-options")
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdout)
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdout)
+				require.NoError(t, err)
+
+				return setupData{
+					env:             []string{payload},
+					ctx:             ctx,
+					stdin:           stdin.String(),
+					expectedStdout:  stdout.String(),
+					expectedUpdates: []ReferenceUpdate{},
+					handlerSteps: func(handler ProcReceiveHandler) error {
+						require.Equal(t, []string{"push-option-1", "push-option-2"}, handler.PushOptions())
 						return handler.Close(nil)
 					},
 				}
