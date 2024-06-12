@@ -77,7 +77,7 @@ func newFileblobSink(path string) (*StorageServiceSink, error) {
 		}
 	}
 
-	bucket, err := fileblob.OpenBucket(path, &fileblob.Options{NoTempDir: true})
+	bucket, err := fileblob.OpenBucket(path, &fileblob.Options{NoTempDir: true, Metadata: fileblob.MetadataDontWrite})
 	if err != nil {
 		return nil, fmt.Errorf("storage service sink: open bucket: %w", err)
 	}
