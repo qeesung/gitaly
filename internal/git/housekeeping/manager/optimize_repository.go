@@ -50,12 +50,7 @@ func (m *RepositoryManager) OptimizeRepository(
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "housekeeping.OptimizeRepository", nil)
 	defer span.Finish()
 
-	path, err := repo.Path()
-	if err != nil {
-		return err
-	}
-
-	ok, cleanup := m.repositoryStates.tryRunningHousekeeping(path)
+	ok, cleanup := m.repositoryStates.tryRunningHousekeeping(repo)
 	// If we didn't succeed to set the state to "running" because of a concurrent housekeeping run
 	// we exit early.
 	if !ok {
@@ -345,17 +340,12 @@ func pruneIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeep
 }
 
 func (m *RepositoryManager) packRefsIfNeeded(ctx context.Context, repo *localrepo.Repo, strategy housekeeping.OptimizationStrategy) (bool, error) {
-	path, err := repo.Path()
-	if err != nil {
-		return false, err
-	}
-
 	if !strategy.ShouldRepackReferences(ctx) {
 		return false, nil
 	}
 
 	// If there are any inhibitors, we don't run git-pack-refs(1).
-	ok, cleanup := m.repositoryStates.tryRunningPackRefs(path)
+	ok, cleanup := m.repositoryStates.tryRunningPackRefs(repo)
 	if !ok {
 		return false, nil
 	}

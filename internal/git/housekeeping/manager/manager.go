@@ -8,6 +8,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -22,7 +23,7 @@ type Manager interface {
 	// efficiently served.
 	OptimizeRepository(context.Context, *localrepo.Repo, ...OptimizeRepositoryOption) error
 	// AddPackRefsInhibitor allows clients to block housekeeping from running git-pack-refs(1).
-	AddPackRefsInhibitor(ctx context.Context, repoPath string) (bool, func(), error)
+	AddPackRefsInhibitor(ctx context.Context, repo storage.Repository) (bool, func(), error)
 }
 
 // repositoryState holds the housekeeping state for individual repositories. This structure can be
@@ -58,20 +59,26 @@ type repositoryStates struct {
 	values map[string]*refCountedState
 }
 
+func repositoryStatesKey(repo storage.Repository) string {
+	return repo.GetStorageName() + ":" + repo.GetRelativePath()
+}
+
 // getState provides the state and cleanup function for a given repository path.
 // The cleanup function deletes the state if the caller is the last goroutine referencing
 // the state.
-func (s *repositoryStates) getState(repoPath string) (*repositoryState, func()) {
+func (s *repositoryStates) getState(repo storage.Repository) (*repositoryState, func()) {
+	key := repositoryStatesKey(repo)
+
 	s.Lock()
 	defer s.Unlock()
 
-	value, ok := s.values[repoPath]
+	value, ok := s.values[key]
 	if !ok {
-		s.values[repoPath] = &refCountedState{
+		s.values[key] = &refCountedState{
 			rc:    0,
 			state: &repositoryState{},
 		}
-		value = s.values[repoPath]
+		value = s.values[key]
 	}
 
 	value.rc++
@@ -82,7 +89,7 @@ func (s *repositoryStates) getState(repoPath string) (*repositoryState, func()) 
 
 		value.rc--
 		if value.rc == 0 {
-			delete(s.values, repoPath)
+			delete(s.values, key)
 		}
 	}
 }
@@ -90,8 +97,8 @@ func (s *repositoryStates) getState(repoPath string) (*repositoryState, func()) 
 // tryRunningHousekeeping denotes if housekeeping can be run on a given repository.
 // If successful, it also provides a cleanup function which resets the state so other
 // goroutines can run housekeeping on the repository.
-func (s *repositoryStates) tryRunningHousekeeping(repoPath string) (successful bool, _ func()) {
-	state, cleanup := s.getState(repoPath)
+func (s *repositoryStates) tryRunningHousekeeping(repo storage.Repository) (successful bool, _ func()) {
+	state, cleanup := s.getState(repo)
 	defer func() {
 		if !successful {
 			cleanup()
@@ -122,8 +129,8 @@ func (s *repositoryStates) tryRunningHousekeeping(repoPath string) (successful b
 //
 // The function returns a cleanup function which decreases the inhibitor count and must
 // be called by the client when it no longer blocks `git-pack-refs(1)`.
-func (s *repositoryStates) addPackRefsInhibitor(ctx context.Context, repoPath string) (successful bool, _ func(), err error) {
-	state, cleanup := s.getState(repoPath)
+func (s *repositoryStates) addPackRefsInhibitor(ctx context.Context, repo storage.Repository) (successful bool, _ func(), err error) {
+	state, cleanup := s.getState(repo)
 	defer func() {
 		if !successful {
 			cleanup()
@@ -176,8 +183,8 @@ func (s *repositoryStates) addPackRefsInhibitor(ctx context.Context, repoPath st
 // is at least one inhibitors then we return false. If there are no inhibitors, we setup the `packRefsDone`
 // channel to denote when `git-pack-refs(1)` finishes, this is handled when the caller calls the
 // cleanup function returned by this function.
-func (s *repositoryStates) tryRunningPackRefs(repoPath string) (successful bool, _ func()) {
-	state, cleanup := s.getState(repoPath)
+func (s *repositoryStates) tryRunningPackRefs(repo storage.Repository) (successful bool, _ func()) {
+	state, cleanup := s.getState(repo)
 	defer func() {
 		if !successful {
 			cleanup()
@@ -243,6 +250,6 @@ func (m *RepositoryManager) Collect(metrics chan<- prometheus.Metric) {
 // AddPackRefsInhibitor exposes the internal function addPackRefsInhibitor on the
 // RepositoryManager level. This can then be used by other clients to block housekeeping
 // from running git-pack-refs(1).
-func (m *RepositoryManager) AddPackRefsInhibitor(ctx context.Context, repoPath string) (successful bool, _ func(), err error) {
-	return m.repositoryStates.addPackRefsInhibitor(ctx, repoPath)
+func (m *RepositoryManager) AddPackRefsInhibitor(ctx context.Context, repo storage.Repository) (successful bool, _ func(), err error) {
+	return m.repositoryStates.addPackRefsInhibitor(ctx, repo)
 }
