@@ -47,6 +47,11 @@ func (m *RepositoryManager) OptimizeRepository(
 	repo *localrepo.Repo,
 	opts ...OptimizeRepositoryOption,
 ) error {
+	var cfg OptimizeRepositoryConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "housekeeping.OptimizeRepository", nil)
 	defer span.Finish()
 
@@ -59,7 +64,7 @@ func (m *RepositoryManager) OptimizeRepository(
 	defer cleanup()
 
 	if m.optimizeFunc != nil {
-		strategy, err := m.validate(ctx, repo, opts)
+		strategy, err := m.validate(ctx, repo, cfg)
 		if err != nil {
 			return err
 		}
@@ -67,24 +72,19 @@ func (m *RepositoryManager) OptimizeRepository(
 	}
 
 	if m.walPartitionManager != nil {
-		return m.optimizeRepositoryWithTransaction(ctx, repo, opts)
+		return m.optimizeRepositoryWithTransaction(ctx, repo, cfg)
 	}
-	return m.optimizeRepository(ctx, repo, opts)
+	return m.optimizeRepository(ctx, repo, cfg)
 }
 
 func (m *RepositoryManager) validate(
 	ctx context.Context,
 	repo *localrepo.Repo,
-	opts []OptimizeRepositoryOption,
+	cfg OptimizeRepositoryConfig,
 ) (housekeeping.OptimizationStrategy, error) {
 	gitVersion, err := repo.GitVersion(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	var cfg OptimizeRepositoryConfig
-	for _, opt := range opts {
-		opt(&cfg)
 	}
 
 	repositoryInfo, err := stats.RepositoryInfoForRepository(ctx, repo)
@@ -108,9 +108,9 @@ func (m *RepositoryManager) validate(
 func (m *RepositoryManager) optimizeRepository(
 	ctx context.Context,
 	repo *localrepo.Repo,
-	opts []OptimizeRepositoryOption,
+	cfg OptimizeRepositoryConfig,
 ) error {
-	strategy, err := m.validate(ctx, repo, opts)
+	strategy, err := m.validate(ctx, repo, cfg)
 	if err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func (m *RepositoryManager) optimizeRepository(
 func (m *RepositoryManager) optimizeRepositoryWithTransaction(
 	ctx context.Context,
 	repo *localrepo.Repo,
-	opts []OptimizeRepositoryOption,
+	cfg OptimizeRepositoryConfig,
 ) (returnedError error) {
 	transaction, err := m.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), storagemgr.TransactionOptions{})
 	if err != nil {
@@ -232,7 +232,7 @@ func (m *RepositoryManager) optimizeRepositoryWithTransaction(
 		RelativePath:                  repo.GetRelativePath(),
 	}))
 
-	strategy, err := m.validate(ctx, snapshotRepo, opts)
+	strategy, err := m.validate(ctx, snapshotRepo, cfg)
 	if err != nil {
 		return err
 	}
