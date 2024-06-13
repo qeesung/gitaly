@@ -49,8 +49,6 @@ var NonTransactionalRPCs = map[string]struct{}{
 
 	// FetchIntoObjectPool manages the life-cycle of WAL transaction itself.
 	gitalypb.ObjectPoolService_FetchIntoObjectPool_FullMethodName: {},
-	// OptimizeRepository manages the life-cycle of WAL transaction itself.
-	gitalypb.RepositoryService_OptimizeRepository_FullMethodName: {},
 	// PruneUnreachableObjects should be a no-op when WAL is enabled by default.
 	gitalypb.RepositoryService_PruneUnreachableObjects_FullMethodName: {},
 }
