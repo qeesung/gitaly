@@ -15,7 +15,6 @@ default:
   debian: "bookworm"
   git_default: "default"
   git_minimum: "v2.42.0"
-  gitlab_dangerfiles: "4.5.1"
   go_default: "1.22"
   go_supported: [ "1.21", "1.22" ]
   macos: "macos-12-xcode-14"
@@ -61,9 +60,7 @@ include:
   - template: Jobs/SAST.latest.gitlab-ci.yml
   - template: Security/Dependency-Scanning.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
-  - project: 'gitlab-org/quality/pipeline-common'
-    file:
-      - '/ci/danger-review.yml'
+  - component: ${CI_SERVER_FQDN}/gitlab-org/components/danger-review/danger-review@1.2.0
 
 workflow:
   rules:
@@ -195,11 +192,8 @@ workflow:
   - if: $FORCE_GITALY_CI
 
 danger-review:
-  needs: []
   stage: build
   allow_failure: true
-  variables:
-    GITLAB_DANGERFILES_VERSION: !reference [.versions, gitlab_dangerfiles]
 
 build:
   needs: []
