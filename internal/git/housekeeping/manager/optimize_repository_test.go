@@ -1144,8 +1144,11 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 			return nil
 		}
 
+		var wg sync.WaitGroup
+		wg.Add(1)
 		go func() {
-			require.NoError(t, manager.OptimizeRepository(ctx, repo))
+			defer wg.Done()
+			assert.NoError(t, manager.OptimizeRepository(ctx, repo))
 		}()
 
 		<-reqReceivedCh
@@ -1155,6 +1158,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		require.NoError(t, manager.OptimizeRepository(ctx, repo))
 
 		<-ch
+		wg.Wait()
 	})
 	// We want to confirm that even if a state exists, the housekeeping shall run as
 	// long as the state doesn't state that there is another housekeeping running
@@ -1186,13 +1190,17 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 			},
 		}
 
+		var wg sync.WaitGroup
+		wg.Add(1)
 		go func() {
-			require.NoError(t, manager.OptimizeRepository(ctx, repo))
+			defer wg.Done()
+			assert.NoError(t, manager.OptimizeRepository(ctx, repo))
 		}()
 
 		// Only if optimizeFunc is run, we shall receive data here, this acts as test that
 		// housekeeping ran successfully.
 		<-ch
+		wg.Wait()
 	})
 
 	testWithAndWithoutTransaction(t, "there is a housekeeping running state", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
@@ -1250,8 +1258,11 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 
 		// We block in the first call so that we can assert that a second call
 		// to a different repository performs the optimization regardless without blocking.
+		var wg sync.WaitGroup
+		wg.Add(1)
 		go func() {
-			require.NoError(t, manager.OptimizeRepository(ctx, repoFirst))
+			defer wg.Done()
+			assert.NoError(t, manager.OptimizeRepository(ctx, repoFirst))
 		}()
 
 		<-reqReceivedCh
@@ -1263,6 +1274,8 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 
 		assert.Contains(t, reposOptimized, repoFirst.GetRelativePath())
 		assert.Contains(t, reposOptimized, repoSecond.GetRelativePath())
+
+		wg.Wait()
 	})
 
 	testWithAndWithoutTransaction(t, "serialized optimizations", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
