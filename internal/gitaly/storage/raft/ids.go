@@ -33,3 +33,10 @@ func (id raftID) String() string {
 func (id raftID) ToUint64() uint64 {
 	return uint64(id)
 }
+
+// updateResult is used to indicate the result of an update into the statemachine. When a log entry
+// is applied to a statemachine, it has already been replicated to the quorum of the cluster and
+// marked as committed. That log entry must be applied successfully. The author of a sync proposal
+// needs to perform all necessary checks beforehand. However, the state machine must perform state
+// validation at its layer. The result is propagated to the caller to handle respectively.
+type updateResult uint64
