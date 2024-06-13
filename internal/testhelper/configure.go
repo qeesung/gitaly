@@ -19,6 +19,7 @@ type RunOption func(*runConfig)
 
 type runConfig struct {
 	setup                  func() error
+	teardown               func(int) error
 	disableGoroutineChecks bool
 }
 
@@ -27,6 +28,14 @@ type runConfig struct {
 func WithSetup(setup func() error) RunOption {
 	return func(cfg *runConfig) {
 		cfg.setup = setup
+	}
+}
+
+// WithTeardown allows the caller of Run to pass a teardown function that will be called after
+// the test has finished. The teardown function receives the exit code.
+func WithTeardown(teardown func(int) error) RunOption {
+	return func(cfg *runConfig) {
+		cfg.teardown = teardown
 	}
 }
 
@@ -68,8 +77,12 @@ func Run(m *testing.M, opts ...RunOption) {
 			}
 		}
 
-		m.Run()
-
+		code := m.Run()
+		if cfg.teardown != nil {
+			if err := cfg.teardown(code); err != nil {
+				return fmt.Errorf("error calling teardown function: %w", err)
+			}
+		}
 		return nil
 	}(); err != nil {
 		fmt.Printf("%s", err)
