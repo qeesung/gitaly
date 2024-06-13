@@ -88,3 +88,4 @@ For S1 or S2 issues, please follow https://about.gitlab.com/handbook/engineering
 
 /label ~"Gitaly Customer Issue" ~"customer" ~"group::gitaly" ~"devops::systems" ~"section::core platform" ~"workflow::problem validation"
 /cc @mjwood @andrashorvath @jcaigitlab @john.mcdonnell @gerardo
+/confidential
