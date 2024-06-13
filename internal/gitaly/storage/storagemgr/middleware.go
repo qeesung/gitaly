@@ -46,9 +46,6 @@ var NonTransactionalRPCs = map[string]struct{}{
 	gitalypb.ServerService_ServerInfo_FullMethodName:     {},
 	gitalypb.ServerService_ClockSynced_FullMethodName:    {},
 	gitalypb.ServerService_ReadinessCheck_FullMethodName: {},
-
-	// OptimizeRepository manages the life-cycle of WAL transaction itself.
-	gitalypb.RepositoryService_OptimizeRepository_FullMethodName: {},
 }
 
 // repositoryCreatingRPCs are all of the RPCs that may create a repository.

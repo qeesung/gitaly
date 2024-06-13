@@ -1066,6 +1066,10 @@ func runMockMaintenanceServer(t *testing.T, cfg gconfig.Cfg) (*mockMaintenanceSe
 }
 
 func (m *mockMaintenanceServer) OptimizeRepository(ctx context.Context, in *gitalypb.OptimizeRepositoryRequest) (*gitalypb.OptimizeRepositoryResponse, error) {
+	storagectx.RunWithTransaction(ctx, func(tx storagectx.Transaction) {
+		in.Repository = tx.OriginalRepository(in.Repository)
+	})
+
 	m.requestCh <- in
 	return &gitalypb.OptimizeRepositoryResponse{}, nil
 }

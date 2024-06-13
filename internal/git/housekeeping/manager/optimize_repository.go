@@ -23,6 +23,10 @@ import (
 // applying all the OptimizeRepositoryOption modifiers.
 type OptimizeRepositoryConfig struct {
 	StrategyConstructor OptimizationStrategyConstructor
+	// UseExistingTransaction is set when transaction management is done by the caller. When set,
+	// OptimizeRepository doesn't start a transaction on its own but directly operates on the
+	// repository.
+	UseExistingTransaction bool
 }
 
 // OptimizeRepositoryOption is an option that can be passed to OptimizeRepository.
@@ -38,6 +42,14 @@ type OptimizationStrategyConstructor func(stats.RepositoryInfo) housekeeping.Opt
 func WithOptimizationStrategyConstructor(strategyConstructor OptimizationStrategyConstructor) OptimizeRepositoryOption {
 	return func(cfg *OptimizeRepositoryConfig) {
 		cfg.StrategyConstructor = strategyConstructor
+	}
+}
+
+// WithUseExistingTransaction instructs OptimizeRepository to not start a transaction on its own and instead
+// use the existing transaction from the context.
+func WithUseExistingTransaction() OptimizeRepositoryOption {
+	return func(cfg *OptimizeRepositoryConfig) {
+		cfg.UseExistingTransaction = true
 	}
 }
 
@@ -64,7 +76,7 @@ func (m *RepositoryManager) OptimizeRepository(
 	}
 	defer cleanup()
 
-	if err := m.maybeStartTransaction(ctx, repo, func(ctx context.Context, tx storagectx.Transaction, repo *localrepo.Repo) error {
+	if err := m.maybeStartTransaction(ctx, cfg.UseExistingTransaction, repo, func(ctx context.Context, tx storagectx.Transaction, repo *localrepo.Repo) error {
 		if m.optimizeFunc != nil {
 			strategy, err := m.validate(ctx, repo, cfg)
 			if err != nil {
@@ -85,32 +97,40 @@ func (m *RepositoryManager) OptimizeRepository(
 	return nil
 }
 
-func (m *RepositoryManager) maybeStartTransaction(ctx context.Context, repo *localrepo.Repo, run func(context.Context, storagectx.Transaction, *localrepo.Repo) error) (returnedError error) {
+func (m *RepositoryManager) maybeStartTransaction(ctx context.Context, useExistingTransaction bool, repo *localrepo.Repo, run func(context.Context, storagectx.Transaction, *localrepo.Repo) error) (returnedError error) {
 	if m.walPartitionManager == nil {
 		return run(ctx, nil, repo)
 	}
 
-	tx, err := m.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), storagemgr.TransactionOptions{})
-	if err != nil {
-		return fmt.Errorf("initializing WAL transaction: %w", err)
-	}
-	defer func() {
-		if returnedError != nil {
-			// We prioritize actual housekeeping error and log rollback error.
-			if err := tx.Rollback(); err != nil {
-				m.logger.WithError(err).Error("could not rollback housekeeping transaction")
-			}
+	var tx storagectx.Transaction
+	if useExistingTransaction {
+		storagectx.RunWithTransaction(ctx, func(transaction storagectx.Transaction) {
+			tx = transaction
+		})
+	} else {
+		transaction, err := m.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), storagemgr.TransactionOptions{})
+		if err != nil {
+			return fmt.Errorf("initializing WAL transaction: %w", err)
 		}
-	}()
+		defer func() {
+			if returnedError != nil {
+				// We prioritize actual housekeeping error and log rollback error.
+				if err := transaction.Rollback(); err != nil {
+					m.logger.WithError(err).Error("could not rollback housekeeping transaction")
+				}
+			}
+		}()
 
-	repo = localrepo.NewFrom(repo, tx.RewriteRepository(&gitalypb.Repository{
-		StorageName:                   repo.GetStorageName(),
-		GitAlternateObjectDirectories: repo.GetGitAlternateObjectDirectories(),
-		GitObjectDirectory:            repo.GetGitObjectDirectory(),
-		RelativePath:                  repo.GetRelativePath(),
-	}))
+		repo = localrepo.NewFrom(repo, transaction.RewriteRepository(&gitalypb.Repository{
+			StorageName:                   repo.GetStorageName(),
+			GitAlternateObjectDirectories: repo.GetGitAlternateObjectDirectories(),
+			GitObjectDirectory:            repo.GetGitObjectDirectory(),
+			RelativePath:                  repo.GetRelativePath(),
+		}))
 
-	ctx = storagectx.ContextWithTransaction(ctx, tx)
+		tx = transaction
+		ctx = storagectx.ContextWithTransaction(ctx, tx)
+	}
 
 	if err := run(ctx, tx, repo); err != nil {
 		return fmt.Errorf("run: %w", err)
