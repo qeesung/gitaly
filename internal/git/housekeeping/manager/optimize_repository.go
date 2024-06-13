@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/tracing"
@@ -63,18 +64,63 @@ func (m *RepositoryManager) OptimizeRepository(
 	}
 	defer cleanup()
 
-	if m.optimizeFunc != nil {
-		strategy, err := m.validate(ctx, repo, cfg)
-		if err != nil {
-			return err
+	if err := m.maybeStartTransaction(ctx, repo, func(ctx context.Context, tx storagectx.Transaction, repo *localrepo.Repo) error {
+		if m.optimizeFunc != nil {
+			strategy, err := m.validate(ctx, repo, cfg)
+			if err != nil {
+				return err
+			}
+			return m.optimizeFunc(ctx, repo, strategy)
 		}
-		return m.optimizeFunc(ctx, repo, strategy)
+
+		if tx != nil {
+			return m.optimizeRepositoryWithTransaction(ctx, tx, repo, cfg)
+		}
+
+		return m.optimizeRepository(ctx, repo, cfg)
+	}); err != nil {
+		return err
 	}
 
-	if m.walPartitionManager != nil {
-		return m.optimizeRepositoryWithTransaction(ctx, repo, cfg)
+	return nil
+}
+
+func (m *RepositoryManager) maybeStartTransaction(ctx context.Context, repo *localrepo.Repo, run func(context.Context, storagectx.Transaction, *localrepo.Repo) error) (returnedError error) {
+	if m.walPartitionManager == nil {
+		return run(ctx, nil, repo)
 	}
-	return m.optimizeRepository(ctx, repo, cfg)
+
+	tx, err := m.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), storagemgr.TransactionOptions{})
+	if err != nil {
+		return fmt.Errorf("initializing WAL transaction: %w", err)
+	}
+	defer func() {
+		if returnedError != nil {
+			// We prioritize actual housekeeping error and log rollback error.
+			if err := tx.Rollback(); err != nil {
+				m.logger.WithError(err).Error("could not rollback housekeeping transaction")
+			}
+		}
+	}()
+
+	repo = localrepo.NewFrom(repo, tx.RewriteRepository(&gitalypb.Repository{
+		StorageName:                   repo.GetStorageName(),
+		GitAlternateObjectDirectories: repo.GetGitAlternateObjectDirectories(),
+		GitObjectDirectory:            repo.GetGitObjectDirectory(),
+		RelativePath:                  repo.GetRelativePath(),
+	}))
+
+	ctx = storagectx.ContextWithTransaction(ctx, tx)
+
+	if err := run(ctx, tx, repo); err != nil {
+		return fmt.Errorf("run: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing housekeeping transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (m *RepositoryManager) validate(
@@ -209,30 +255,11 @@ func (m *RepositoryManager) optimizeRepository(
 // optimizeRepositoryWithTransaction performs optimizations in the context of WAL transaction.
 func (m *RepositoryManager) optimizeRepositoryWithTransaction(
 	ctx context.Context,
+	transaction storagectx.Transaction,
 	repo *localrepo.Repo,
 	cfg OptimizeRepositoryConfig,
 ) (returnedError error) {
-	transaction, err := m.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), storagemgr.TransactionOptions{})
-	if err != nil {
-		return fmt.Errorf("initializing WAL transaction: %w", err)
-	}
-	defer func() {
-		if returnedError != nil {
-			// We prioritize actual housekeeping error and log rollback error.
-			if err := transaction.Rollback(); err != nil {
-				m.logger.WithError(err).Error("could not rollback housekeeping transaction")
-			}
-		}
-	}()
-
-	snapshotRepo := localrepo.NewFrom(repo, transaction.RewriteRepository(&gitalypb.Repository{
-		StorageName:                   repo.GetStorageName(),
-		GitAlternateObjectDirectories: repo.GetGitAlternateObjectDirectories(),
-		GitObjectDirectory:            repo.GetGitObjectDirectory(),
-		RelativePath:                  repo.GetRelativePath(),
-	}))
-
-	strategy, err := m.validate(ctx, snapshotRepo, cfg)
+	strategy, err := m.validate(ctx, repo, cfg)
 	if err != nil {
 		return err
 	}
@@ -285,11 +312,6 @@ func (m *RepositoryManager) optimizeRepositoryWithTransaction(
 			m.metrics.TasksTotal.WithLabelValues(task, status).Inc()
 		}
 		m.metrics.TasksTotal.WithLabelValues("total", status).Add(1)
-	}
-
-	if err := transaction.Commit(ctx); err != nil {
-		logResult("failure")
-		return fmt.Errorf("committing housekeeping transaction: %w", err)
 	}
 
 	logResult("success")

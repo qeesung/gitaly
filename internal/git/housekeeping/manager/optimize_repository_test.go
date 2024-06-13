@@ -25,6 +25,7 @@ import (
 	gitalycfg "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
@@ -32,6 +33,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"google.golang.org/grpc/peer"
 )
 
@@ -1245,10 +1247,18 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		reposOptimized := make(map[string]struct{})
 
 		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, pm)
-		manager.optimizeFunc = func(_ context.Context, repo *localrepo.Repo, _ housekeeping.OptimizationStrategy) error {
-			reposOptimized[repo.GetRelativePath()] = struct{}{}
+		manager.optimizeFunc = func(ctx context.Context, repo *localrepo.Repo, _ housekeeping.OptimizationStrategy) error {
+			relativePath := repo.GetRelativePath()
+			storagectx.RunWithTransaction(ctx, func(tx storagectx.Transaction) {
+				relativePath = tx.OriginalRepository(&gitalypb.Repository{
+					StorageName:  repo.GetStorageName(),
+					RelativePath: repo.GetRelativePath(),
+				}).GetRelativePath()
+			})
 
-			if repo.GetRelativePath() == repoFirst.GetRelativePath() {
+			reposOptimized[relativePath] = struct{}{}
+
+			if relativePath == repoFirst.GetRelativePath() {
 				reqReceivedCh <- struct{}{}
 				ch <- struct{}{}
 			}
