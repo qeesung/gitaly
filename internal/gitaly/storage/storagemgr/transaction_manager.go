@@ -97,6 +97,11 @@ var (
 	keyAppliedLSN = []byte("applied_lsn")
 )
 
+// relativePathKey generates the database key for storing relative paths in a partition.
+func relativePathKey(relativePath string) []byte {
+	return []byte("r/" + relativePath)
+}
+
 // InvalidReferenceFormatError is returned when a reference name was invalid.
 type InvalidReferenceFormatError struct {
 	// ReferenceName is the reference with invalid format.
@@ -1115,6 +1120,10 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 		); err != nil {
 			return fmt.Errorf("record repository creation: %w", err)
 		}
+
+		if err := transaction.KV().Set(relativePathKey(transaction.relativePath), nil); err != nil {
+			return fmt.Errorf("add relative path: %w", err)
+		}
 	} else {
 		if transaction.alternateUpdated {
 			stagedAlternatesRelativePath := stats.AlternatesFilePath(transaction.relativePath)
@@ -2066,6 +2075,10 @@ func (mgr *TransactionManager) processTransaction() (returnedErr error) {
 				transaction.relativePath,
 			); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("record repository removal: %w", err)
+			}
+
+			if err := transaction.KV().Delete(relativePathKey(transaction.relativePath)); err != nil {
+				return fmt.Errorf("delete relative path: %w", err)
 			}
 		}
 
