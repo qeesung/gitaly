@@ -800,6 +800,16 @@ type LogConsumer interface {
 	NotifyNewTransactions(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr LogManager)
 }
 
+// LogManagerAccessor is the interface used by the LogManager coordinator. It is called by
+// by LogConsumers to access LogManagers. A LogManager that notified a LogConsumer of a transaction
+// may have closed by the time the consumer has finished acting on the log entry. The LogManagerAccessor
+// ensures that the LogManager is available to receive the consumer's response.
+type LogManagerAccessor interface {
+	// CallLogManager executes the provided function against the requested LogManager, starting it
+	// if necessary.
+	CallLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID, fn func(LogManager)) error
+}
+
 // LogManager is the interface used on the consumer side of the integration. The consumer
 // has the ability to acknowledge transactions as having been processed with AcknowledgeTransaction.
 type LogManager interface {
@@ -912,6 +922,8 @@ type TransactionManager struct {
 	commandFactory git.CommandFactory
 	// repositoryFactory is used to build localrepo.Repo instances.
 	repositoryFactory localrepo.StorageScopedFactory
+	// storageName is the name of the storage the TransactionManager's partition is a member of.
+	storageName string
 	// storagePath is an absolute path to the root of the storage this TransactionManager
 	// is operating in.
 	storagePath string
@@ -988,6 +1000,7 @@ func NewTransactionManager(
 	ptnID storage.PartitionID,
 	logger log.Logger,
 	db keyvalue.Transactioner,
+	storageName,
 	storagePath,
 	stateDir,
 	stagingDir string,
@@ -1008,6 +1021,7 @@ func NewTransactionManager(
 		closed:               make(chan struct{}),
 		commandFactory:       cmdFactory,
 		repositoryFactory:    repositoryFactory,
+		storageName:          storageName,
 		storagePath:          storagePath,
 		partitionID:          ptnID,
 		db:                   db,

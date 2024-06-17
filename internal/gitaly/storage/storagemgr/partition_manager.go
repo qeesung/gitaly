@@ -65,6 +65,8 @@ type storageManager struct {
 	mu sync.Mutex
 	// logger handles all logging for storageManager.
 	logger log.Logger
+	// name is the name of the storage.
+	name string
 	// path is the absolute path to the storage's root.
 	path string
 	// repoFactory is a factory type that builds localrepo instances for this storage.
@@ -230,6 +232,7 @@ func NewPartitionManager(
 
 		storages[configuredStorage.Name] = &storageManager{
 			logger:            storageLogger,
+			name:              configuredStorage.Name,
 			path:              configuredStorage.Path,
 			repoFactory:       repoFactory,
 			stagingDirectory:  stagingDir,
@@ -255,6 +258,7 @@ func NewPartitionManager(
 				partitionID,
 				logger,
 				keyvalue.NewPrefixedTransactioner(storageMgr.database, keyPrefixPartition(partitionID)),
+				storageMgr.name,
 				storageMgr.path,
 				absoluteStateDir,
 				stagingDir,
@@ -320,6 +324,66 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 		return nil, fmt.Errorf("get partition: %w", err)
 	}
 
+	relativeStateDir := deriveStateDirectory(partitionID)
+	absoluteStateDir := filepath.Join(storageMgr.path, relativeStateDir)
+	if err := os.MkdirAll(filepath.Dir(absoluteStateDir), perm.PrivateDir); err != nil {
+		return nil, fmt.Errorf("create state directory hierarchy: %w", err)
+	}
+
+	if err := safe.NewSyncer().SyncHierarchy(storageMgr.path, filepath.Dir(relativeStateDir)); err != nil {
+		return nil, fmt.Errorf("sync state directory hierarchy: %w", err)
+	}
+
+	ptn, err := pm.startPartition(ctx, storageMgr, partitionID)
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshottedRelativePaths []string
+	if opts.AlternateRelativePath != "" {
+		snapshottedRelativePaths = []string{opts.AlternateRelativePath}
+	}
+
+	transaction, err := ptn.transactionManager.Begin(ctx, relativePath, snapshottedRelativePaths, opts.ReadOnly)
+	if err != nil {
+		// The pending transaction count needs to be decremented since the transaction is no longer
+		// inflight. A transaction failing does not necessarily mean the transaction manager has
+		// stopped running. Consequently, if there are no other pending transactions the partition
+		// should be closed.
+		storageMgr.finalizeTransaction(ptn)
+
+		return nil, err
+	}
+
+	return storageMgr.newFinalizableTransaction(ptn, transaction), nil
+}
+
+// CallLogManager executes the provided function against the TransactionManager for the specified partition, starting it if necessary.
+func (pm *PartitionManager) CallLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID, fn func(lm LogManager)) error {
+	storageMgr, ok := pm.storages[storageName]
+	if !ok {
+		return structerr.NewNotFound("unknown storage: %q", storageName)
+	}
+
+	ptn, err := pm.startPartition(ctx, storageMgr, partitionID)
+	if err != nil {
+		return err
+	}
+
+	defer storageMgr.finalizeTransaction(ptn)
+
+	logManager, ok := ptn.transactionManager.(LogManager)
+	if !ok {
+		return fmt.Errorf("expected LogManager, got %T", logManager)
+	}
+
+	fn(logManager)
+
+	return nil
+}
+
+// startPartition starts the TransactionManager for a partition.
+func (pm *PartitionManager) startPartition(ctx context.Context, storageMgr *storageManager, partitionID storage.PartitionID) (*partition, error) {
 	relativeStateDir := deriveStateDirectory(partitionID)
 	absoluteStateDir := filepath.Join(storageMgr.path, relativeStateDir)
 	if err := os.MkdirAll(filepath.Dir(absoluteStateDir), perm.PrivateDir); err != nil {
@@ -408,23 +472,7 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 		ptn.pendingTransactionCount++
 		storageMgr.mu.Unlock()
 
-		var snapshottedRelativePaths []string
-		if opts.AlternateRelativePath != "" {
-			snapshottedRelativePaths = []string{opts.AlternateRelativePath}
-		}
-
-		transaction, err := ptn.transactionManager.Begin(ctx, relativePath, snapshottedRelativePaths, opts.ReadOnly)
-		if err != nil {
-			// The pending transaction count needs to be decremented since the transaction is no longer
-			// inflight. A transaction failing does not necessarily mean the transaction manager has
-			// stopped running. Consequently, if there are no other pending transactions the partition
-			// should be closed.
-			storageMgr.finalizeTransaction(ptn)
-
-			return nil, err
-		}
-
-		return storageMgr.newFinalizableTransaction(ptn, transaction), nil
+		return ptn, nil
 	}
 }
 

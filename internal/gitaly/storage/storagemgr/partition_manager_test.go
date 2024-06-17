@@ -33,6 +33,30 @@ type stoppedTransactionManager struct{ transactionManager }
 
 func (stoppedTransactionManager) Run() error { return nil }
 
+// blockOnPartitionClosing checks if any partitions are currently in the process of
+// closing. If some are, the function waits for the closing process to complete before
+// continuing. This is required in order to accurately validate partition state.
+func blockOnPartitionClosing(t *testing.T, pm *PartitionManager) {
+	t.Helper()
+
+	var waitFor []chan struct{}
+	for _, sp := range pm.storages {
+		sp.mu.Lock()
+		for _, ptn := range sp.partitions {
+			// The closePartition step closes the transaction manager directly without calling close
+			// on the partition, so we check the manager directly here as well.
+			if ptn.isClosing() || ptn.transactionManager.isClosing() {
+				waitFor = append(waitFor, ptn.transactionManagerClosed)
+			}
+		}
+		sp.mu.Unlock()
+	}
+
+	for _, closed := range waitFor {
+		<-closed
+	}
+}
+
 func TestPartitionManager(t *testing.T) {
 	t.Parallel()
 
@@ -102,30 +126,6 @@ func TestPartitionManager(t *testing.T) {
 	// closeManager closes the partition manager. This is done to simulate errors for transactions
 	// being processed without a running partition manager.
 	type closeManager struct{}
-
-	// blockOnPartitionClosing checks if any partitions are currently in the process of
-	// closing. If some are, the function waits for the closing process to complete before
-	// continuing. This is required in order to accurately validate partition state.
-	blockOnPartitionClosing := func(t *testing.T, pm *PartitionManager) {
-		t.Helper()
-
-		var waitFor []chan struct{}
-		for _, sp := range pm.storages {
-			sp.mu.Lock()
-			for _, ptn := range sp.partitions {
-				// The closePartition step closes the transaction manager directly without calling close
-				// on the partition, so we check the manager directly here as well.
-				if ptn.isClosing() || ptn.transactionManager.isClosing() {
-					waitFor = append(waitFor, ptn.transactionManagerClosed)
-				}
-			}
-			sp.mu.Unlock()
-		}
-
-		for _, closed := range waitFor {
-			<-closed
-		}
-	}
 
 	// checkExpectedState validates that the partition manager contains the correct partitions and
 	// associated transaction count at the point of execution.
@@ -387,6 +387,7 @@ func TestPartitionManager(t *testing.T) {
 								testPartitionID,
 								logger,
 								storageMgr.database,
+								storageMgr.name,
 								storageMgr.path,
 								absoluteStateDir,
 								stagingDir,
@@ -434,6 +435,7 @@ func TestPartitionManager(t *testing.T) {
 							testPartitionID,
 							logger,
 							storageMgr.database,
+							storageMgr.name,
 							storageMgr.path,
 							absoluteStateDir,
 							stagingDir,
@@ -954,4 +956,56 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 	close(start)
 
 	wg.Wait()
+}
+
+func TestPartitionManager_callLogManager(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg := testcfg.Build(t)
+	logger := testhelper.SharedLogger(t)
+
+	cmdFactory := gittest.NewCommandFactory(t, cfg)
+	catfileCache := catfile.NewCache(cfg)
+	defer catfileCache.Stop()
+
+	localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
+
+	dbMgr, err := keyvalue.NewDBManager(cfg.Storages, keyvalue.NewBadgerStore, helper.NewNullTickerFactory(), logger)
+	require.NoError(t, err)
+
+	partitionManager, err := NewPartitionManager(cfg.Storages, cmdFactory, localRepoFactory, logger, dbMgr, cfg.Prometheus, nil)
+	require.NoError(t, err)
+
+	defer func() {
+		partitionManager.Close()
+		dbMgr.Close()
+	}()
+
+	storageMgr, ok := partitionManager.storages[cfg.Storages[0].Name]
+	require.True(t, ok)
+
+	ptnID := storage.PartitionID(1)
+	requirePartitionOpen := func(expectOpen bool) {
+		t.Helper()
+
+		storageMgr.mu.Lock()
+		defer storageMgr.mu.Unlock()
+		_, ptnOpen := storageMgr.partitions[ptnID]
+		require.Equal(t, expectOpen, ptnOpen)
+	}
+
+	requirePartitionOpen(false)
+
+	require.NoError(t, partitionManager.CallLogManager(ctx, cfg.Storages[0].Name, ptnID, func(lm LogManager) {
+		requirePartitionOpen(true)
+		tm, ok := lm.(*TransactionManager)
+		require.True(t, ok)
+
+		require.False(t, tm.isClosing())
+	}))
+
+	blockOnPartitionClosing(t, partitionManager)
+	requirePartitionOpen(false)
 }
