@@ -370,28 +370,28 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 	return storageMgr.newFinalizableTransaction(ptn, transaction), nil
 }
 
-// CallLogManager executes the provided function against the TransactionManager for the specified partition, starting it if necessary.
-func (pm *PartitionManager) CallLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID, fn func(lm LogManager)) error {
+// AccessLogManager returns the LogManager for the specified partition and its closing function.
+// The partition will be held open until close is called.
+func (pm *PartitionManager) AccessLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID) (_ LogManager, close func(), _ error) {
 	storageMgr, ok := pm.storages[storageName]
 	if !ok {
-		return structerr.NewNotFound("unknown storage: %q", storageName)
+		return nil, nil, structerr.NewNotFound("unknown storage: %q", storageName)
 	}
 
 	ptn, err := pm.startPartition(ctx, storageMgr, partitionID)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-
-	defer storageMgr.finalizeTransaction(ptn)
 
 	logManager, ok := ptn.transactionManager.(LogManager)
 	if !ok {
-		return fmt.Errorf("expected LogManager, got %T", logManager)
+		return nil, nil, fmt.Errorf("expected LogManager, got %T", logManager)
 	}
 
-	fn(logManager)
-
-	return nil
+	close = func() {
+		storageMgr.finalizeTransaction(ptn)
+	}
+	return logManager, close, nil
 }
 
 // startPartition starts the TransactionManager for a partition.

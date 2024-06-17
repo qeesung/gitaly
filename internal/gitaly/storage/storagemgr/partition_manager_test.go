@@ -958,7 +958,7 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 	wg.Wait()
 }
 
-func TestPartitionManager_callLogManager(t *testing.T) {
+func TestPartitionManager_accessLogManager(t *testing.T) {
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
@@ -998,13 +998,16 @@ func TestPartitionManager_callLogManager(t *testing.T) {
 
 	requirePartitionOpen(false)
 
-	require.NoError(t, partitionManager.CallLogManager(ctx, cfg.Storages[0].Name, ptnID, func(lm LogManager) {
-		requirePartitionOpen(true)
-		tm, ok := lm.(*TransactionManager)
-		require.True(t, ok)
+	logManager, close, err := partitionManager.AccessLogManager(ctx, cfg.Storages[0].Name, ptnID)
+	require.NoError(t, err)
 
-		require.False(t, tm.isClosing())
-	}))
+	requirePartitionOpen(true)
+	tm, ok := logManager.(*TransactionManager)
+	require.True(t, ok)
+
+	require.False(t, tm.isClosing())
+
+	close()
 
 	blockOnPartitionClosing(t, partitionManager)
 	requirePartitionOpen(false)

@@ -805,9 +805,9 @@ type LogConsumer interface {
 // may have closed by the time the consumer has finished acting on the log entry. The LogManagerAccessor
 // ensures that the LogManager is available to receive the consumer's response.
 type LogManagerAccessor interface {
-	// CallLogManager executes the provided function against the requested LogManager, starting it
-	// if necessary.
-	CallLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID, fn func(LogManager)) error
+	// AccessLogManager returns the LogManager for the specified partition and its closing function.
+	// The partition will be held open until close is called.
+	AccessLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID) (_ LogManager, close func(), _ error)
 }
 
 // LogConsumerFactory returns a LogConsumer that requires a LogManagerAccessor for construction and
