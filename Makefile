@@ -452,7 +452,7 @@ format: ${GOIMPORTS} ${GOFUMPT}
 
 .PHONY: notice-up-to-date
 notice-up-to-date: ${BUILD_DIR}/NOTICE
-	${Q}(cmp ${BUILD_DIR}/NOTICE ${SOURCE_DIR}/NOTICE) || (echo >&2 "NOTICE requires update: 'make notice'" && false)
+	${Q}${GIT} diff --exit-code ${BUILD_DIR}/NOTICE ${SOURCE_DIR}/NOTICE || (echo >&2 "NOTICE requires update: 'make notice'" && exit 1)
 
 .PHONY: notice
 ## Regenerate the NOTICE file.
