@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/env"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"golang.org/x/exp/slices"
 )
@@ -295,6 +296,9 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV245, rnd.Int()%2 == 0)
 	// Disable SetAttrTreeConfig
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.SetAttrTreeConfig, false)
+	// Enable SymrefUpdates
+	symrefUpdateEnabled, _ := env.GetBool("GITALY_TEST_ENABLE_SYMREF_UPDATE", false)
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.SymrefUpdate, symrefUpdateEnabled)
 
 	for _, opt := range opts {
 		ctx = opt(ctx)
