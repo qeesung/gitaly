@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -946,4 +947,33 @@ func TestUpdater_multipleUpdateError(t *testing.T) {
 	require.NoError(t, updater.Delete("refs/heads/test_a"))
 	require.NoError(t, updater.Create("refs/heads/test_a", commitID))
 	require.Equal(t, MultipleUpdatesError{ReferenceName: "refs/heads/test_a"}, updater.Commit())
+}
+
+func TestUpdater_symrefs(t *testing.T) {
+	t.Parallel()
+
+	ctx := testhelper.Context(t)
+
+	cfg, executor, repoPath, updater := setupUpdater(t, ctx)
+	defer testhelper.MustClose(t, updater)
+
+	actual, err := executor.GitVersion(ctx)
+	require.NoError(t, err)
+
+	gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
+
+	require.NoError(t, updater.Start())
+
+	if !actual.SupportSymrefUpdates() {
+		err := updater.UpdateSymbolicReference(actual, "refs/heads/symref", "refs/heads/master")
+		require.EqualError(t, err, "incompatible version for symref-updates")
+		require.NoError(t, updater.Commit())
+	} else {
+		require.NoError(t, updater.UpdateSymbolicReference(actual, "refs/heads/symref", "refs/heads/master"))
+		require.NoError(t, updater.Commit())
+
+		// Verify that the reference was created as expected.
+		target := text.ChompBytes(gittest.Exec(t, cfg, "-C", repoPath, "symbolic-ref", "refs/heads/symref"))
+		require.Equal(t, target, "refs/heads/master")
+	}
 }

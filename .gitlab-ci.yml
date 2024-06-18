@@ -293,14 +293,16 @@ test:reftable:
   allow_failure: true
   variables:
     <<: *test_variables
-    GIT_VERSION: "v2.45.0"
+    GITALY_TEST_ENABLE_SYMREF_UPDATE: "true"
+    OVERRIDE_GIT_VERSION: "v99.99.99"
+    GIT_VERSION: "261-support-transactional-symbolic-reference-updates"
     TEST_TARGET: test-with-reftable
 
 test:nightly:
   <<: *test_definition
   variables:
     <<: *test_variables
-    SKIP_OVERRIDING_GIT_VERSION: "YesPlease"
+    OVERRIDE_GIT_VERSION: ""
   parallel:
     matrix:
       - GIT_VERSION: [ "master", "next" ]

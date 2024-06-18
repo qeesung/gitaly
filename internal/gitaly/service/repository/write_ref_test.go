@@ -250,8 +250,6 @@ func TestWriteRef(t *testing.T) {
 		{
 			desc: "update default branch",
 			setup: func(t *testing.T) setupData {
-				testhelper.SkipWithReftable(t, "localrepo.SetDefaultBranch modifies HEAD through the filesystem directly")
-
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 				defaultCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
@@ -268,10 +266,20 @@ func TestWriteRef(t *testing.T) {
 						git.NewReference(git.DefaultRef, defaultCommit),
 						git.NewReference("refs/heads/new-default", newCommit),
 					},
-					expectedVotes: []transaction.PhasedVote{
-						{Phase: voting.Prepared, Vote: voting.VoteFromData([]byte("ref: refs/heads/new-default\n"))},
-						{Phase: voting.Committed, Vote: voting.VoteFromData([]byte("ref: refs/heads/new-default\n"))},
-					},
+					expectedVotes: gittest.IfSymrefUpdateSupported(t, ctx, cfg,
+						[]transaction.PhasedVote{
+							{Phase: voting.Prepared, Vote: voting.VoteFromData([]byte(
+								fmt.Sprintf("%s ref:refs/heads/new-default HEAD\n", gittest.DefaultObjectHash.ZeroOID),
+							))},
+							{Phase: voting.Committed, Vote: voting.VoteFromData([]byte(
+								fmt.Sprintf("%s ref:refs/heads/new-default HEAD\n", gittest.DefaultObjectHash.ZeroOID),
+							))},
+						},
+						[]transaction.PhasedVote{
+							{Phase: voting.Prepared, Vote: voting.VoteFromData([]byte("ref: refs/heads/new-default\n"))},
+							{Phase: voting.Committed, Vote: voting.VoteFromData([]byte("ref: refs/heads/new-default\n"))},
+						},
+					),
 				}
 			},
 		},
