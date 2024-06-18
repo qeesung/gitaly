@@ -26,18 +26,16 @@ const (
 
 // logEntry is used to track the state of a backup request.
 type logEntry struct {
-	partitionID storage.PartitionID
-	lsn         storage.LSN
-	logManager  storagemgr.LogManager
-	success     bool
+	partitionInfo partitionInfo
+	lsn           storage.LSN
+	success       bool
 }
 
 // newLogEntry constructs a new logEntry.
-func newLogEntry(partitionID storage.PartitionID, lsn storage.LSN, mgr storagemgr.LogManager) *logEntry {
+func newLogEntry(partitionInfo partitionInfo, lsn storage.LSN) *logEntry {
 	return &logEntry{
-		partitionID: partitionID,
-		lsn:         lsn,
-		logManager:  mgr,
+		partitionInfo: partitionInfo,
+		lsn:           lsn,
 	}
 }
 
@@ -45,17 +43,18 @@ func newLogEntry(partitionID storage.PartitionID, lsn storage.LSN, mgr storagemg
 type partitionNotification struct {
 	lowWaterMark  storage.LSN
 	highWaterMark storage.LSN
-	partitionID   storage.PartitionID
-	mgr           storagemgr.LogManager
+	partitionInfo partitionInfo
 }
 
 // newPartitionNotification constructs a new partitionNotification.
-func newPartitionNotification(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) *partitionNotification {
+func newPartitionNotification(storageName string, partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN) *partitionNotification {
 	return &partitionNotification{
+		partitionInfo: partitionInfo{
+			storageName: storageName,
+			partitionID: partitionID,
+		},
 		lowWaterMark:  lowWaterMark,
 		highWaterMark: highWaterMark,
-		partitionID:   partitionID,
-		mgr:           mgr,
 	}
 }
 
@@ -65,19 +64,22 @@ type partitionState struct {
 	nextLSN storage.LSN
 	// highWaterMark is the highest LSN to be backed up.
 	highWaterMark storage.LSN
-	// logManager is the LogManager for this partition.
-	logManager storagemgr.LogManager
 	// hasJob indicates if a backup job is currently being processed for this partition.
 	hasJob bool
 }
 
 // newPartitionState constructs a new partitionState.
-func newPartitionState(nextLSN, highWaterMark storage.LSN, logManager storagemgr.LogManager) *partitionState {
+func newPartitionState(nextLSN, highWaterMark storage.LSN) *partitionState {
 	return &partitionState{
 		nextLSN:       nextLSN,
 		highWaterMark: highWaterMark,
-		logManager:    logManager,
 	}
+}
+
+// partitionInfo is the global identifier for a partition.
+type partitionInfo struct {
+	storageName string
+	partitionID storage.PartitionID
 }
 
 // LogEntryArchiver is used to backup applied log entries. It has a configurable number of
@@ -89,6 +91,8 @@ type LogEntryArchiver struct {
 	logger log.Logger
 	// archiveSink is the Sink used to backup log entries.
 	archiveSink Sink
+	// partitionMgr is the LogManagerAccessor used to access LogManagers.
+	partitionMgr storagemgr.LogManagerAccessor
 
 	// notificationCh is the channel used to signal that a new notification has arrived.
 	notificationCh chan struct{}
@@ -102,10 +106,10 @@ type LogEntryArchiver struct {
 	// notificationsMutex is used to synchronize access to notifications.
 	notificationsMutex sync.Mutex
 
-	// partitionStates tracks the current LSN and entry backlog of each partition.
-	partitionStates map[storage.PartitionID]*partitionState
+	// partitionStates tracks the current LSN and entry backlog of each partition in a storage.
+	partitionStates map[partitionInfo]*partitionState
 	// activePartitions tracks with partitions need to be processed.
-	activePartitions map[storage.PartitionID]struct{}
+	activePartitions map[partitionInfo]struct{}
 
 	// activeJobs tracks how many entries are currently being backed up.
 	activeJobs uint
@@ -124,12 +128,12 @@ type LogEntryArchiver struct {
 }
 
 // NewLogEntryArchiver constructs a new LogEntryArchiver.
-func NewLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint) *LogEntryArchiver {
-	return newLogEntryArchiver(logger, archiveSink, workerCount, helper.NewTimerTicker)
+func NewLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, partitionMgr storagemgr.LogManagerAccessor) *LogEntryArchiver {
+	return newLogEntryArchiver(logger, archiveSink, workerCount, partitionMgr, helper.NewTimerTicker)
 }
 
 // newLogEntryArchiver constructs a new LogEntryArchiver with a configurable ticker function.
-func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, tickerFunc func(time.Duration) helper.Ticker) *LogEntryArchiver {
+func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, partitionMgr storagemgr.LogManagerAccessor, tickerFunc func(time.Duration) helper.Ticker) *LogEntryArchiver {
 	if workerCount < 1 {
 		workerCount = 1
 	}
@@ -137,12 +141,13 @@ func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, 
 	archiver := &LogEntryArchiver{
 		logger:           logger,
 		archiveSink:      archiveSink,
+		partitionMgr:     partitionMgr,
 		notificationCh:   make(chan struct{}, 1),
 		workCh:           make(chan struct{}, 1),
 		doneCh:           make(chan struct{}),
 		notifications:    list.New(),
-		partitionStates:  make(map[storage.PartitionID]*partitionState),
-		activePartitions: make(map[storage.PartitionID]struct{}),
+		partitionStates:  make(map[partitionInfo]*partitionState),
+		activePartitions: make(map[partitionInfo]struct{}),
 		workerCount:      workerCount,
 		tickerFunc:       tickerFunc,
 		waitDur:          minRetryWait,
@@ -165,11 +170,11 @@ func newLogEntryArchiver(logger log.Logger, archiveSink Sink, workerCount uint, 
 }
 
 // NotifyNewTransactions passes the transaction information to the LogEntryArchiver for processing.
-func (la *LogEntryArchiver) NotifyNewTransactions(partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN, mgr storagemgr.LogManager) {
+func (la *LogEntryArchiver) NotifyNewTransactions(storageName string, partitionID storage.PartitionID, lowWaterMark, highWaterMark storage.LSN) {
 	la.notificationsMutex.Lock()
 	defer la.notificationsMutex.Unlock()
 
-	la.notifications.PushBack(newPartitionNotification(partitionID, lowWaterMark, highWaterMark, mgr))
+	la.notifications.PushBack(newPartitionNotification(storageName, partitionID, lowWaterMark, highWaterMark))
 
 	select {
 	case la.notificationCh <- struct{}{}:
@@ -203,7 +208,7 @@ func (la *LogEntryArchiver) Run() {
 			}()
 		}
 
-		la.main(sendCh, recvCh)
+		la.main(ctx, sendCh, recvCh)
 
 		close(sendCh)
 
@@ -222,7 +227,7 @@ func (la *LogEntryArchiver) Close() {
 
 // main is the main loop of the LogEntryArchiver. New notifications are ingested, jobs
 // are sent to workers, and the result of jobs are received.
-func (la *LogEntryArchiver) main(sendCh, recvCh chan *logEntry) {
+func (la *LogEntryArchiver) main(ctx context.Context, sendCh, recvCh chan *logEntry) {
 	for {
 		// Triggering sendEntries via workCh may not process all entries if there
 		// are more active partitions than workers or more than one entry to process
@@ -234,9 +239,9 @@ func (la *LogEntryArchiver) main(sendCh, recvCh chan *logEntry) {
 		case <-la.workCh:
 			la.sendEntries(sendCh)
 		case <-la.notificationCh:
-			la.ingestNotifications()
+			la.ingestNotifications(ctx)
 		case entry := <-recvCh:
-			la.receiveEntry(entry)
+			la.receiveEntry(ctx, entry)
 		case <-la.doneCh:
 			return
 		}
@@ -248,42 +253,46 @@ func (la *LogEntryArchiver) main(sendCh, recvCh chan *logEntry) {
 func (la *LogEntryArchiver) sendEntries(sendCh chan *logEntry) {
 	// We use a map to randomize partition processing order. Map access is not
 	// truly random or completely fair, but it's close enough for our purposes.
-	for partitionID := range la.activePartitions {
+	for partitionInfo := range la.activePartitions {
 		// All workers are busy, go back to waiting.
 		if la.activeJobs == la.workerCount {
 			return
 		}
 
-		state := la.partitionStates[partitionID]
+		state := la.partitionStates[partitionInfo]
 		if state.hasJob {
 			continue
 		}
 
 		state.hasJob = true
-		sendCh <- newLogEntry(partitionID, state.nextLSN, state.logManager)
+		sendCh <- newLogEntry(partitionInfo, state.nextLSN)
 
 		la.activeJobs++
 	}
 }
 
 // ingestNotifications read all new notifications and updates partition states.
-func (la *LogEntryArchiver) ingestNotifications() {
+func (la *LogEntryArchiver) ingestNotifications(ctx context.Context) {
 	for {
 		notification := la.popNextNotification()
 		if notification == nil {
 			return
 		}
 
-		state, ok := la.partitionStates[notification.partitionID]
+		state, ok := la.partitionStates[notification.partitionInfo]
 		if !ok {
-			state = newPartitionState(notification.lowWaterMark, notification.highWaterMark, notification.mgr)
-			la.partitionStates[notification.partitionID] = state
+			state = newPartitionState(notification.lowWaterMark, notification.highWaterMark)
+			la.partitionStates[notification.partitionInfo] = state
 		}
 
 		// We have already backed up all entries sent by the LogManager, but the manager is
 		// not aware of this. Acknowledge again with our last processed entry.
 		if state.nextLSN > notification.highWaterMark {
-			notification.mgr.AcknowledgeTransaction(la, state.nextLSN-1)
+			if err := la.partitionMgr.CallLogManager(ctx, notification.partitionInfo.storageName, notification.partitionInfo.partitionID, func(lm storagemgr.LogManager) {
+				lm.AcknowledgeTransaction(la, state.nextLSN-1)
+			}); err != nil {
+				la.logger.WithError(err).Error("log entry archiver: failed to get LogManager for already completed entry")
+			}
 			continue
 		}
 
@@ -292,7 +301,8 @@ func (la *LogEntryArchiver) ingestNotifications() {
 		if state.nextLSN < notification.lowWaterMark {
 			la.logger.WithFields(
 				log.Fields{
-					"partition_id": notification.partitionID,
+					"storage":      notification.partitionInfo.storageName,
+					"partition_id": notification.partitionInfo.partitionID,
 					"expected_lsn": state.nextLSN,
 					"actual_lsn":   notification.lowWaterMark,
 				}).Error("log entry archiver: gap in log sequence")
@@ -305,12 +315,8 @@ func (la *LogEntryArchiver) ingestNotifications() {
 
 		state.highWaterMark = notification.highWaterMark
 
-		// LogManagers may close and restart. Always store the most recent
-		// one to maximize our chances of reaching an active manager.
-		state.logManager = notification.mgr
-
 		// Mark partition as active.
-		la.activePartitions[notification.partitionID] = struct{}{}
+		la.activePartitions[notification.partitionInfo] = struct{}{}
 
 		la.notifyNewEntries()
 	}
@@ -319,10 +325,10 @@ func (la *LogEntryArchiver) ingestNotifications() {
 // receiveEntry handles the result of a backup job. If the backup failed, then it
 // will block for la.waitDur to allow the conditions that caused the failure to resolve
 // themselves. Continued failure results in an exponential backoff.
-func (la *LogEntryArchiver) receiveEntry(entry *logEntry) {
+func (la *LogEntryArchiver) receiveEntry(ctx context.Context, entry *logEntry) {
 	la.activeJobs--
 
-	state := la.partitionStates[entry.partitionID]
+	state := la.partitionStates[entry.partitionInfo]
 	state.hasJob = false
 
 	if !entry.success {
@@ -334,19 +340,28 @@ func (la *LogEntryArchiver) receiveEntry(entry *logEntry) {
 		return
 	}
 
-	entry.logManager.AcknowledgeTransaction(la, entry.lsn)
-
 	state.nextLSN++
 
 	// All entries in partition have been backed up, the partition is dormant.
 	if state.nextLSN > state.highWaterMark {
-		delete(la.activePartitions, entry.partitionID)
+		delete(la.activePartitions, entry.partitionInfo)
 	}
 
 	// Decrease backoff on success.
 	la.waitDur /= 2
 	if la.waitDur < minRetryWait {
 		la.waitDur = minRetryWait
+	}
+
+	if err := la.partitionMgr.CallLogManager(ctx, entry.partitionInfo.storageName, entry.partitionInfo.partitionID, func(lm storagemgr.LogManager) {
+		lm.AcknowledgeTransaction(la, entry.lsn)
+	}); err != nil {
+		la.logger.WithError(err).WithFields(
+			log.Fields{
+				"storage":      entry.partitionInfo.storageName,
+				"partition_id": entry.partitionInfo.partitionID,
+				"lsn":          entry.lsn,
+			}).Error("log entry archiver: failed to get LogManager for newly completed entry")
 	}
 }
 
@@ -360,13 +375,22 @@ func (la *LogEntryArchiver) processEntries(ctx context.Context, inCh, outCh chan
 
 // processEntry checks if an existing backup exists, and performs a backup if not present.
 func (la *LogEntryArchiver) processEntry(ctx context.Context, entry *logEntry) {
-	entryPath := entry.logManager.GetTransactionPath(entry.lsn)
-	archiveRelPath := filepath.Join(fmt.Sprintf("%d", entry.partitionID), entry.lsn.String()+".tar")
-
 	logger := la.logger.WithFields(log.Fields{
-		"partition_id": entry.partitionID,
+		"storage":      entry.partitionInfo.storageName,
+		"partition_id": entry.partitionInfo.partitionID,
 		"lsn":          entry.lsn,
 	})
+
+	var entryPath string
+	if err := la.partitionMgr.CallLogManager(context.Background(), entry.partitionInfo.storageName, entry.partitionInfo.partitionID, func(lm storagemgr.LogManager) {
+		entryPath = lm.GetTransactionPath(entry.lsn)
+	}); err != nil {
+		la.backupCounter.WithLabelValues("fail").Add(1)
+		la.logger.WithError(err).Error("log entry archiver: failed to get LogManager for entry path")
+		return
+	}
+
+	archiveRelPath := filepath.Join(entry.partitionInfo.storageName, fmt.Sprintf("%d", entry.partitionInfo.partitionID), entry.lsn.String()+".tar")
 
 	backupExists, err := la.checkForExistingBackup(ctx, archiveRelPath)
 	if err != nil {

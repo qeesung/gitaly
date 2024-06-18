@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
@@ -23,7 +24,7 @@ import (
 )
 
 type mockLogManager struct {
-	partitionID   storage.PartitionID
+	partitionInfo partitionInfo
 	archiver      *LogEntryArchiver
 	notifications []notification
 	acknowledged  []storage.LSN
@@ -32,6 +33,25 @@ type mockLogManager struct {
 	finishFunc    func()
 
 	sync.Mutex
+}
+
+type mockLogManagerAccessor struct {
+	managers map[partitionInfo]*mockLogManager
+	t        *testing.T
+
+	sync.Mutex
+}
+
+func (lma *mockLogManagerAccessor) CallLogManager(ctx context.Context, storageName string, partitionID storage.PartitionID, fn func(storagemgr.LogManager)) error {
+	lma.Lock()
+	defer lma.Unlock()
+
+	info := partitionInfo{storageName, partitionID}
+	mgr, ok := lma.managers[info]
+	assert.True(lma.t, ok)
+	fn(mgr)
+
+	return nil
 }
 
 func (lm *mockLogManager) AcknowledgeTransaction(_ storagemgr.LogConsumer, lsn storage.LSN) {
@@ -53,13 +73,13 @@ func (lm *mockLogManager) AcknowledgeTransaction(_ storagemgr.LogConsumer, lsn s
 
 func (lm *mockLogManager) SendNotification() {
 	n := lm.notifications[0]
-	lm.archiver.NotifyNewTransactions(lm.partitionID, n.lowWaterMark, n.highWaterMark, lm)
+	lm.archiver.NotifyNewTransactions(lm.partitionInfo.storageName, lm.partitionInfo.partitionID, n.lowWaterMark, n.highWaterMark)
 
 	lm.notifications = lm.notifications[1:]
 }
 
 func (lm *mockLogManager) GetTransactionPath(lsn storage.LSN) string {
-	return filepath.Join(lm.entryRootPath, fmt.Sprintf("%d", lm.partitionID), lsn.String())
+	return filepath.Join(partitionPath(lm.entryRootPath, lm.partitionInfo.storageName, lm.partitionInfo.partitionID), lsn.String())
 }
 
 type notification struct {
@@ -247,21 +267,37 @@ func TestLogEntryArchiver(t *testing.T) {
 			hook := testhelper.AddLoggerHook(logger)
 			var wg sync.WaitGroup
 
-			archiver := NewLogEntryArchiver(logger, archiveSink, tc.workerCount)
+			accessor := &mockLogManagerAccessor{
+				managers: make(map[partitionInfo]*mockLogManager, len(tc.partitions)),
+				t:        t,
+			}
+
+			archiver := NewLogEntryArchiver(logger, archiveSink, tc.workerCount, accessor)
 			archiver.Run()
 			defer archiver.Close()
 
-			managers := make(map[storage.PartitionID]*mockLogManager, len(tc.partitions))
+			const storageName = "default"
+
+			managers := make(map[partitionInfo]*mockLogManager, len(tc.partitions))
 			for _, partitionID := range tc.partitions {
+				info := partitionInfo{
+					storageName: storageName,
+					partitionID: partitionID,
+				}
+
 				manager := &mockLogManager{
-					partitionID:   partitionID,
+					partitionInfo: info,
 					entryRootPath: entryRootPath,
 					archiver:      archiver,
 					notifications: tc.notifications,
 					finalLSN:      tc.finalLSN,
 					finishFunc:    wg.Done,
 				}
-				managers[partitionID] = manager
+				managers[info] = manager
+
+				accessor.Lock()
+				accessor.managers[info] = manager
+				accessor.Unlock()
 
 				partitionID := partitionID
 
@@ -278,7 +314,7 @@ func TestLogEntryArchiver(t *testing.T) {
 						for lsn := notification.lowWaterMark; lsn <= notification.highWaterMark; lsn++ {
 							// Don't recreate entries.
 							if !slices.Contains(sentLSNs, lsn) {
-								createEntryDir(t, entryRootPath, partitionID, lsn)
+								createEntryDir(t, entryRootPath, info.storageName, partitionID, lsn)
 							}
 
 							sentLSNs = append(sentLSNs, lsn)
@@ -293,21 +329,23 @@ func TestLogEntryArchiver(t *testing.T) {
 			wg.Wait()
 
 			cmpDir := testhelper.TempDir(t)
-			for partitionID, manager := range managers {
+			require.NoError(t, os.Mkdir(filepath.Join(cmpDir, storageName), perm.PrivateDir))
+
+			for info, manager := range accessor.managers {
 				lastAck := manager.acknowledged[len(manager.acknowledged)-1]
 				require.Equal(t, tc.finalLSN, lastAck)
 
-				partitionDir := filepath.Join(cmpDir, fmt.Sprintf("%d", partitionID))
+				partitionDir := partitionPath(cmpDir, info.storageName, info.partitionID)
 				require.NoError(t, os.Mkdir(partitionDir, perm.PrivateDir))
 
 				for _, lsn := range manager.acknowledged {
-					tarPath := filepath.Join(archivePath, fmt.Sprintf("%d", partitionID), lsn.String()+".tar")
+					tarPath := filepath.Join(partitionPath(archivePath, info.storageName, info.partitionID), lsn.String()+".tar")
 					archive, err := os.Open(tarPath)
 					require.NoError(t, err)
 					testhelper.RequireTarState(t, archive, testhelper.DirectoryState{
 						lsn.String() + "/":                          {Mode: umask.Mask(perm.PrivateDir)},
 						filepath.Join(lsn.String(), "LSN"):          {Mode: umask.Mask(perm.PrivateFile), Content: []byte(lsn.String())},
-						filepath.Join(lsn.String(), "PARTITION_ID"): {Mode: umask.Mask(perm.PrivateFile), Content: []byte(fmt.Sprintf("%d", partitionID))},
+						filepath.Join(lsn.String(), "PARTITION_ID"): {Mode: umask.Mask(perm.PrivateFile), Content: []byte(fmt.Sprintf("%d", info.partitionID))},
 					})
 				}
 			}
@@ -331,7 +369,6 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 
 	umask := testhelper.Umask()
 
-	const partitionID = 1
 	const lsn = storage.LSN(1)
 	const workerCount = 1
 
@@ -353,12 +390,22 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 	archiveSink, err := ResolveSink(ctx, archivePath)
 	require.NoError(t, err)
 
-	archiver := newLogEntryArchiver(logger, archiveSink, workerCount, tickerFunc)
+	accessor := &mockLogManagerAccessor{
+		managers: make(map[partitionInfo]*mockLogManager, 1),
+		t:        t,
+	}
+
+	archiver := newLogEntryArchiver(logger, archiveSink, workerCount, accessor, tickerFunc)
 	archiver.Run()
 	defer archiver.Close()
 
+	info := partitionInfo{
+		storageName: "default",
+		partitionID: 1,
+	}
+
 	manager := &mockLogManager{
-		partitionID:   partitionID,
+		partitionInfo: info,
 		entryRootPath: entryRootPath,
 		archiver:      archiver,
 		notifications: []notification{
@@ -371,6 +418,10 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 		finishFunc: wg.Done,
 	}
 
+	accessor.Lock()
+	accessor.managers[info] = manager
+	accessor.Unlock()
+
 	wg.Add(1)
 	manager.SendNotification()
 
@@ -380,7 +431,7 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 	require.Equal(t, "log entry archiver: failed to backup log entry", hook.LastEntry().Message)
 
 	// Create entry so retry will succeed.
-	createEntryDir(t, entryRootPath, partitionID, lsn)
+	createEntryDir(t, entryRootPath, info.storageName, info.partitionID, lsn)
 
 	// Add to wg, this will be decremented when the retry completes.
 	wg.Add(1)
@@ -392,17 +443,17 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 	wg.Wait()
 
 	cmpDir := testhelper.TempDir(t)
-	partitionDir := filepath.Join(cmpDir, fmt.Sprintf("%d", partitionID))
-	require.NoError(t, os.Mkdir(partitionDir, perm.PrivateDir))
+	partitionDir := partitionPath(cmpDir, info.storageName, info.partitionID)
+	require.NoError(t, os.MkdirAll(partitionDir, perm.PrivateDir))
 
-	tarPath := filepath.Join(archivePath, fmt.Sprintf("%d", partitionID), lsn.String()+".tar")
+	tarPath := filepath.Join(partitionPath(archivePath, info.storageName, info.partitionID), lsn.String()) + ".tar"
 	archive, err := os.Open(tarPath)
 	require.NoError(t, err)
 
 	testhelper.RequireTarState(t, archive, testhelper.DirectoryState{
 		lsn.String() + "/":                          {Mode: umask.Mask(perm.PrivateDir)},
 		filepath.Join(lsn.String(), "LSN"):          {Mode: umask.Mask(perm.PrivateFile), Content: []byte(lsn.String())},
-		filepath.Join(lsn.String(), "PARTITION_ID"): {Mode: umask.Mask(perm.PrivateFile), Content: []byte(fmt.Sprintf("%d", partitionID))},
+		filepath.Join(lsn.String(), "PARTITION_ID"): {Mode: umask.Mask(perm.PrivateFile), Content: []byte(fmt.Sprintf("%d", info.partitionID))},
 	})
 
 	require.NoError(t, testutil.CollectAndCompare(
@@ -411,10 +462,14 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 		"gitaly_wal_backup_count"))
 }
 
-func createEntryDir(t *testing.T, entryRootPath string, partitionID storage.PartitionID, lsn storage.LSN) {
+func partitionPath(root string, storageName string, partitionID storage.PartitionID) string {
+	return filepath.Join(root, storageName, fmt.Sprintf("%d", partitionID))
+}
+
+func createEntryDir(t *testing.T, entryRootPath string, storageName string, partitionID storage.PartitionID, lsn storage.LSN) {
 	t.Helper()
 
-	partitionPath := filepath.Join(entryRootPath, fmt.Sprintf("%d", partitionID))
+	partitionPath := partitionPath(entryRootPath, storageName, partitionID)
 	require.NoError(t, os.MkdirAll(partitionPath, perm.PrivateDir))
 
 	testhelper.CreateFS(t, filepath.Join(partitionPath, lsn.String()), fstest.MapFS{
