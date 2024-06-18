@@ -1265,14 +1265,13 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						DefaultBranch: "refs/heads/main",
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
-							// Interestingly, loose unreachable objects stay untouched!
-							LooseObjects: []git.ObjectID{
-								setup.Commits.Orphan.OID,
-								setup.Commits.Unreachable.OID,
-							},
 							Packfiles: []*PackfileState{
 								{
-									Objects:         defaultReachableObjects,
+									Objects: append(
+										defaultReachableObjects,
+										setup.Commits.Orphan.OID,
+										setup.Commits.Unreachable.OID,
+									),
 									HasBitmap:       false,
 									HasReverseIndex: true,
 								},
@@ -1425,11 +1424,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						DefaultBranch: "refs/heads/main",
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
-							// Interestingly, loose unreachable objects stay untouched!
-							LooseObjects: []git.ObjectID{
-								setup.Commits.Orphan.OID,
-								setup.Commits.Unreachable.OID,
-							},
 							Packfiles: []*PackfileState{
 								{
 									Objects:         defaultReachableObjects,
@@ -1533,11 +1527,6 @@ func generateHousekeepingRepackingStrategyTests(t *testing.T, ctx context.Contex
 						DefaultBranch: "refs/heads/main",
 						References:    &ReferencesState{LooseReferences: defaultReferences},
 						Packfiles: &PackfilesState{
-							// Interestingly, loose unreachable objects stay untouched!
-							LooseObjects: []git.ObjectID{
-								setup.Commits.Orphan.OID,
-								setup.Commits.Unreachable.OID,
-							},
 							Packfiles: []*PackfileState{
 								{
 									Objects:         defaultReachableObjects,
@@ -3380,14 +3369,18 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 						DefaultBranch: "refs/heads/main",
 						Packfiles: &PackfilesState{
 							// Unreachable objects are packed.
-							LooseObjects: []git.ObjectID{
-								setup.ObjectHash.EmptyTreeOID,
-								setup.Commits.First.OID,
-								setup.Commits.Second.OID,
-								setup.Commits.Third.OID,
-								setup.Commits.Diverging.OID,
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+										setup.Commits.Second.OID,
+										setup.Commits.Third.OID,
+										setup.Commits.Diverging.OID,
+									},
+									HasReverseIndex: true,
+								},
 							},
-							Packfiles: []*PackfileState{},
 						},
 						FullRepackTimestamp: &FullRepackTimestamp{Exists: true},
 					},

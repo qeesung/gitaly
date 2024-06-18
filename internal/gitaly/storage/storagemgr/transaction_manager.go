@@ -80,6 +80,9 @@ var (
 	errRepackConflictPrunedObject = errors.New("pruned object used by other updates")
 	// errRepackNotSupportedStrategy is returned when the manager runs the repacking task using unsupported strategy.
 	errRepackNotSupportedStrategy = errors.New("strategy not supported")
+	// errConcurrentAlternateUnlink is a repack attempts to commit against a repository that was concurrenty unlinked
+	// from an alternate
+	errConcurrentAlternateUnlink = errors.New("concurrent alternate unlinking with repack")
 
 	// Below errors are used to error out in cases when updates have been staged in a read-only transaction.
 	errReadOnlyReferenceUpdates    = errors.New("reference updates staged in a read-only transaction")
@@ -1750,6 +1753,16 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 			return fmt.Errorf("perform geometric repacking: %w", err)
 		}
 	case housekeepingcfg.RepackObjectsStrategyFullWithUnreachable:
+		// Git does not pack loose unreachable objects if there are no existing packs in the repository.
+		// Perform an incremental repack first. This ensures all loose object are part of a pack and will be
+		// included in the full pack we're about to build. This allows us to remove the loose objects from the
+		// repository when applying the pack without losing any objects.
+		//
+		// Issue: https://gitlab.com/gitlab-org/git/-/issues/336
+		if err := housekeeping.PerformIncrementalRepackingWithUnreachable(ctx, workingRepository); err != nil {
+			return fmt.Errorf("perform geometric repacking: %w", err)
+		}
+
 		// This strategy merges all packfiles into a single packfile, simultaneously removing any loose objects
 		// if present. Unreachable objects are then appended to the end of this unified packfile. Although the
 		// `git-repack(1)` command does not offer an option to specifically pack loose unreachable objects, this
@@ -2693,6 +2706,24 @@ func (mgr *TransactionManager) verifyHousekeeping(ctx context.Context, transacti
 		if entry.GetRepositoryDeletion() != nil {
 			return errConflictRepositoryDeletion
 		}
+
+		// Applying a repacking operation prunes all loose objects on application. If loose objects were concurrently introduced
+		// in the repository with the repacking operation, this could lead to corruption if we prune a loose object that is needed.
+		// Transactions in general only introduce packs, not loose objects. The only exception to this currently is alternate
+		// unlinking operations where the objects of the alternate are hard linked into the member repository. This can technically
+		// still introduce loose objects into the repository and trigger this problem as the pools could still have loose objects
+		// in them until the first repack.
+		//
+		// Check if the repository was unlinked from an alternate concurrently.
+		for _, op := range entry.GetOperations() {
+			switch op := op.GetOperation().(type) {
+			case *gitalypb.LogEntry_Operation_RemoveDirectoryEntry_:
+				if string(op.RemoveDirectoryEntry.Path) == stats.AlternatesFilePath(transaction.relativePath) {
+					return errConcurrentAlternateUnlink
+				}
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("walking committed entries: %w", err)
@@ -2838,6 +2869,11 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 	workingRepositoryPath, err := workingRepository.Path()
 	if err != nil {
 		return nil, fmt.Errorf("getting working repository path: %w", err)
+	}
+
+	// Remove loose objects as we'd do on application.
+	if err := mgr.pruneLooseObjects(workingRepositoryPath); err != nil {
+		return nil, fmt.Errorf("prune loose objects: %w", err)
 	}
 
 	// Apply the changes of current transaction.
@@ -3217,13 +3253,8 @@ func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn storage.L
 	// needs to clean up redundant loose objects. After the target repository runs repacking for the first time,
 	// there shouldn't be any further loose objects. All of them exist in packfiles. Afterward, this command will
 	// exist instantly. We can remove this run after the transaction system is fully applied.
-	repo := mgr.repositoryFactory.Build(logEntry.RelativePath)
-	var stderr bytes.Buffer
-	if err := repo.ExecAndWait(ctx, git.Command{
-		Name:  "prune-packed",
-		Flags: []git.Option{git.Flag{Name: "--quiet"}},
-	}, git.WithStderr(&stderr)); err != nil {
-		return structerr.New("exec prune-packed: %w", err).WithMetadata("stderr", stderr.String())
+	if err := mgr.pruneLooseObjects(repoPath); err != nil {
+		return fmt.Errorf("prune loose objects: %w", err)
 	}
 
 	if repack.IsFullRepack {
@@ -3235,6 +3266,29 @@ func (mgr *TransactionManager) applyRepacking(ctx context.Context, lsn storage.L
 	if err := safe.NewSyncer().Sync(filepath.Join(repoPath, "objects")); err != nil {
 		return fmt.Errorf("sync objects dir: %w", err)
 	}
+	return nil
+}
+
+// Git stores loose objects in the object directory under subdirectories with two hex digits in their name.
+var regexpLooseObjectDir = regexp.MustCompile("^[[:xdigit:]]{2}$")
+
+// pruneLooseObjects removes all loose objects from the object directory.
+func (mgr *TransactionManager) pruneLooseObjects(repositoryPath string) error {
+	absoluteObjectDirectory := filepath.Join(repositoryPath, "objects")
+
+	entries, err := os.ReadDir(absoluteObjectDirectory)
+	if err != nil {
+		return fmt.Errorf("read dir: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() && regexpLooseObjectDir.MatchString(entry.Name()) {
+			if err := os.RemoveAll(filepath.Join(absoluteObjectDirectory, entry.Name())); err != nil {
+				return fmt.Errorf("remove all: %w", err)
+			}
+		}
+	}
+
 	return nil
 }
 

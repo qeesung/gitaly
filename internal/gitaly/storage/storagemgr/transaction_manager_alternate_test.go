@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
+	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
@@ -294,19 +295,169 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 								"refs/heads/main": setup.Commits.First.OID,
 							},
 						},
-						Objects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
+						Packfiles: &PackfilesState{
+							LooseObjects: []git.ObjectID{
+								setup.Commits.Second.OID,
+							},
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
 						},
 					},
 					"member": {
 						// The objects should have been copied over to the repository when it was
 						// disconnected from the alternate.
-						Objects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
+						Packfiles: &PackfilesState{
+							LooseObjects: []git.ObjectID{
+								setup.Commits.Second.OID,
+							},
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "repository is disconnected from alternate concurrently with housekeeping",
+			steps: steps{
+				RemoveRepository{},
+				StartManager{},
+				Begin{
+					TransactionID: 1,
+					RelativePath:  "pool",
+				},
+				CreateRepository{
+					TransactionID: 1,
+					References: map[git.ReferenceName]git.ObjectID{
+						"refs/heads/main": setup.Commits.First.OID,
+					},
+					Packs: [][]byte{setup.Commits.First.Pack},
+				},
+				Commit{
+					TransactionID: 1,
+				},
+				CloseManager{},
+				StartManager{
+					ModifyStorage: func(tb testing.TB, cfg config.Cfg, storagePath string) {
+						// Transactions write objects always as packs into the repository. To test
+						// scenarios where repositories may have existing loose objects, manually
+						// unpack the objects to the repository.
+						gittest.ExecOpts(tb, cfg,
+							gittest.ExecConfig{Stdin: bytes.NewReader(setup.Commits.Second.Pack)},
+							"-C", filepath.Join(storagePath, "pool"), "unpack-objects",
+						)
+					},
+				},
+				Begin{
+					TransactionID:            2,
+					RelativePath:             "member",
+					SnapshottedRelativePaths: []string{"pool"},
+					ExpectedSnapshotLSN:      1,
+				},
+				CreateRepository{
+					TransactionID: 2,
+					Alternate:     "../../pool/objects",
+				},
+				Commit{
+					TransactionID: 2,
+				},
+				Begin{
+					TransactionID:       3,
+					RelativePath:        "member",
+					ExpectedSnapshotLSN: 2,
+				},
+				Begin{
+					TransactionID:       4,
+					RelativePath:        "member",
+					ExpectedSnapshotLSN: 2,
+				},
+				Begin{
+					TransactionID:       5,
+					RelativePath:        "member",
+					ExpectedSnapshotLSN: 2,
+				},
+				Commit{
+					TransactionID: 5,
+					ReferenceUpdates: ReferenceUpdates{
+						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.Second.OID},
+					},
+				},
+				RunRepack{
+					TransactionID: 3,
+					Config: housekeepingcfg.RepackObjectsConfig{
+						Strategy: housekeepingcfg.RepackObjectsStrategyFullWithUnreachable,
+					},
+				},
+				Commit{
+					TransactionID:   4,
+					UpdateAlternate: &alternateUpdate{},
+				},
+				Commit{
+					TransactionID: 3,
+					ExpectedError: errConcurrentAlternateUnlink,
+				},
+			},
+			expectedState: StateAssertion{
+				Database: DatabaseState{
+					string(keyAppliedLSN): storage.LSN(4).ToProto(),
+				},
+				Repositories: RepositoryStates{
+					"pool": {
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.First.OID,
+							},
+						},
+						Packfiles: &PackfilesState{
+							LooseObjects: []git.ObjectID{
+								setup.Commits.Second.OID,
+							},
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
+						},
+					},
+					"member": {
+						References: &ReferencesState{
+							LooseReferences: map[git.ReferenceName]git.ObjectID{
+								"refs/heads/main": setup.Commits.Second.OID,
+							},
+						},
+						// The objects should have been copied over to the repository when it was
+						// disconnected from the alternate.
+						Packfiles: &PackfilesState{
+							LooseObjects: []git.ObjectID{
+								setup.Commits.Second.OID,
+							},
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
 						},
 					},
 				},

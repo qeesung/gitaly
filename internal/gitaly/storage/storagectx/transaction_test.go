@@ -40,6 +40,7 @@ func (nilTransaction) WriteCommitGraphs(housekeepingcfg.WriteCommitGraphConfig) 
 func (nilTransaction) AfterCommit(func(error))                                  {}
 func (nilTransaction) SnapshotLSN() storage.LSN                                 { return 0 }
 func (nilTransaction) Root() string                                             { return "" }
+func (nilTransaction) Commit(context.Context) error                             { return nil }
 
 func TestContextWithTransaction(t *testing.T) {
 	t.Run("no transaction in context", func(t *testing.T) {
