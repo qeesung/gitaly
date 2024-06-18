@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lni/dragonboat/v4"
 	dragonboatConfig "github.com/lni/dragonboat/v4/config"
 	"github.com/lni/dragonboat/v4/statemachine"
@@ -107,6 +108,7 @@ type testNode struct {
 
 type testRaftCluster struct {
 	sync.Mutex
+	clusterID      string
 	initialMembers map[uint64]string
 	nodes          map[raftID]*testNode
 }
@@ -233,8 +235,29 @@ func (c *testRaftCluster) waitUntilReady(t *testing.T, node raftID, groupID raft
 	}
 }
 
+func (c *testRaftCluster) toRaftConfig(node raftID) config.Raft {
+	initialMembers := map[string]string{}
+	for node, addr := range c.initialMembers {
+		initialMembers[fmt.Sprintf("%d", node)] = addr
+	}
+	return config.Raft{
+		Enabled:         true,
+		ClusterID:       c.clusterID,
+		NodeID:          node.ToUint64(),
+		RaftAddr:        c.nodes[node].nodeHost.RaftAddress(),
+		InitialMembers:  initialMembers,
+		RTTMilliseconds: config.RaftDefaultRTT,
+		ElectionTicks:   config.RaftDefaultElectionTicks,
+		HeartbeatTicks:  config.RaftDefaultHeartbeatTicks,
+	}
+}
+
 func newTestRaftCluster(t *testing.T, numNodes int) *testRaftCluster {
+	id, err := uuid.NewUUID()
+	require.NoError(t, err)
+
 	cluster := &testRaftCluster{
+		clusterID:      id.String(),
 		nodes:          map[raftID]*testNode{},
 		initialMembers: map[uint64]string{},
 	}
