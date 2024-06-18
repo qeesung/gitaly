@@ -50,7 +50,7 @@ func TestSQLPingSubcommand(t *testing.T) {
 				}
 				return writeConfigToFile(t, cfg)
 			},
-			expectedErr: errors.New("sql open: send ping: failed to connect to `host=/dev/null user=postgres database=gl`: dial error (dial unix /dev/null/.s.PGSQL.5432: connect: not a directory)"),
+			expectedErr: errors.New("sql open: send ping: failed to connect to `user=postgres database=gl`: /dev/null/.s.PGSQL.5432 (/dev/null): dial error: dial unix /dev/null/.s.PGSQL.5432: connect: not a directory"),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
