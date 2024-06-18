@@ -294,19 +294,37 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 								"refs/heads/main": setup.Commits.First.OID,
 							},
 						},
-						Objects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
+						Packfiles: &PackfilesState{
+							LooseObjects: []git.ObjectID{
+								setup.Commits.Second.OID,
+							},
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
 						},
 					},
 					"member": {
 						// The objects should have been copied over to the repository when it was
 						// disconnected from the alternate.
-						Objects: []git.ObjectID{
-							setup.ObjectHash.EmptyTreeOID,
-							setup.Commits.First.OID,
-							setup.Commits.Second.OID,
+						Packfiles: &PackfilesState{
+							LooseObjects: []git.ObjectID{
+								setup.Commits.Second.OID,
+							},
+							Packfiles: []*PackfileState{
+								{
+									Objects: []git.ObjectID{
+										setup.ObjectHash.EmptyTreeOID,
+										setup.Commits.First.OID,
+									},
+									HasReverseIndex: true,
+								},
+							},
 						},
 					},
 				},
