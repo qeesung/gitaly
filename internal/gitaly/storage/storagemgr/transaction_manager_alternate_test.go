@@ -408,11 +408,12 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Commit{
 					TransactionID: 3,
+					ExpectedError: errConcurrentAlternateUnlink,
 				},
 			},
 			expectedState: StateAssertion{
 				Database: DatabaseState{
-					string(keyAppliedLSN): storage.LSN(5).ToProto(),
+					string(keyAppliedLSN): storage.LSN(4).ToProto(),
 				},
 				Repositories: RepositoryStates{
 					"pool": {
@@ -439,14 +440,15 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					"member": {
 						References: &ReferencesState{
 							LooseReferences: map[git.ReferenceName]git.ObjectID{
-								// BUG: Repository is corrupted as the repacking operation removed
-								// a loose object introduced by concurrent alternate unlink.
 								"refs/heads/main": setup.Commits.Second.OID,
 							},
 						},
 						// The objects should have been copied over to the repository when it was
 						// disconnected from the alternate.
 						Packfiles: &PackfilesState{
+							LooseObjects: []git.ObjectID{
+								setup.Commits.Second.OID,
+							},
 							Packfiles: []*PackfileState{
 								{
 									Objects: []git.ObjectID{

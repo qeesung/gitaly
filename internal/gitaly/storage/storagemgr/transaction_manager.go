@@ -80,6 +80,9 @@ var (
 	errRepackConflictPrunedObject = errors.New("pruned object used by other updates")
 	// errRepackNotSupportedStrategy is returned when the manager runs the repacking task using unsupported strategy.
 	errRepackNotSupportedStrategy = errors.New("strategy not supported")
+	// errConcurrentAlternateUnlink is a repack attempts to commit against a repository that was concurrenty unlinked
+	// from an alternate
+	errConcurrentAlternateUnlink = errors.New("concurrent alternate unlinking with repack")
 
 	// Below errors are used to error out in cases when updates have been staged in a read-only transaction.
 	errReadOnlyReferenceUpdates    = errors.New("reference updates staged in a read-only transaction")
@@ -2703,6 +2706,24 @@ func (mgr *TransactionManager) verifyHousekeeping(ctx context.Context, transacti
 		if entry.GetRepositoryDeletion() != nil {
 			return errConflictRepositoryDeletion
 		}
+
+		// Applying a repacking operation prunes all loose objects on application. If loose objects were concurrently introduced
+		// in the repository with the repacking operation, this could lead to corruption if we prune a loose object that is needed.
+		// Transactions in general only introduce packs, not loose objects. The only exception to this currently is alternate
+		// unlinking operations where the objects of the alternate are hard linked into the member repository. This can technically
+		// still introduce loose objects into the repository and trigger this problem as the pools could still have loose objects
+		// in them until the first repack.
+		//
+		// Check if the repository was unlinked from an alternate concurrently.
+		for _, op := range entry.GetOperations() {
+			switch op := op.GetOperation().(type) {
+			case *gitalypb.LogEntry_Operation_RemoveDirectoryEntry_:
+				if string(op.RemoveDirectoryEntry.Path) == stats.AlternatesFilePath(transaction.relativePath) {
+					return errConcurrentAlternateUnlink
+				}
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("walking committed entries: %w", err)
