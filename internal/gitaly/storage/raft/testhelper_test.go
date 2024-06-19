@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -9,7 +8,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/lni/dragonboat/v4"
@@ -202,54 +200,11 @@ func (c *testRaftCluster) startTestGroup(t *testing.T, node raftID, groupID raft
 	c.Unlock()
 
 	// Poll until the Raft group is ready within 30-second timeout.
-	c.waitUntilReady(t, node, groupID)
+	require.NoError(t, WaitGroupReady(testhelper.Context(t), c.nodes[node].nodeHost, groupID))
 }
 
 func (c *testRaftCluster) stopGroup(t *testing.T, node raftID, groupID raftID) {
 	require.NoError(t, c.nodes[node].nodeHost.StopShard(groupID.ToUint64()))
-}
-
-func (c *testRaftCluster) waitUntilReady(t *testing.T, node raftID, groupID raftID) {
-	c.Lock()
-	clusterNode := c.nodes[node]
-	c.Unlock()
-	ctx := testhelper.Context(t)
-	for {
-		_, err := func(ctx context.Context) (any, error) {
-			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			defer cancel()
-			return clusterNode.nodeHost.SyncGetShardMembership(ctx, groupID.ToUint64())
-		}(ctx)
-
-		if err == nil {
-			break
-		} else if !dragonboat.IsTempError(err) {
-			require.Error(t, err)
-		}
-		select {
-		case <-ctx.Done():
-			t.Error("timeout waiting for Raft cluster's readiness")
-			return
-		case <-time.After(200 * time.Millisecond):
-		}
-	}
-}
-
-func (c *testRaftCluster) toRaftConfig(node raftID) config.Raft {
-	initialMembers := map[string]string{}
-	for node, addr := range c.initialMembers {
-		initialMembers[fmt.Sprintf("%d", node)] = addr
-	}
-	return config.Raft{
-		Enabled:         true,
-		ClusterID:       c.clusterID,
-		NodeID:          node.ToUint64(),
-		RaftAddr:        c.nodes[node].nodeHost.RaftAddress(),
-		InitialMembers:  initialMembers,
-		RTTMilliseconds: config.RaftDefaultRTT,
-		ElectionTicks:   config.RaftDefaultElectionTicks,
-		HeartbeatTicks:  config.RaftDefaultHeartbeatTicks,
-	}
 }
 
 func newTestRaftCluster(t *testing.T, numNodes int) *testRaftCluster {
