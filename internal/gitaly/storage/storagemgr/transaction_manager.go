@@ -143,6 +143,10 @@ type ReferenceUpdate struct {
 	OldOID git.ObjectID
 	// NewOID is the new desired OID to point the reference to.
 	NewOID git.ObjectID
+	// OldTarget is the expected target for a symbolic reference.
+	OldTarget git.ReferenceName
+	// NewTarget stores the desired target for a symbolic reference.
+	NewTarget git.ReferenceName
 }
 
 // repositoryCreation models a repository creation in a transaction.
@@ -613,30 +617,35 @@ func (txn *Transaction) RecordInitialReferenceValues(ctx context.Context, initia
 	}
 
 	for name, reference := range initialValues {
-		oid := git.ObjectID(reference.Target)
+		if !reference.IsSymbolic {
 
-		if objectHash.IsZeroOID(oid) {
-			// If this is a zero OID, resolve the value to see if this is a force update or the
-			// reference doesn't exist.
-			if current, err := txn.snapshotRepository.ResolveRevision(ctx, name.Revision()); err != nil {
-				if !errors.Is(err, git.ErrReferenceNotFound) {
-					return fmt.Errorf("resolve revision: %w", err)
+			oid := git.ObjectID(reference.Target)
+
+			if objectHash.IsZeroOID(oid) {
+				// If this is a zero OID, resolve the value to see if this is a force update or the
+				// reference doesn't exist.
+				if current, err := txn.snapshotRepository.ResolveRevision(ctx, name.Revision()); err != nil {
+					if !errors.Is(err, git.ErrReferenceNotFound) {
+						return fmt.Errorf("resolve revision: %w", err)
+					}
+
+					// The reference doesn't exist, leave the value as zero oid.
+				} else {
+					oid = current
 				}
-
-				// The reference doesn't exist, leave the value as zero oid.
-			} else {
-				oid = current
 			}
-		}
 
-		txn.initialReferenceValues[name] = git.NewReference(name, oid)
+			txn.initialReferenceValues[name] = git.NewReference(name, oid)
+		} else {
+			txn.initialReferenceValues[name] = reference
+		}
 	}
 
 	return nil
 }
 
 // UpdateReferences updates the given references as part of the transaction. Each call is treated as
-// a different reference transaction. This is allows for performing directory-file conflict inducing
+// a different reference transaction. This allows for performing directory-file conflict inducing
 // changes in a transaction. For example:
 //
 // - First call  - delete 'refs/heads/parent'
@@ -653,19 +662,33 @@ func (txn *Transaction) UpdateReferences(updates ReferenceUpdates) {
 
 	for reference, update := range updates {
 		oldOID := update.OldOID
+		oldTarget := update.OldTarget
+
 		if initialValue, ok := txn.initialReferenceValues[reference]; ok {
-			oldOID = git.ObjectID(initialValue.Target)
+			if !initialValue.IsSymbolic {
+				oldOID = git.ObjectID(initialValue.Target)
+			} else {
+				oldTarget = git.ReferenceName(initialValue.Target)
+			}
 		}
 
 		for _, updates := range txn.referenceUpdates {
-			if update, ok := updates[reference]; ok {
-				oldOID = update.NewOID
+			if txUpdate, ok := updates[reference]; ok {
+				if txUpdate.NewOID != "" {
+					oldOID = txUpdate.NewOID
+				}
+
+				if txUpdate.NewTarget != "" {
+					oldTarget = txUpdate.NewTarget
+				}
 			}
 		}
 
 		u[reference] = ReferenceUpdate{
-			OldOID: oldOID,
-			NewOID: update.NewOID,
+			OldOID:    oldOID,
+			NewOID:    update.NewOID,
+			OldTarget: oldTarget,
+			NewTarget: update.NewTarget,
 		}
 	}
 
@@ -682,12 +705,19 @@ func (txn *Transaction) flattenReferenceTransactions() ReferenceUpdates {
 	for _, updates := range txn.referenceUpdates {
 		for reference, update := range updates {
 			u := ReferenceUpdate{
-				OldOID: update.OldOID,
-				NewOID: update.NewOID,
+				OldOID:    update.OldOID,
+				NewOID:    update.NewOID,
+				OldTarget: update.OldTarget,
+				NewTarget: update.NewTarget,
 			}
 
 			if previousUpdate, ok := flattenedUpdates[reference]; ok {
-				u.OldOID = previousUpdate.OldOID
+				if previousUpdate.OldOID != "" {
+					u.OldOID = previousUpdate.OldOID
+				}
+				if previousUpdate.OldTarget != "" {
+					u.OldTarget = previousUpdate.OldTarget
+				}
 			}
 
 			flattenedUpdates[reference] = u
@@ -1305,6 +1335,10 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 
 	referenceUpdates := make(ReferenceUpdates, len(references))
 	for _, ref := range references {
+		if ref.IsSymbolic {
+			return fmt.Errorf("unexpected symbolic ref: %v", ref)
+		}
+
 		referenceUpdates[ref.Name] = ReferenceUpdate{
 			OldOID: objectHash.ZeroOID,
 			NewOID: git.ObjectID(ref.Target),
@@ -1485,6 +1519,10 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 	heads := make([]string, 0)
 	for _, referenceUpdates := range transaction.referenceUpdates {
 		for _, update := range referenceUpdates {
+			if (update.OldTarget != "") || (update.NewTarget != "") {
+				return fmt.Errorf("unexpected symbolic reference: %s", update)
+			}
+
 			if update.NewOID == objectHash.ZeroOID {
 				// Reference deletions can't introduce new objects so ignore them.
 				continue
@@ -2622,6 +2660,10 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 	for _, updates := range transaction.referenceUpdates {
 		changes := make([]*gitalypb.LogEntry_ReferenceTransaction_Change, 0, len(updates))
 		for reference, update := range updates {
+			if (update.OldTarget != "") || (update.NewTarget != "") {
+				return nil, fmt.Errorf("unexpected symbolic ref: %s", update)
+			}
+
 			if _, ok := droppedReferenceUpdates[reference]; ok {
 				continue
 			}
