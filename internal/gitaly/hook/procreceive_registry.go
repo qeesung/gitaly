@@ -96,9 +96,9 @@ func (r *ProcReceiveRegistry) RegisterWaiter(id storage.TransactionID) (<-chan P
 // Transmit transmits a handler to its waiter.
 func (r *ProcReceiveRegistry) Transmit(ctx context.Context, handler ProcReceiveHandler) error {
 	r.m.Lock()
-	defer r.m.Unlock()
-
 	ch, ok := r.waiters[handler.TransactionID()]
+	r.m.Unlock()
+
 	if !ok {
 		return fmt.Errorf("no waiters for id: %d", handler.TransactionID())
 	}
