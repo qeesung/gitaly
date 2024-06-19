@@ -283,7 +283,7 @@ type Transaction struct {
 	// walEntry is the log entry where the transaction stages its state for committing.
 	walEntry                 *wal.Entry
 	skipVerificationFailures bool
-	initialReferenceValues   map[git.ReferenceName]git.ObjectID
+	initialReferenceValues   map[git.ReferenceName]git.Reference
 	referenceUpdates         []ReferenceUpdates
 	defaultBranchUpdated     bool
 	customHooksUpdated       bool
@@ -604,19 +604,21 @@ func (txn *Transaction) SkipVerificationFailures() {
 // record the value without staging an update in the transaction. This is useful for example generally recording the initial
 // value in the 'prepare' phase of the reference transaction hook before any changes are made without staging any updates
 // before the 'committed' phase is reached. The recorded initial values are only used for the next UpdateReferences call.
-func (txn *Transaction) RecordInitialReferenceValues(ctx context.Context, initialValues map[git.ReferenceName]git.ObjectID) error {
-	txn.initialReferenceValues = make(map[git.ReferenceName]git.ObjectID, len(initialValues))
+func (txn *Transaction) RecordInitialReferenceValues(ctx context.Context, initialValues map[git.ReferenceName]git.Reference) error {
+	txn.initialReferenceValues = make(map[git.ReferenceName]git.Reference, len(initialValues))
 
 	objectHash, err := txn.snapshotRepository.ObjectHash(ctx)
 	if err != nil {
 		return fmt.Errorf("object hash: %w", err)
 	}
 
-	for reference, oid := range initialValues {
+	for name, reference := range initialValues {
+		oid := git.ObjectID(reference.Target)
+
 		if objectHash.IsZeroOID(oid) {
 			// If this is a zero OID, resolve the value to see if this is a force update or the
 			// reference doesn't exist.
-			if current, err := txn.snapshotRepository.ResolveRevision(ctx, reference.Revision()); err != nil {
+			if current, err := txn.snapshotRepository.ResolveRevision(ctx, name.Revision()); err != nil {
 				if !errors.Is(err, git.ErrReferenceNotFound) {
 					return fmt.Errorf("resolve revision: %w", err)
 				}
@@ -627,7 +629,7 @@ func (txn *Transaction) RecordInitialReferenceValues(ctx context.Context, initia
 			}
 		}
 
-		txn.initialReferenceValues[reference] = oid
+		txn.initialReferenceValues[name] = git.NewReference(name, oid)
 	}
 
 	return nil
@@ -652,7 +654,7 @@ func (txn *Transaction) UpdateReferences(updates ReferenceUpdates) {
 	for reference, update := range updates {
 		oldOID := update.OldOID
 		if initialValue, ok := txn.initialReferenceValues[reference]; ok {
-			oldOID = initialValue
+			oldOID = git.ObjectID(initialValue.Target)
 		}
 
 		for _, updates := range txn.referenceUpdates {

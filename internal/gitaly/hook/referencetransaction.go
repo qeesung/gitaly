@@ -52,9 +52,9 @@ func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state 
 				return fmt.Errorf("parse changes: %w", err)
 			}
 
-			initialValues := map[git.ReferenceName]git.ObjectID{}
+			initialValues := map[git.ReferenceName]git.Reference{}
 			for reference, update := range updates {
-				initialValues[reference] = update.OldOID
+				initialValues[reference] = git.NewReference(reference, update.OldOID)
 			}
 
 			// Only record the initial values of the reference in the prepare step as this

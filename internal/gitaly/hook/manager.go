@@ -55,7 +55,7 @@ type Manager interface {
 
 // Transaction is the interface of storagemgr.Transaction. It's used for mocking in the tests.
 type Transaction interface {
-	RecordInitialReferenceValues(context.Context, map[git.ReferenceName]git.ObjectID) error
+	RecordInitialReferenceValues(context.Context, map[git.ReferenceName]git.Reference) error
 	UpdateReferences(storagemgr.ReferenceUpdates)
 	Commit(context.Context) error
 	OriginalRepository(*gitalypb.Repository) *gitalypb.Repository
