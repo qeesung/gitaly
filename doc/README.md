@@ -17,6 +17,8 @@ The reference guide is documented in <https://docs.gitlab.com/ee/administration/
 - Tests use Git repositories too, [read more about them](test_repos.md)
 - Praefect uses SQL. To create a new SQL migration see [sql_migrations.md](sql_migrations.md)
 - For Gitaly hooks documentation, see [Gitaly hooks documentation](hooks.md)
+- To configure an environment for developing Gitaly on Kubernetes, see the
+  [Gitaly on GKE Template](https://gitlab.com/gitlab-com/infra-standards/project-templates/gitaly-on-gke-template) repository.
 
 ## Gitaly Cluster
 
