@@ -20,6 +20,10 @@ message LogEntry {
       // are denoted as the SHA1 or SHA256 zero OID depending on the
       // hash type used in the repository.
       bytes new_oid = 2;
+      // new_target is the new target reference that the reference will
+      // point to. This is used for symbolic reference updates such
+      // as the default branch update.
+      bytes new_target = 3;
     }
 
     // changes are the reference changes performed in this reference transaction.

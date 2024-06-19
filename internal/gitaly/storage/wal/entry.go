@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -302,6 +303,11 @@ func (e *Entry) RecordReferenceUpdates(ctx context.Context, storageRoot, snapsho
 	deletions := newReferenceTree()
 	preImagePaths := map[string]struct{}{}
 	for _, change := range refTX.GetChanges() {
+		// For the files backend, we track default branch updates manually
+		if bytes.Equal(change.GetReferenceName(), []byte("HEAD")) {
+			continue
+		}
+
 		tree := creations
 		if objectHash.IsZeroOID(git.ObjectID(change.NewOid)) {
 			tree = deletions
