@@ -2607,11 +2607,6 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 	for _, updates := range transaction.referenceUpdates {
 		changes := make([]*gitalypb.LogEntry_ReferenceTransaction_Change, 0, len(updates))
 		for reference, update := range updates {
-			if reference == "HEAD" {
-				// We don't need to worry about default branch updates.
-				continue
-			}
-
 			if _, ok := droppedReferenceUpdates[reference]; ok {
 				continue
 			}
@@ -2619,6 +2614,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 			changes = append(changes, &gitalypb.LogEntry_ReferenceTransaction_Change{
 				ReferenceName: []byte(reference),
 				NewOid:        []byte(update.NewOID),
+				NewTarget:     []byte(update.NewTarget),
 			})
 		}
 
@@ -2804,6 +2800,11 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry, objectDependencies map[git.ObjectID]struct{}) error {
 		for _, refTransaction := range entry.ReferenceTransactions {
 			for _, change := range refTransaction.Changes {
+				// Packed refs don't contain root refs
+				if bytes.Equal(change.GetReferenceName(), []byte("HEAD")) {
+					continue
+				}
+
 				if objectHash.IsZeroOID(git.ObjectID(change.GetNewOid())) {
 					// Oops, there is a reference deletion. Bail out.
 					return errPackRefsConflictRefDeletion
