@@ -17,9 +17,12 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitlab"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/metadata"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
@@ -124,10 +127,46 @@ func TestReceivePack_success(t *testing.T) {
 	cfg.GitlabShell.Dir = "/foo/bar/gitlab-shell"
 
 	testcfg.BuildGitalyHooks(t, cfg)
-	hookOutputFile := gittest.CaptureHookEnv(t, cfg)
 	testcfg.BuildGitalySSH(t, cfg)
 
-	cfg.SocketPath = runSSHServer(t, cfg)
+	// We need to intercept the update hook, but proxy the reference-transactions hook.
+	logger := testhelper.SharedLogger(t)
+	backchannelRegistry := backchannel.NewRegistry()
+	transactionRegistry := storagemgr.NewTransactionRegistry()
+	hookManager := hook.NewManager(
+		cfg,
+		config.NewLocator(cfg),
+		logger,
+		gittest.NewCommandFactory(t, cfg),
+		transaction.NewManager(cfg, logger, backchannelRegistry),
+		gitlab.NewMockClient(t, gitlab.MockAllowed, gitlab.MockPreReceive, gitlab.MockPostReceive),
+		hook.NewTransactionRegistry(transactionRegistry),
+		hook.NewProcReceiveRegistry(),
+		nil,
+	)
+
+	// When the WAL is enabled, the proc-receive hook is executed which also manually invokes the
+	// update hook. Here we use a mock hook manager to intercept the update hook and capture the
+	// environment variables.
+	var capturedHookEnv []string
+	mockHookManager := hook.NewMockManager(t,
+		hook.NopPreReceive,
+		hook.NopPostReceive,
+		func(_ *testing.T, _ context.Context, _ *gitalypb.Repository, _, _, _ string, env []string, _, _ io.Writer) error {
+			capturedHookEnv = env
+			return nil
+		},
+		func(t *testing.T, ctx context.Context, state hook.ReferenceTransactionState, env []string, stdin io.Reader) error {
+			return hookManager.ReferenceTransactionHook(ctx, state, env, stdin)
+		},
+		hook.NewProcReceiveRegistry(),
+	)
+
+	cfg.SocketPath = runSSHServer(t, cfg,
+		testserver.WithHookManager(mockHookManager),
+		testserver.WithTransactionRegistry(transactionRegistry),
+		testserver.WithBackchannelRegistry(backchannelRegistry),
+	)
 
 	remoteRepo, remoteRepoPath := gittest.CreateRepository(t, ctx, cfg)
 	gittest.WriteCommit(t, cfg, remoteRepoPath, gittest.WithBranch("main"))
@@ -153,9 +192,10 @@ func TestReceivePack_success(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, lHead, rHead, "local and remote head not equal. push failed")
 
-	envData := testhelper.MustReadFile(t, hookOutputFile)
-	payload, err := git.HooksPayloadFromEnv(strings.Split(string(envData), "\n"))
+	payload, err := git.HooksPayloadFromEnv(capturedHookEnv)
 	require.NoError(t, err)
+
+	expectedHooks := git.ReceivePackHooks
 
 	// Compare the repository up front so that we can use require.Equal for
 	// the remaining values.
@@ -174,6 +214,9 @@ func TestReceivePack_success(t *testing.T) {
 		require.NotEmpty(t, payload.Repo.RelativePath)
 		payload.Repo.RelativePath = "OVERRIDDEN"
 		expectedRepo.RelativePath = "OVERRIDDEN"
+		// When transactions are enabled the update hook is manually invoked as part of the
+		// proc-receive hook. Consequently, the requested hooks only specify the update hook.
+		expectedHooks = git.UpdateHook
 	}
 
 	// Compare the repository up front so that we can use require.Equal for
@@ -212,7 +255,7 @@ func TestReceivePack_success(t *testing.T) {
 			Username: "user",
 			Protocol: "ssh",
 		},
-		RequestedHooks: git.ReceivePackHooks,
+		RequestedHooks: expectedHooks,
 		TransactionID:  transactionID,
 	}, payload)
 }

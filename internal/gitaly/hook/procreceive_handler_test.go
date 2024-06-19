@@ -87,6 +87,39 @@ func TestProcReceiveHandler(t *testing.T) {
 			},
 		},
 		{
+			desc: "no features",
+			setup: func(t *testing.T, ctx context.Context) setupData {
+				var stdin bytes.Buffer
+				_, err := pktline.WriteString(&stdin, "version=1\n")
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdin)
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdin)
+				require.NoError(t, err)
+
+				var stdout bytes.Buffer
+				_, err = pktline.WriteString(&stdout, "version=1")
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdout)
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdout)
+				require.NoError(t, err)
+
+				return setupData{
+					env:             []string{payload},
+					ctx:             ctx,
+					stdin:           stdin.String(),
+					expectedStdout:  stdout.String(),
+					expectedUpdates: []ReferenceUpdate{},
+					handlerSteps: func(handler ProcReceiveHandler) error {
+						require.False(t, handler.Atomic())
+						require.Empty(t, handler.PushOptions())
+						return handler.Close(nil)
+					},
+				}
+			},
+		},
+		{
 			desc: "single reference with atomic",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				var stdin bytes.Buffer
