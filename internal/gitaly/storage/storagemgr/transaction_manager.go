@@ -1547,9 +1547,10 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 
 	heads := make([]string, 0)
 	for _, referenceUpdates := range transaction.referenceUpdates {
-		for _, update := range referenceUpdates {
-			if (update.OldTarget != "") || (update.NewTarget != "") {
-				return fmt.Errorf("unexpected symbolic reference: %s", update)
+		for refname, update := range referenceUpdates {
+			if refname == "HEAD" {
+				// We don't need to worry about default branch updates.
+				continue
 			}
 
 			if update.NewOID == objectHash.ZeroOID {
@@ -2700,8 +2701,9 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 	for _, updates := range transaction.referenceUpdates {
 		changes := make([]*gitalypb.LogEntry_ReferenceTransaction_Change, 0, len(updates))
 		for reference, update := range updates {
-			if (update.OldTarget != "") || (update.NewTarget != "") {
-				return nil, fmt.Errorf("unexpected symbolic ref: %s", update)
+			if reference == "HEAD" {
+				// We don't need to worry about default branch updates.
+				continue
 			}
 
 			if _, ok := droppedReferenceUpdates[reference]; ok {
