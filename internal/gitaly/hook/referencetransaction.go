@@ -54,7 +54,11 @@ func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state 
 
 			initialValues := map[git.ReferenceName]git.Reference{}
 			for reference, update := range updates {
-				initialValues[reference] = git.NewReference(reference, update.OldOID)
+				if update.OldOID != "" {
+					initialValues[reference] = git.NewReference(reference, update.OldOID)
+				} else {
+					initialValues[reference] = git.NewSymbolicReference(reference, update.OldTarget)
+				}
 			}
 
 			// Only record the initial values of the reference in the prepare step as this
