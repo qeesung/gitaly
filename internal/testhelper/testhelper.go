@@ -292,8 +292,6 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseResizableSemaphoreInConcurrencyLimiter, rnd.Int()%2 == 0)
 	// Disable LogGitTraces
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.LogGitTraces, false)
-	// Randomly enable either Git v2.44 or Git v2.45
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.GitV245, rnd.Int()%2 == 0)
 	// Disable SetAttrTreeConfig
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.SetAttrTreeConfig, false)
 	// Enable SymrefUpdates
