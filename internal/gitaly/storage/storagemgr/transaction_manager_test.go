@@ -1318,15 +1318,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 				},
 			},
 		},
-		{
-			desc: "start transaction with empty relative path",
-			steps: steps{
-				StartManager{},
-				Begin{
-					ExpectedError: errRelativePathNotSet,
-				},
-			},
-		},
 	}
 }
 
