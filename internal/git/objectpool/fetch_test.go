@@ -25,7 +25,7 @@ import (
 )
 
 func TestFetchFromOrigin_dangling(t *testing.T) {
-	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
@@ -41,7 +41,7 @@ func TestFetchFromOrigin_dangling(t *testing.T) {
 			gittest.WithTree(treeID),
 			gittest.WithBranch("master"),
 		)
-		require.NoError(t, pool.FetchFromOrigin(ctx, repo, pm))
+		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo))
 
 		// We now write a bunch of objects into the object pool that are not referenced by anything.
 		// These are thus "dangling".
@@ -70,7 +70,7 @@ func TestFetchFromOrigin_dangling(t *testing.T) {
 		}, strings.Split(text.ChompBytes(fsckBefore), "\n"))
 
 		// We expect this second run to convert the dangling objects into non-dangling objects.
-		require.NoError(t, pool.FetchFromOrigin(ctx, repo, pm))
+		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo))
 
 		// Each of the dangling objects should have gotten a new dangling reference.
 		danglingRefs := gittest.Exec(t, cfg, "-C", poolPath, "for-each-ref", "--format=%(refname) %(objectname)", "refs/dangling/")
@@ -86,13 +86,13 @@ func TestFetchFromOrigin_dangling(t *testing.T) {
 }
 
 func TestFetchFromOrigin_fsck(t *testing.T) {
-	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		repoPath, err := repo.Path()
 		require.NoError(t, err)
 
-		require.NoError(t, pool.FetchFromOrigin(ctx, repo, pm), "seed pool")
+		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo), "seed pool")
 
 		// We're creating a new commit which has a root tree with duplicate entries. git-mktree(1)
 		// allows us to create these trees just fine, but git-fsck(1) complains.
@@ -104,20 +104,20 @@ func TestFetchFromOrigin_fsck(t *testing.T) {
 			gittest.WithBranch("branch"),
 		)
 
-		err = pool.FetchFromOrigin(ctx, repo, pm)
+		err = pool.FetchFromOrigin(ctx, repo, newLocalRepo)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "duplicateEntries: contains duplicate file entries")
 	})
 }
 
 func TestFetchFromOrigin_deltaIslands(t *testing.T) {
-	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		poolPath := gittest.RepositoryPath(t, pool)
 		repoPath := gittest.RepositoryPath(t, repo)
 
-		require.NoError(t, pool.FetchFromOrigin(ctx, repo, pm), "seed pool")
+		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo), "seed pool")
 		require.NoError(t, pool.Link(ctx, repo))
 
 		// With multi-pack-indices we don't do full repacks of repositories that
@@ -131,13 +131,13 @@ func TestFetchFromOrigin_deltaIslands(t *testing.T) {
 		// for `isPoolRepo`. Verification whether we correctly handle repacking though happens in
 		// the pool repository.
 		gittest.TestDeltaIslands(t, cfg, repoPath, poolPath, false, func() error {
-			return pool.FetchFromOrigin(ctx, repo, pm)
+			return pool.FetchFromOrigin(ctx, repo, newLocalRepo)
 		})
 	})
 }
 
 func TestFetchFromOrigin_bitmapHashCache(t *testing.T) {
-	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		repoPath, err := repo.Path()
@@ -145,7 +145,7 @@ func TestFetchFromOrigin_bitmapHashCache(t *testing.T) {
 
 		gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
 
-		require.NoError(t, pool.FetchFromOrigin(ctx, repo, pm))
+		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo))
 
 		bitmaps, err := filepath.Glob(gittest.RepositoryPath(t, pool, "objects", "pack", "*.bitmap"))
 		require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestFetchFromOrigin_bitmapHashCache(t *testing.T) {
 }
 
 func TestFetchFromOrigin_refUpdates(t *testing.T) {
-	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		repoPath, err := repo.Path()
@@ -177,7 +177,7 @@ func TestFetchFromOrigin_refUpdates(t *testing.T) {
 		oldRefs["tags/v1.1.0"] = gittest.WriteTag(t, cfg, repoPath, "v1.1.0", oldRefs["heads/csv"].Revision())
 
 		// We now fetch that data into the object pool and verify that it exists as expected.
-		require.NoError(t, pool.FetchFromOrigin(ctx, repo, pm))
+		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo))
 		for ref, oid := range oldRefs {
 			require.Equal(t, oid, gittest.ResolveRevision(t, cfg, poolPath, "refs/remotes/origin/"+ref))
 		}
@@ -202,7 +202,7 @@ func TestFetchFromOrigin_refUpdates(t *testing.T) {
 		}
 
 		// Now we fetch again and verify that all references should have been updated accordingly.
-		require.NoError(t, pool.FetchFromOrigin(ctx, repo, pm))
+		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo))
 		for ref, oid := range newRefs {
 			require.Equal(t, oid, gittest.ResolveRevision(t, cfg, poolPath, "refs/remotes/origin/"+ref))
 		}
@@ -210,7 +210,7 @@ func TestFetchFromOrigin_refUpdates(t *testing.T) {
 }
 
 func TestFetchFromOrigin_refs(t *testing.T) {
-	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 		repoPath, err := repo.Path()
@@ -231,7 +231,7 @@ func TestFetchFromOrigin_refs(t *testing.T) {
 
 		// Fetch from the pool member. This should pull in all references we have just created in
 		// that repository into the pool.
-		require.NoError(t, pool.FetchFromOrigin(ctx, repo, pm))
+		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo))
 		require.Equal(t,
 			[]string{
 				"refs/remotes/origin/environments/1",
@@ -249,7 +249,7 @@ func TestFetchFromOrigin_refs(t *testing.T) {
 }
 
 func TestFetchFromOrigin_missingPool(t *testing.T) {
-	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, pm *storagemgr.PartitionManager) {
+	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
 
@@ -257,7 +257,7 @@ func TestFetchFromOrigin_missingPool(t *testing.T) {
 		// object pool.
 		require.NoError(t, pool.Remove(ctx))
 
-		require.Equal(t, structerr.NewInvalidArgument("object pool does not exist"), pool.FetchFromOrigin(ctx, repo, pm))
+		require.Equal(t, structerr.NewInvalidArgument("object pool does not exist"), pool.FetchFromOrigin(ctx, repo, newLocalRepo))
 		require.False(t, pool.Exists())
 	})
 }
@@ -398,7 +398,7 @@ func TestObjectPool_logStats(t *testing.T) {
 	}
 }
 
-func testWithAndWithoutTransaction(t *testing.T, testFunc func(*testing.T, config.Cfg, *storagemgr.PartitionManager)) {
+func testWithAndWithoutTransaction(t *testing.T, testFunc func(*testing.T, config.Cfg, LocalRepoFactory)) {
 	t.Helper()
 
 	t.Run("with transaction", func(t *testing.T) {
@@ -428,7 +428,7 @@ func testWithAndWithoutTransaction(t *testing.T, testFunc func(*testing.T, confi
 		require.NoError(t, err)
 		defer partitionManager.Close()
 
-		testFunc(t, cfg, partitionManager)
+		testFunc(t, cfg, localRepoFactory.Build)
 	})
 
 	t.Run("without transaction", func(t *testing.T) {
