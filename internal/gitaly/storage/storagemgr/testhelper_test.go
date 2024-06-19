@@ -740,7 +740,7 @@ type RecordInitialReferenceValues struct {
 	// TransactionID identifies the transaction to prepare the reference updates on.
 	TransactionID int
 	// InitialValues are the initial values to record.
-	InitialValues map[git.ReferenceName]git.ObjectID
+	InitialValues map[git.ReferenceName]git.Reference
 }
 
 // UpdateReferences calls UpdateReferences on a transaction.
