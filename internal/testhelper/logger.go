@@ -106,9 +106,7 @@ func WithLoggerName(name string) LoggerOption {
 // NewLogger returns a logger that records the log output and
 // prints it out only if the test fails.
 func NewLogger(tb testing.TB, options ...LoggerOption) log.LogrusLogger {
-	logOutput := &syncBuffer{}
-	logger := logrus.New() //nolint:forbidigo
-	logger.Out = logOutput
+	logger, logOutput := NewCapturedLogger()
 
 	var opts loggerOptions
 	for _, apply := range options {
@@ -127,7 +125,17 @@ func NewLogger(tb testing.TB, options ...LoggerOption) log.LogrusLogger {
 		}
 	})
 
-	return log.FromLogrusEntry(logrus.NewEntry(logger))
+	return logger
+}
+
+// NewCapturedLogger returns a logger that records the log outputs in a buffer. The caller
+// decides how and when the logs are dumped out.
+func NewCapturedLogger() (log.LogrusLogger, *syncBuffer) {
+	logOutput := &syncBuffer{}
+	logger := logrus.New() //nolint:forbidigo
+	logger.Out = logOutput
+
+	return log.FromLogrusEntry(logrus.NewEntry(logger)), logOutput
 }
 
 // LoggerHook  is a hook that can be installed on the test logger in order to intercept log entries.
