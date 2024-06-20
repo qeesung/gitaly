@@ -432,6 +432,17 @@ messages and behavior by erroring out the requests before they even hit this int
 				require.Nil(t, resp)
 			},
 		},
+		{
+			desc: "maintenance rpc",
+			performRequest: func(t *testing.T, ctx context.Context, cc *grpc.ClientConn) {
+				resp, err := gitalypb.NewRepositoryServiceClient(cc).OptimizeRepository(ctx, &gitalypb.OptimizeRepositoryRequest{
+					Repository: validRepository(),
+				})
+				require.NoError(t, err)
+				testhelper.ProtoEqual(t, &gitalypb.OptimizeRepositoryResponse{}, resp)
+			},
+			expectHandlerInvoked: true,
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			cfg := testcfg.Build(t)
@@ -547,6 +558,10 @@ messages and behavior by erroring out the requests before they even hit this int
 					removeRepositoryFunc: func(ctx context.Context, req *gitalypb.RemoveRepositoryRequest) (*gitalypb.RemoveRepositoryResponse, error) {
 						assertHandler(ctx, true, req.GetRepository())
 						return &gitalypb.RemoveRepositoryResponse{}, tc.handlerError
+					},
+					optimizeRepositoryFunc: func(ctx context.Context, req *gitalypb.OptimizeRepositoryRequest) (*gitalypb.OptimizeRepositoryResponse, error) {
+						assertHandler(ctx, true, req.GetRepository())
+						return &gitalypb.OptimizeRepositoryResponse{}, nil
 					},
 				})
 			},
@@ -694,16 +709,6 @@ messages and behavior by erroring out the requests before they even hit this int
 				require.Nil(t, resp)
 			},
 		},
-		{
-			desc: "maintenance rpc",
-			performRequest: func(t *testing.T, ctx context.Context, cc *grpc.ClientConn) {
-				resp, err := gitalypb.NewRepositoryServiceClient(cc).OptimizeRepository(ctx, &gitalypb.OptimizeRepositoryRequest{
-					Repository: validRepository(),
-				})
-				require.NoError(t, err)
-				testhelper.ProtoEqual(t, &gitalypb.OptimizeRepositoryResponse{}, resp)
-			},
-		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := testhelper.Context(t)
@@ -736,11 +741,6 @@ messages and behavior by erroring out the requests before they even hit this int
 						assert.Nil(t, resp)
 						assert.Equal(t, io.EOF, err)
 						return nil
-					},
-					optimizeRepositoryFunc: func(ctx context.Context, req *gitalypb.OptimizeRepositoryRequest) (*gitalypb.OptimizeRepositoryResponse, error) {
-						assertHandler(ctx)
-						testhelper.ProtoEqual(t, validRepository(), req.GetRepository())
-						return &gitalypb.OptimizeRepositoryResponse{}, nil
 					},
 					removeRepositoryFunc: func(ctx context.Context, req *gitalypb.RemoveRepositoryRequest) (*gitalypb.RemoveRepositoryResponse, error) {
 						assertHandler(ctx)

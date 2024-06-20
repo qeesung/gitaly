@@ -25,6 +25,7 @@ import (
 	gitalycfg "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	gitalycfgprom "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
@@ -32,6 +33,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/txinfo"
+	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"google.golang.org/grpc/peer"
 )
 
@@ -279,12 +281,12 @@ func TestPackRefsIfNeeded(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc            string
-		setup           func(t *testing.T, ctx context.Context, m *RepositoryManager, repoPath string, b *blockingCommandFactory) setupData
+		setup           func(t *testing.T, ctx context.Context, m *RepositoryManager, repo storage.Repository, b *blockingCommandFactory) setupData
 		repoStateExists bool
 	}{
 		{
 			desc: "strategy doesn't pack references",
-			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repoPath string, b *blockingCommandFactory) setupData {
+			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repo storage.Repository, b *blockingCommandFactory) setupData {
 				return setupData{
 					refsShouldBePacked:   false,
 					shouldPackReferences: func(context.Context) bool { return false },
@@ -293,7 +295,7 @@ func TestPackRefsIfNeeded(t *testing.T) {
 		},
 		{
 			desc: "strategy packs references",
-			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repoPath string, b *blockingCommandFactory) setupData {
+			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repo storage.Repository, b *blockingCommandFactory) setupData {
 				return setupData{
 					refsShouldBePacked:   true,
 					shouldPackReferences: func(context.Context) bool { return true },
@@ -302,8 +304,8 @@ func TestPackRefsIfNeeded(t *testing.T) {
 		},
 		{
 			desc: "one inhibitor present",
-			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repoPath string, b *blockingCommandFactory) setupData {
-				success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repoPath)
+			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repo storage.Repository, b *blockingCommandFactory) setupData {
+				success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repo)
 				require.True(t, success)
 				require.NoError(t, err)
 
@@ -318,9 +320,9 @@ func TestPackRefsIfNeeded(t *testing.T) {
 		},
 		{
 			desc: "few inhibitors present",
-			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repoPath string, b *blockingCommandFactory) setupData {
+			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repo storage.Repository, b *blockingCommandFactory) setupData {
 				for i := 0; i < 10; i++ {
-					success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repoPath)
+					success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repo)
 					require.True(t, success)
 					require.NoError(t, err)
 
@@ -336,9 +338,9 @@ func TestPackRefsIfNeeded(t *testing.T) {
 		},
 		{
 			desc: "inhibitors finish before pack refs call",
-			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repoPath string, b *blockingCommandFactory) setupData {
+			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repo storage.Repository, b *blockingCommandFactory) setupData {
 				for i := 0; i < 10; i++ {
-					success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repoPath)
+					success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repo)
 					require.True(t, success)
 					require.NoError(t, err)
 
@@ -353,9 +355,9 @@ func TestPackRefsIfNeeded(t *testing.T) {
 		},
 		{
 			desc: "only some inhibitors finish before pack refs call",
-			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repoPath string, b *blockingCommandFactory) setupData {
+			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repo storage.Repository, b *blockingCommandFactory) setupData {
 				for i := 0; i < 10; i++ {
-					success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repoPath)
+					success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repo)
 					require.True(t, success)
 					require.NoError(t, err)
 
@@ -363,7 +365,7 @@ func TestPackRefsIfNeeded(t *testing.T) {
 				}
 
 				// This inhibitor doesn't finish before the git-pack-refs(1) call
-				success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repoPath)
+				success, cleanup, err := m.repositoryStates.addPackRefsInhibitor(ctx, repo)
 				require.True(t, success)
 				require.NoError(t, err)
 
@@ -378,7 +380,7 @@ func TestPackRefsIfNeeded(t *testing.T) {
 		},
 		{
 			desc: "inhibitor cancels being blocked",
-			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repoPath string, b *blockingCommandFactory) setupData {
+			setup: func(t *testing.T, ctx context.Context, m *RepositoryManager, repo storage.Repository, b *blockingCommandFactory) setupData {
 				ch := make(chan struct{})
 
 				go func() {
@@ -390,7 +392,7 @@ func TestPackRefsIfNeeded(t *testing.T) {
 					ctx, cancel := context.WithCancel(ctx)
 					cancel()
 
-					success, _, err := m.repositoryStates.addPackRefsInhibitor(ctx, repoPath)
+					success, _, err := m.repositoryStates.addPackRefsInhibitor(ctx, repo)
 					if success {
 						t.Errorf("expected addPackRefsInhibitor to return false")
 					}
@@ -440,7 +442,7 @@ func TestPackRefsIfNeeded(t *testing.T) {
 			looseRefPath := filepath.Join(repoPath, "refs", "heads", "main")
 
 			manager := New(gitalycfgprom.Config{}, logger, nil, nil)
-			data := tc.setup(t, ctx, manager, repoPath, &gitCmdFactory)
+			data := tc.setup(t, ctx, manager, repo, &gitCmdFactory)
 
 			didRepack, err := manager.packRefsIfNeeded(ctx, repo, mockOptimizationStrategy{
 				shouldRepackReferences: data.shouldPackReferences,
@@ -458,7 +460,7 @@ func TestPackRefsIfNeeded(t *testing.T) {
 				require.FileExists(t, looseRefPath)
 			}
 
-			_, ok := manager.repositoryStates.values[repoPath]
+			_, ok := manager.repositoryStates.values[repositoryStatesKey(repo)]
 			require.Equal(t, tc.repoStateExists, ok)
 		})
 	}
@@ -1144,8 +1146,11 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 			return nil
 		}
 
+		var wg sync.WaitGroup
+		wg.Add(1)
 		go func() {
-			require.NoError(t, manager.OptimizeRepository(ctx, repo))
+			defer wg.Done()
+			assert.NoError(t, manager.OptimizeRepository(ctx, repo))
 		}()
 
 		<-reqReceivedCh
@@ -1155,6 +1160,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		require.NoError(t, manager.OptimizeRepository(ctx, repo))
 
 		<-ch
+		wg.Wait()
 	})
 	// We want to confirm that even if a state exists, the housekeeping shall run as
 	// long as the state doesn't state that there is another housekeeping running
@@ -1162,7 +1168,7 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 	testWithAndWithoutTransaction(t, "there is no other housekeeping running but state exists", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
 		ch := make(chan struct{})
 
-		repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		repoProto, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 			SkipCreationViaService: true,
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -1180,23 +1186,27 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		// We're not acquiring a lock here, because there is no other goroutines running
 		// We set the state, but make sure that isRunning is explicitly set to false. This states
 		// that there is no housekeeping running currently.
-		manager.repositoryStates.values[repoPath] = &refCountedState{
+		manager.repositoryStates.values[repositoryStatesKey(repo)] = &refCountedState{
 			state: &repositoryState{
 				isRunning: false,
 			},
 		}
 
+		var wg sync.WaitGroup
+		wg.Add(1)
 		go func() {
-			require.NoError(t, manager.OptimizeRepository(ctx, repo))
+			defer wg.Done()
+			assert.NoError(t, manager.OptimizeRepository(ctx, repo))
 		}()
 
 		// Only if optimizeFunc is run, we shall receive data here, this acts as test that
 		// housekeeping ran successfully.
 		<-ch
+		wg.Wait()
 	})
 
 	testWithAndWithoutTransaction(t, "there is a housekeeping running state", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
-		repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
+		repoProto, _ := gittest.CreateRepository(t, ctx, cfg, gittest.CreateRepositoryConfig{
 			SkipCreationViaService: true,
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
@@ -1207,17 +1217,19 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 			return nil
 		}
 
+		stateKey := repositoryStatesKey(repo)
+
 		// we create a state before calling the OptimizeRepository function.
-		ok, cleanup := manager.repositoryStates.tryRunningHousekeeping(repoPath)
+		ok, cleanup := manager.repositoryStates.tryRunningHousekeeping(repo)
 		require.True(t, ok)
 		// check that the state actually exists.
-		require.Contains(t, manager.repositoryStates.values, repoPath)
+		require.Contains(t, manager.repositoryStates.values, stateKey)
 
 		require.NoError(t, manager.OptimizeRepository(ctx, repo))
 
 		// After running the cleanup, the state should be removed.
 		cleanup()
-		require.NotContains(t, manager.repositoryStates.values, repoPath)
+		require.NotContains(t, manager.repositoryStates.values, stateKey)
 	})
 
 	testWithAndWithoutTransaction(t, "multiple repositories concurrently", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
@@ -1235,10 +1247,18 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 		reposOptimized := make(map[string]struct{})
 
 		manager := New(gitalycfgprom.Config{}, testhelper.SharedLogger(t), nil, pm)
-		manager.optimizeFunc = func(_ context.Context, repo *localrepo.Repo, _ housekeeping.OptimizationStrategy) error {
-			reposOptimized[repo.GetRelativePath()] = struct{}{}
+		manager.optimizeFunc = func(ctx context.Context, repo *localrepo.Repo, _ housekeeping.OptimizationStrategy) error {
+			relativePath := repo.GetRelativePath()
+			storagectx.RunWithTransaction(ctx, func(tx storagectx.Transaction) {
+				relativePath = tx.OriginalRepository(&gitalypb.Repository{
+					StorageName:  repo.GetStorageName(),
+					RelativePath: repo.GetRelativePath(),
+				}).GetRelativePath()
+			})
 
-			if repo.GetRelativePath() == repoFirst.GetRelativePath() {
+			reposOptimized[relativePath] = struct{}{}
+
+			if relativePath == repoFirst.GetRelativePath() {
 				reqReceivedCh <- struct{}{}
 				ch <- struct{}{}
 			}
@@ -1248,8 +1268,11 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 
 		// We block in the first call so that we can assert that a second call
 		// to a different repository performs the optimization regardless without blocking.
+		var wg sync.WaitGroup
+		wg.Add(1)
 		go func() {
-			require.NoError(t, manager.OptimizeRepository(ctx, repoFirst))
+			defer wg.Done()
+			assert.NoError(t, manager.OptimizeRepository(ctx, repoFirst))
 		}()
 
 		<-reqReceivedCh
@@ -1261,6 +1284,8 @@ func TestOptimizeRepository_ConcurrencyLimit(t *testing.T) {
 
 		assert.Contains(t, reposOptimized, repoFirst.GetRelativePath())
 		assert.Contains(t, reposOptimized, repoSecond.GetRelativePath())
+
+		wg.Wait()
 	})
 
 	testWithAndWithoutTransaction(t, "serialized optimizations", func(t *testing.T, cfg gitalycfg.Cfg, pm *storagemgr.PartitionManager) {
