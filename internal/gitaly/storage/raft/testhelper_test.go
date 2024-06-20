@@ -111,7 +111,7 @@ type testRaftCluster struct {
 	nodes          map[raftID]*testNode
 }
 
-func (c *testRaftCluster) startNode(t *testing.T, node raftID) bool {
+func (c *testRaftCluster) startNode(t *testing.T, node raftID) (*testNode, error) {
 	tmpDir := testhelper.TempDir(t)
 	// Reduce the capacity of log DB and engines. We don't need that capacity in tests. They do cost
 	// memory and cpu resources to maintain.
@@ -136,23 +136,15 @@ func (c *testRaftCluster) startNode(t *testing.T, node raftID) bool {
 	}
 	nodeHost, err := dragonboat.NewNodeHost(nodeHostConfig)
 	if err != nil {
-		t.Log(err)
-		if strings.Contains(err.Error(), "address already in use") {
-			return true
-		}
-		require.NoError(t, err)
+		return nil, err
 	}
 
 	require.NoError(t, err)
 
-	c.Lock()
-	c.nodes[node] = &testNode{
+	return &testNode{
 		nodeHost: nodeHost,
 		close:    nodeHost.Close,
-	}
-	c.Unlock()
-
-	return false
+	}, nil
 }
 
 func (c *testRaftCluster) closeAll() {
@@ -180,6 +172,7 @@ func (c *testRaftCluster) startTestGroups(t *testing.T, nodes []raftID, groupIDs
 
 func (c *testRaftCluster) startTestGroup(t *testing.T, node raftID, groupID raftID, updater mockUpdaterFunc, reader mockReaderFunc) {
 	c.Lock()
+	clusterNode := c.nodes[node]
 	raftConfig := dragonboatConfig.Config{
 		ReplicaID:    node.ToUint64(),
 		ShardID:      groupID.ToUint64(),
@@ -188,7 +181,7 @@ func (c *testRaftCluster) startTestGroup(t *testing.T, node raftID, groupID raft
 		WaitReady:    true,
 	}
 	require.NoError(t, c.nodes[node].nodeHost.StartOnDiskReplica(c.initialMembers, false, func(shardID, replicaID uint64) statemachine.IOnDiskStateMachine {
-		c.nodes[node].sm = &testStateMachine{
+		clusterNode.sm = &testStateMachine{
 			t:       t,
 			shardID: raftID(shardID),
 			replica: node,
@@ -207,7 +200,27 @@ func (c *testRaftCluster) stopGroup(t *testing.T, node raftID, groupID raftID) {
 	require.NoError(t, c.nodes[node].nodeHost.StopShard(groupID.ToUint64()))
 }
 
-func newTestRaftCluster(t *testing.T, numNodes int) *testRaftCluster {
+type testRaftClusterConfig struct {
+	startNode nodeStarter
+}
+
+type testRaftClusterOption func(*testRaftClusterConfig)
+
+// nodeStarter should start the node with raftID in the cluster, and return its details or an error.
+type nodeStarter func(*testRaftCluster, raftID) (*testNode, error)
+
+// newTestRaftCluster creates a Raft cluster having N nodes. Each node in the cluster is powered by
+// either a test Raft group or a proper Raft manager.
+func newTestRaftCluster(t *testing.T, numNodes int, options ...testRaftClusterOption) *testRaftCluster {
+	cfg := &testRaftClusterConfig{
+		startNode: func(cluster *testRaftCluster, node raftID) (*testNode, error) {
+			return cluster.startNode(t, node)
+		},
+	}
+	for _, option := range options {
+		option(cfg)
+	}
+
 	id, err := uuid.NewUUID()
 	require.NoError(t, err)
 
@@ -230,10 +243,20 @@ func newTestRaftCluster(t *testing.T, numNodes int) *testRaftCluster {
 			wg.Add(1)
 			go func(i uint64) {
 				defer wg.Done()
-				conflict := cluster.startNode(t, raftID(i))
-				if conflict {
-					retry.Store(true)
+				node, err := cfg.startNode(cluster, raftID(i))
+				if err != nil {
+					t.Log(err)
+					if strings.Contains(err.Error(), "address already in use") {
+						retry.Store(true)
+					} else {
+						require.NoError(t, err)
+					}
+					return
 				}
+
+				cluster.Lock()
+				cluster.nodes[raftID(i)] = node
+				cluster.Unlock()
 			}(i)
 		}
 		wg.Wait()
