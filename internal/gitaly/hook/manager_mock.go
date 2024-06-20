@@ -57,6 +57,7 @@ func NewMockManager(
 		postReceive:          postReceive,
 		update:               update,
 		referenceTransaction: referenceTransaction,
+		procReceiveRegistry:  procReceiveRegistry,
 	}
 }
 

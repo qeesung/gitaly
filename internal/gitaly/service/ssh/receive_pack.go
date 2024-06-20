@@ -10,6 +10,8 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook/receivepack"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -41,10 +43,27 @@ func (s *server) SSHReceivePack(stream gitalypb.SSHService_SSHReceivePackServer)
 		return structerr.NewInternal("%w", err)
 	}
 
+	// In cases where all reference updates are rejected by git-receive-pack(1), we would end up
+	// with no transactional votes at all. We thus do a final vote which concludes this RPC to
+	// ensure there's always at least one vote. In case there was diverging behaviour in
+	// git-receive-pack(1) which led to a different outcome across voters, then this final vote
+	// would fail because the sequence of votes would be different.
+	if err := transaction.VoteOnContext(stream.Context(), s.txManager, voting.Vote{}, voting.Committed); err != nil {
+		// When the pre-receive hook failed, git-receive-pack(1) exits with code 0.
+		// It's arguable whether this is the expected behavior, but anyhow it means
+		// cmd.Wait() did not error out. On the other hand, the gitaly-hooks command did
+		// stop the transaction upon failure. So this final vote fails.
+		// To avoid this error being presented to the end user, ignore it when the
+		// transaction was stopped.
+		if !errors.Is(err, transaction.ErrTransactionStopped) {
+			return structerr.NewAborted("final transactional vote: %w", err)
+		}
+	}
+
 	return nil
 }
 
-func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitalypb.SSHReceivePackRequest) error {
+func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer, req *gitalypb.SSHReceivePackRequest) (returnedErr error) {
 	ctx := stream.Context()
 
 	stdin := streamio.NewReader(func() ([]byte, error) {
@@ -99,6 +118,32 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 		_ = pw.Close()
 	}()
 
+	transactionID := storage.ExtractTransactionID(ctx)
+	transactionsEnabled := transactionID > 0
+	if transactionsEnabled {
+		repo := s.localrepo(req.GetRepository())
+		procReceiveCleanup, err := receivepack.RegisterProcReceiveHook(
+			ctx,
+			s.logger,
+			s.cfg,
+			req,
+			repo,
+			s.hookManager,
+			hook.NewTransactionRegistry(s.txRegistry),
+			transactionID,
+			stdout,
+			stderr,
+		)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := procReceiveCleanup(); err != nil && returnedErr == nil {
+				returnedErr = err
+			}
+		}()
+	}
+
 	cmd, err := s.gitCmdFactory.New(ctx, req.GetRepository(),
 		git.Command{
 			Name: "receive-pack",
@@ -107,7 +152,7 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 		git.WithStdin(pr),
 		git.WithStdout(stdout),
 		git.WithStderr(stderr),
-		git.WithReceivePackHooks(req, "ssh", false),
+		git.WithReceivePackHooks(req, "ssh", transactionsEnabled),
 		git.WithGitProtocol(s.logger, req),
 		git.WithConfig(config...),
 	)
@@ -138,23 +183,6 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 		}
 
 		return fmt.Errorf("cmd wait: %w", err)
-	}
-
-	// In cases where all reference updates are rejected by git-receive-pack(1), we would end up
-	// with no transactional votes at all. We thus do a final vote which concludes this RPC to
-	// ensure there's always at least one vote. In case there was diverging behaviour in
-	// git-receive-pack(1) which led to a different outcome across voters, then this final vote
-	// would fail because the sequence of votes would be different.
-	if err := transaction.VoteOnContext(ctx, s.txManager, voting.Vote{}, voting.Committed); err != nil {
-		// When the pre-receive hook failed, git-receive-pack(1) exits with code 0.
-		// It's arguable whether this is the expected behavior, but anyhow it means
-		// cmd.Wait() did not error out. On the other hand, the gitaly-hooks command did
-		// stop the transaction upon failure. So this final vote fails.
-		// To avoid this error being presented to the end user, ignore it when the
-		// transaction was stopped.
-		if !errors.Is(err, transaction.ErrTransactionStopped) {
-			return structerr.NewAborted("final transactional vote: %w", err)
-		}
 	}
 
 	return nil

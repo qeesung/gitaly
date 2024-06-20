@@ -108,7 +108,9 @@ func WithReceivePackHooks(req ReceivePackRequest, protocol string, enableProcRec
 	return func(ctx context.Context, cfg config.Cfg, gitCmdFactory CommandFactory, cc *cmdCfg) error {
 		requestedHooks := ReceivePackHooks
 		if enableProcReceive {
-			requestedHooks |= ProcReceiveHook
+			// When transactions are in use, Git should only invoke pre-receive and proc-receive.
+			// Our proc-receive implementation handles invoking the later hooks.
+			requestedHooks = PreReceiveHook | ProcReceiveHook
 		}
 
 		if err := cc.configureHooks(ctx, req.GetRepository(), cfg, gitCmdFactory, &UserDetails{
