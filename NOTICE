@@ -2016,27 +2016,27 @@ LICENSE - github.com/Azure/go-autorest/autorest/to
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 LICENSE - github.com/AzureAD/microsoft-authentication-library-for-go/apps
-   MIT License
+    MIT License
 
-   Copyright (c) Microsoft Corporation.
+    Copyright (c) Microsoft Corporation.
 
-   Permission is hereby granted, free of charge, to any person obtaining a copy
-   of this software and associated documentation files (the "Software"), to deal
-   in the Software without restriction, including without limitation the rights
-   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-   copies of the Software, and to permit persons to whom the Software is
-   furnished to do so, subject to the following conditions:
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
 
-   The above copyright notice and this permission notice shall be included in all
-   copies or substantial portions of the Software.
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
 
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-   SOFTWARE
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 LICENSE - github.com/DataDog/zstd
@@ -9274,7 +9274,7 @@ LICENSE.md - github.com/go-enry/go-license-detector/v4/licensedb
 Apache License
 ==============
 
-_Version 2.0, January 2004_
+_Version 2.0, January 2004_  
 _&lt;<http://www.apache.org/licenses/>&gt;_
 
 ### Terms and Conditions for use, reproduction, and distribution
@@ -9453,13 +9453,13 @@ the same “printed page” as the copyright notice for easier identification wi
 third-party archives.
 
     Copyright [yyyy] [name of copyright owner]
-
+    
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-
+    
       http://www.apache.org/licenses/LICENSE-2.0
-
+    
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18050,7 +18050,7 @@ commands:
             echo "Running $(echo $PACKAGE_NAMES | wc -w) packages"
             echo $PACKAGE_NAMES
             << parameters.cmd >> --format=short-verbose --junitfile $TEST_RESULTS_PATH/go-multierror/gotestsum-report.xml -- -p 2 -cover -coverprofile=<< parameters.platform >>_cov_$CIRCLE_NODE_INDEX.part $PACKAGE_NAMES
-
+        
 jobs:
   linux-tests:
     docker:
@@ -18058,7 +18058,7 @@ jobs:
     parameters:
       go-version:
         type: string
-    environment:
+    environment: 
       <<: *ENVIRONMENT
     parallelism: 4
     steps:
@@ -18108,7 +18108,7 @@ jobs:
           path: *TEST_RESULTS_PATH
 
   windows-tests:
-    executor:
+    executor: 
       name: win/default
       shell: bash --login -eo pipefail
     environment:
@@ -18119,12 +18119,12 @@ jobs:
         type: string
       gotestsum-version:
         type: string
-    steps:
+    steps: 
       - run: git config --global core.autocrlf false
       - checkout
       - attach_workspace:
           at: .
-      - run:
+      - run: 
           name: Setup (remove pre-installed go)
           command: |
             rm -rf "c:\Go"
@@ -18134,15 +18134,15 @@ jobs:
             - win-golang-<< parameters.go-version >>-cache-v1
             - win-gomod-cache-{{ checksum "go.mod" }}-v1
 
-      - run:
+      - run: 
           name: Install go version << parameters.go-version >>
-          command: |
+          command: | 
             if [ ! -d "c:\go" ]; then
               echo "Cache not found, installing new version of go"
               curl --fail --location https://dl.google.com/go/go<< parameters.go-version >>.windows-amd64.zip --output go.zip
               unzip go.zip -d "/c"
             fi
-      - run:
+      - run: 
           command: go mod download
 
       - save_cache:
@@ -20453,7 +20453,7 @@ Usage: sockaddr tech-support [options]
 
   Print out network diagnostic information that can be used by
   support.
-
+  
   The `sockaddr` library relies on OS-specific commands and
   output which can potentially be brittle.  The `tech-support`
   subcommand emits all of the platform-specific network
@@ -22054,7 +22054,7 @@ sockaddr_eval-00-help.out - github.com/hashicorp/go-sockaddr/cmd/sockaddr/regres
 Usage: sockaddr eval [options] [template ...]
 
   Parse the sockaddr template and evaluates the output.
-
+  
   The `sockaddr` library has the potential to be very complex,
   which is why the `sockaddr` command supports an `eval`
   subcommand in order to test configurations from the command
@@ -31896,7 +31896,7 @@ destination: default
   interface: en0
       flags: <UP,GATEWAY,DONE,STATIC,PRCLONING>
  recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire
-       0         0         0         0         0         0      1500         0
+       0         0         0         0         0         0      1500         0 
 `,
 			want: "en0",
 		},
@@ -31924,15 +31924,15 @@ func Test_parseLinuxDefaultIfName(t *testing.T) {
 	}{
 		{
 			name: "Linux Ubuntu 14.04 - Common",
-			routeOut: `default via 10.1.2.1 dev eth0
-10.1.2.0/24 dev eth0  proto kernel  scope link  src 10.1.2.5
+			routeOut: `default via 10.1.2.1 dev eth0 
+10.1.2.0/24 dev eth0  proto kernel  scope link  src 10.1.2.5 
 `,
 			want: "eth0",
 		},
 		{
 			name: "Chromebook - 8743.85.0 (Official Build) stable-channel gandof, Milestone 54",
-			routeOut: `default via 192.168.1.1 dev wlan0  metric 1
-192.168.1.0/24 dev wlan0  proto kernel  scope link  src 192.168.1.174
+			routeOut: `default via 192.168.1.1 dev wlan0  metric 1 
+192.168.1.0/24 dev wlan0  proto kernel  scope link  src 192.168.1.174 
 `,
 			want: "wlan0",
 		},
@@ -32025,16 +32025,16 @@ Ethernet adapter Ethernet:
 
 Ethernet adapter Ethernet 2:
 
-   Connection-specific DNS Suffix  . :
+   Connection-specific DNS Suffix  . : 
    Link-local IPv6 Address . . . . . : fe80::60cc:155f:77a4:ab99%13
    IPv4 Address. . . . . . . . . . . : 192.168.56.100
    Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . :
+   Default Gateway . . . . . . . . . : 
 
 Tunnel adapter isatap.host.example.org:
 
    Media State . . . . . . . . . . . : Media disconnected
-   Connection-specific DNS Suffix  . :
+   Connection-specific DNS Suffix  . : 
 
 Tunnel adapter Reusable ISATAP Interface {F3F2E4A5-8823-40E5-87EA-1F6881BACC95}:
 
@@ -62810,7 +62810,7 @@ SOFTWARE.
 LICENSE - github.com/miekg/dns
 BSD 3-Clause License
 
-Copyright (c) 2009, The Go Authors. Extensions copyright (c) 2011, Miek Gieben.
+Copyright (c) 2009, The Go Authors. Extensions copyright (c) 2011, Miek Gieben. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
