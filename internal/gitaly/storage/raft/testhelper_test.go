@@ -294,6 +294,34 @@ func reserveEphemeralAddrs(t *testing.T, count int) []string {
 	return addrs
 }
 
+// fanOut executes f concurrently num times. The supplied raftID begins from 1.
+func fanOut(num int, f func(raftID)) {
+	var wg sync.WaitGroup
+	for i := 1; i <= num; i++ {
+		wg.Add(1)
+		go func(i raftID) {
+			defer wg.Done()
+
+			f(i)
+		}(raftID(i))
+	}
+	wg.Wait()
+}
+
+// fanOutNodes executes f concurrently for each node in the cluster.
+func fanOutNodes(cluster *testRaftCluster, f func(node *testNode)) {
+	var wg sync.WaitGroup
+	for _, node := range cluster.nodes {
+		wg.Add(1)
+		go func(node *testNode) {
+			defer wg.Done()
+
+			f(node)
+		}(node)
+	}
+	wg.Wait()
+}
+
 func TestMain(m *testing.M) {
 	// It's unfortunate that dragonboat's logger is global. It allows to configure the logger once.
 	// Thus, we create one logger here to capture all system logs. The logs are dumped out once if

@@ -77,11 +77,11 @@ func TestRequester_SyncWrite(t *testing.T) {
 		testhelper.ProtoEqual(t, expectedResp, response)
 
 		wg.Wait()
-		for _, node := range cluster.nodes {
+		fanOutNodes(cluster, func(node *testNode) {
 			entries := node.sm.getEntries()
 			require.Equal(t, 1, len(entries))
 			testhelper.ProtoEqual(t, expectedReq, entries[0])
-		}
+		})
 	})
 
 	t.Run("statemachine returns an update result", func(t *testing.T) {
@@ -272,7 +272,7 @@ func TestRequester_SyncWrite(t *testing.T) {
 		cluster.startTestGroup(t, 1, 1, updater, nil)
 		defer cluster.closeAll()
 
-		for _, node := range cluster.nodes {
+		fanOutNodes(cluster, func(node *testNode) {
 			requester := NewRequester[*gitalypb.RegisterStorageRequest, *gitalypb.RegisterStorageResponse](
 				node.nodeHost, 1, testhelper.NewLogger(t), requestOption{
 					timeout: 1 * time.Second,
@@ -280,7 +280,7 @@ func TestRequester_SyncWrite(t *testing.T) {
 			)
 			_, _, err := requester.SyncWrite(ctx, expectedReq)
 			require.EqualError(t, err, "casting SyncWrite response to desired type, expected RegisterStorageResponse got Storage")
-		}
+		})
 	})
 }
 
@@ -337,14 +337,14 @@ func TestRequester_SyncRead(t *testing.T) {
 		defer cluster.closeAll()
 		cluster.startTestGroups(t, []raftID{1, 2, 3}, []raftID{1, 1, 1}, []mockUpdaterFunc{nil, nil, nil}, []mockReaderFunc{reader(t), reader(t), reader(t)})
 
-		for _, node := range cluster.nodes {
+		fanOutNodes(cluster, func(node *testNode) {
 			requester := NewRequester[*gitalypb.GetClusterRequest, *gitalypb.GetClusterResponse](
 				node.nodeHost, 1, testhelper.NewLogger(t), defaultRequestOption,
 			)
 			response, err := requester.SyncRead(ctx, expectedReq)
 			require.NoError(t, err)
 			testhelper.ProtoEqual(t, expectedResp, response)
-		}
+		})
 	})
 
 	t.Run("handle context cancellation", func(t *testing.T) {
@@ -377,16 +377,16 @@ func TestRequester_SyncRead(t *testing.T) {
 		// Close the last node immediately.
 		cluster.closeNode(3)
 
-		for i := raftID(1); i <= 2; i++ {
+		fanOut(2, func(node raftID) {
 			requester := NewRequester[*gitalypb.GetClusterRequest, *gitalypb.GetClusterResponse](
-				cluster.nodes[i].nodeHost, 1, testhelper.NewLogger(t), defaultRequestOption,
+				cluster.nodes[node].nodeHost, 1, testhelper.NewLogger(t), defaultRequestOption,
 			)
 
-			require.NoError(t, WaitGroupReady(ctx, cluster.nodes[i].nodeHost, 1))
+			require.NoError(t, WaitGroupReady(ctx, cluster.nodes[node].nodeHost, 1))
 			response, err := requester.SyncRead(ctx, expectedReq)
 			require.NoError(t, err)
 			testhelper.ProtoEqual(t, expectedResp, response)
-		}
+		})
 
 		requester := NewRequester[*gitalypb.GetClusterRequest, *gitalypb.GetClusterResponse](
 			cluster.nodes[raftID(3)].nodeHost, 1, testhelper.NewLogger(t), defaultRequestOption,
@@ -503,7 +503,7 @@ func TestRequester_SyncRead(t *testing.T) {
 		defer cluster.closeAll()
 		cluster.startTestGroups(t, []raftID{1, 2, 3}, []raftID{1, 1, 1}, updaters, readers)
 
-		for _, node := range cluster.nodes {
+		fanOutNodes(cluster, func(node *testNode) {
 			requester := NewRequester[*gitalypb.GetClusterRequest, *gitalypb.GetClusterResponse](
 				node.nodeHost, 1, testhelper.NewLogger(t), requestOption{
 					timeout: 1 * time.Second,
@@ -523,7 +523,7 @@ func TestRequester_SyncRead(t *testing.T) {
 					},
 				},
 			}, response)
-		}
+		})
 
 		requester := NewRequester[*gitalypb.RegisterStorageRequest, *gitalypb.RegisterStorageResponse](
 			cluster.nodes[1].nodeHost, 1, testhelper.NewLogger(t), requestOption{
@@ -536,7 +536,7 @@ func TestRequester_SyncRead(t *testing.T) {
 		require.Equal(t, updateResult(0), result)
 		testhelper.ProtoEqual(t, &gitalypb.RegisterStorageResponse{Storage: &gitalypb.Storage{StorageId: 2, Name: "storage-2"}}, response)
 
-		for _, node := range cluster.nodes {
+		fanOutNodes(cluster, func(node *testNode) {
 			requester := NewRequester[*gitalypb.GetClusterRequest, *gitalypb.GetClusterResponse](
 				node.nodeHost, 1, testhelper.NewLogger(t), requestOption{
 					timeout: 1 * time.Second,
@@ -560,7 +560,7 @@ func TestRequester_SyncRead(t *testing.T) {
 					},
 				},
 			}, response)
-		}
+		})
 	})
 
 	t.Run("statemachine returns invalid type", func(t *testing.T) {
@@ -575,7 +575,7 @@ func TestRequester_SyncRead(t *testing.T) {
 		defer cluster.closeAll()
 		cluster.startTestGroups(t, []raftID{1, 2, 3}, []raftID{1, 1, 1}, []mockUpdaterFunc{nil, nil, nil}, []mockReaderFunc{reader, reader, reader})
 
-		for _, node := range cluster.nodes {
+		fanOutNodes(cluster, func(node *testNode) {
 			requester := NewRequester[*gitalypb.GetClusterRequest, *gitalypb.GetClusterResponse](
 				node.nodeHost, 1, testhelper.NewLogger(t), requestOption{
 					timeout: 1 * time.Second,
@@ -583,7 +583,7 @@ func TestRequester_SyncRead(t *testing.T) {
 			)
 			_, err := requester.SyncRead(ctx, expectedReq)
 			require.EqualError(t, err, "casting SyncRead response to desired type, expected GetClusterResponse")
-		}
+		})
 	})
 
 	t.Run("statemachine returns an error", func(t *testing.T) {
@@ -598,7 +598,7 @@ func TestRequester_SyncRead(t *testing.T) {
 		defer cluster.closeAll()
 		cluster.startTestGroups(t, []raftID{1, 2, 3}, []raftID{1, 1, 1}, []mockUpdaterFunc{nil, nil, nil}, []mockReaderFunc{reader, reader, reader})
 
-		for _, node := range cluster.nodes {
+		fanOutNodes(cluster, func(node *testNode) {
 			requester := NewRequester[*gitalypb.GetClusterRequest, *gitalypb.GetClusterResponse](
 				node.nodeHost, 1, testhelper.NewLogger(t), requestOption{
 					timeout: 1 * time.Second,
@@ -606,7 +606,7 @@ func TestRequester_SyncRead(t *testing.T) {
 			)
 			_, err := requester.SyncRead(ctx, expectedReq)
 			require.EqualError(t, err, "failed to send request: something goes wrong")
-		}
+		})
 	})
 
 	t.Run("statemachine returns nil", func(t *testing.T) {
@@ -621,7 +621,7 @@ func TestRequester_SyncRead(t *testing.T) {
 		defer cluster.closeAll()
 		cluster.startTestGroups(t, []raftID{1, 2, 3}, []raftID{1, 1, 1}, []mockUpdaterFunc{nil, nil, nil}, []mockReaderFunc{reader, reader, reader})
 
-		for _, node := range cluster.nodes {
+		fanOutNodes(cluster, func(node *testNode) {
 			requester := NewRequester[*gitalypb.GetClusterRequest, *gitalypb.GetClusterResponse](
 				node.nodeHost, 1, testhelper.NewLogger(t), requestOption{
 					timeout: 1 * time.Second,
@@ -630,7 +630,7 @@ func TestRequester_SyncRead(t *testing.T) {
 			response, err := requester.SyncRead(ctx, expectedReq)
 			require.NoError(t, err)
 			require.Nil(t, response)
-		}
+		})
 	})
 }
 
