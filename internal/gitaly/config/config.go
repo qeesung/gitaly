@@ -913,7 +913,8 @@ func validateIsDirectory(path, name string) error {
 }
 
 // packedBinaries are the binaries that are packed in the main Gitaly binary. This should always match
-// the actual list in <root>/packed_binaries.go so the binaries are correctly located.
+// the actual list in <root>/packed_binaries.go so the binaries are correctly located. Git binaries are
+// excepted, as they are wired up using a separate mechanism.
 //
 // Resolving the names automatically from the packed binaries is not possible at the moment due to how
 // the packed binaries themselves depend on this config package. If this config package inspected the

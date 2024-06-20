@@ -206,10 +206,16 @@ BUILD_GEM_OPTIONS ?=
 ## Options to override the name of Gitaly gem
 BUILD_GEM_NAME ?= gitaly
 
+# Git binaries that are eventually embedded into the Gitaly binary.
+GIT_PACKED_EXECUTABLES       = $(addprefix ${BUILD_DIR}/bin/gitaly-, $(addsuffix -v2.44, ${GIT_EXECUTABLES})) \
+							   $(addprefix ${BUILD_DIR}/bin/gitaly-, $(addsuffix -v2.45, ${GIT_EXECUTABLES}))
+
 # All executables provided by Gitaly.
 GITALY_EXECUTABLES           = $(addprefix ${BUILD_DIR}/bin/,$(notdir $(shell find ${SOURCE_DIR}/cmd -mindepth 1 -maxdepth 1 -type d -print)))
 # All executables packed inside the Gitaly binary.
-GITALY_PACKED_EXECUTABLES    = $(filter %gitaly-hooks %gitaly-gpg %gitaly-ssh %gitaly-lfs-smudge, ${GITALY_EXECUTABLES})
+GITALY_PACKED_EXECUTABLES    = $(filter %gitaly-hooks %gitaly-gpg %gitaly-ssh %gitaly-lfs-smudge, ${GITALY_EXECUTABLES}) \
+								${GIT_PACKED_EXECUTABLES}
+
 # All executables that should be installed.
 GITALY_INSTALLED_EXECUTABLES = $(filter-out ${GITALY_PACKED_EXECUTABLES}, ${GITALY_EXECUTABLES})
 # Find all Go source files.
@@ -296,17 +302,9 @@ build-bundled-git: build-bundled-git-v2.44 build-bundled-git-v2.45
 build-bundled-git-v2.44: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-v2.44,${GIT_EXECUTABLES})
 build-bundled-git-v2.45: $(patsubst %,${BUILD_DIR}/bin/gitaly-%-v2.45,${GIT_EXECUTABLES})
 
-.PHONY: install-bundled-git
-## Install bundled Git binaries. The target directory can be modified by
-## setting PREFIX and DESTDIR.
-install-bundled-git: install-bundled-git-v2.44 install-bundled-git-v2.45
-install-bundled-git-v2.44: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-v2.44,${GIT_EXECUTABLES})
-install-bundled-git-v2.45: $(patsubst %,${INSTALL_DEST_DIR}/gitaly-%-v2.45,${GIT_EXECUTABLES})
-
 ifdef WITH_BUNDLED_GIT
 build: build-bundled-git
 prepare-tests: build-bundled-git
-install: install-bundled-git
 
 export GITALY_TESTING_BUNDLED_GIT_PATH ?= ${BUILD_DIR}/bin
 else
@@ -591,6 +589,7 @@ ${BUILD_DIR}/bin/%: ${BUILD_DIR}/intermediate/% | ${BUILD_DIR}/bin
 clear-go-build-cache-if-needed:
 	${Q}if [ -d ${GOCACHE} ] && [ $$(du -sk ${GOCACHE} | cut -f 1) -gt ${GOCACHE_MAX_SIZE_KB} ]; then go clean --cache; fi
 
+${BUILD_DIR}/intermediate/gitaly:            build-bundled-git
 ${BUILD_DIR}/intermediate/gitaly:            GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
 ${BUILD_DIR}/intermediate/gitaly:            ${GITALY_PACKED_EXECUTABLES}
 ${BUILD_DIR}/intermediate/praefect:          GO_BUILD_TAGS = ${SERVER_BUILD_TAGS}
