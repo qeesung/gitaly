@@ -243,6 +243,8 @@ func withNodeStarter(startNode nodeStarter) testRaftClusterOption {
 // newTestRaftCluster creates a Raft cluster having N nodes. Each node in the cluster is powered by
 // either a test Raft group or a proper Raft manager.
 func newTestRaftCluster(t *testing.T, numNodes int, options ...testRaftClusterOption) *testRaftCluster {
+	testhelper.SkipWithPraefect(t, `Raft is not compatible with Praefect.`)
+
 	cfg := &testRaftClusterConfig{
 		startNode: func(cluster *testRaftCluster, node raftID) (*testNode, error) {
 			return cluster.startNode(t, node)
