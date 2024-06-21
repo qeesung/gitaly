@@ -14,7 +14,6 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 )
@@ -60,7 +59,7 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 				return setupData{}
 			},
 			expectedConfig: nil,
-			expectedErr:    errors.New("bundle-URI sink missing"),
+			expectedErr:    ErrSinkMissing,
 		},
 		{
 			desc: "no bundle found",
@@ -74,7 +73,7 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 				}
 			},
 			expectedConfig: nil,
-			expectedErr:    structerr.NewNotFound("no bundle available"),
+			expectedErr:    ErrBundleNotFound,
 		},
 		{
 			desc: "not signed",
@@ -136,7 +135,7 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 			actual, err := UploadPackGitConfig(ctx, sink, repoProto)
 
 			if featureflag.BundleURI.IsEnabled(ctx) {
-				require.Equal(t, tc.expectedErr, err)
+				require.True(t, errors.Is(err, tc.expectedErr) || strings.Contains(err.Error(), tc.expectedErr.Error()))
 
 				if tc.expectedConfig != nil {
 					require.Equal(t, len(tc.expectedConfig), len(actual))
