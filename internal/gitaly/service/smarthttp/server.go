@@ -34,6 +34,10 @@ type server struct {
 	backupLocator              backup.Locator
 	backupSink                 backup.Sink
 	bundleURISink              *bundleuri.Sink
+	inflightTracker            *service.InProgressTracker
+	generateBundles            bool
+	partitionMgr               *storagemgr.PartitionManager
+	transactionRegistry        *storagemgr.TransactionRegistry
 }
 
 // NewServer creates a new instance of a grpc SmartHTTPServer
@@ -52,10 +56,14 @@ func NewServer(deps *service.Dependencies, serverOpts ...ServerOpt) gitalypb.Sma
 			prometheus.CounterOpts{},
 			[]string{"git_negotiation_feature"},
 		),
-		infoRefCache:  newInfoRefCache(deps.GetLogger(), deps.GetDiskCache()),
-		backupLocator: deps.GetBackupLocator(),
-		backupSink:    deps.GetBackupSink(),
-		bundleURISink: deps.GetBundleURISink(),
+		infoRefCache:        newInfoRefCache(deps.GetLogger(), deps.GetDiskCache()),
+		backupLocator:       deps.GetBackupLocator(),
+		backupSink:          deps.GetBackupSink(),
+		bundleURISink:       deps.GetBundleURISink(),
+		inflightTracker:     deps.GetInProgressTracker(),
+		generateBundles:     deps.GetCfg().BundleURI.Autogeneration,
+		partitionMgr:        deps.GetPartitionManager(),
+		transactionRegistry: deps.GetTransactionRegistry(),
 	}
 
 	for _, serverOpt := range serverOpts {

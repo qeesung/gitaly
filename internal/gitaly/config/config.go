@@ -618,6 +618,8 @@ type BundleURIConfig struct {
 	// GoCloudURL is the blob storage GoCloud URL that will be used to store
 	// Git bundles for Bundle-URI use.
 	GoCloudURL string `toml:"go_cloud_url,omitempty" json:"go_cloud_url,omitempty"`
+	// Autogeneration controls whether or not bundles for bundle uris are auto generated
+	Autogeneration bool `toml:"autogeneration,omitempty" json:"autogeneration"`
 }
 
 // Validate runs validation on all fields and returns any errors found.
