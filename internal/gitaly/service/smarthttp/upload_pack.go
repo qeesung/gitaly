@@ -1,21 +1,31 @@
 package smarthttp
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/bundleuri"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/command"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagectx"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/sidechannel"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
+
+const concurrentUploadPackThreshold = 5
 
 func (s *server) PostUploadPackWithSidechannel(ctx context.Context, req *gitalypb.PostUploadPackWithSidechannelRequest) (*gitalypb.PostUploadPackWithSidechannelResponse, error) {
 	repoPath, gitConfig, err := s.validateUploadPackRequest(ctx, req)
@@ -117,20 +127,84 @@ func (s *server) runUploadPack(ctx context.Context, req *gitalypb.PostUploadPack
 
 	gitConfig = append(gitConfig, bundleuri.CapabilitiesGitConfig(ctx)...)
 
+	txID := storage.ExtractTransactionID(ctx)
+
+	var originalRepo *gitalypb.Repository
+
+	if txID != 0 {
+		currentTx, err := s.transactionRegistry.Get(txID)
+		if err != nil {
+			return nil, structerr.NewInternal("error getting transaction: %w", err)
+		}
+		originalRepo = currentTx.OriginalRepository(req.GetRepository())
+	} else {
+		originalRepo = req.GetRepository()
+	}
+
+	key := originalRepo.GetGlRepository()
+
 	uploadPackConfig, err := bundleuri.UploadPackGitConfig(ctx, s.bundleURISink, req.GetRepository())
 	if err != nil {
-		log.AddFields(ctx, log.Fields{"bundle_uri_error": err})
+		if errors.Is(err, bundleuri.ErrBundleNotFound) &&
+			featureflag.AutogenerateBundlesForBundleURI.IsEnabled(ctx) &&
+			s.generateBundles &&
+			s.inflightTracker.GetInflight(key) > concurrentUploadPackThreshold {
+
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 24*time.Hour)
+				defer cancel()
+
+				tx, err := s.partitionMgr.Begin(
+					ctx,
+					originalRepo.GetStorageName(),
+					originalRepo.GetRelativePath(),
+					0,
+					storagemgr.TransactionOptions{
+						ReadOnly: true,
+					},
+				)
+				if err != nil {
+					ctxlogrus.Extract(ctx).WithError(err).Error("failed rolling back transaction")
+				}
+
+				ctx = storagectx.ContextWithTransaction(ctx, tx)
+
+				if err := s.bundleURISink.GenerateOneAtATime(ctx, localrepo.New(
+					s.logger,
+					s.locator,
+					s.gitCmdFactory,
+					s.catfileCache,
+					originalRepo)); err != nil {
+					ctxlogrus.Extract(ctx).WithError(err).Error("generate bundle")
+					if err := tx.Rollback(); err != nil && !errors.Is(err, storagemgr.ErrTransactionAlreadyCommitted) {
+						ctxlogrus.Extract(ctx).WithError(err).Error("failed rolling back transaction")
+					}
+				}
+
+				if err := tx.Commit(ctx); err != nil && !errors.Is(err, storagemgr.ErrTransactionAlreadyCommitted) {
+					ctxlogrus.Extract(ctx).WithError(err).Error("committing transaction")
+				}
+			}()
+		} else if !errors.Is(err, bundleuri.ErrSinkMissing) {
+			log.AddFields(ctx, log.Fields{"bundle_uri_error": err})
+		}
 	} else {
 		gitConfig = append(gitConfig, uploadPackConfig...)
 	}
 
+	var stderr bytes.Buffer
+
 	commandOpts := []git.CmdOpt{
 		git.WithStdin(stdin),
+		git.WithStderr(&stderr),
 		git.WithSetupStdout(),
 		git.WithGitProtocol(s.logger, req),
 		git.WithConfig(gitConfig...),
 		git.WithPackObjectsHookEnv(req.GetRepository(), "http"),
 	}
+
+	s.inflightTracker.IncrementInProgress(key)
+	defer s.inflightTracker.DecrementInProgress(key)
 
 	cmd, err := s.gitCmdFactory.New(ctx, req.GetRepository(), git.Command{
 		Name:  "upload-pack",
@@ -160,5 +234,6 @@ func (s *server) runUploadPack(ctx context.Context, req *gitalypb.PostUploadPack
 	}
 
 	s.logger.WithField("request_sha", fmt.Sprintf("%x", h.Sum(nil))).WithField("response_bytes", respBytes).InfoContext(ctx, "request details")
+
 	return nil, nil
 }
