@@ -562,10 +562,12 @@ message DiffBlobsRequest {
 
   // BlobPair defines a pair of blobs a patch is generated for.
   message BlobPair {
-    // left_oid is the left blob ID in in <left blob>..<right blob>.
-    string left_oid = 1;
-    // right_oid is the right blob ID in in <left blob>..<right blob>.
-    string right_oid = 2;
+    // left_blob is the left blob in <left blob>..<right blob>. Can be either a path-scoped
+    // revision or blob ID.
+    bytes left_blob = 1;
+    // right_blob is the right blob in <left blob>..<right blob>. Can be either a path-scoped
+    // revision or blob ID.
+    bytes right_blob = 2;
   }
 
   // repository is the repository the blob diff is generated for.

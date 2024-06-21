@@ -53,12 +53,16 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID.String(),
-								RightOid: "",
+								LeftBlob:  []byte(blobID),
+								RightBlob: nil,
 							},
 						},
 					},
-					expectedErr: structerr.NewInvalidArgument("right blob ID is invalid hash"),
+					expectedErr: testhelper.ToInterceptedMetadata(structerr.NewInvalidArgument(
+						fmt.Sprintf(
+							"validating right blob: validating blob ID: invalid object ID: \"\", expected length %d, got 0",
+							gittest.DefaultObjectHash.EncodedLen(),
+						)).WithMetadata("revision", "")),
 				}
 			},
 		},
@@ -75,17 +79,18 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID.String(),
-								RightOid: commitID.String(),
+								LeftBlob:  []byte(blobID),
+								RightBlob: []byte(commitID),
 							},
 						},
 					},
-					expectedErr: structerr.NewInvalidArgument("right blob ID is not blob"),
+					expectedErr: testhelper.ToInterceptedMetadata(structerr.NewInvalidArgument(
+						"validating right blob: revision is not blob").WithMetadata("revision", string(commitID))),
 				}
 			},
 		},
 		{
-			desc: "path scoped blob revision in request",
+			desc: "not found path scoped blob revision in request",
 			setup: func() setupData {
 				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
@@ -96,12 +101,91 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  "HEAD:foo",
-								RightOid: blobID.String(),
+								LeftBlob:  []byte("HEAD:foo"),
+								RightBlob: []byte(blobID),
 							},
 						},
 					},
-					expectedErr: structerr.NewInvalidArgument("left blob ID is invalid hash"),
+					expectedErr: testhelper.ToInterceptedMetadata(structerr.NewInvalidArgument(
+						"validating left blob: getting revision info: object not found").WithMetadata("revision", "HEAD:foo")),
+				}
+			},
+		},
+		{
+			desc: "path scoped blob revision in request",
+			setup: func() setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				blobID1 := gittest.WriteBlob(t, cfg, repoPath, []byte("foo\n"))
+				blobID2 := gittest.WriteBlob(t, cfg, repoPath, []byte("bar\n"))
+				commitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
+					gittest.TreeEntry{
+						OID:  blobID1,
+						Mode: "100644",
+						Path: "foo",
+					},
+				))
+
+				return setupData{
+					request: &gitalypb.DiffBlobsRequest{
+						Repository: repoProto,
+						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
+							{
+								LeftBlob:  []byte(fmt.Sprintf("%s:foo", commitID.String())),
+								RightBlob: []byte(blobID2),
+							},
+						},
+					},
+					expectedResponses: []*gitalypb.DiffBlobsResponse{
+						{
+							LeftBlobId:  blobID1.String(),
+							RightBlobId: blobID2.String(),
+							Patch:       []byte("@@ -1 +1 @@\n-foo\n+bar\n"),
+							Status:      gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
+						},
+					},
+				}
+			},
+		},
+		{
+			desc: "path scoped blob revision in request with attributes applied",
+			setup: func() setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				blobID1 := gittest.WriteBlob(t, cfg, repoPath, []byte("foo\n"))
+				blobID2 := gittest.WriteBlob(t, cfg, repoPath, []byte("bar\n"))
+				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithTreeEntries(
+					gittest.TreeEntry{
+						OID:  blobID1,
+						Mode: "100644",
+						Path: "foo",
+					},
+					gittest.TreeEntry{
+						Mode:    "100644",
+						Path:    ".gitattributes",
+						Content: "foo binary",
+					},
+				))
+
+				return setupData{
+					request: &gitalypb.DiffBlobsRequest{
+						Repository: repoProto,
+						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
+							{
+								LeftBlob:  []byte("HEAD:foo"),
+								RightBlob: []byte(blobID2),
+							},
+						},
+					},
+					expectedResponses: []*gitalypb.DiffBlobsResponse{
+						{
+							LeftBlobId:  blobID1.String(),
+							RightBlobId: blobID2.String(),
+							Patch:       []byte(fmt.Sprintf("Binary files a/foo and b/%s differ\n", blobID2.String())),
+							Status:      gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
+							Binary:      true,
+						},
+					},
 				}
 			},
 		},
@@ -118,8 +202,8 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 						},
 					},
@@ -147,12 +231,12 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 							{
-								LeftOid:  blobID2.String(),
-								RightOid: blobID1.String(),
+								LeftBlob:  []byte(blobID2),
+								RightBlob: []byte(blobID1),
 							},
 						},
 					},
@@ -191,8 +275,8 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 						},
 					},
@@ -223,8 +307,8 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 						},
 					},
@@ -233,8 +317,8 @@ func TestDiffBlobs(t *testing.T) {
 							LeftBlobId:  blobID1.String(),
 							RightBlobId: blobID2.String(),
 							Patch: []byte(fmt.Sprintf("Binary files a/%s and b/%s differ\n",
-								blobID1.String(),
-								blobID2.String(),
+								[]byte(blobID1),
+								[]byte(blobID2),
 							)),
 							Binary: true,
 							Status: gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
@@ -257,8 +341,8 @@ func TestDiffBlobs(t *testing.T) {
 						DiffMode:   gitalypb.DiffBlobsRequest_DIFF_MODE_WORD,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 						},
 					},
@@ -286,8 +370,8 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 						},
 					},
@@ -318,12 +402,12 @@ func TestDiffBlobs(t *testing.T) {
 						WhitespaceChanges: gitalypb.DiffBlobsRequest_WHITESPACE_CHANGES_IGNORE,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID3.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID3),
 							},
 						},
 					},
@@ -358,12 +442,12 @@ func TestDiffBlobs(t *testing.T) {
 						WhitespaceChanges: gitalypb.DiffBlobsRequest_WHITESPACE_CHANGES_IGNORE_ALL,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID3.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID3),
 							},
 						},
 					},
@@ -400,8 +484,8 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 						},
 					},
@@ -410,8 +494,8 @@ func TestDiffBlobs(t *testing.T) {
 							LeftBlobId:  blobID1.String(),
 							RightBlobId: blobID2.String(),
 							Patch: []byte(fmt.Sprintf("Binary files a/%s and b/%s differ\n",
-								blobID1.String(),
-								blobID2.String(),
+								[]byte(blobID1),
+								[]byte(blobID2),
 							)),
 							Status: gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
 							Binary: true,
@@ -433,8 +517,8 @@ func TestDiffBlobs(t *testing.T) {
 						Repository: repoProto,
 						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
 							{
-								LeftOid:  blobID1.String(),
-								RightOid: blobID2.String(),
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
 							},
 						},
 					},

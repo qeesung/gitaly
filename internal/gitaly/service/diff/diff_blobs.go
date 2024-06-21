@@ -1,11 +1,13 @@
 package diff
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/diff"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
@@ -74,7 +76,7 @@ func diffBlob(ctx context.Context,
 			git.Flag{Name: "--patch-with-raw"},
 			git.Flag{Name: fmt.Sprintf("--abbrev=%d", objectHash.EncodedLen())},
 		},
-		Args: []string{blobPair.LeftOid, blobPair.RightOid},
+		Args: []string{string(blobPair.LeftBlob), string(blobPair.RightBlob)},
 	}
 
 	gitCmd.Flags = append(gitCmd.Flags, opts...)
@@ -149,25 +151,40 @@ func (s *server) validateBlobPairs(
 	defer readerCancel()
 
 	for _, blobPair := range blobPairs {
-		if err := objectHash.ValidateHex(blobPair.LeftOid); err != nil {
-			return structerr.NewInvalidArgument("left blob ID is invalid hash")
+		if err := validateBlob(ctx, reader, objectHash, blobPair.LeftBlob); err != nil {
+			return structerr.NewInvalidArgument("validating left blob: %w", err).WithMetadata(
+				"revision",
+				string(blobPair.LeftBlob),
+			)
 		}
 
-		if info, err := reader.Info(ctx, git.Revision(blobPair.LeftOid)); err != nil {
-			return err
-		} else if !info.IsBlob() {
-			return structerr.NewInvalidArgument("left blob ID is not blob")
+		if err := validateBlob(ctx, reader, objectHash, blobPair.RightBlob); err != nil {
+			return structerr.NewInvalidArgument("validating right blob: %w", err).WithMetadata(
+				"revision",
+				string(blobPair.RightBlob),
+			)
 		}
+	}
 
-		if err := objectHash.ValidateHex(blobPair.RightOid); err != nil {
-			return structerr.NewInvalidArgument("right blob ID is invalid hash")
-		}
+	return nil
+}
 
-		if info, err := reader.Info(ctx, git.Revision(blobPair.RightOid)); err != nil {
-			return err
-		} else if !info.IsBlob() {
-			return structerr.NewInvalidArgument("right blob ID is not blob")
+func validateBlob(ctx context.Context, reader catfile.ObjectInfoReader, objectHash git.ObjectHash, revision []byte) error {
+	// Since only blobs are allowed, only path-scoped revisions and blob IDs are accepted.
+	if bytes.Contains(revision, []byte(":")) {
+		if err := git.ValidateRevision(revision, git.AllowPathScopedRevision()); err != nil {
+			return fmt.Errorf("validating path-scoped revision: %w", err)
 		}
+	} else {
+		if err := objectHash.ValidateHex(string(revision)); err != nil {
+			return fmt.Errorf("validating blob ID: %w", err)
+		}
+	}
+
+	if info, err := reader.Info(ctx, git.Revision(revision)); err != nil {
+		return fmt.Errorf("getting revision info: %w", err)
+	} else if !info.IsBlob() {
+		return errors.New("revision is not blob")
 	}
 
 	return nil
