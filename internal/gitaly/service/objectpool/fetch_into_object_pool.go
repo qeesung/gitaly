@@ -62,7 +62,7 @@ func (s *server) executeMaybeWithTransaction(ctx context.Context, repo *localrep
 		return execute(repo)
 	}
 
-	transaction, err := s.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), storagemgr.TransactionOptions{
+	transaction, err := s.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), 0, storagemgr.TransactionOptions{
 		ReadOnly: true,
 	})
 	if err != nil {
