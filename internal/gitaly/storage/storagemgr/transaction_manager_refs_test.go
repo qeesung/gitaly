@@ -1425,8 +1425,8 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					RelativePath: setup.RelativePath,
 				},
 				RecordInitialReferenceValues{
-					InitialValues: map[git.ReferenceName]git.ObjectID{
-						"refs/heads/main": setup.Commits.First.OID,
+					InitialValues: map[git.ReferenceName]git.Reference{
+						"refs/heads/main": git.NewReference("refs/heads/main", setup.Commits.First.OID),
 					},
 				},
 				Commit{},
@@ -1445,8 +1445,8 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					RelativePath: setup.RelativePath,
 				},
 				RecordInitialReferenceValues{
-					InitialValues: map[git.ReferenceName]git.ObjectID{
-						"refs/heads/main": setup.ObjectHash.ZeroOID,
+					InitialValues: map[git.ReferenceName]git.Reference{
+						"refs/heads/main": git.NewReference("refs/heads/main", setup.ObjectHash.ZeroOID),
 					},
 				},
 				UpdateReferences{
@@ -1493,8 +1493,8 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				RecordInitialReferenceValues{
 					TransactionID: 2,
-					InitialValues: map[git.ReferenceName]git.ObjectID{
-						"refs/heads/main": setup.ObjectHash.ZeroOID,
+					InitialValues: map[git.ReferenceName]git.Reference{
+						"refs/heads/main": git.NewReference("refs/heads/main", setup.ObjectHash.ZeroOID),
 					},
 				},
 				UpdateReferences{
@@ -1544,8 +1544,8 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				RecordInitialReferenceValues{
 					TransactionID: 2,
-					InitialValues: map[git.ReferenceName]git.ObjectID{
-						"refs/heads/main": setup.Commits.First.OID,
+					InitialValues: map[git.ReferenceName]git.Reference{
+						"refs/heads/main": git.NewReference("refs/heads/main", setup.Commits.First.OID),
 					},
 				},
 				UpdateReferences{
@@ -1595,8 +1595,8 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 				},
 				RecordInitialReferenceValues{
 					TransactionID: 2,
-					InitialValues: map[git.ReferenceName]git.ObjectID{
-						"refs/heads/main": setup.Commits.Third.OID,
+					InitialValues: map[git.ReferenceName]git.Reference{
+						"refs/heads/main": git.NewReference("refs/heads/main", setup.Commits.Third.OID),
 					},
 				},
 				UpdateReferences{
@@ -1644,8 +1644,8 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 					},
 				},
 				RecordInitialReferenceValues{
-					InitialValues: map[git.ReferenceName]git.ObjectID{
-						"refs/heads/main": setup.Commits.Third.OID,
+					InitialValues: map[git.ReferenceName]git.Reference{
+						"refs/heads/main": git.NewReference("refs/heads/main", setup.Commits.Third.OID),
 					},
 				},
 				Commit{},
