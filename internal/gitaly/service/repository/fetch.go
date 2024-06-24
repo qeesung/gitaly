@@ -30,10 +30,11 @@ func (s *server) FetchSourceBranch(ctx context.Context, req *gitalypb.FetchSourc
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
-	quarantineDir, targetRepo, err := s.quarantinedRepo(ctx, req.GetRepository())
+	quarantineDir, targetRepo, cleanup, err := s.quarantinedRepo(ctx, req.GetRepository())
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
 
 	sourceRepo, err := remoterepo.New(ctx, req.GetSourceRepository(), s.conns)
 	if err != nil {

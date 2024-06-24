@@ -28,10 +28,11 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
-	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, firstRequest.GetRepository())
+	quarantineDir, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, firstRequest.GetRepository())
 	if err != nil {
 		return err
 	}
+	defer cleanup()
 
 	objectHash, err := quarantineRepo.ObjectHash(ctx)
 	if err != nil {

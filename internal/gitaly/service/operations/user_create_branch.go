@@ -34,10 +34,11 @@ func (s *Server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateB
 	if err := validateUserCreateBranchRequest(s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
-	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, req.GetRepository())
+	quarantineDir, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, req.GetRepository())
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
 
 	// BEGIN TODO: Uncomment if StartPoint started behaving sensibly
 	// like BranchName. See

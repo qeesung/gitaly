@@ -78,10 +78,11 @@ func validateUserSquashRequest(locator storage.Locator, req *gitalypb.UserSquash
 func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest) (string, error) {
 	// All new objects are staged into a quarantine directory first so that we can do
 	// transactional voting before we commit data to disk.
-	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, req.GetRepository())
+	quarantineDir, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, req.GetRepository())
 	if err != nil {
 		return "", structerr.NewInternal("creating quarantine: %w", err)
 	}
+	defer cleanup()
 
 	// We need to retrieve the start commit such that we can create the new commit with
 	// all parents of the start commit.

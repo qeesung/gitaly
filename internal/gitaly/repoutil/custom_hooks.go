@@ -133,16 +133,12 @@ func SetCustomHooks(
 	// temporarily store the current repository hooks. This enables "atomic"
 	// directory swapping by acting as an intermediary storage location between
 	// moves.
-	tmpDir, err := tempdir.NewWithoutContext(repo.GetStorageName(), logger, locator)
+	tmpDir, cleanup, err := tempdir.NewWithoutContext(repo.GetStorageName(), logger, locator)
 	if err != nil {
 		return fmt.Errorf("creating temp directory: %w", err)
 	}
 
-	defer func() {
-		if err := os.RemoveAll(tmpDir.Path()); err != nil {
-			logger.WithError(err).WarnContext(ctx, "failed to remove temporary directory")
-		}
-	}()
+	defer cleanup()
 
 	if err := ExtractHooks(ctx, logger, reader, tmpDir.Path(), false); err != nil {
 		return fmt.Errorf("extracting hooks: %w", err)

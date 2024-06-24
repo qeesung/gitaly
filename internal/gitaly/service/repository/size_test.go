@@ -195,7 +195,7 @@ func TestGetObjectDirectorySize_quarantine(t *testing.T) {
 
 		requireObjectDirectorySize(t, ctx, client, repo, 16)
 
-		quarantine, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo), logger, locator)
+		quarantine, _, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo), logger, locator)
 		require.NoError(t, err)
 
 		// quarantine.New in Gitaly would receive an already rewritten repository. Gitaly would then calculate
@@ -243,11 +243,11 @@ func TestGetObjectDirectorySize_quarantine(t *testing.T) {
 
 	t.Run("quarantined repo with different relative path", func(t *testing.T) {
 		repo1, _ := gittest.CreateRepository(t, ctx, cfg)
-		quarantine1, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo1), logger, locator)
+		quarantine1, _, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo1), logger, locator)
 		require.NoError(t, err)
 
 		repo2, _ := gittest.CreateRepository(t, ctx, cfg)
-		quarantine2, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo2), logger, locator)
+		quarantine2, _, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo2), logger, locator)
 		require.NoError(t, err)
 
 		// We swap out the the object directories of both quarantines. So while both are

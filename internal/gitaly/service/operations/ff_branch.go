@@ -23,10 +23,11 @@ func (s *Server) UserFFBranch(ctx context.Context, in *gitalypb.UserFFBranchRequ
 	// While we're creating a quarantine directory, we know that it won't ever have any new
 	// objects given that we're doing a fast-forward merge. We still want to create one such
 	// that Rails can efficiently compute new objects.
-	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, in.GetRepository())
+	quarantineDir, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, in.GetRepository())
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
 
 	objectHash, err := quarantineRepo.ObjectHash(ctx)
 	if err != nil {

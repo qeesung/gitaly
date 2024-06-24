@@ -31,10 +31,11 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 
 	ctx := stream.Context()
 
-	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, header.GetRepository())
+	quarantineDir, quarantineRepo, cleanup, err := s.quarantinedRepo(ctx, header.GetRepository())
 	if err != nil {
 		return structerr.NewInternal("creating repo quarantine: %w", err)
 	}
+	defer cleanup()
 
 	objectHash, err := quarantineRepo.ObjectHash(ctx)
 	if err != nil {
