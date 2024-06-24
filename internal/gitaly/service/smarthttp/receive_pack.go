@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook/receivepack"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -31,42 +33,8 @@ func (s *server) PostReceivePack(stream gitalypb.SmartHTTPService_PostReceivePac
 		return err
 	}
 
-	stdin := streamio.NewReader(func() ([]byte, error) {
-		resp, err := stream.Recv()
-		return resp.GetData(), err
-	})
-	stdout := streamio.NewWriter(func(p []byte) error {
-		return stream.Send(&gitalypb.PostReceivePackResponse{Data: p})
-	})
-
-	repoPath, err := s.locator.GetRepoPath(req.Repository)
-	if err != nil {
-		return err
-	}
-
-	config, err := git.ConvertConfigOptions(req.GitConfigOptions)
-	if err != nil {
-		return err
-	}
-
-	cmd, err := s.gitCmdFactory.New(ctx, req.GetRepository(),
-		git.Command{
-			Name:  "receive-pack",
-			Flags: []git.Option{git.Flag{Name: "--stateless-rpc"}},
-			Args:  []string{repoPath},
-		},
-		git.WithStdin(stdin),
-		git.WithStdout(stdout),
-		git.WithReceivePackHooks(req, "http", false),
-		git.WithGitProtocol(s.logger, req),
-		git.WithConfig(config...),
-	)
-	if err != nil {
-		return structerr.NewFailedPrecondition("spawning receive-pack: %w", err)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return structerr.NewFailedPrecondition("waiting for receive-pack: %w", err)
+	if err := s.postReceivePack(stream, req); err != nil {
+		return structerr.NewInternal("%w", err)
 	}
 
 	// In cases where all reference updates are rejected by git-receive-pack(1), we would end up
@@ -88,6 +56,79 @@ func (s *server) PostReceivePack(stream gitalypb.SmartHTTPService_PostReceivePac
 		if !errors.Is(err, transaction.ErrTransactionStopped) {
 			return structerr.NewAborted("final transactional vote: %w", err)
 		}
+	}
+
+	return nil
+}
+
+func (s *server) postReceivePack(
+	stream gitalypb.SmartHTTPService_PostReceivePackServer,
+	req *gitalypb.PostReceivePackRequest,
+) (returnedErr error) {
+	ctx := stream.Context()
+
+	stdin := streamio.NewReader(func() ([]byte, error) {
+		resp, err := stream.Recv()
+		return resp.GetData(), err
+	})
+	stdout := streamio.NewWriter(func(p []byte) error {
+		return stream.Send(&gitalypb.PostReceivePackResponse{Data: p})
+	})
+
+	repoPath, err := s.locator.GetRepoPath(req.Repository)
+	if err != nil {
+		return err
+	}
+
+	config, err := git.ConvertConfigOptions(req.GitConfigOptions)
+	if err != nil {
+		return err
+	}
+
+	transactionID := storage.ExtractTransactionID(ctx)
+	transactionsEnabled := transactionID > 0
+	if transactionsEnabled {
+		repo := s.localrepo(req.GetRepository())
+		procReceiveCleanup, err := receivepack.RegisterProcReceiveHook(
+			ctx,
+			s.logger,
+			s.cfg,
+			req,
+			repo,
+			s.hookManager,
+			hook.NewTransactionRegistry(s.txRegistry),
+			transactionID,
+			stdout,
+			stdout,
+		)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := procReceiveCleanup(); err != nil && returnedErr == nil {
+				returnedErr = err
+			}
+		}()
+	}
+
+	cmd, err := s.gitCmdFactory.New(ctx, req.GetRepository(),
+		git.Command{
+			Name:  "receive-pack",
+			Flags: []git.Option{git.Flag{Name: "--stateless-rpc"}},
+			Args:  []string{repoPath},
+		},
+		git.WithStdin(stdin),
+		git.WithStdout(stdout),
+		git.WithReceivePackHooks(req, "http", transactionsEnabled),
+		git.WithGitProtocol(s.logger, req),
+		git.WithConfig(config...),
+	)
+	if err != nil {
+		return structerr.NewFailedPrecondition("spawning receive-pack: %w", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return structerr.NewFailedPrecondition("waiting for receive-pack: %w", err)
 	}
 
 	return nil

@@ -54,7 +54,7 @@ func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (Pro
 	}
 
 	version, features, _ := bytes.Cut(data, []byte{0})
-	if !bytes.Equal(version, []byte("version=1")) {
+	if !bytes.HasPrefix(version, []byte("version=1")) {
 		return nil, nil, fmt.Errorf("unsupported version: %s", data)
 	}
 
