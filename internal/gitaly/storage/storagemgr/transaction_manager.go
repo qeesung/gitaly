@@ -667,7 +667,7 @@ func (txn *Transaction) UpdateReferences(updates ReferenceUpdates) {
 				}
 
 				if txUpdate.NewTarget != "" {
-					oldTarget = txUpdate.OldTarget
+					oldTarget = txUpdate.NewTarget
 				}
 			}
 		}
