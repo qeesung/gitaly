@@ -1052,88 +1052,90 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 				transaction.SkipVerificationFailures()
 			}
 
-			rewrittenRepo := setup.RepositoryFactory.Build(
-				transaction.RewriteRepository(&gitalypb.Repository{
-					StorageName:  setup.Config.Storages[0].Name,
-					RelativePath: transaction.relativePath,
-				}),
-			)
+			if transaction.relativePath != "" {
+				rewrittenRepo := setup.RepositoryFactory.Build(
+					transaction.RewriteRepository(&gitalypb.Repository{
+						StorageName:  setup.Config.Storages[0].Name,
+						RelativePath: transaction.relativePath,
+					}),
+				)
 
-			if step.UpdateAlternate != nil {
-				transaction.MarkAlternateUpdated()
+				if step.UpdateAlternate != nil {
+					transaction.MarkAlternateUpdated()
 
-				repoPath, err := rewrittenRepo.Path()
-				require.NoError(t, err)
-
-				if step.UpdateAlternate.content != "" {
-					require.NoError(t, os.WriteFile(stats.AlternatesFilePath(repoPath), []byte(step.UpdateAlternate.content), fs.ModePerm))
-
-					alternates, err := stats.ReadAlternatesFile(repoPath)
+					repoPath, err := rewrittenRepo.Path()
 					require.NoError(t, err)
 
-					for _, alternate := range alternates {
-						require.DirExists(t, filepath.Join(repoPath, "objects", alternate), "alternate must be pointed to a repository: %q", alternate)
-					}
-				} else {
-					// Ignore not exists errors as there are test cases testing removing alternate
-					// when one is not set.
-					if err := os.Remove(stats.AlternatesFilePath(repoPath)); !errors.Is(err, fs.ErrNotExist) {
+					if step.UpdateAlternate.content != "" {
+						require.NoError(t, os.WriteFile(stats.AlternatesFilePath(repoPath), []byte(step.UpdateAlternate.content), fs.ModePerm))
+
+						alternates, err := stats.ReadAlternatesFile(repoPath)
 						require.NoError(t, err)
+
+						for _, alternate := range alternates {
+							require.DirExists(t, filepath.Join(repoPath, "objects", alternate), "alternate must be pointed to a repository: %q", alternate)
+						}
+					} else {
+						// Ignore not exists errors as there are test cases testing removing alternate
+						// when one is not set.
+						if err := os.Remove(stats.AlternatesFilePath(repoPath)); !errors.Is(err, fs.ErrNotExist) {
+							require.NoError(t, err)
+						}
 					}
 				}
-			}
 
-			if step.QuarantinedPacks != nil {
-				for _, dir := range []string{
-					transaction.stagingDirectory,
-					transaction.quarantineDirectory,
-				} {
-					const expectedPerm = perm.PrivateDir
-					stat, err := os.Stat(dir)
-					require.NoError(t, err)
-					require.Equal(t, stat.Mode().Perm(), umask.Mask(expectedPerm),
-						"%q had %q permission but expected %q", dir, stat.Mode().Perm().String(), expectedPerm,
-					)
+				if step.QuarantinedPacks != nil {
+					for _, dir := range []string{
+						transaction.stagingDirectory,
+						transaction.quarantineDirectory,
+					} {
+						const expectedPerm = perm.PrivateDir
+						stat, err := os.Stat(dir)
+						require.NoError(t, err)
+						require.Equal(t, stat.Mode().Perm(), umask.Mask(expectedPerm),
+							"%q had %q permission but expected %q", dir, stat.Mode().Perm().String(), expectedPerm,
+						)
+					}
+
+					for _, pack := range step.QuarantinedPacks {
+						require.NoError(t, rewrittenRepo.UnpackObjects(ctx, bytes.NewReader(pack)))
+					}
 				}
 
-				for _, pack := range step.QuarantinedPacks {
-					require.NoError(t, rewrittenRepo.UnpackObjects(ctx, bytes.NewReader(pack)))
+				if step.ReferenceUpdates != nil {
+					performReferenceUpdates(t, ctx, transaction, rewrittenRepo, step.ReferenceUpdates)
 				}
-			}
 
-			if step.ReferenceUpdates != nil {
-				performReferenceUpdates(t, ctx, transaction, rewrittenRepo, step.ReferenceUpdates)
-			}
-
-			if step.DefaultBranchUpdate != nil {
-				transaction.MarkDefaultBranchUpdated()
-				require.NoError(t, rewrittenRepo.SetDefaultBranch(ctx, nil, step.DefaultBranchUpdate.Reference))
-			}
-
-			if step.CustomHooksUpdate != nil {
-				transaction.MarkCustomHooksUpdated()
-				if step.CustomHooksUpdate.CustomHooksTAR != nil {
-					require.NoError(t, repoutil.SetCustomHooks(
-						ctx,
-						logger,
-						config.NewLocator(setup.Config),
-						nil,
-						bytes.NewReader(step.CustomHooksUpdate.CustomHooksTAR),
-						rewrittenRepo,
-					))
-				} else {
-					rewrittenPath, err := rewrittenRepo.Path()
-					require.NoError(t, err)
-					require.NoError(t, os.RemoveAll(filepath.Join(rewrittenPath, repoutil.CustomHooksDir)))
+				if step.DefaultBranchUpdate != nil {
+					transaction.MarkDefaultBranchUpdated()
+					require.NoError(t, rewrittenRepo.SetDefaultBranch(ctx, nil, step.DefaultBranchUpdate.Reference))
 				}
-			}
 
-			if step.DeleteRepository {
-				transaction.DeleteRepository()
-			}
+				if step.CustomHooksUpdate != nil {
+					transaction.MarkCustomHooksUpdated()
+					if step.CustomHooksUpdate.CustomHooksTAR != nil {
+						require.NoError(t, repoutil.SetCustomHooks(
+							ctx,
+							logger,
+							config.NewLocator(setup.Config),
+							nil,
+							bytes.NewReader(step.CustomHooksUpdate.CustomHooksTAR),
+							rewrittenRepo,
+						))
+					} else {
+						rewrittenPath, err := rewrittenRepo.Path()
+						require.NoError(t, err)
+						require.NoError(t, os.RemoveAll(filepath.Join(rewrittenPath, repoutil.CustomHooksDir)))
+					}
+				}
 
-			for _, objectID := range step.IncludeObjects {
-				transaction.IncludeObject(objectID)
+				if step.DeleteRepository {
+					transaction.DeleteRepository()
+				}
+
+				for _, objectID := range step.IncludeObjects {
+					transaction.IncludeObject(objectID)
+				}
 			}
 
 			commitCtx := ctx

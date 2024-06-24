@@ -76,6 +76,12 @@ func TestPartitionManager(t *testing.T) {
 		ctx context.Context
 		// repo is the repository that the transaction belongs to.
 		repo storage.Repository
+		// storageName is the storage that the transaction belongs to.
+		// Overwritten by the repo storage name if repo is set.
+		storageName string
+		// partitionID is the partition that the transaction belongs to.
+		// Overwritten by the repo partition ID if repo is set.
+		partitionID storage.PartitionID
 		// alternateRelativePath is the relative path of the alternate repository.
 		alternateRelativePath string
 		// expectedState contains the partitions by their storages and their pending transaction count at
@@ -754,6 +760,25 @@ func TestPartitionManager(t *testing.T) {
 				}
 			},
 		},
+		{
+			desc: "transaction committed for partition",
+			setup: func(t *testing.T, cfg config.Cfg) setupData {
+				return setupData{
+					steps: steps{
+						begin{
+							storageName: cfg.Storages[0].Name,
+							partitionID: 2,
+							expectedState: map[string]map[storage.PartitionID]uint{
+								"default": {
+									2: 1,
+								},
+							},
+						},
+						commit{},
+					},
+				}
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
@@ -824,7 +849,15 @@ func TestPartitionManager(t *testing.T) {
 						beginCtx = step.ctx
 					}
 
-					txn, err := partitionManager.Begin(beginCtx, step.repo.GetStorageName(), step.repo.GetRelativePath(), TransactionOptions{
+					var (
+						storageName  = step.storageName
+						relativePath string
+					)
+					if step.repo != nil {
+						storageName = step.repo.GetStorageName()
+						relativePath = step.repo.GetRelativePath()
+					}
+					txn, err := partitionManager.Begin(beginCtx, storageName, relativePath, step.partitionID, TransactionOptions{
 						AlternateRelativePath: step.alternateRelativePath,
 					})
 					require.Equal(t, step.expectedError, err)
@@ -836,11 +869,15 @@ func TestPartitionManager(t *testing.T) {
 						continue
 					}
 
-					storageMgr := partitionManager.storages[step.repo.GetStorageName()]
+					storageMgr := partitionManager.storages[storageName]
 					storageMgr.mu.Lock()
 
-					ptnID, err := storageMgr.partitionAssigner.getPartitionID(ctx, step.repo.GetRelativePath(), "", false)
-					require.NoError(t, err)
+					ptnID := step.partitionID
+					if step.repo != nil {
+						var err error
+						ptnID, err = storageMgr.partitionAssigner.getPartitionID(ctx, relativePath, "", false)
+						require.NoError(t, err)
+					}
 
 					ptn := storageMgr.partitions[ptnID]
 					storageMgr.mu.Unlock()
@@ -921,7 +958,7 @@ func TestPartitionManager_concurrentClose(t *testing.T) {
 	require.NoError(t, err)
 	defer partitionManager.Close()
 
-	tx, err := partitionManager.Begin(ctx, cfg.Storages[0].Name, "relative-path", TransactionOptions{
+	tx, err := partitionManager.Begin(ctx, cfg.Storages[0].Name, "relative-path", 0, TransactionOptions{
 		AllowPartitionAssignmentWithoutRepository: true,
 	})
 	require.NoError(t, err)

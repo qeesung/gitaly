@@ -326,12 +326,6 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		}
 	}
 
-	if relativePath == "" {
-		// For now we don't have a use case for transactions that don't target a repository.
-		// Until support is implemented, error out.
-		return nil, errRelativePathNotSet
-	}
-
 	span, _ := tracing.StartSpanIfHasParent(ctx, "transaction.Begin", nil)
 	span.SetTag("readonly", readOnly)
 	span.SetTag("relativePath", relativePath)
@@ -421,33 +415,38 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 			return nil, fmt.Errorf("mkdir temp: %w", err)
 		}
 
+		if txn.repositoryTarget() {
+			snapshottedRelativePaths = append(snapshottedRelativePaths, txn.relativePath)
+		}
 		if txn.snapshot, err = newSnapshot(ctx,
 			mgr.storagePath,
 			filepath.Join(txn.stagingDirectory, "snapshot"),
-			append(snapshottedRelativePaths, txn.relativePath),
+			snapshottedRelativePaths,
 		); err != nil {
 			return nil, fmt.Errorf("new snapshot: %w", err)
 		}
 
-		txn.repositoryExists, err = mgr.doesRepositoryExist(txn.snapshot.relativePath(txn.relativePath))
-		if err != nil {
-			return nil, fmt.Errorf("does repository exist: %w", err)
-		}
+		if txn.repositoryTarget() {
+			txn.repositoryExists, err = mgr.doesRepositoryExist(txn.snapshot.relativePath(txn.relativePath))
+			if err != nil {
+				return nil, fmt.Errorf("does repository exist: %w", err)
+			}
 
-		txn.snapshotRepository = mgr.repositoryFactory.Build(txn.snapshot.relativePath(txn.relativePath))
-		if !txn.readOnly {
-			if txn.repositoryExists {
-				txn.quarantineDirectory = filepath.Join(txn.stagingDirectory, "quarantine")
-				if err := os.MkdirAll(filepath.Join(txn.quarantineDirectory, "pack"), perm.PrivateDir); err != nil {
-					return nil, fmt.Errorf("create quarantine directory: %w", err)
-				}
+			txn.snapshotRepository = mgr.repositoryFactory.Build(txn.snapshot.relativePath(txn.relativePath))
+			if !txn.readOnly {
+				if txn.repositoryExists {
+					txn.quarantineDirectory = filepath.Join(txn.stagingDirectory, "quarantine")
+					if err := os.MkdirAll(filepath.Join(txn.quarantineDirectory, "pack"), perm.PrivateDir); err != nil {
+						return nil, fmt.Errorf("create quarantine directory: %w", err)
+					}
 
-				txn.snapshotRepository, err = txn.snapshotRepository.Quarantine(txn.quarantineDirectory)
-				if err != nil {
-					return nil, fmt.Errorf("quarantine: %w", err)
+					txn.snapshotRepository, err = txn.snapshotRepository.Quarantine(txn.quarantineDirectory)
+					if err != nil {
+						return nil, fmt.Errorf("quarantine: %w", err)
+					}
+				} else {
+					txn.quarantineDirectory = filepath.Join(mgr.storagePath, txn.snapshot.relativePath(txn.relativePath), "objects")
 				}
-			} else {
-				txn.quarantineDirectory = filepath.Join(mgr.storagePath, txn.snapshot.relativePath(txn.relativePath), "objects")
 			}
 		}
 
@@ -456,6 +455,11 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 
 		return txn, nil
 	}
+}
+
+// repositoryTarget returns true if the transaction targets a repository.
+func (txn *Transaction) repositoryTarget() bool {
+	return txn.relativePath != ""
 }
 
 // originalPackedRefsFilePath returns the path of the original `packed-refs` file that records the state of the
@@ -1068,7 +1072,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 
 	transaction.result = make(resultChannel, 1)
 
-	if !transaction.repositoryExists {
+	if transaction.repositoryTarget() && !transaction.repositoryExists {
 		// Determine if the repository was created in this transaction and stage its state
 		// for committing if so.
 		if err := mgr.stageRepositoryCreation(ctx, transaction); err != nil {
@@ -1276,6 +1280,10 @@ func (mgr *TransactionManager) replaceObjectDirectory(tx *Transaction) (returned
 // stageRepositoryCreation determines the repository's state following a creation. It reads the repository's
 // complete state and stages it into the transaction for committing.
 func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, transaction *Transaction) error {
+	if !transaction.repositoryTarget() {
+		return errRelativePathNotSet
+	}
+
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.stageRepositoryCreation", nil)
 	defer span.Finish()
 
@@ -1329,6 +1337,10 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 // setupStagingRepository sets up a snapshot that is used for verifying and staging changes. It contains up to
 // date state of the partition. It does not have the quarantine configured.
 func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, transaction *Transaction, alternateRelativePath string) error {
+	if !transaction.repositoryTarget() {
+		return nil
+	}
+
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.setupStagingRepository", nil)
 	defer span.Finish()
 
@@ -1403,6 +1415,10 @@ var packPrefixRegexp = regexp.MustCompile(`^pack\t([0-9a-f]+)\n$`)
 // The packed objects are not yet checked for validity. See the following issue for more
 // details on this: https://gitlab.com/gitlab-org/gitaly/-/issues/5779
 func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Transaction) (returnedErr error) {
+	if !transaction.repositoryTarget() {
+		return nil
+	}
+
 	if _, err := os.Stat(mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())); err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("stat: %w", err)
@@ -1716,6 +1732,9 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 	if transaction.runHousekeeping.repack == nil {
 		return nil
 	}
+	if !transaction.repositoryTarget() {
+		return errRelativePathNotSet
+	}
 
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.prepareRepacking", nil)
 	defer span.Finish()
@@ -1843,6 +1862,9 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 func (mgr *TransactionManager) prepareCommitGraphs(ctx context.Context, transaction *Transaction) error {
 	if transaction.runHousekeeping.writeCommitGraphs == nil {
 		return nil
+	}
+	if !transaction.repositoryTarget() {
+		return errRelativePathNotSet
 	}
 
 	span, ctx := tracing.StartSpanIfHasParent(ctx, "transaction.prepareCommitGraphs", nil)
@@ -2455,6 +2477,9 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 	if !transaction.alternateUpdated {
 		return "", nil
 	}
+	if !transaction.repositoryTarget() {
+		return "", errRelativePathNotSet
+	}
 
 	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.verifyAlternateUpdate", nil)
 	defer span.Finish()
@@ -2531,6 +2556,9 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction *Transaction) ([]*gitalypb.LogEntry_ReferenceTransaction, error) {
 	if len(transaction.referenceUpdates) == 0 {
 		return nil, nil
+	}
+	if !transaction.repositoryTarget() {
+		return nil, errRelativePathNotSet
 	}
 
 	span, _ := tracing.StartSpanIfHasParent(mgr.ctx, "transaction.verifyReferences", nil)

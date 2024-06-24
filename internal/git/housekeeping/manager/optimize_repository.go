@@ -108,7 +108,7 @@ func (m *RepositoryManager) maybeStartTransaction(ctx context.Context, useExisti
 			tx = transaction
 		})
 	} else {
-		transaction, err := m.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), storagemgr.TransactionOptions{})
+		transaction, err := m.walPartitionManager.Begin(ctx, repo.GetStorageName(), repo.GetRelativePath(), 0, storagemgr.TransactionOptions{})
 		if err != nil {
 			return fmt.Errorf("initializing WAL transaction: %w", err)
 		}
