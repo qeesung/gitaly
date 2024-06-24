@@ -56,6 +56,11 @@ func validCustomHooks(tb testing.TB) []byte {
 	var hooks bytes.Buffer
 	writer := tar.NewWriter(&hooks)
 	require.NoError(tb, writer.WriteHeader(&tar.Header{
+		Name: "custom_hooks/",
+		Mode: int64(perm.PublicDir),
+	}))
+
+	require.NoError(tb, writer.WriteHeader(&tar.Header{
 		Name: "custom_hooks/pre-receive",
 		Size: int64(len("hook content")),
 		Mode: int64(fs.ModePerm),
