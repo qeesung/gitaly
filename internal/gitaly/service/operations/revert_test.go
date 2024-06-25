@@ -211,7 +211,6 @@ func testUserRevert(t *testing.T, ctx context.Context) {
 				}
 			},
 		},
-
 		{
 			desc: "no repository provided",
 			setup: func(t *testing.T, repoPath string, repoProto *gitalypb.Repository, repo *localrepo.Repo) setupData {
@@ -601,6 +600,57 @@ func testServerUserRevertMergeCommit(t *testing.T, ctx context.Context) {
 
 		require.NoError(t, signingKey.Verify([]byte(gpgsig), []byte(dataWithoutGpgSig)))
 	}
+}
+
+func TestServer_UserRevert_rootCommit(t *testing.T) {
+	t.Parallel()
+
+	testhelper.NewFeatureSets(
+		featureflag.GPGSigning,
+	).Run(t, testServerUserRevertRootCommit)
+}
+
+func testServerUserRevertRootCommit(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	ctx, cfg, client := setupOperationsService(t, ctx)
+
+	repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+	repo := localrepo.NewTestRepo(t, cfg, repoProto)
+
+	destinationBranch := "reverting-dst"
+	rootCommitID := gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithMessage("initial commit"),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Mode: "100644", Path: "foo", Content: "foo"},
+		))
+	gittest.WriteCommit(t, cfg, repoPath,
+		gittest.WithParents(rootCommitID),
+		gittest.WithMessage("add bar"),
+		gittest.WithBranch(destinationBranch),
+		gittest.WithTreeEntries(
+			gittest.TreeEntry{Mode: "100644", Path: "foo", Content: "foo"},
+			gittest.TreeEntry{Mode: "100644", Path: "bar", Content: "bar"},
+		))
+
+	rootCommit, err := repo.ReadCommit(ctx, rootCommitID.Revision())
+	require.NoError(t, err)
+
+	request := &gitalypb.UserRevertRequest{
+		Repository: repoProto,
+		User:       gittest.TestUser,
+		Commit:     rootCommit,
+		BranchName: []byte(destinationBranch),
+		Message:    []byte("Reverting " + rootCommit.Id),
+	}
+
+	response, err := client.UserRevert(ctx, request)
+	require.NoError(t, err)
+
+	gittest.RequireTree(t, cfg, repoPath, response.BranchUpdate.CommitId,
+		[]gittest.TreeEntry{
+			{Mode: "100644", Path: "bar", Content: "bar"},
+		})
 }
 
 func TestServer_UserRevert_stableID(t *testing.T) {
