@@ -502,6 +502,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 			RepositoryCounter:   repoCounter,
 			UpdaterWithHooks:    updaterWithHooks,
 			PartitionManager:    partitionMgr,
+			TransactionRegistry: txRegistry,
 			HousekeepingManager: housekeepingManager,
 			BackupSink:          backupSink,
 			BackupLocator:       backupLocator,
