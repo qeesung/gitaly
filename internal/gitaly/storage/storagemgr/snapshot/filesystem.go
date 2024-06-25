@@ -16,22 +16,35 @@ import (
 
 // FileSystem is a snapshot of a file system's state.
 type FileSystem struct {
-	// Root is the absolute path of the snapshot.
-	Root string
-	// Prefix is the snapshot root relative to the storage root.
-	Prefix string
+	// root is the absolute path of the snapshot.
+	root string
+	// prefix is the snapshot root relative to the storage root.
+	prefix string
 }
 
-// RelativePath returns the given relative path rewritten to point to the relative
-// path in the snapshot.
+// Root returns the root of the snapshot's file system.
+func (fs *FileSystem) Root() string {
+	return fs.root
+}
+
+// Prefix returns the prefix of the snapshot within the original root file system.
+func (fs *FileSystem) Prefix() string {
+	return fs.prefix
+}
+
+// RelativePath returns the given relative path in the original file system rewritten to
+// point to the relative path in the snapshot.
 func (fs *FileSystem) RelativePath(relativePath string) string {
-	return filepath.Join(fs.Prefix, relativePath)
+	return filepath.Join(fs.prefix, relativePath)
 }
 
 // New creates a new file system snapshot of the given root directory. The snapshot is created by copying
 // the directory hierarchy and hard linking the files in place. The copied directory hierarchy is placed
 // at destinationPath. Only files within Git directories are included in the snapshot. The provided relative
 // paths are used to select the Git repositories that are included.
+//
+// destinationPath must be a subdirectory within roothPath. The prefix of the snapshot within the root file system
+// can be retrieved by calling Prefix.
 func New(ctx context.Context, rootPath, destinationPath string, relativePaths []string) (*FileSystem, error) {
 	snapshotPrefix, err := filepath.Rel(rootPath, destinationPath)
 	if err != nil {
@@ -42,7 +55,7 @@ func New(ctx context.Context, rootPath, destinationPath string, relativePaths []
 		return nil, fmt.Errorf("create repository snapshots: %w", err)
 	}
 
-	return &FileSystem{Root: destinationPath, Prefix: snapshotPrefix}, nil
+	return &FileSystem{root: destinationPath, prefix: snapshotPrefix}, nil
 }
 
 // createRepositorySnapshots creates a snapshot of the partition containing all repositories at the given relative paths
