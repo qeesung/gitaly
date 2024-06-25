@@ -139,7 +139,7 @@ func (m *GitLabHookManager) PostReceiveHook(ctx context.Context, repo *gitalypb.
 			return fmt.Errorf("commit transaction: %w", err)
 		}
 
-		tx, err = m.partitionManager.Begin(ctx, originalRepo.GetStorageName(), originalRepo.GetRelativePath(), storagemgr.TransactionOptions{
+		tx, err = m.partitionManager.Begin(ctx, originalRepo.GetStorageName(), originalRepo.GetRelativePath(), 0, storagemgr.TransactionOptions{
 			ReadOnly: true,
 		})
 		if err != nil {

@@ -313,27 +313,31 @@ type TransactionOptions struct {
 // TransactionManager is not already running, a new one is created and used. The partition tracks
 // the number of pending transactions and this counter gets incremented when Begin is invoked.
 //
-// storageName and relativePath specify the target repository to begin a transaction against.
-func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath string, opts TransactionOptions) (*finalizableTransaction, error) {
+// Specifying storageName and relativePath will begin a transaction targeting a
+// repository. Specifying storageName and partitionID will being a transaction
+// targeting an entire partition.
+func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath string, partitionID storage.PartitionID, opts TransactionOptions) (*finalizableTransaction, error) {
 	storageMgr, ok := pm.storages[storageName]
 	if !ok {
 		return nil, structerr.NewNotFound("unknown storage: %q", storageName)
 	}
 
-	relativePath, err := storage.ValidateRelativePath(storageMgr.path, relativePath)
-	if err != nil {
-		return nil, structerr.NewInvalidArgument("validate relative path: %w", err)
-	}
-
-	partitionID, err := storageMgr.partitionAssigner.getPartitionID(ctx, relativePath, opts.AlternateRelativePath, opts.AllowPartitionAssignmentWithoutRepository)
-	if err != nil {
-		if errors.Is(err, badger.ErrDBClosed) {
-			// The database is closed when PartitionManager is closing. Return a more
-			// descriptive error of what happened.
-			return nil, ErrPartitionManagerClosed
+	if partitionID == 0 {
+		relativePath, err := storage.ValidateRelativePath(storageMgr.path, relativePath)
+		if err != nil {
+			return nil, structerr.NewInvalidArgument("validate relative path: %w", err)
 		}
 
-		return nil, fmt.Errorf("get partition: %w", err)
+		partitionID, err = storageMgr.partitionAssigner.getPartitionID(ctx, relativePath, opts.AlternateRelativePath, opts.AllowPartitionAssignmentWithoutRepository)
+		if err != nil {
+			if errors.Is(err, badger.ErrDBClosed) {
+				// The database is closed when PartitionManager is closing. Return a more
+				// descriptive error of what happened.
+				return nil, ErrPartitionManagerClosed
+			}
+
+			return nil, fmt.Errorf("get partition: %w", err)
+		}
 	}
 
 	relativeStateDir := deriveStateDirectory(partitionID)
