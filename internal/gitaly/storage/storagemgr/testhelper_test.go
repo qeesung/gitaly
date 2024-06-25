@@ -1316,7 +1316,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 			RequireRepositories(t, ctx, setup.Config,
 				// Assert the contents of the transaction's snapshot.
-				filepath.Join(setup.Config.Storages[0].Path, transaction.snapshot.prefix),
+				filepath.Join(setup.Config.Storages[0].Path, transaction.snapshot.Prefix),
 				// Rewrite all of the repositories to point to their snapshots.
 				func(relativePath string) *localrepo.Repo {
 					return setup.RepositoryFactory.Build(
