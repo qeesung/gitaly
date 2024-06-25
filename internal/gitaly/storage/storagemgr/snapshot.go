@@ -10,6 +10,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/gitstorage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 )
 
@@ -80,7 +81,7 @@ func createRepositorySnapshots(ctx context.Context, storagePath, snapshotPrefix 
 		// Read the repository's 'objects/info/alternates' file to figure out whether it is connected
 		// to an alternate. If so, we need to include the alternate repository in the snapshot along
 		// with the repository itself to ensure the objects from the alternate are also available.
-		if alternate, err := readAlternatesFile(targetPath); err != nil && !errors.Is(err, errNoAlternate) {
+		if alternate, err := gitstorage.ReadAlternatesFile(targetPath); err != nil && !errors.Is(err, gitstorage.ErrNoAlternate) {
 			return fmt.Errorf("get alternate path: %w", err)
 		} else if alternate != "" {
 			// The repository had an alternate. The path is a relative from the repository's 'objects' directory

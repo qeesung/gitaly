@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/dgraph-io/badger/v4"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/gitstorage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 )
 
@@ -18,11 +18,6 @@ var (
 	// errPartitionAssignmentNotFound is returned when attempting to access a
 	// partition assignment in the database that doesn't yet exist.
 	errPartitionAssignmentNotFound = errors.New("partition assignment not found")
-	// errNoAlternate is returned when a repository has no alternate.
-	errNoAlternate = errors.New("repository has no alternate")
-	// errMultipleAlternates is returned when a repository has multiple alternates
-	// configured.
-	errMultipleAlternates = errors.New("repository has multiple alternates")
 	// errAlternatePointsToSelf is returned when a repository's alternate points to the
 	// repository itself.
 	errAlternatePointsToSelf = errors.New("repository's alternate points to self")
@@ -297,7 +292,7 @@ func (pa *partitionAssigner) assignPartitionID(ctx context.Context, relativePath
 	// partition with it.
 	ptnID, err := pa.getAlternatePartitionID(ctx, relativePath, recursiveCall, partitionHint)
 	if err != nil {
-		if !errors.Is(err, errNoAlternate) {
+		if !errors.Is(err, gitstorage.ErrNoAlternate) {
 			return 0, fmt.Errorf("get alternate partition ID: %w", err)
 		}
 
@@ -320,7 +315,7 @@ func (pa *partitionAssigner) assignPartitionID(ctx context.Context, relativePath
 }
 
 func (pa *partitionAssigner) getAlternatePartitionID(ctx context.Context, relativePath string, recursiveCall bool, partitionHint storage.PartitionID) (storage.PartitionID, error) {
-	alternate, err := readAlternatesFile(filepath.Join(pa.storagePath, relativePath))
+	alternate, err := gitstorage.ReadAlternatesFile(filepath.Join(pa.storagePath, relativePath))
 	if err != nil {
 		return 0, fmt.Errorf("read alternates file: %w", err)
 	}
@@ -362,25 +357,4 @@ func (pa *partitionAssigner) getAlternatePartitionID(ctx context.Context, relati
 	}
 
 	return ptnID, nil
-}
-
-func readAlternatesFile(repositoryPath string) (string, error) {
-	alternates, err := stats.ReadAlternatesFile(repositoryPath)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return "", errNoAlternate
-		}
-
-		return "", fmt.Errorf("read alternates file: %w", err)
-	}
-
-	if len(alternates) == 0 {
-		return "", errNoAlternate
-	} else if len(alternates) > 1 {
-		// Repositories shouldn't have more than one alternate given they should only be
-		// linked to a single pool at most.
-		return "", errMultipleAlternates
-	}
-
-	return alternates[0], nil
 }

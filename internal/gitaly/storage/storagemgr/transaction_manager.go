@@ -26,6 +26,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/gitstorage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/wal"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
@@ -1357,8 +1358,8 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 		transaction.MarkCustomHooksUpdated()
 	}
 
-	if _, err := readAlternatesFile(mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())); err != nil {
-		if !errors.Is(err, errNoAlternate) {
+	if _, err := gitstorage.ReadAlternatesFile(mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())); err != nil {
+		if !errors.Is(err, gitstorage.ErrNoAlternate) {
 			return fmt.Errorf("read alternates file: %w", err)
 		}
 
@@ -2525,8 +2526,8 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 	defer span.Finish()
 
 	repositoryPath := mgr.getAbsolutePath(transaction.relativePath)
-	existingAlternate, err := readAlternatesFile(repositoryPath)
-	if err != nil && !errors.Is(err, errNoAlternate) {
+	existingAlternate, err := gitstorage.ReadAlternatesFile(repositoryPath)
+	if err != nil && !errors.Is(err, gitstorage.ErrNoAlternate) {
 		return "", fmt.Errorf("read existing alternates file: %w", err)
 	}
 
@@ -2535,8 +2536,8 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 		return "", fmt.Errorf("snapshot repo path: %w", err)
 	}
 
-	stagedAlternate, err := readAlternatesFile(snapshotRepoPath)
-	if err != nil && !errors.Is(err, errNoAlternate) {
+	stagedAlternate, err := gitstorage.ReadAlternatesFile(snapshotRepoPath)
+	if err != nil && !errors.Is(err, gitstorage.ErrNoAlternate) {
 		return "", fmt.Errorf("read staged alternates file: %w", err)
 	}
 
@@ -2544,7 +2545,7 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 		if existingAlternate == "" {
 			// Transaction attempted to remove an alternate from the repository
 			// even if it didn't have one.
-			return "", errNoAlternate
+			return "", gitstorage.ErrNoAlternate
 		}
 
 		if err := transaction.walEntry.RecordAlternateUnlink(mgr.storagePath, transaction.relativePath, existingAlternate); err != nil {
@@ -2578,7 +2579,7 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 		return "", fmt.Errorf("validate git directory: %w", err)
 	}
 
-	if _, err := readAlternatesFile(alternateRepositoryPath); !errors.Is(err, errNoAlternate) {
+	if _, err := gitstorage.ReadAlternatesFile(alternateRepositoryPath); !errors.Is(err, gitstorage.ErrNoAlternate) {
 		if err == nil {
 			// We don't support chaining alternates like repo-1 > repo-2 > repo-3.
 			return "", errAlternateHasAlternate
