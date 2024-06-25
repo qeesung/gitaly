@@ -268,7 +268,7 @@ type Transaction struct {
 	snapshotLSN storage.LSN
 	// snapshot is the transaction's snapshot of the partition file system state. It's used to rewrite
 	// relative paths to point to the snapshot instead of the actual repositories.
-	snapshot snapshot.Snapshot
+	snapshot snapshot.FileSystem
 	// db is the transaction's snapshot of the partition's key-value state. The keyvalue.Transaction is
 	// discarded when the transaction finishes. The recorded writes are write-ahead logged and applied
 	// to the partition from the WAL.
@@ -284,7 +284,7 @@ type Transaction struct {
 	stagingRepository *localrepo.Repo
 	// stagingSnapshot is the snapshot used for staging the transaction, and where the staging repository
 	// exists.
-	stagingSnapshot snapshot.Snapshot
+	stagingSnapshot snapshot.FileSystem
 
 	// walEntry is the log entry where the transaction stages its state for committing.
 	walEntry                 *wal.Entry
@@ -490,7 +490,7 @@ func (txn *Transaction) RewriteRepository(repo *gitalypb.Repository) *gitalypb.R
 // OriginalRepository returns the repository as it was before rewriting it to point to the snapshot.
 func (txn *Transaction) OriginalRepository(repo *gitalypb.Repository) *gitalypb.Repository {
 	original := proto.Clone(repo).(*gitalypb.Repository)
-	original.RelativePath = strings.TrimPrefix(repo.RelativePath, txn.snapshot.Prefix+string(os.PathSeparator))
+	original.RelativePath = strings.TrimPrefix(repo.RelativePath, txn.snapshot.Prefix()+string(os.PathSeparator))
 	original.GitObjectDirectory = ""
 	original.GitAlternateObjectDirectories = nil
 	return original
@@ -588,7 +588,7 @@ func (txn *Transaction) SnapshotLSN() storage.LSN {
 
 // Root returns the path to the read snapshot.
 func (txn *Transaction) Root() string {
-	return txn.snapshot.Root
+	return txn.snapshot.Root()
 }
 
 // SkipVerificationFailures configures the transaction to skip reference updates that fail verification.
@@ -1152,7 +1152,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 		}
 
 		if err := transaction.walEntry.RecordRepositoryCreation(
-			transaction.snapshot.Root,
+			transaction.snapshot.Root(),
 			transaction.relativePath,
 		); err != nil {
 			return fmt.Errorf("record repository creation: %w", err)
@@ -1188,7 +1188,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 			// If the transaction removed the custom hooks, we won't have anything to log. We'll ignore the
 			// ErrNotExist and stage the deletion later.
 			if err := transaction.walEntry.RecordDirectoryCreation(
-				transaction.snapshot.Root,
+				transaction.snapshot.Root(),
 				filepath.Join(transaction.relativePath, repoutil.CustomHooksDir),
 			); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("record custom hook directory: %w", err)
@@ -1210,7 +1210,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 
 		if transaction.defaultBranchUpdated {
 			if err := transaction.walEntry.RecordFileUpdate(
-				transaction.snapshot.Root,
+				transaction.snapshot.Root(),
 				filepath.Join(transaction.relativePath, "HEAD"),
 			); err != nil {
 				return fmt.Errorf("record HEAD update: %w", err)
@@ -2725,7 +2725,7 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 	for _, referenceTransaction := range referenceTransactions {
 		if err := tx.walEntry.RecordReferenceUpdates(ctx,
 			mgr.storagePath,
-			tx.stagingSnapshot.Prefix,
+			tx.stagingSnapshot.Prefix(),
 			tx.relativePath,
 			referenceTransaction,
 			objectHash,

@@ -14,32 +14,48 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 )
 
-// Snapshot represents a snapshot of a partition's state at a given time.
-type Snapshot struct {
-	// Root is the absolute path of the snapshot.
-	Root string
-	// Prefix is the snapshot root relative to the storage root.
-	Prefix string
+// snapshot is a snapshot of a file system's state.
+type snapshot struct {
+	// root is the absolute path of the snapshot.
+	root string
+	// prefix is the snapshot root relative to the storage root.
+	prefix string
+}
+
+// Root returns the root of the snapshot's file system.
+func (s *snapshot) Root() string {
+	return s.root
+}
+
+// Prefix returns the prefix of the snapshot within the original root file system.
+func (s *snapshot) Prefix() string {
+	return s.prefix
 }
 
 // RelativePath returns the given relative path rewritten to point to the relative
 // path in the snapshot.
-func (s Snapshot) RelativePath(relativePath string) string {
-	return filepath.Join(s.Prefix, relativePath)
+func (s *snapshot) RelativePath(relativePath string) string {
+	return filepath.Join(s.prefix, relativePath)
 }
 
-// NewSnapshot creates a snapshot of the given relative paths and their alternates under snapshotPath.
-func NewSnapshot(ctx context.Context, storagePath, snapshotPath string, relativePaths []string) (Snapshot, error) {
-	snapshotPrefix, err := filepath.Rel(storagePath, snapshotPath)
+// NewSnapshot creates a new file system snapshot of the given root directory. The snapshot is created by copying
+// the directory hierarchy and hard linking the files in place. The copied directory hierarchy is placed
+// at destinationPath. Only files within Git directories are included in the snapshot. The provided relative
+// paths are used to select the Git repositories that are included.
+//
+// destinationPath must be a subdirectory within roothPath. The prefix of the snapshot within the root file system
+// can be retrieved by calling Prefix.
+func NewSnapshot(ctx context.Context, rootPath, destinationPath string, relativePaths []string) (FileSystem, error) {
+	snapshotPrefix, err := filepath.Rel(rootPath, destinationPath)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("rel snapshot prefix: %w", err)
+		return nil, fmt.Errorf("rel snapshot prefix: %w", err)
 	}
 
-	if err := createRepositorySnapshots(ctx, storagePath, snapshotPrefix, relativePaths); err != nil {
-		return Snapshot{}, fmt.Errorf("create repository snapshots: %w", err)
+	if err := createRepositorySnapshots(ctx, rootPath, snapshotPrefix, relativePaths); err != nil {
+		return nil, fmt.Errorf("create repository snapshots: %w", err)
 	}
 
-	return Snapshot{Root: snapshotPath, Prefix: snapshotPrefix}, nil
+	return &snapshot{root: destinationPath, prefix: snapshotPrefix}, nil
 }
 
 // createRepositorySnapshots creates a snapshot of the partition containing all repositories at the given relative paths
