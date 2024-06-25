@@ -533,6 +533,115 @@ func TestDiffBlobs(t *testing.T) {
 				}
 			},
 		},
+		{
+			desc: "null left blob ID",
+			setup: func() setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				blobID1 := gittest.DefaultObjectHash.ZeroOID
+				blobID2 := gittest.WriteBlob(t, cfg, repoPath, []byte("bar\n"))
+
+				return setupData{
+					request: &gitalypb.DiffBlobsRequest{
+						Repository: repoProto,
+						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
+							{
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
+							},
+						},
+					},
+					expectedResponses: []*gitalypb.DiffBlobsResponse{
+						{
+							LeftBlobId:  blobID1.String(),
+							RightBlobId: blobID2.String(),
+							Patch:       []byte("@@ -0,0 +1 @@\n+bar\n"),
+							Status:      gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
+						},
+					},
+				}
+			},
+		},
+		{
+			desc: "null right blob ID",
+			setup: func() setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				blobID1 := gittest.WriteBlob(t, cfg, repoPath, []byte("foo\n"))
+				blobID2 := gittest.DefaultObjectHash.ZeroOID
+
+				return setupData{
+					request: &gitalypb.DiffBlobsRequest{
+						Repository: repoProto,
+						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
+							{
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
+							},
+						},
+					},
+					expectedResponses: []*gitalypb.DiffBlobsResponse{
+						{
+							LeftBlobId:  blobID1.String(),
+							RightBlobId: blobID2.String(),
+							Patch:       []byte("@@ -1 +0,0 @@\n-foo\n"),
+							Status:      gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
+						},
+					},
+				}
+			},
+		},
+		{
+			desc: "null left and right blob ID",
+			setup: func() setupData {
+				repoProto, _ := gittest.CreateRepository(t, ctx, cfg)
+
+				blobID1 := gittest.DefaultObjectHash.ZeroOID
+				blobID2 := gittest.DefaultObjectHash.ZeroOID
+
+				return setupData{
+					request: &gitalypb.DiffBlobsRequest{
+						Repository: repoProto,
+						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
+							{
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
+							},
+						},
+					},
+					expectedErr: structerr.NewInvalidArgument("left and right blob cannot both be null OIDs"),
+				}
+			},
+		},
+		{
+			desc: "empty blob",
+			setup: func() setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				blobID1 := gittest.WriteBlob(t, cfg, repoPath, []byte(""))
+				blobID2 := gittest.WriteBlob(t, cfg, repoPath, []byte("bar\n"))
+
+				return setupData{
+					request: &gitalypb.DiffBlobsRequest{
+						Repository: repoProto,
+						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
+							{
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
+							},
+						},
+					},
+					expectedResponses: []*gitalypb.DiffBlobsResponse{
+						{
+							LeftBlobId:  blobID1.String(),
+							RightBlobId: blobID2.String(),
+							Patch:       []byte("@@ -0,0 +1 @@\n+bar\n"),
+							Status:      gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
+						},
+					},
+				}
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
