@@ -11,6 +11,7 @@ import (
 	housekeepingcfg "gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/gitstorage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
@@ -533,7 +534,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				},
 				Commit{
 					TransactionID: 3,
-					ExpectedError: errMultipleAlternates,
+					ExpectedError: gitstorage.ErrMultipleAlternates,
 				},
 			},
 			expectedState: StateAssertion{
@@ -600,7 +601,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 					UpdateAlternate: &alternateUpdate{
 						content: "../../alternate-1/objects\n../../alternate-2/objects\n",
 					},
-					ExpectedError: errMultipleAlternates,
+					ExpectedError: gitstorage.ErrMultipleAlternates,
 				},
 			},
 			expectedState: StateAssertion{
@@ -859,7 +860,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				Commit{
 					TransactionID:   2,
 					UpdateAlternate: &alternateUpdate{},
-					ExpectedError:   errNoAlternate,
+					ExpectedError:   gitstorage.ErrNoAlternate,
 				},
 			},
 			expectedState: StateAssertion{
@@ -919,7 +920,7 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 				Commit{
 					TransactionID:   4,
 					UpdateAlternate: &alternateUpdate{},
-					ExpectedError:   errNoAlternate,
+					ExpectedError:   gitstorage.ErrNoAlternate,
 				},
 			},
 			expectedState: StateAssertion{
