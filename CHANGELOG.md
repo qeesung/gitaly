@@ -10,6 +10,10 @@ No changes.
 
 - [Don't retain write buffer when chunking responses](gitlab-org/gitaly@cb83b8d4133ceff869685b8dbd4badbcddfa580a) ([merge request](gitlab-org/gitaly!6990))
 
+## 17.0.3 (2024-06-25)
+
+No changes.
+
 ## 17.0.2 (2024-06-11)
 
 No changes.
