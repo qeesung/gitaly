@@ -1,4 +1,4 @@
-package storagemgr
+package snapshot
 
 import (
 	"context"

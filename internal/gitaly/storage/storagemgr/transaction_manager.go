@@ -28,6 +28,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/gitstorage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr/snapshot"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/wal"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -267,7 +268,7 @@ type Transaction struct {
 	snapshotLSN storage.LSN
 	// snapshot is the transaction's snapshot of the partition file system state. It's used to rewrite
 	// relative paths to point to the snapshot instead of the actual repositories.
-	snapshot Snapshot
+	snapshot snapshot.Snapshot
 	// db is the transaction's snapshot of the partition's key-value state. The keyvalue.Transaction is
 	// discarded when the transaction finishes. The recorded writes are write-ahead logged and applied
 	// to the partition from the WAL.
@@ -283,7 +284,7 @@ type Transaction struct {
 	stagingRepository *localrepo.Repo
 	// stagingSnapshot is the snapshot used for staging the transaction, and where the staging repository
 	// exists.
-	stagingSnapshot Snapshot
+	stagingSnapshot snapshot.Snapshot
 
 	// walEntry is the log entry where the transaction stages its state for committing.
 	walEntry                 *wal.Entry
@@ -423,7 +424,7 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		if txn.repositoryTarget() {
 			snapshottedRelativePaths = append(snapshottedRelativePaths, txn.relativePath)
 		}
-		if txn.snapshot, err = NewSnapshot(ctx,
+		if txn.snapshot, err = snapshot.NewSnapshot(ctx,
 			mgr.storagePath,
 			filepath.Join(txn.stagingDirectory, "snapshot"),
 			snapshottedRelativePaths,
@@ -1385,7 +1386,7 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		relativePaths = append(relativePaths, alternateRelativePath)
 	}
 
-	snapshot, err := NewSnapshot(ctx,
+	snapshot, err := snapshot.NewSnapshot(ctx,
 		mgr.storagePath,
 		filepath.Join(transaction.stagingDirectory, "staging-snapshot"),
 		relativePaths,
@@ -2941,7 +2942,7 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 
 	// Setup a working repository of the destination repository and all changes of current transactions. All
 	// concurrent changes must land in that repository already.
-	snapshot, err := NewSnapshot(ctx,
+	snapshot, err := snapshot.NewSnapshot(ctx,
 		mgr.storagePath,
 		filepath.Join(transaction.stagingDirectory, "staging"),
 		[]string{transaction.relativePath},
