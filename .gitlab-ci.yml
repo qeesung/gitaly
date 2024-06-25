@@ -295,7 +295,7 @@ test:reftable:
     <<: *test_variables
     GITALY_TEST_ENABLE_SYMREF_UPDATE: "true"
     OVERRIDE_GIT_VERSION: "v99.99.99"
-    GIT_VERSION: "261-support-transactional-symbolic-reference-updates"
+    GIT_VERSION: "master"
     TEST_TARGET: test-with-reftable
 
 test:nightly:

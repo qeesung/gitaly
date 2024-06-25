@@ -377,6 +377,9 @@ bench: ${BENCHMARK_REPO} prepare-tests
 
 .PHONY: test-with-reftable
 ## Run Go tests with git's reftable backend.
+## Since the reftable code isn't tagged in Git yet, to run it locally
+## we have to specify the git version too:
+## 'GIT_DEFAULT_REF_FORMAT=reftable OVERRIDE_GIT_VERSION="v99.99.99" GIT_VERSION="master" make test-go'
 test-with-reftable: export GIT_DEFAULT_REF_FORMAT = reftable
 test-with-reftable: test-go
 
