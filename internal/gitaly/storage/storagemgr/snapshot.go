@@ -14,32 +14,32 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 )
 
-// snapshot represents a snapshot of a partition's state at a given time.
-type snapshot struct {
-	// root is the absolute path of the snapshot.
-	root string
-	// prefix is the snapshot root relative to the storage root.
-	prefix string
+// Snapshot represents a snapshot of a partition's state at a given time.
+type Snapshot struct {
+	// Root is the absolute path of the snapshot.
+	Root string
+	// Prefix is the snapshot root relative to the storage root.
+	Prefix string
 }
 
-// relativePath returns the given relative path rewritten to point to the relative
+// RelativePath returns the given relative path rewritten to point to the relative
 // path in the snapshot.
-func (s snapshot) relativePath(relativePath string) string {
-	return filepath.Join(s.prefix, relativePath)
+func (s Snapshot) RelativePath(relativePath string) string {
+	return filepath.Join(s.Prefix, relativePath)
 }
 
-// newSnapshot creates a snapshot of the given relative paths and their alternates under snapshotPath.
-func newSnapshot(ctx context.Context, storagePath, snapshotPath string, relativePaths []string) (snapshot, error) {
+// NewSnapshot creates a snapshot of the given relative paths and their alternates under snapshotPath.
+func NewSnapshot(ctx context.Context, storagePath, snapshotPath string, relativePaths []string) (Snapshot, error) {
 	snapshotPrefix, err := filepath.Rel(storagePath, snapshotPath)
 	if err != nil {
-		return snapshot{}, fmt.Errorf("rel snapshot prefix: %w", err)
+		return Snapshot{}, fmt.Errorf("rel snapshot prefix: %w", err)
 	}
 
 	if err := createRepositorySnapshots(ctx, storagePath, snapshotPrefix, relativePaths); err != nil {
-		return snapshot{}, fmt.Errorf("create repository snapshots: %w", err)
+		return Snapshot{}, fmt.Errorf("create repository snapshots: %w", err)
 	}
 
-	return snapshot{root: snapshotPath, prefix: snapshotPrefix}, nil
+	return Snapshot{Root: snapshotPath, Prefix: snapshotPrefix}, nil
 }
 
 // createRepositorySnapshots creates a snapshot of the partition containing all repositories at the given relative paths
