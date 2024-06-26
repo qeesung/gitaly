@@ -392,13 +392,26 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 			}
 		}()
 
-		if txn.stagingDirectory != "" {
-			if err := os.RemoveAll(txn.stagingDirectory); err != nil {
-				return fmt.Errorf("remove staging directory: %w", err)
+		var cleanupErr error
+		if txn.snapshot != nil {
+			if err := txn.snapshot.Close(); err != nil {
+				cleanupErr = errors.Join(cleanupErr, fmt.Errorf("close snapshot: %w", err))
 			}
 		}
 
-		return nil
+		if txn.stagingSnapshot != nil {
+			if err := txn.stagingSnapshot.Close(); err != nil {
+				cleanupErr = errors.Join(cleanupErr, fmt.Errorf("close staging snapshot: %w", err))
+			}
+		}
+
+		if txn.stagingDirectory != "" {
+			if err := os.RemoveAll(txn.stagingDirectory); err != nil {
+				cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove staging directory: %w", err))
+			}
+		}
+
+		return cleanupErr
 	}
 
 	defer func() {
@@ -424,12 +437,12 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		if txn.repositoryTarget() {
 			snapshottedRelativePaths = append(snapshottedRelativePaths, txn.relativePath)
 		}
-		if txn.snapshot, err = snapshot.NewSnapshot(ctx,
-			mgr.storagePath,
-			filepath.Join(txn.stagingDirectory, "snapshot"),
+
+		if txn.snapshot, err = mgr.snapshotManager.GetSnapshot(ctx,
 			snapshottedRelativePaths,
+			true,
 		); err != nil {
-			return nil, fmt.Errorf("new snapshot: %w", err)
+			return nil, fmt.Errorf("get snapshot: %w", err)
 		}
 
 		if txn.repositoryTarget() {
@@ -995,6 +1008,8 @@ type TransactionManager struct {
 	// snapshotLocks contains state used for synchronizing snapshotters with the log application. The
 	// lock is released after the corresponding log entry is applied.
 	snapshotLocks map[storage.LSN]*snapshotLock
+	// snapshotManager is responsible for creation and management of file system snapshots.
+	snapshotManager *snapshot.Manager
 
 	// appendedLSN holds the LSN of the last log entry appended to the partition's write-ahead log.
 	appendedLSN storage.LSN
@@ -1386,11 +1401,8 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		relativePaths = append(relativePaths, alternateRelativePath)
 	}
 
-	snapshot, err := snapshot.NewSnapshot(ctx,
-		mgr.storagePath,
-		filepath.Join(transaction.stagingDirectory, "staging-snapshot"),
-		relativePaths,
-	)
+	var err error
+	transaction.stagingSnapshot, err = mgr.snapshotManager.GetSnapshot(ctx, relativePaths, true)
 	if err != nil {
 		return fmt.Errorf("new snapshot: %w", err)
 	}
@@ -1403,7 +1415,7 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		// repository to ensure they'll apply when the log entry creates the repository. After the
 		// transaction is logged, the staging repository is removed, and the actual repository will be
 		// created when the log entry is applied.
-		if err := mgr.createRepository(ctx, mgr.getAbsolutePath(snapshot.RelativePath(transaction.relativePath)), transaction.repositoryCreation.objectHash.ProtoFormat); err != nil {
+		if err := mgr.createRepository(ctx, mgr.getAbsolutePath(transaction.stagingSnapshot.RelativePath(transaction.relativePath)), transaction.repositoryCreation.objectHash.ProtoFormat); err != nil {
 			return fmt.Errorf("create staging repository: %w", err)
 		}
 	}
@@ -1418,7 +1430,7 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		}
 
 		if err := os.WriteFile(
-			stats.AlternatesFilePath(mgr.getAbsolutePath(snapshot.RelativePath(transaction.relativePath))),
+			stats.AlternatesFilePath(mgr.getAbsolutePath(transaction.stagingSnapshot.RelativePath(transaction.relativePath))),
 			[]byte(alternatesContent),
 			perm.PrivateFile,
 		); err != nil {
@@ -1426,8 +1438,7 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		}
 	}
 
-	transaction.stagingSnapshot = snapshot
-	transaction.stagingRepository = mgr.repositoryFactory.Build(snapshot.RelativePath(transaction.relativePath))
+	transaction.stagingRepository = mgr.repositoryFactory.Build(transaction.stagingSnapshot.RelativePath(transaction.relativePath))
 
 	return nil
 }
@@ -2312,6 +2323,11 @@ func (mgr *TransactionManager) isClosing() bool {
 	}
 }
 
+// snapshotsDir returns the directory where the transactions' snapshots are stored.
+func (mgr *TransactionManager) snapshotsDir() string {
+	return filepath.Join(mgr.stagingDirectory, "snapshots")
+}
+
 // initialize initializes the TransactionManager's state from the database. It loads the appended and the applied
 // LSNs and initializes the notification channels that synchronize transaction beginning with log entry applying.
 func (mgr *TransactionManager) initialize(ctx context.Context) error {
@@ -2327,6 +2343,12 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	if err := mgr.createStateDirectory(); err != nil {
 		return fmt.Errorf("create state directory: %w", err)
 	}
+
+	if err := os.Mkdir(mgr.snapshotsDir(), perm.PrivateDir); err != nil {
+		return fmt.Errorf("create snapshot manager directory: %w", err)
+	}
+
+	mgr.snapshotManager = snapshot.NewManager(mgr.storagePath, mgr.snapshotsDir())
 
 	// The LSN of the last appended log entry is determined from the LSN of the latest entry in the log and
 	// the latest applied log entry. The manager also keeps track of committed entries and reserves them until there
@@ -2918,7 +2940,7 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 //
 // As we don't have a list of pruned objects at hand, the conflicts are identified by checking whether the recorded
 // dependencies of a transaction would still exist in the repository after applying the pruning operation.
-func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction *Transaction) (_ *gitalypb.LogEntry_Housekeeping_Repack, finalErr error) {
+func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction *Transaction) (_ *gitalypb.LogEntry_Housekeeping_Repack, returnedErr error) {
 	repack := transaction.runHousekeeping.repack
 	if repack == nil {
 		return nil, nil
@@ -2942,14 +2964,15 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 
 	// Setup a working repository of the destination repository and all changes of current transactions. All
 	// concurrent changes must land in that repository already.
-	snapshot, err := snapshot.NewSnapshot(ctx,
-		mgr.storagePath,
-		filepath.Join(transaction.stagingDirectory, "staging"),
-		[]string{transaction.relativePath},
-	)
+	snapshot, err := mgr.snapshotManager.GetSnapshot(ctx, []string{transaction.relativePath}, true)
 	if err != nil {
 		return nil, fmt.Errorf("setting up new snapshot for verifying repacking: %w", err)
 	}
+	defer func() {
+		if err := snapshot.Close(); err != nil {
+			returnedErr = errors.Join(returnedErr, fmt.Errorf("close snapshot: %w", err))
+		}
+	}()
 
 	workingRepository := mgr.repositoryFactory.Build(snapshot.RelativePath(transaction.relativePath))
 	workingRepositoryPath, err := workingRepository.Path()
@@ -3158,6 +3181,7 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn storage.LS
 	}
 
 	mgr.appliedLSN = lsn
+	mgr.snapshotManager.SetLSN(lsn)
 
 	// There is no awaiter for a transaction if the transaction manager is recovering
 	// transactions from the log after starting up.

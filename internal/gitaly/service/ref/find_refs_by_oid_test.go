@@ -162,7 +162,7 @@ func TestFindRefsByOID_failure(t *testing.T) {
 					}, func(actual error) {
 						if testhelper.IsWALEnabled() {
 							testhelper.RequireGrpcError(t,
-								status.Error(codes.Internal, "begin transaction: new snapshot: create repository snapshots: validate git directory: invalid git directory"),
+								status.Error(codes.Internal, "begin transaction: get snapshot: new shared snapshot: create repository snapshots: validate git directory: invalid git directory"),
 								actual,
 							)
 

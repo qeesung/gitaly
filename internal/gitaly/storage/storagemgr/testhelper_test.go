@@ -1033,7 +1033,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			if err == nil {
 				require.Equalf(t, step.ExpectedSnapshotLSN, transaction.SnapshotLSN(), "mismatched ExpectedSnapshotLSN")
 				require.NotEmpty(t, transaction.Root(), "empty Root")
-				require.Contains(t, transaction.Root(), transaction.stagingDirectory)
+				require.Contains(t, transaction.Root(), transactionManager.snapshotsDir())
 			}
 
 			if step.ReadOnly {
@@ -1422,9 +1422,19 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 	testhelper.RequireDirectoryState(t, stateDir, "", expectedDirectory)
 
-	entries, err := os.ReadDir(stagingDir)
-	require.NoError(t, err)
-	require.Empty(t, entries, "staging directory was not cleaned up")
+	expectedStagingDirState := testhelper.DirectoryState{
+		"/": {Mode: fs.ModeDir | perm.PrivateDir},
+	}
+
+	// Snapshots directory may not exist if the manager failed to initialize. Check if it exists, and if so,
+	// ensure that it is empty.
+	if _, err := os.Stat(transactionManager.snapshotsDir()); err == nil {
+		expectedStagingDirState["/snapshots"] = testhelper.DirectoryEntry{Mode: fs.ModeDir | perm.PrivateDir}
+	} else {
+		require.ErrorIs(t, err, fs.ErrNotExist)
+	}
+
+	testhelper.RequireDirectoryState(t, transactionManager.stagingDirectory, "", expectedStagingDirState)
 }
 
 func checkManagerError(t *testing.T, ctx context.Context, managerErrChannel chan error, mgr *TransactionManager) (bool, error) {

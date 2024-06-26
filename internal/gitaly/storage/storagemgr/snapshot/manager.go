@@ -200,7 +200,7 @@ func (mgr *Manager) GetSnapshot(ctx context.Context, relativePaths []string, exc
 }
 
 func (mgr *Manager) newSnapshot(ctx context.Context, relativePaths []string) (FileSystem, error) {
-	return NewSnapshot(ctx,
+	return newSnapshot(ctx,
 		mgr.storageDir,
 		filepath.Join(mgr.workingDir, strconv.FormatUint(mgr.nextDirectory.Add(1), 36)),
 		relativePaths,

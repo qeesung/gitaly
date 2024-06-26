@@ -47,14 +47,14 @@ func (s *snapshot) Close() error {
 	return nil
 }
 
-// NewSnapshot creates a new file system snapshot of the given root directory. The snapshot is created by copying
+// newSnapshot creates a new file system snapshot of the given root directory. The snapshot is created by copying
 // the directory hierarchy and hard linking the files in place. The copied directory hierarchy is placed
 // at destinationPath. Only files within Git directories are included in the snapshot. The provided relative
 // paths are used to select the Git repositories that are included.
 //
 // destinationPath must be a subdirectory within roothPath. The prefix of the snapshot within the root file system
 // can be retrieved by calling Prefix.
-func NewSnapshot(ctx context.Context, rootPath, destinationPath string, relativePaths []string) (_ FileSystem, returnedErr error) {
+func newSnapshot(ctx context.Context, rootPath, destinationPath string, relativePaths []string) (_ FileSystem, returnedErr error) {
 	snapshotPrefix, err := filepath.Rel(rootPath, destinationPath)
 	if err != nil {
 		return nil, fmt.Errorf("rel snapshot prefix: %w", err)
