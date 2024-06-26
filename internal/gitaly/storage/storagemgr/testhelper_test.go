@@ -947,7 +947,10 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 	newMetrics := func() transactionManagerMetrics {
 		m := newMetrics(setup.Config.Prometheus)
-		return newTransactionManagerMetrics(m.housekeeping)
+		return newTransactionManagerMetrics(
+			m.housekeeping,
+			m.snapshot.Scope(storageName),
+		)
 	}
 
 	var (

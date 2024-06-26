@@ -278,6 +278,7 @@ func NewPartitionManager(
 			storageMgr.repoFactory,
 			newTransactionManagerMetrics(
 				metrics.housekeeping,
+				metrics.snapshot.Scope(storageMgr.name),
 			),
 			logConsumer,
 		)
