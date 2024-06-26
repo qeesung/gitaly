@@ -194,7 +194,7 @@ func (mgr *Manager) newSnapshot(ctx context.Context, relativePaths []string) (_ 
 		}
 	}()
 
-	return New(ctx,
+	return newSnapshot(ctx,
 		mgr.storageDir,
 		destinationPath,
 		relativePaths,
