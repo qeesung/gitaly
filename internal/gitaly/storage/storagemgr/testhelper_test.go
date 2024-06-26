@@ -945,11 +945,16 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 	stagingDir := filepath.Join(storagePath, "staging")
 	require.NoError(t, os.Mkdir(stagingDir, perm.PrivateDir))
 
+	newMetrics := func() transactionManagerMetrics {
+		m := newMetrics(setup.Config.Prometheus)
+		return newTransactionManagerMetrics(m.housekeeping)
+	}
+
 	var (
 		// managerRunning tracks whether the manager is running or closed.
 		managerRunning bool
 		// transactionManager is the current TransactionManager instance.
-		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storageName, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
+		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storageName, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(), setup.Consumer)
 		// managerErr is used for synchronizing manager closing and returning
 		// the error from Run.
 		managerErr chan error
@@ -996,7 +1001,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.NoError(t, os.RemoveAll(stagingDir))
 			require.NoError(t, os.Mkdir(stagingDir, perm.PrivateDir))
 
-			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, setup.Config.Storages[0].Name, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
+			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, setup.Config.Storages[0].Name, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(), setup.Consumer)
 			installHooks(transactionManager, &inflightTransactions, step.Hooks)
 
 			go func() {
@@ -1330,7 +1335,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			step(t, ctx, transactionManager)
 		case AssertMetrics:
 			reg := prometheus.NewPedanticRegistry()
-			err := reg.Register(transactionManager.metrics)
+			err := reg.Register(transactionManager.metrics.housekeeping)
 			require.NoError(t, err)
 			promMetrics, err := reg.Gather()
 			require.NoError(t, err)

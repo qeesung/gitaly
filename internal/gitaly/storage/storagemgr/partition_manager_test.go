@@ -399,7 +399,9 @@ func TestPartitionManager(t *testing.T) {
 								stagingDir,
 								commandFactory,
 								storageMgr.repoFactory,
-								nil,
+								newTransactionManagerMetrics(
+									newMetrics(cfg.Prometheus).housekeeping,
+								),
 								nil,
 							),
 						}
@@ -447,7 +449,9 @@ func TestPartitionManager(t *testing.T) {
 							stagingDir,
 							commandFactory,
 							storageMgr.repoFactory,
-							nil,
+							newTransactionManagerMetrics(
+								newMetrics(cfg.Prometheus).housekeeping,
+							),
 							nil,
 						)
 
