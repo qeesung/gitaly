@@ -1882,9 +1882,11 @@ func BenchmarkTransactionManager(b *testing.B) {
 				stagingDir := filepath.Join(storagePath, "staging", strconv.Itoa(i))
 				require.NoError(b, os.MkdirAll(stagingDir, perm.PrivateDir))
 
+				m := newMetrics(cfg.Prometheus)
+
 				// Valid partition IDs are >=1.
 				testPartitionID := storage.PartitionID(i + 1)
-				manager := NewTransactionManager(testPartitionID, logger, database, storageName, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory, nil, nil)
+				manager := NewTransactionManager(testPartitionID, logger, database, storageName, storagePath, stateDir, stagingDir, cmdFactory, repositoryFactory, newTransactionManagerMetrics(m.housekeeping, m.snapshot.Scope(storageName)), nil)
 
 				managers = append(managers, manager)
 

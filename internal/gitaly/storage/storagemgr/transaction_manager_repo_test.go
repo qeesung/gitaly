@@ -150,6 +150,7 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 				Begin{
 					TransactionID:       2,
 					RelativePath:        setup.RelativePath,
+					ReadOnly:            true,
 					ExpectedSnapshotLSN: 1,
 				},
 				Begin{
@@ -205,8 +206,35 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 						},
 					},
 				},
+				Begin{
+					TransactionID:       5,
+					RelativePath:        setup.RelativePath,
+					ReadOnly:            true,
+					ExpectedSnapshotLSN: 3,
+				},
+				RepositoryAssertion{
+					TransactionID: 5,
+					Repositories: RepositoryStates{
+						setup.RelativePath: {
+							DefaultBranch: "refs/heads/other",
+							References: &ReferencesState{
+								LooseReferences: map[git.ReferenceName]git.ObjectID{
+									"refs/heads/other": setup.Commits.Second.OID,
+								},
+							},
+							Objects: []git.ObjectID{
+								setup.ObjectHash.EmptyTreeOID,
+								setup.Commits.First.OID,
+								setup.Commits.Second.OID,
+							},
+						},
+					},
+				},
 				Rollback{
 					TransactionID: 2,
+				},
+				Rollback{
+					TransactionID: 5,
 				},
 			},
 			expectedState: StateAssertion{

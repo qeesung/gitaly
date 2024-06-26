@@ -388,6 +388,7 @@ func TestPartitionManager(t *testing.T) {
 						commandFactory git.CommandFactory,
 						absoluteStateDir, stagingDir string,
 					) transactionManager {
+						metrics := newMetrics(cfg.Prometheus)
 						return stoppedTransactionManager{
 							transactionManager: NewTransactionManager(
 								testPartitionID,
@@ -399,7 +400,10 @@ func TestPartitionManager(t *testing.T) {
 								stagingDir,
 								commandFactory,
 								storageMgr.repoFactory,
-								nil,
+								newTransactionManagerMetrics(
+									metrics.housekeeping,
+									metrics.snapshot.Scope(storageMgr.name),
+								),
 								nil,
 							),
 						}
@@ -437,6 +441,7 @@ func TestPartitionManager(t *testing.T) {
 						commandFactory git.CommandFactory,
 						absoluteStateDir, stagingDir string,
 					) transactionManager {
+						metrics := newMetrics(cfg.Prometheus)
 						txMgr := NewTransactionManager(
 							testPartitionID,
 							logger,
@@ -447,7 +452,10 @@ func TestPartitionManager(t *testing.T) {
 							stagingDir,
 							commandFactory,
 							storageMgr.repoFactory,
-							nil,
+							newTransactionManagerMetrics(
+								metrics.housekeeping,
+								metrics.snapshot.Scope(storageMgr.name),
+							),
 							nil,
 						)
 

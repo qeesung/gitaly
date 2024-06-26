@@ -945,11 +945,19 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 	stagingDir := filepath.Join(storagePath, "staging")
 	require.NoError(t, os.Mkdir(stagingDir, perm.PrivateDir))
 
+	newMetrics := func() transactionManagerMetrics {
+		m := newMetrics(setup.Config.Prometheus)
+		return newTransactionManagerMetrics(
+			m.housekeeping,
+			m.snapshot.Scope(storageName),
+		)
+	}
+
 	var (
 		// managerRunning tracks whether the manager is running or closed.
 		managerRunning bool
 		// transactionManager is the current TransactionManager instance.
-		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storageName, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
+		transactionManager = NewTransactionManager(setup.PartitionID, logger, database, storageName, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(), setup.Consumer)
 		// managerErr is used for synchronizing manager closing and returning
 		// the error from Run.
 		managerErr chan error
@@ -996,7 +1004,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			require.NoError(t, os.RemoveAll(stagingDir))
 			require.NoError(t, os.Mkdir(stagingDir, perm.PrivateDir))
 
-			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, setup.Config.Storages[0].Name, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(setup.Config.Prometheus), setup.Consumer)
+			transactionManager = NewTransactionManager(setup.PartitionID, logger, database, setup.Config.Storages[0].Name, storagePath, stateDir, stagingDir, setup.CommandFactory, storageScopedFactory, newMetrics(), setup.Consumer)
 			installHooks(transactionManager, &inflightTransactions, step.Hooks)
 
 			go func() {
@@ -1033,7 +1041,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			if err == nil {
 				require.Equalf(t, step.ExpectedSnapshotLSN, transaction.SnapshotLSN(), "mismatched ExpectedSnapshotLSN")
 				require.NotEmpty(t, transaction.Root(), "empty Root")
-				require.Contains(t, transaction.Root(), transaction.stagingDirectory)
+				require.Contains(t, transaction.Root(), transactionManager.snapshotsDir())
 			}
 
 			if step.ReadOnly {
@@ -1316,7 +1324,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 			RequireRepositories(t, ctx, setup.Config,
 				// Assert the contents of the transaction's snapshot.
-				filepath.Join(setup.Config.Storages[0].Path, transaction.snapshot.prefix),
+				filepath.Join(setup.Config.Storages[0].Path, transaction.snapshot.Prefix()),
 				// Rewrite all of the repositories to point to their snapshots.
 				func(relativePath string) *localrepo.Repo {
 					return setup.RepositoryFactory.Build(
@@ -1330,7 +1338,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			step(t, ctx, transactionManager)
 		case AssertMetrics:
 			reg := prometheus.NewPedanticRegistry()
-			err := reg.Register(transactionManager.metrics)
+			err := reg.Register(transactionManager.metrics.housekeeping)
 			require.NoError(t, err)
 			promMetrics, err := reg.Gather()
 			require.NoError(t, err)
@@ -1422,9 +1430,19 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 	testhelper.RequireDirectoryState(t, stateDir, "", expectedDirectory)
 
-	entries, err := os.ReadDir(stagingDir)
-	require.NoError(t, err)
-	require.Empty(t, entries, "staging directory was not cleaned up")
+	expectedStagingDirState := testhelper.DirectoryState{
+		"/": {Mode: fs.ModeDir | perm.PrivateDir},
+	}
+
+	// Snapshots directory may not exist if the manager failed to initialize. Check if it exists, and if so,
+	// ensure that it is empty.
+	if _, err := os.Stat(transactionManager.snapshotsDir()); err == nil {
+		expectedStagingDirState["/snapshots"] = testhelper.DirectoryEntry{Mode: fs.ModeDir | perm.PrivateDir}
+	} else {
+		require.ErrorIs(t, err, fs.ErrNotExist)
+	}
+
+	testhelper.RequireDirectoryState(t, transactionManager.stagingDirectory, "", expectedStagingDirState)
 }
 
 func checkManagerError(t *testing.T, ctx context.Context, managerErrChannel chan error, mgr *TransactionManager) (bool, error) {
