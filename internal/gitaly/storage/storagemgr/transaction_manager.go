@@ -211,6 +211,10 @@ const (
 	transactionStateCommit
 )
 
+type transactionMetrics struct {
+	housekeeping *housekeeping.Metrics
+}
+
 // Transaction is a unit-of-work that contains reference changes to perform on the repository.
 type Transaction struct {
 	// readOnly denotes whether or not this transaction is read-only.
@@ -218,7 +222,7 @@ type Transaction struct {
 	// repositoryExists indicates whether the target repository existed when this transaction began.
 	repositoryExists bool
 	// metrics stores metric reporters inherited from the manager.
-	metrics *metrics
+	metrics transactionMetrics
 
 	// state records whether the transaction is still open. Transaction is open until either Commit()
 	// or Rollback() is called on it.
@@ -345,7 +349,7 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		snapshotLSN:  mgr.appendedLSN,
 		finished:     make(chan struct{}),
 		relativePath: relativePath,
-		metrics:      mgr.metrics,
+		metrics:      transactionMetrics{housekeeping: mgr.metrics.housekeeping},
 	}
 
 	mgr.snapshotLocks[txn.snapshotLSN].activeSnapshotters.Add(1)
@@ -917,6 +921,16 @@ func (p *consumerPosition) setPosition(pos storage.LSN) {
 	p.position = pos
 }
 
+type transactionManagerMetrics struct {
+	housekeeping *housekeeping.Metrics
+}
+
+func newTransactionManagerMetrics(housekeeping *housekeeping.Metrics) transactionManagerMetrics {
+	return transactionManagerMetrics{
+		housekeeping: housekeeping,
+	}
+}
+
 // TransactionManager is responsible for transaction management of a single repository. Each repository has
 // a single TransactionManager; it is the repository's single-writer. It accepts writes one at a time from
 // the admissionQueue. Each admitted write is processed in three steps:
@@ -1043,7 +1057,7 @@ type TransactionManager struct {
 	testHooks testHooks
 
 	// metrics stores reporters which facilitate metric recording of transactional operations.
-	metrics *metrics
+	metrics transactionManagerMetrics
 }
 
 type testHooks struct {
@@ -1066,7 +1080,7 @@ func NewTransactionManager(
 	stagingDir string,
 	cmdFactory git.CommandFactory,
 	repositoryFactory localrepo.StorageScopedFactory,
-	metrics *metrics,
+	metrics transactionManagerMetrics,
 	consumer LogConsumer,
 ) *TransactionManager {
 	ctx, cancel := context.WithCancel(context.Background())
