@@ -54,6 +54,8 @@ type Manager struct {
 	workingDir string
 	// currentLSN is the current LSN applied to the file system.
 	currentLSN storage.LSN
+	// metrics contains the metrics the manager gathers.
+	metrics ManagerMetrics
 
 	// mutex covers access to sharedSnapshots.
 	mutex sync.Mutex
@@ -68,11 +70,12 @@ type Manager struct {
 }
 
 // NewManager returns a new Manager that creates snapshots from storageDir into workingDir.
-func NewManager(storageDir, workingDir string) *Manager {
+func NewManager(storageDir, workingDir string, metrics ManagerMetrics) *Manager {
 	return &Manager{
 		storageDir:      storageDir,
 		workingDir:      workingDir,
 		sharedSnapshots: make(map[storage.LSN]map[string]*sharedSnapshot),
+		metrics:         metrics,
 	}
 }
 
@@ -91,6 +94,7 @@ func (mgr *Manager) SetLSN(currentLSN storage.LSN) {
 // snapshotted file system is not modified while the snapshot is taken.
 func (mgr *Manager) GetSnapshot(ctx context.Context, relativePaths []string, exclusive bool) (_ FileSystem, returnedErr error) {
 	if exclusive {
+		mgr.metrics.createdExclusiveSnapshotTotal.Inc()
 		filesystem, err := mgr.newSnapshot(ctx, relativePaths)
 		if err != nil {
 			return nil, fmt.Errorf("new exclusive snapshot: %w", err)
@@ -99,6 +103,7 @@ func (mgr *Manager) GetSnapshot(ctx context.Context, relativePaths []string, exc
 		return closeWrapper{
 			FileSystem: filesystem,
 			close: func() error {
+				mgr.metrics.destroyedExclusiveSnapshotTotal.Inc()
 				// Exclusive snapshots are not shared, so it can be removed as soon
 				// as the user finishes with it.
 				if err := filesystem.Close(); err != nil {
@@ -160,6 +165,7 @@ func (mgr *Manager) GetSnapshot(ctx context.Context, relativePaths []string, exc
 		mgr.mutex.Unlock()
 
 		if removeSnapshot {
+			mgr.metrics.destroyedSharedSnapshotTotal.Inc()
 			if err := wrapper.filesystem.Close(); err != nil {
 				return fmt.Errorf("close shared snapshot: %w", err)
 			}
@@ -177,11 +183,14 @@ func (mgr *Manager) GetSnapshot(ctx context.Context, relativePaths []string, exc
 	}()
 
 	if !ok {
+		mgr.metrics.createdSharedSnapshotTotal.Inc()
 		// If there was no existing snapshot, we need to create it.
 		wrapper.filesystem, wrapper.snapshotErr = mgr.newSnapshot(ctx, relativePaths)
 		// Other goroutines are waiting on the ready channel for us to finish the snapshotting
 		// so close it to signal the process is finished.
 		close(wrapper.ready)
+	} else {
+		mgr.metrics.reusedSharedSnapshotTotal.Inc()
 	}
 
 	select {

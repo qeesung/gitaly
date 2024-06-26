@@ -1,12 +1,15 @@
 package snapshot
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
@@ -24,9 +27,18 @@ func TestManager(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(storageDir, snapshot.RelativePath(relativePath)), nil, fs.ModePerm))
 	}
 
+	type metricValues struct {
+		createdExclusiveSnapshotCounter   uint64
+		destroyedExclusiveSnapshotCounter uint64
+		createdSharedSnapshotCounter      uint64
+		reusedSharedSnapshotCounter       uint64
+		destroyedSharedSnapshotCounter    uint64
+	}
+
 	for _, tc := range []struct {
-		desc string
-		run  func(t *testing.T, mgr *Manager)
+		desc            string
+		run             func(t *testing.T, mgr *Manager)
+		expectedMetrics metricValues
 	}{
 		{
 			desc: "exclusive snapshots are not shared",
@@ -66,6 +78,10 @@ func TestManager(t *testing.T) {
 					"/repositories/a/fs2":     {Mode: umask.Mask(fs.ModePerm), Content: []byte{}},
 				})
 			},
+			expectedMetrics: metricValues{
+				createdExclusiveSnapshotCounter:   2,
+				destroyedExclusiveSnapshotCounter: 2,
+			},
 		},
 		{
 			desc: "shared snapshots are shared",
@@ -96,6 +112,11 @@ func TestManager(t *testing.T) {
 
 				testhelper.RequireDirectoryState(t, fs1.Root(), "", expectedDirectoryState)
 				testhelper.RequireDirectoryState(t, fs2.Root(), "", expectedDirectoryState)
+			},
+			expectedMetrics: metricValues{
+				createdSharedSnapshotCounter:   1,
+				reusedSharedSnapshotCounter:    1,
+				destroyedSharedSnapshotCounter: 1,
 			},
 		},
 		{
@@ -133,6 +154,11 @@ func TestManager(t *testing.T) {
 				testhelper.RequireDirectoryState(t, fs1.Root(), "", expectedDirectoryState)
 				testhelper.RequireDirectoryState(t, fs2.Root(), "", expectedDirectoryState)
 			},
+			expectedMetrics: metricValues{
+				createdSharedSnapshotCounter:   1,
+				reusedSharedSnapshotCounter:    1,
+				destroyedSharedSnapshotCounter: 1,
+			},
 		},
 		{
 			desc: "alternate is included in snapshot",
@@ -155,6 +181,10 @@ func TestManager(t *testing.T) {
 					"/repositories/c/objects/info":            {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
 					"/repositories/c/objects/info/alternates": {Mode: umask.Mask(fs.ModePerm), Content: []byte("../../b/objects")},
 				})
+			},
+			expectedMetrics: metricValues{
+				createdSharedSnapshotCounter:   1,
+				destroyedSharedSnapshotCounter: 1,
 			},
 		},
 		{
@@ -183,6 +213,11 @@ func TestManager(t *testing.T) {
 				require.Equal(t, fs3.Root(), fs4.Root())
 				require.NotEqual(t, fs1.Root(), fs3.Root())
 			},
+			expectedMetrics: metricValues{
+				createdSharedSnapshotCounter:   2,
+				reusedSharedSnapshotCounter:    2,
+				destroyedSharedSnapshotCounter: 2,
+			},
 		},
 		{
 			desc: "shared snaphots against different relative paths are not shared",
@@ -202,6 +237,10 @@ func TestManager(t *testing.T) {
 				require.NotEqual(t, fs1.Root(), fs2.Root())
 				require.NotEqual(t, fs1.Root(), fs3.Root())
 				require.NotEqual(t, fs2.Root(), fs3.Root())
+			},
+			expectedMetrics: metricValues{
+				createdSharedSnapshotCounter:   3,
+				destroyedSharedSnapshotCounter: 3,
 			},
 		},
 		{
@@ -237,6 +276,11 @@ func TestManager(t *testing.T) {
 				// New snapshot was created as the previous snapshot was cleaned up due to
 				// the last user being done with it.
 				require.NotEqual(t, fs1.Root(), fs4.Root())
+			},
+			expectedMetrics: metricValues{
+				createdSharedSnapshotCounter:   2,
+				reusedSharedSnapshotCounter:    2,
+				destroyedSharedSnapshotCounter: 2,
 			},
 		},
 		{
@@ -294,6 +338,11 @@ func TestManager(t *testing.T) {
 
 				require.NotEqual(t, snapshotsA[0].Root(), snapshotsB[0].Root())
 			},
+			expectedMetrics: metricValues{
+				createdSharedSnapshotCounter:   2,
+				reusedSharedSnapshotCounter:    38,
+				destroyedSharedSnapshotCounter: 2,
+			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -322,9 +371,35 @@ func TestManager(t *testing.T) {
 				"repositories/c/objects/info/alternates": {Mode: fs.ModePerm, Data: []byte("../../b/objects")},
 			})
 
-			mgr := NewManager(storageDir, workingDir)
+			metrics := NewMetrics()
+
+			mgr := NewManager(storageDir, workingDir, metrics.Scope("storage-name"))
 
 			tc.run(t, mgr)
+
+			require.NoError(t, testutil.CollectAndCompare(metrics, strings.NewReader(fmt.Sprintf(`
+# HELP gitaly_exclusive_snapshots_created_total Number of created exclusive snapshots.
+# TYPE gitaly_exclusive_snapshots_created_total counter
+gitaly_exclusive_snapshots_created_total{storage="storage-name"} %d
+# HELP gitaly_exclusive_snapshots_destroyed_total Number of destroyed exclusive snapshots.
+# TYPE gitaly_exclusive_snapshots_destroyed_total counter
+gitaly_exclusive_snapshots_destroyed_total{storage="storage-name"} %d
+# HELP gitaly_shared_snapshots_created_total Number of created shared snapshots.
+# TYPE gitaly_shared_snapshots_created_total counter
+gitaly_shared_snapshots_created_total{storage="storage-name"} %d
+# HELP gitaly_shared_snapshots_reused_total Number of reused shared snapshots.
+# TYPE gitaly_shared_snapshots_reused_total counter
+gitaly_shared_snapshots_reused_total{storage="storage-name"} %d
+# HELP gitaly_shared_snapshots_destroyed_total Number of destroyed shared snapshots.
+# TYPE gitaly_shared_snapshots_destroyed_total counter
+gitaly_shared_snapshots_destroyed_total{storage="storage-name"} %d
+			`,
+				tc.expectedMetrics.createdExclusiveSnapshotCounter,
+				tc.expectedMetrics.destroyedExclusiveSnapshotCounter,
+				tc.expectedMetrics.createdSharedSnapshotCounter,
+				tc.expectedMetrics.reusedSharedSnapshotCounter,
+				tc.expectedMetrics.destroyedSharedSnapshotCounter,
+			))))
 
 			// All snapshots should have been cleaned up.
 			testhelper.RequireDirectoryState(t, workingDir, "", testhelper.DirectoryState{
