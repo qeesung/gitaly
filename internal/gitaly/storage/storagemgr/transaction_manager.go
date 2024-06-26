@@ -440,7 +440,7 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		}
 		if txn.snapshot, txn.snapshotCleanup, err = mgr.snapshotManager.GetSnapshot(ctx,
 			snapshottedRelativePaths,
-			true,
+			!txn.readOnly,
 		); err != nil {
 			return nil, fmt.Errorf("get snapshot: %w", err)
 		}
