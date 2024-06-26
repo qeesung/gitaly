@@ -923,11 +923,13 @@ func (p *consumerPosition) setPosition(pos storage.LSN) {
 
 type transactionManagerMetrics struct {
 	housekeeping *housekeeping.Metrics
+	snapshot     snapshot.ManagerMetrics
 }
 
-func newTransactionManagerMetrics(housekeeping *housekeeping.Metrics) transactionManagerMetrics {
+func newTransactionManagerMetrics(housekeeping *housekeeping.Metrics, snapshot snapshot.ManagerMetrics) transactionManagerMetrics {
 	return transactionManagerMetrics{
 		housekeeping: housekeeping,
+		snapshot:     snapshot,
 	}
 }
 
@@ -2362,8 +2364,7 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 		return fmt.Errorf("create snapshot manager directory: %w", err)
 	}
 
-	// The metrics are not not actually wired up yet.
-	mgr.snapshotManager = snapshot.NewManager(mgr.storagePath, mgr.snapshotsDir(), snapshot.NewMetrics().Scope(mgr.storageName))
+	mgr.snapshotManager = snapshot.NewManager(mgr.storagePath, mgr.snapshotsDir(), mgr.metrics.snapshot)
 
 	// The LSN of the last appended log entry is determined from the LSN of the latest entry in the log and
 	// the latest applied log entry. The manager also keeps track of committed entries and reserves them until there
