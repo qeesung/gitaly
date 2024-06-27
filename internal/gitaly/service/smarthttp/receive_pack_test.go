@@ -35,6 +35,8 @@ import (
 )
 
 func TestPostReceivePack_successful(t *testing.T) {
+	testhelper.SkipQuarantinedTest(t, "https://gitlab.com/gitlab-org/gitaly/-/issues/6169")
+
 	t.Parallel()
 
 	ctx := testhelper.Context(t)
