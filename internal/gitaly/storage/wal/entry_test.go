@@ -216,7 +216,7 @@ func TestEntry(t *testing.T) {
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
-				"/": {Mode: fs.ModeDir | perm.SharedDir},
+				"/": {Mode: fs.ModeDir | rootDirPerm},
 			},
 		},
 	} {
