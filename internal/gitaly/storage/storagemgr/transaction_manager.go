@@ -143,6 +143,10 @@ type ReferenceUpdate struct {
 	OldOID git.ObjectID
 	// NewOID is the new desired OID to point the reference to.
 	NewOID git.ObjectID
+	// OldTarget is the expected target for a symbolic reference.
+	OldTarget git.ReferenceName
+	// NewTarget stores the desired target for a symbolic reference.
+	NewTarget git.ReferenceName
 }
 
 // repositoryCreation models a repository creation in a transaction.
@@ -283,7 +287,7 @@ type Transaction struct {
 	// walEntry is the log entry where the transaction stages its state for committing.
 	walEntry                 *wal.Entry
 	skipVerificationFailures bool
-	initialReferenceValues   map[git.ReferenceName]git.ObjectID
+	initialReferenceValues   map[git.ReferenceName]git.Reference
 	referenceUpdates         []ReferenceUpdates
 	defaultBranchUpdated     bool
 	customHooksUpdated       bool
@@ -604,30 +608,37 @@ func (txn *Transaction) SkipVerificationFailures() {
 // record the value without staging an update in the transaction. This is useful for example generally recording the initial
 // value in the 'prepare' phase of the reference transaction hook before any changes are made without staging any updates
 // before the 'committed' phase is reached. The recorded initial values are only used for the next UpdateReferences call.
-func (txn *Transaction) RecordInitialReferenceValues(ctx context.Context, initialValues map[git.ReferenceName]git.ObjectID) error {
-	txn.initialReferenceValues = make(map[git.ReferenceName]git.ObjectID, len(initialValues))
+func (txn *Transaction) RecordInitialReferenceValues(ctx context.Context, initialValues map[git.ReferenceName]git.Reference) error {
+	txn.initialReferenceValues = make(map[git.ReferenceName]git.Reference, len(initialValues))
 
 	objectHash, err := txn.snapshotRepository.ObjectHash(ctx)
 	if err != nil {
 		return fmt.Errorf("object hash: %w", err)
 	}
 
-	for reference, oid := range initialValues {
-		if objectHash.IsZeroOID(oid) {
-			// If this is a zero OID, resolve the value to see if this is a force update or the
-			// reference doesn't exist.
-			if current, err := txn.snapshotRepository.ResolveRevision(ctx, reference.Revision()); err != nil {
-				if !errors.Is(err, git.ErrReferenceNotFound) {
-					return fmt.Errorf("resolve revision: %w", err)
+	for name, reference := range initialValues {
+		if !reference.IsSymbolic {
+
+			oid := git.ObjectID(reference.Target)
+
+			if objectHash.IsZeroOID(oid) {
+				// If this is a zero OID, resolve the value to see if this is a force update or the
+				// reference doesn't exist.
+				if current, err := txn.snapshotRepository.ResolveRevision(ctx, name.Revision()); err != nil {
+					if !errors.Is(err, git.ErrReferenceNotFound) {
+						return fmt.Errorf("resolve revision: %w", err)
+					}
+
+					// The reference doesn't exist, leave the value as zero oid.
+				} else {
+					oid = current
 				}
-
-				// The reference doesn't exist, leave the value as zero oid.
-			} else {
-				oid = current
 			}
-		}
 
-		txn.initialReferenceValues[reference] = oid
+			txn.initialReferenceValues[name] = git.NewReference(name, oid)
+		} else {
+			txn.initialReferenceValues[name] = reference
+		}
 	}
 
 	return nil
@@ -651,19 +662,33 @@ func (txn *Transaction) UpdateReferences(updates ReferenceUpdates) {
 
 	for reference, update := range updates {
 		oldOID := update.OldOID
+		oldTarget := update.OldTarget
+
 		if initialValue, ok := txn.initialReferenceValues[reference]; ok {
-			oldOID = initialValue
+			if !initialValue.IsSymbolic {
+				oldOID = git.ObjectID(initialValue.Target)
+			} else {
+				oldTarget = git.ReferenceName(initialValue.Target)
+			}
 		}
 
 		for _, updates := range txn.referenceUpdates {
-			if update, ok := updates[reference]; ok {
-				oldOID = update.NewOID
+			if txUpdate, ok := updates[reference]; ok {
+				if txUpdate.NewOID != "" {
+					oldOID = txUpdate.NewOID
+				}
+
+				if txUpdate.NewTarget != "" {
+					oldTarget = txUpdate.OldTarget
+				}
 			}
 		}
 
 		u[reference] = ReferenceUpdate{
-			OldOID: oldOID,
-			NewOID: update.NewOID,
+			OldOID:    oldOID,
+			NewOID:    update.NewOID,
+			OldTarget: oldTarget,
+			NewTarget: update.NewTarget,
 		}
 	}
 
@@ -680,12 +705,19 @@ func (txn *Transaction) flattenReferenceTransactions() ReferenceUpdates {
 	for _, updates := range txn.referenceUpdates {
 		for reference, update := range updates {
 			u := ReferenceUpdate{
-				OldOID: update.OldOID,
-				NewOID: update.NewOID,
+				OldOID:    update.OldOID,
+				NewOID:    update.NewOID,
+				OldTarget: update.OldTarget,
+				NewTarget: update.NewTarget,
 			}
 
 			if previousUpdate, ok := flattenedUpdates[reference]; ok {
-				u.OldOID = previousUpdate.OldOID
+				if previousUpdate.OldOID != "" {
+					u.OldOID = previousUpdate.OldOID
+				}
+				if previousUpdate.OldTarget != "" {
+					u.OldTarget = previousUpdate.OldTarget
+				}
 			}
 
 			flattenedUpdates[reference] = u
@@ -1303,6 +1335,10 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 
 	referenceUpdates := make(ReferenceUpdates, len(references))
 	for _, ref := range references {
+		if ref.IsSymbolic {
+			return fmt.Errorf("unexpected symbolic ref: %v", ref)
+		}
+
 		referenceUpdates[ref.Name] = ReferenceUpdate{
 			OldOID: objectHash.ZeroOID,
 			NewOID: git.ObjectID(ref.Target),
@@ -1482,7 +1518,12 @@ func (mgr *TransactionManager) packObjects(ctx context.Context, transaction *Tra
 
 	heads := make([]string, 0)
 	for _, referenceUpdates := range transaction.referenceUpdates {
-		for _, update := range referenceUpdates {
+		for refname, update := range referenceUpdates {
+			if refname == "HEAD" {
+				// We don't need to worry about default branch updates.
+				continue
+			}
+
 			if update.NewOID == objectHash.ZeroOID {
 				// Reference deletions can't introduce new objects so ignore them.
 				continue
@@ -2627,6 +2668,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 			changes = append(changes, &gitalypb.LogEntry_ReferenceTransaction_Change{
 				ReferenceName: []byte(reference),
 				NewOid:        []byte(update.NewOID),
+				NewTarget:     []byte(update.NewTarget),
 			})
 		}
 
@@ -2830,6 +2872,11 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 	if err := mgr.walkCommittedEntries(transaction, func(entry *gitalypb.LogEntry, objectDependencies map[git.ObjectID]struct{}) error {
 		for _, refTransaction := range entry.ReferenceTransactions {
 			for _, change := range refTransaction.Changes {
+				// Packed refs don't contain root refs
+				if bytes.Equal(change.GetReferenceName(), []byte("HEAD")) {
+					continue
+				}
+
 				if objectHash.IsZeroOID(git.ObjectID(change.GetNewOid())) {
 					// Oops, there is a reference deletion. Bail out.
 					return errPackRefsConflictRefDeletion

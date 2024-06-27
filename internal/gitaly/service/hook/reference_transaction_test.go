@@ -36,7 +36,7 @@ func (m mockTransactionRegistry) Get(id storage.TransactionID) (hook.Transaction
 type mockTransaction struct {
 	hook.Transaction
 	updateReferencesFunc         func(storagemgr.ReferenceUpdates)
-	recordInitialReferenceValues func(context.Context, map[git.ReferenceName]git.ObjectID) error
+	recordInitialReferenceValues func(context.Context, map[git.ReferenceName]git.Reference) error
 	markDefaultBranchUpdated     func()
 }
 
@@ -44,7 +44,7 @@ func (m mockTransaction) UpdateReferences(updates storagemgr.ReferenceUpdates) {
 	m.updateReferencesFunc(updates)
 }
 
-func (m mockTransaction) RecordInitialReferenceValues(ctx context.Context, initialValues map[git.ReferenceName]git.ObjectID) error {
+func (m mockTransaction) RecordInitialReferenceValues(ctx context.Context, initialValues map[git.ReferenceName]git.Reference) error {
 	return m.recordInitialReferenceValues(ctx, initialValues)
 }
 
@@ -100,7 +100,7 @@ func TestReferenceTransactionHook(t *testing.T) {
 		expectedResponse             *gitalypb.ReferenceTransactionHookResponse
 		expectedReftxHash            []byte
 		expectedReferenceUpdates     storagemgr.ReferenceUpdates
-		expectedInitialValues        map[git.ReferenceName]git.ObjectID
+		expectedInitialValues        map[git.ReferenceName]git.Reference
 		expectedDefaultBranchUpdated bool
 	}{
 		{
@@ -113,9 +113,9 @@ func TestReferenceTransactionHook(t *testing.T) {
 				},
 			},
 			expectedReftxHash: stdin,
-			expectedInitialValues: map[git.ReferenceName]git.ObjectID{
-				"refs/heads/branch-1": gittest.DefaultObjectHash.ZeroOID,
-				"refs/heads/branch-2": gittest.DefaultObjectHash.EmptyTreeOID,
+			expectedInitialValues: map[git.ReferenceName]git.Reference{
+				"refs/heads/branch-1": git.NewReference("refs/heads/branch-1", gittest.DefaultObjectHash.ZeroOID),
+				"refs/heads/branch-2": git.NewReference("refs/heads/branch-2", gittest.DefaultObjectHash.EmptyTreeOID),
 			},
 		},
 		{
@@ -129,9 +129,9 @@ func TestReferenceTransactionHook(t *testing.T) {
 				},
 			},
 			expectedReftxHash: stdin,
-			expectedInitialValues: map[git.ReferenceName]git.ObjectID{
-				"refs/heads/branch-1": gittest.DefaultObjectHash.ZeroOID,
-				"refs/heads/branch-2": gittest.DefaultObjectHash.EmptyTreeOID,
+			expectedInitialValues: map[git.ReferenceName]git.Reference{
+				"refs/heads/branch-1": git.NewReference("refs/heads/branch-1", gittest.DefaultObjectHash.ZeroOID),
+				"refs/heads/branch-2": git.NewReference("refs/heads/branch-2", gittest.DefaultObjectHash.EmptyTreeOID),
 			},
 		},
 		{
@@ -197,9 +197,9 @@ func TestReferenceTransactionHook(t *testing.T) {
 			voteResponse:      gitalypb.VoteTransactionResponse_ABORT,
 			expectedErr:       structerr.NewAborted("reference-transaction hook: error voting on transaction: transaction was aborted"),
 			expectedReftxHash: stdin,
-			expectedInitialValues: map[git.ReferenceName]git.ObjectID{
-				"refs/heads/branch-1": gittest.DefaultObjectHash.ZeroOID,
-				"refs/heads/branch-2": gittest.DefaultObjectHash.EmptyTreeOID,
+			expectedInitialValues: map[git.ReferenceName]git.Reference{
+				"refs/heads/branch-1": git.NewReference("refs/heads/branch-1", gittest.DefaultObjectHash.ZeroOID),
+				"refs/heads/branch-2": git.NewReference("refs/heads/branch-2", gittest.DefaultObjectHash.EmptyTreeOID),
 			},
 		},
 		{
@@ -208,9 +208,9 @@ func TestReferenceTransactionHook(t *testing.T) {
 			voteResponse:      gitalypb.VoteTransactionResponse_STOP,
 			expectedErr:       structerr.NewFailedPrecondition("reference-transaction hook: error voting on transaction: transaction was stopped"),
 			expectedReftxHash: stdin,
-			expectedInitialValues: map[git.ReferenceName]git.ObjectID{
-				"refs/heads/branch-1": gittest.DefaultObjectHash.ZeroOID,
-				"refs/heads/branch-2": gittest.DefaultObjectHash.EmptyTreeOID,
+			expectedInitialValues: map[git.ReferenceName]git.Reference{
+				"refs/heads/branch-1": git.NewReference("refs/heads/branch-1", gittest.DefaultObjectHash.ZeroOID),
+				"refs/heads/branch-2": git.NewReference("refs/heads/branch-2", gittest.DefaultObjectHash.EmptyTreeOID),
 			},
 		},
 		{
@@ -269,7 +269,7 @@ func TestReferenceTransactionHook(t *testing.T) {
 			}
 
 			var actualReferenceUpdates storagemgr.ReferenceUpdates
-			var actualInitialValues map[git.ReferenceName]git.ObjectID
+			var actualInitialValues map[git.ReferenceName]git.Reference
 			var defaultBranchUpdated bool
 			txRegistry := mockTransactionRegistry{
 				getFunc: func(storage.TransactionID) (hook.Transaction, error) {
@@ -277,7 +277,7 @@ func TestReferenceTransactionHook(t *testing.T) {
 						updateReferencesFunc: func(updates storagemgr.ReferenceUpdates) {
 							actualReferenceUpdates = updates
 						},
-						recordInitialReferenceValues: func(_ context.Context, initialValues map[git.ReferenceName]git.ObjectID) error {
+						recordInitialReferenceValues: func(_ context.Context, initialValues map[git.ReferenceName]git.Reference) error {
 							actualInitialValues = initialValues
 							return nil
 						},
