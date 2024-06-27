@@ -223,9 +223,7 @@ func TestReceivePack_success(t *testing.T) {
 		expectedRepo.RelativePath = "OVERRIDDEN"
 		// When transactions are enabled the update hook is manually invoked as part of the
 		// proc-receive hook. Consequently, the requested hooks only specify the update hook.
-		//
-		// Temporarily disabled due to https://gitlab.com/gitlab-org/gitaly/-/issues/6173.
-		// expectedHooks = git.UpdateHook
+		expectedHooks = git.UpdateHook
 	}
 
 	// Compare the repository up front so that we can use require.Equal for
@@ -299,8 +297,12 @@ func TestReceivePack_invalidGitconfig(t *testing.T) {
 
 func TestReceivePack_client(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testReceivePackClient)
+}
 
-	ctx := testhelper.Context(t)
+func testReceivePackClient(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSSHServer(t, cfg)
 
@@ -477,8 +479,11 @@ func TestReceivePack_customHookFailure(t *testing.T) {
 
 func TestReceivePack_hidesObjectPoolReferences(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testReceivePackHidesObjectPoolReferences)
+}
 
-	ctx := testhelper.Context(t)
+func testReceivePackHidesObjectPoolReferences(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSSHServer(t, cfg)
@@ -515,8 +520,12 @@ func TestReceivePack_hidesObjectPoolReferences(t *testing.T) {
 
 func TestReceivePack_transactional(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testReceivePackTransactional)
+}
 
-	ctx := testhelper.Context(t)
+func testReceivePackTransactional(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 
 	txManager := transaction.NewTrackingManager()

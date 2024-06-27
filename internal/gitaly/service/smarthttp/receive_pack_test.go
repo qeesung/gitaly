@@ -157,9 +157,7 @@ func TestPostReceivePack_successful(t *testing.T) {
 		expectedRepo.RelativePath = "OVERRIDDEN"
 		// When transactions are enabled the update hook is manually invoked as part of the
 		// proc-receive hook. Consequently, the requested hooks only specify the update hook.
-		//
-		// Temporarily disabled due to https://gitlab.com/gitlab-org/gitaly/-/issues/6173.
-		// expectedHooks = git.UpdateHook
+		expectedHooks = git.UpdateHook
 	}
 
 	testhelper.ProtoEqual(t, expectedRepo, payload.Repo)
@@ -206,8 +204,11 @@ func TestPostReceivePack_successful(t *testing.T) {
 
 func TestPostReceivePack_hiddenRefs(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackHiddenRefs)
+}
 
-	ctx := testhelper.Context(t)
+func testPostReceivePackHiddenRefs(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
@@ -249,8 +250,11 @@ func TestPostReceivePack_hiddenRefs(t *testing.T) {
 
 func TestPostReceivePack_protocolV2(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackProtocolV2)
+}
 
-	ctx := testhelper.Context(t)
+func testPostReceivePackProtocolV2(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyHooks(t, cfg)
@@ -287,8 +291,11 @@ func TestPostReceivePack_protocolV2(t *testing.T) {
 
 func TestPostReceivePack_packfiles(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackPackfiles)
+}
 
-	ctx := testhelper.Context(t)
+func testPostReceivePackPackfiles(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = startSmartHTTPServer(t, cfg).Address()
@@ -344,8 +351,11 @@ func TestPostReceivePack_packfiles(t *testing.T) {
 
 func TestPostReceivePack_rejectViaGitConfigOptions(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackRejectViaGitConfigOptions)
+}
 
-	ctx := testhelper.Context(t)
+func testPostReceivePackRejectViaGitConfigOptions(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
@@ -378,8 +388,11 @@ func TestPostReceivePack_rejectViaGitConfigOptions(t *testing.T) {
 
 func TestPostReceivePack_rejectViaHooks(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackRejectViaHooks)
+}
 
-	ctx := testhelper.Context(t)
+func testPostReceivePackRejectViaHooks(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg, git.WithHooksPath(testhelper.TempDir(t)))
@@ -482,8 +495,12 @@ func TestPostReceivePack_requestValidation(t *testing.T) {
 
 func TestPostReceivePack_invalidObjects(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackInvalidObjects)
+}
 
-	ctx := testhelper.Context(t)
+func testPostReceivePackInvalidObjects(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 
 	testcfg.BuildGitalyHooks(t, cfg)
@@ -624,8 +641,11 @@ func TestPostReceivePack_invalidObjects(t *testing.T) {
 
 func TestPostReceivePack_fsck(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackFsck)
+}
 
-	ctx := testhelper.Context(t)
+func testPostReceivePackFsck(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
@@ -672,14 +692,17 @@ func TestPostReceivePack_fsck(t *testing.T) {
 
 func TestPostReceivePack_hooks(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackHooks)
+}
+
+func testPostReceivePackHooks(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	const (
 		secretToken  = "secret token"
 		glRepository = "some_repo"
 		glID         = "key-123"
 	)
-
-	ctx := testhelper.Context(t)
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
@@ -732,8 +755,11 @@ func TestPostReceivePack_hooks(t *testing.T) {
 
 func TestPostReceivePack_transactionsViaPraefect(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackTransactionsViaPraefect)
+}
 
-	ctx := testhelper.Context(t)
+func testPostReceivePackTransactionsViaPraefect(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSmartHTTPServer(t, cfg)
@@ -798,8 +824,13 @@ func (t *testTransactionServer) VoteTransaction(ctx context.Context, in *gitalyp
 
 func TestPostReceivePack_referenceTransactionHook(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackReferenceTransactionHook)
+}
 
-	ctxWithoutTransaction := testhelper.Context(t)
+func testPostReceivePackReferenceTransactionHook(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
+	ctxWithoutTransaction := ctx
 
 	cfg := testcfg.Build(t)
 	testcfg.BuildGitalyHooks(t, cfg)
@@ -885,7 +916,10 @@ func TestPostReceivePack_referenceTransactionHook(t *testing.T) {
 
 func TestPostReceivePack_notAllowed(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testPostReceivePackNotAllowed)
+}
 
+func testPostReceivePackNotAllowed(t *testing.T, ctx context.Context) {
 	cfg := testcfg.Build(t)
 
 	testcfg.BuildGitalyHooks(t, cfg)
@@ -914,7 +948,7 @@ func TestPostReceivePack_notAllowed(t *testing.T) {
 	})
 	cfg.SocketPath = server.Address()
 
-	ctxWithoutTransaction := testhelper.Context(t)
+	ctxWithoutTransaction := ctx
 	ctx, err := txinfo.InjectTransaction(ctxWithoutTransaction, 1234, "primary", true)
 	require.NoError(t, err)
 	ctx = metadata.IncomingToOutgoing(ctx)
