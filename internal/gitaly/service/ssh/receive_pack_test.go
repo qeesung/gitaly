@@ -516,14 +516,7 @@ func testReceivePackHooks(t *testing.T, ctx context.Context) {
 	slurpErr, err := io.ReadAll(stderr)
 	require.NoError(t, err)
 
-	err = cmd.Wait()
-	if testhelper.IsWALEnabled() && featureflag.TransactionProcReceive.IsEnabled(ctx) {
-		// There is a bug with how hooks are executed and output when invoked during proc-receive.
-		require.Error(t, err)
-		return
-	}
-
-	require.NoError(t, err)
+	require.NoError(t, cmd.Wait())
 	require.Contains(t, string(slurpErr), "Hello stdout")
 	require.Contains(t, string(slurpErr), "Hello stderr")
 }
