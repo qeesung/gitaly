@@ -86,7 +86,7 @@ func (s *server) postReceivePack(
 	}
 
 	transactionID := storage.ExtractTransactionID(ctx)
-	transactionsEnabled := transactionID > 0
+	transactionsEnabled := false // transactionID > 0 | Temporarily disable due to // Temporarily disabled due to https://gitlab.com/gitlab-org/gitaly/-/issues/6173.
 	if transactionsEnabled {
 		repo := s.localrepo(req.GetRepository())
 		procReceiveCleanup, err := receivepack.RegisterProcReceiveHook(
