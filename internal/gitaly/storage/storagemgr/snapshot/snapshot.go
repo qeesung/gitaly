@@ -38,6 +38,15 @@ func (s *snapshot) RelativePath(relativePath string) string {
 	return filepath.Join(s.prefix, relativePath)
 }
 
+// Closes removes the snapshot.
+func (s *snapshot) Close() error {
+	if err := os.RemoveAll(s.root); err != nil {
+		return fmt.Errorf("remove all: %w", err)
+	}
+
+	return nil
+}
+
 // NewSnapshot creates a new file system snapshot of the given root directory. The snapshot is created by copying
 // the directory hierarchy and hard linking the files in place. The copied directory hierarchy is placed
 // at destinationPath. Only files within Git directories are included in the snapshot. The provided relative
@@ -45,17 +54,27 @@ func (s *snapshot) RelativePath(relativePath string) string {
 //
 // destinationPath must be a subdirectory within roothPath. The prefix of the snapshot within the root file system
 // can be retrieved by calling Prefix.
-func NewSnapshot(ctx context.Context, rootPath, destinationPath string, relativePaths []string) (FileSystem, error) {
+func NewSnapshot(ctx context.Context, rootPath, destinationPath string, relativePaths []string) (_ FileSystem, returnedErr error) {
 	snapshotPrefix, err := filepath.Rel(rootPath, destinationPath)
 	if err != nil {
 		return nil, fmt.Errorf("rel snapshot prefix: %w", err)
 	}
 
+	s := &snapshot{root: destinationPath, prefix: snapshotPrefix}
+
+	defer func() {
+		if returnedErr != nil {
+			if err := s.Close(); err != nil {
+				returnedErr = errors.Join(returnedErr, fmt.Errorf("close: %w", err))
+			}
+		}
+	}()
+
 	if err := createRepositorySnapshots(ctx, rootPath, snapshotPrefix, relativePaths); err != nil {
 		return nil, fmt.Errorf("create repository snapshots: %w", err)
 	}
 
-	return &snapshot{root: destinationPath, prefix: snapshotPrefix}, nil
+	return s, nil
 }
 
 // createRepositorySnapshots creates a snapshot of the partition containing all repositories at the given relative paths
