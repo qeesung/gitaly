@@ -223,7 +223,9 @@ func TestReceivePack_success(t *testing.T) {
 		expectedRepo.RelativePath = "OVERRIDDEN"
 		// When transactions are enabled the update hook is manually invoked as part of the
 		// proc-receive hook. Consequently, the requested hooks only specify the update hook.
-		expectedHooks = git.UpdateHook
+		//
+		// Temporarily disabled due to https://gitlab.com/gitlab-org/gitaly/-/issues/6173.
+		// expectedHooks = git.UpdateHook
 	}
 
 	// Compare the repository up front so that we can use require.Equal for
