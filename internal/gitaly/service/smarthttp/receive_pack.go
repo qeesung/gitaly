@@ -90,16 +90,7 @@ func (s *server) postReceivePack(
 	if transactionsEnabled {
 		repo := s.localrepo(req.GetRepository())
 		procReceiveCleanup, err := receivepack.RegisterProcReceiveHook(
-			ctx,
-			s.logger,
-			s.cfg,
-			req,
-			repo,
-			s.hookManager,
-			hook.NewTransactionRegistry(s.txRegistry),
-			transactionID,
-			stdout,
-			stdout,
+			ctx, s.logger, s.cfg, req, repo, s.hookManager, hook.NewTransactionRegistry(s.txRegistry), transactionID,
 		)
 		if err != nil {
 			return err

@@ -32,16 +32,15 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 	}
 
 	type setupData struct {
-		repoProto               *gitalypb.Repository
-		pktLineRequest          string
-		updateHook              func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, ref, oldValue, newValue string, env []string, stdout, stderr io.Writer) error
-		postReceiveHook         func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error
-		commit                  func(ctx context.Context) error
-		expectedRefs            []git.Reference
-		expectedPktLineResponse string
-		expectedStdout          string
-		expectedStderr          string
-		expectedErrMsg          string
+		repoProto       *gitalypb.Repository
+		pktLineRequest  string
+		updateHook      func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, ref, oldValue, newValue string, env []string, stdout, stderr io.Writer) error
+		postReceiveHook func(t *testing.T, ctx context.Context, repo *gitalypb.Repository, pushOptions, env []string, stdin io.Reader, stdout, stderr io.Writer) error
+		commit          func(ctx context.Context) error
+		expectedRefs    []git.Reference
+		expectedStdout  string
+		expectedStderr  string
+		expectedErrMsg  string
 	}
 
 	for _, tc := range []struct {
@@ -68,12 +67,12 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 				require.NoError(t, err)
 
 				return setupData{
-					repoProto:               repo,
-					pktLineRequest:          pktLineRequest.String(),
-					updateHook:              hook.NopUpdate,
-					postReceiveHook:         hook.NopPostReceive,
-					commit:                  noopCommit,
-					expectedPktLineResponse: "0014version=1\000atomic00000016ok refs/heads/main0000",
+					repoProto:       repo,
+					pktLineRequest:  pktLineRequest.String(),
+					updateHook:      hook.NopUpdate,
+					postReceiveHook: hook.NopPostReceive,
+					commit:          noopCommit,
+					expectedStdout:  "0014version=1\000atomic00000016ok refs/heads/main0000",
 					expectedRefs: []git.Reference{
 						{
 							Name:   "refs/heads/main",
@@ -103,12 +102,12 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 				require.NoError(t, err)
 
 				return setupData{
-					repoProto:               repo,
-					pktLineRequest:          pktLineRequest.String(),
-					updateHook:              hook.NopUpdate,
-					postReceiveHook:         hook.NopPostReceive,
-					commit:                  noopCommit,
-					expectedPktLineResponse: "000dversion=100000016ok refs/heads/main0000",
+					repoProto:       repo,
+					pktLineRequest:  pktLineRequest.String(),
+					updateHook:      hook.NopUpdate,
+					postReceiveHook: hook.NopPostReceive,
+					commit:          noopCommit,
+					expectedStdout:  "000dversion=100000016ok refs/heads/main0000",
 					expectedRefs: []git.Reference{
 						{
 							Name:   "refs/heads/main",
@@ -153,9 +152,9 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 						require.NoError(t, err)
 						return nil
 					},
-					commit:                  noopCommit,
-					expectedStdout:          "update hook: refs/heads/foo\nupdate hook: refs/heads/bar\npost-receive hook\n",
-					expectedPktLineResponse: "0014version=1\000atomic00000015ok refs/heads/foo0015ok refs/heads/bar0000",
+					commit:         noopCommit,
+					expectedStdout: "0014version=1\000atomic00000015ok refs/heads/foo0015ok refs/heads/bar0000",
+					expectedStderr: "update hook: refs/heads/foo\nupdate hook: refs/heads/bar\npost-receive hook\n",
 					expectedRefs: []git.Reference{
 						{
 							Name:   "refs/heads/foo",
@@ -204,9 +203,9 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 						require.NoError(t, err)
 						return nil
 					},
-					commit:                  noopCommit,
-					expectedStdout:          "update hook: refs/heads/foo\nupdate hook: refs/heads/bar\npost-receive hook\n",
-					expectedPktLineResponse: "000dversion=100000015ok refs/heads/foo0015ok refs/heads/bar0000",
+					commit:         noopCommit,
+					expectedStdout: "000dversion=100000015ok refs/heads/foo0015ok refs/heads/bar0000",
+					expectedStderr: "update hook: refs/heads/foo\nupdate hook: refs/heads/bar\npost-receive hook\n",
 					expectedRefs: []git.Reference{
 						{
 							Name:   "refs/heads/foo",
@@ -258,10 +257,10 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 						require.NoError(t, err)
 						return nil
 					},
-					commit:                  noopCommit,
-					expectedStderr:          "update hook failed: refs/heads/bar\n",
-					expectedPktLineResponse: "0014version=1\000atomic0000",
-					expectedErrMsg:          "updating references atomically: running update hook: update hook failed",
+					commit:         noopCommit,
+					expectedStdout: "0014version=1\000atomic0000",
+					expectedStderr: "update hook failed: refs/heads/bar\n",
+					expectedErrMsg: "updating references atomically: running update hook: update hook failed",
 				}
 			},
 		},
@@ -307,10 +306,9 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 						require.Equal(t, fmt.Sprintf("%s %s refs/heads/foo\n", gittest.DefaultObjectHash.ZeroOID, commitID.String()), string(refs))
 						return nil
 					},
-					commit:                  noopCommit,
-					expectedStdout:          "post-receive hook\n",
-					expectedStderr:          "update hook failed: refs/heads/bar\n",
-					expectedPktLineResponse: "000dversion=100000015ok refs/heads/foo0028ng refs/heads/bar update hook failed0000",
+					commit:         noopCommit,
+					expectedStdout: "000dversion=100000015ok refs/heads/foo0028ng refs/heads/bar update hook failed0000",
+					expectedStderr: "update hook failed: refs/heads/bar\npost-receive hook\n",
 					expectedRefs: []git.Reference{
 						{
 							Name:   "refs/heads/foo",
@@ -348,7 +346,7 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 						return errors.New("commit failed")
 					},
 					// The reference gets updated, but not accepted.
-					expectedPktLineResponse: "0014version=1\000atomic0000",
+					expectedStdout: "0014version=1\000atomic0000",
 					expectedRefs: []git.Reference{
 						{
 							Name:   "refs/heads/main",
@@ -389,8 +387,8 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 					},
 					commit: noopCommit,
 					// Errors during the post-receive hook do not result in failure.
-					expectedStderr:          "post-receive hook failed\n",
-					expectedPktLineResponse: "0014version=1\x00atomic00000016ok refs/heads/main0000",
+					expectedStdout: "0014version=1\x00atomic00000016ok refs/heads/main0000",
+					expectedStderr: "post-receive hook failed\n",
 					expectedRefs: []git.Reference{
 						{
 							Name:   "refs/heads/main",
@@ -410,7 +408,6 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 			repoPath, err := repo.Path()
 			require.NoError(t, err)
 
-			var stdout, stderr bytes.Buffer
 			cleanup, err := RegisterProcReceiveHook(
 				ctx,
 				logger,
@@ -426,8 +423,6 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 					},
 				},
 				transactionID,
-				&stdout,
-				&stderr,
 			)
 			require.NoError(t, err)
 
@@ -443,9 +438,9 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 			).Env()
 			require.NoError(t, err)
 
-			var pktLineResponse bytes.Buffer
+			var stdout, stderr bytes.Buffer
 			handler, doneCh, err := hook.NewProcReceiveHandler(
-				[]string{env}, strings.NewReader(data.pktLineRequest), &pktLineResponse, nil,
+				[]string{env}, strings.NewReader(data.pktLineRequest), &stdout, &stderr,
 			)
 			require.NoError(t, err)
 
@@ -464,7 +459,6 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, data.expectedPktLineResponse, pktLineResponse.String())
 			require.Equal(t, data.expectedStdout, stdout.String())
 			require.Equal(t, data.expectedStderr, stderr.String())
 			require.ElementsMatch(t, data.expectedRefs, gittest.GetReferences(t, cfg, repoPath))

@@ -123,16 +123,7 @@ func (s *server) sshReceivePack(stream gitalypb.SSHService_SSHReceivePackServer,
 	if transactionsEnabled {
 		repo := s.localrepo(req.GetRepository())
 		procReceiveCleanup, err := receivepack.RegisterProcReceiveHook(
-			ctx,
-			s.logger,
-			s.cfg,
-			req,
-			repo,
-			s.hookManager,
-			hook.NewTransactionRegistry(s.txRegistry),
-			transactionID,
-			stdout,
-			stderr,
+			ctx, s.logger, s.cfg, req, repo, s.hookManager, hook.NewTransactionRegistry(s.txRegistry), transactionID,
 		)
 		if err != nil {
 			return err
