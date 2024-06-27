@@ -328,7 +328,7 @@ func (s *server) GetTreeEntries(in *gitalypb.GetTreeEntriesRequest, stream gital
 
 func paginateTreeEntries(ctx context.Context, entries []*gitalypb.TreeEntry, p *gitalypb.PaginationParameter) ([]*gitalypb.TreeEntry, string, error) {
 	limit := int(p.GetLimit())
-	start := decodePageToken(p.GetPageToken())
+	start, tokenType := decodePageToken(p.GetPageToken())
 	index := -1
 
 	// No token means we should start from the top
@@ -336,7 +336,7 @@ func paginateTreeEntries(ctx context.Context, entries []*gitalypb.TreeEntry, p *
 		index = 0
 	} else {
 		for i, entry := range entries {
-			if string(entry.GetPath()) == start {
+			if buildEntryToken(entry, tokenType) == start {
 				index = i + 1
 				break
 			}
@@ -365,26 +365,44 @@ func paginateTreeEntries(ctx context.Context, entries []*gitalypb.TreeEntry, p *
 	return paginated, newPageToken, nil
 }
 
+func buildEntryToken(entry *gitalypb.TreeEntry, tokenType pageTokenType) string {
+	if tokenType == pageTokenTypeOID {
+		return entry.GetOid()
+	}
+
+	return string(entry.GetPath())
+}
+
 type pageToken struct {
 	// FileName is the name of the tree entry that acts as continuation point.
 	FileName string `json:"file_name"`
 }
 
+type pageTokenType bool
+
+const (
+	// pageTokenTypeOID is an old-style page token that contains the object ID a tree
+	// entry is pointing to. This is ambiguous and thus deprecated.
+	pageTokenTypeOID pageTokenType = false
+	// pageTokenTypeFilename is a page token that contains the tree entry path.
+	pageTokenTypeFilename pageTokenType = true
+)
+
 // decodePageToken decodes the given Base64-encoded page token. It returns the
-// continuation point of the token.
-func decodePageToken(token string) string {
+// continuation point of the token and its type.
+func decodePageToken(token string) (string, pageTokenType) {
 	var pageToken pageToken
 
 	decodedString, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
-		return token
+		return token, pageTokenTypeOID
 	}
 
 	if err := json.Unmarshal(decodedString, &pageToken); err != nil {
-		return token
+		return token, pageTokenTypeOID
 	}
 
-	return pageToken.FileName
+	return pageToken.FileName, pageTokenTypeFilename
 }
 
 // encodePageToken returns a page token with the TreeEntry's path as the continuation point for
