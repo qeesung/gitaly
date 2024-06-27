@@ -5,10 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/localrepo"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/quarantine"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/diff"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -21,7 +23,22 @@ func (s *server) DiffBlobs(request *gitalypb.DiffBlobsRequest, stream gitalypb.D
 		return err
 	}
 
-	repo := s.localrepo(request.GetRepository())
+	// Unfortunately, git-diff(1) does not support generating a blob diff using a null OID as an
+	// input argument. When a blob is added/deleted, there is no pre-image/post-image respectively.
+	// To generate diffs for additions and deletions, the empty blob ID is used as either the left
+	// of right blob pair. Unlike an empty tree object, an empty blob object is not special cased
+	// and must exist in the repository to be used. Since the DiffBlobs RPC is read-only, we create
+	// a quarantine directory to stage an empty blob object for use with diff generation only.
+	quarantineDir, err := quarantine.New(ctx, request.GetRepository(), s.logger, s.locator)
+	if err != nil {
+		return structerr.NewInternal("creating quarantine directory: %w", err)
+	}
+
+	repo := s.localrepo(quarantineDir.QuarantinedRepo())
+
+	if _, err := repo.WriteBlob(ctx, strings.NewReader(""), localrepo.WriteBlobConfig{}); err != nil {
+		return structerr.NewInternal("writing empty blob: %w", err)
+	}
 
 	objectHash, err := repo.ObjectHash(ctx)
 	if err != nil {
@@ -69,6 +86,23 @@ func diffBlob(ctx context.Context,
 	limits diff.Limits,
 	opts []git.Option,
 ) (*diff.Diff, error) {
+	left := string(blobPair.LeftBlob)
+	right := string(blobPair.RightBlob)
+
+	emptyBlob, err := emptyBlobID(objectHash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Rewrite null OIDs to an empty blob ID so diffs can be generated for additions and deletions.
+	if objectHash.IsZeroOID(git.ObjectID(left)) {
+		left = emptyBlob.String()
+	}
+
+	if objectHash.IsZeroOID(git.ObjectID(right)) {
+		right = emptyBlob.String()
+	}
+
 	gitCmd := git.Command{
 		Name: "diff",
 		Flags: []git.Option{
@@ -76,7 +110,7 @@ func diffBlob(ctx context.Context,
 			git.Flag{Name: "--patch-with-raw"},
 			git.Flag{Name: fmt.Sprintf("--abbrev=%d", objectHash.EncodedLen())},
 		},
-		Args: []string{string(blobPair.LeftBlob), string(blobPair.RightBlob)},
+		Args: []string{left, right},
 	}
 
 	gitCmd.Flags = append(gitCmd.Flags, opts...)
@@ -104,7 +138,18 @@ func diffBlob(ctx context.Context,
 		return nil, fmt.Errorf("waiting for git-diff: %w", err)
 	}
 
-	return diffParser.Diff(), nil
+	blobDiff := diffParser.Diff()
+
+	// If a null OID was initially requested, rewrite the empty blob ID back to a null OID.
+	if objectHash.IsZeroOID(git.ObjectID(blobPair.LeftBlob)) {
+		blobDiff.FromID = objectHash.ZeroOID.String()
+	}
+
+	if objectHash.IsZeroOID(git.ObjectID(blobPair.RightBlob)) {
+		blobDiff.ToID = objectHash.ZeroOID.String()
+	}
+
+	return blobDiff, nil
 }
 
 func (s *server) sendDiff(stream gitalypb.DiffService_DiffBlobsServer, diff *diff.Diff) error {
@@ -151,18 +196,30 @@ func (s *server) validateBlobPairs(
 	defer readerCancel()
 
 	for _, blobPair := range blobPairs {
-		if err := validateBlob(ctx, reader, objectHash, blobPair.LeftBlob); err != nil {
-			return structerr.NewInvalidArgument("validating left blob: %w", err).WithMetadata(
-				"revision",
-				string(blobPair.LeftBlob),
-			)
+		leftNullOID := objectHash.IsZeroOID(git.ObjectID(blobPair.LeftBlob))
+		rightNullOID := objectHash.IsZeroOID(git.ObjectID(blobPair.RightBlob))
+
+		if leftNullOID && rightNullOID {
+			return structerr.NewInvalidArgument("left and right blob cannot both be null OIDs")
 		}
 
-		if err := validateBlob(ctx, reader, objectHash, blobPair.RightBlob); err != nil {
-			return structerr.NewInvalidArgument("validating right blob: %w", err).WithMetadata(
-				"revision",
-				string(blobPair.RightBlob),
-			)
+		// Null blob IDs do not exist in the repository.
+		if !leftNullOID {
+			if err := validateBlob(ctx, reader, objectHash, blobPair.LeftBlob); err != nil {
+				return structerr.NewInvalidArgument("validating left blob: %w", err).WithMetadata(
+					"revision",
+					string(blobPair.LeftBlob),
+				)
+			}
+		}
+
+		if !rightNullOID {
+			if err := validateBlob(ctx, reader, objectHash, blobPair.RightBlob); err != nil {
+				return structerr.NewInvalidArgument("validating right blob: %w", err).WithMetadata(
+					"revision",
+					string(blobPair.RightBlob),
+				)
+			}
 		}
 	}
 
@@ -188,4 +245,15 @@ func validateBlob(ctx context.Context, reader catfile.ObjectInfoReader, objectHa
 	}
 
 	return nil
+}
+
+func emptyBlobID(objectHash git.ObjectHash) (git.ObjectID, error) {
+	switch objectHash.Format {
+	case git.ObjectHashSHA1.Format:
+		return "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391", nil
+	case git.ObjectHashSHA256.Format:
+		return "473a0f4c3be8a93681a267e3b1e9a7dcda1185436fe141f7749120a303721813", nil
+	default:
+		return "", fmt.Errorf("unknown object format: %q", objectHash.Format)
+	}
 }
