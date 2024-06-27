@@ -22,7 +22,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func TestRunWithTransaction(t *testing.T) {
+func TestRegisterProcReceiveHook(t *testing.T) {
 	ctx := testhelper.Context(t)
 	logger := testhelper.SharedLogger(t)
 	cfg := testcfg.Build(t)
@@ -444,7 +444,9 @@ func TestRunWithTransaction(t *testing.T) {
 			require.NoError(t, err)
 
 			var pktLineResponse bytes.Buffer
-			handler, doneCh, err := hook.NewProcReceiveHandler([]string{env}, strings.NewReader(data.pktLineRequest), &pktLineResponse)
+			handler, doneCh, err := hook.NewProcReceiveHandler(
+				[]string{env}, strings.NewReader(data.pktLineRequest), &pktLineResponse, nil,
+			)
 			require.NoError(t, err)
 
 			require.NoError(t, procReceiveRegistry.Transmit(ctx, handler))
