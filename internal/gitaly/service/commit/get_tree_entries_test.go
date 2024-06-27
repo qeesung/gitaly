@@ -1180,9 +1180,6 @@ func TestGetTreeEntries(t *testing.T) {
 					gittest.TreeEntry{OID: folderOID, Mode: "040000", Path: "foo"},
 				))
 
-				pageToken, err := encodePageToken(&gitalypb.TreeEntry{Path: []byte("foo")})
-				require.NoError(t, err)
-
 				return setupData{
 					request: &gitalypb.GetTreeEntriesRequest{
 						Repository: repo,
@@ -1191,7 +1188,7 @@ func TestGetTreeEntries(t *testing.T) {
 						Recursive:  true,
 						Sort:       gitalypb.GetTreeEntriesRequest_TREES_FIRST,
 						PaginationParams: &gitalypb.PaginationParameter{
-							PageToken: pageToken,
+							PageToken: folderOID.String(),
 							Limit:     3,
 						},
 					},
