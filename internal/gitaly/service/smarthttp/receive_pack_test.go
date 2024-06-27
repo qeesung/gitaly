@@ -747,14 +747,6 @@ func testPostReceivePackHooks(t *testing.T, ctx context.Context) {
 		GlRepository: glRepository,
 	})
 
-	if testhelper.IsWALEnabled() && featureflag.TransactionProcReceive.IsEnabled(ctx) {
-		// There is a bug with how hooks are executed and output when invoked during proc-receive.
-		scanner := pktline.NewScanner(strings.NewReader(response))
-		require.False(t, scanner.Scan())
-		require.Error(t, scanner.Err())
-		return
-	}
-
 	requireSidebandContains(t, []string{
 		gittest.Pktlinef(t, "\x01%s", strings.Join([]string{
 			gittest.Pktlinef(t, "unpack ok\n"),
