@@ -15,6 +15,8 @@ import (
 	"github.com/lni/dragonboat/v4/statemachine"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"google.golang.org/protobuf/proto"
 )
@@ -98,8 +100,28 @@ type (
 	mockUpdaterFunc func(proto.Message) (uint64, proto.Message, error)
 )
 
+// dragonboatTestingProfile defines an engine profile that is friendly to testing environments.
+var dragonboatTestingProfile = func() dragonboatConfig.ExpertConfig {
+	// Reduce the capacity of log DB and engines. We don't need that capacity in tests. They do cost
+	// memory and cpu resources to maintain.
+	logDBConf := dragonboatConfig.GetTinyMemLogDBConfig()
+	logDBConf.Shards = 2
+	engineConf := dragonboatConfig.EngineConfig{
+		ExecShards:     2,
+		CommitShards:   2,
+		ApplyShards:    2,
+		SnapshotShards: 2,
+		CloseShards:    2,
+	}
+	return dragonboatConfig.ExpertConfig{
+		LogDB:  logDBConf,
+		Engine: engineConf,
+	}
+}()
+
 type testNode struct {
 	nodeHost *dragonboat.NodeHost
+	manager  *Manager
 	sm       *testStateMachine
 	close    func()
 }
@@ -113,26 +135,12 @@ type testRaftCluster struct {
 
 func (c *testRaftCluster) startNode(t *testing.T, node raftID) (*testNode, error) {
 	tmpDir := testhelper.TempDir(t)
-	// Reduce the capacity of log DB and engines. We don't need that capacity in tests. They do cost
-	// memory and cpu resources to maintain.
-	logDBConf := dragonboatConfig.GetTinyMemLogDBConfig()
-	logDBConf.Shards = 4
-	engineConf := dragonboatConfig.EngineConfig{
-		ExecShards:     4,
-		CommitShards:   4,
-		ApplyShards:    4,
-		SnapshotShards: 4,
-		CloseShards:    4,
-	}
 	nodeHostConfig := dragonboatConfig.NodeHostConfig{
 		WALDir:         tmpDir,
 		NodeHostDir:    tmpDir,
 		RaftAddress:    c.initialMembers[node.ToUint64()],
 		RTTMillisecond: config.RaftDefaultRTT,
-		Expert: dragonboatConfig.ExpertConfig{
-			LogDB:  logDBConf,
-			Engine: engineConf,
-		},
+		Expert:         dragonboatTestingProfile,
 	}
 	nodeHost, err := dragonboat.NewNodeHost(nodeHostConfig)
 	if err != nil {
@@ -200,6 +208,23 @@ func (c *testRaftCluster) stopGroup(t *testing.T, node raftID, groupID raftID) {
 	require.NoError(t, c.nodes[node].nodeHost.StopShard(groupID.ToUint64()))
 }
 
+func (c *testRaftCluster) createRaftConfig(node raftID) config.Raft {
+	initialMembers := map[string]string{}
+	for node, addr := range c.initialMembers {
+		initialMembers[fmt.Sprintf("%d", node)] = addr
+	}
+	return config.Raft{
+		Enabled:         true,
+		ClusterID:       c.clusterID,
+		NodeID:          node.ToUint64(),
+		RaftAddr:        c.initialMembers[node.ToUint64()],
+		InitialMembers:  initialMembers,
+		RTTMilliseconds: config.RaftDefaultRTT,
+		ElectionTicks:   config.RaftDefaultElectionTicks,
+		HeartbeatTicks:  config.RaftDefaultHeartbeatTicks,
+	}
+}
+
 type testRaftClusterConfig struct {
 	startNode nodeStarter
 }
@@ -208,6 +233,12 @@ type testRaftClusterOption func(*testRaftClusterConfig)
 
 // nodeStarter should start the node with raftID in the cluster, and return its details or an error.
 type nodeStarter func(*testRaftCluster, raftID) (*testNode, error)
+
+func withNodeStarter(startNode nodeStarter) testRaftClusterOption {
+	return func(cfg *testRaftClusterConfig) {
+		cfg.startNode = startNode
+	}
+}
 
 // newTestRaftCluster creates a Raft cluster having N nodes. Each node in the cluster is powered by
 // either a test Raft group or a proper Raft manager.
@@ -292,6 +323,25 @@ func reserveEphemeralAddrs(t *testing.T, count int) []string {
 		addrs = append(addrs, addr)
 	}
 	return addrs
+}
+
+func setupTestDB(t *testing.T, cfg config.Cfg) *keyvalue.DBManager {
+	logger := testhelper.NewLogger(t)
+
+	dbMgr, err := keyvalue.NewDBManager(cfg.Storages, keyvalue.NewBadgerStore, helper.NewNullTickerFactory(), logger)
+	require.NoError(t, err)
+
+	return dbMgr
+}
+
+func setupStorageDB(t *testing.T, cfg config.Cfg) (keyvalue.Transactioner, func()) {
+	dbMgr := setupTestDB(t, cfg)
+
+	storage := cfg.Storages[0]
+	db, err := dbMgr.GetDB(storage.Name)
+	require.NoError(t, err)
+
+	return dbForStorage(db), dbMgr.Close
 }
 
 // fanOut executes f concurrently num times. The supplied raftID begins from 1.
