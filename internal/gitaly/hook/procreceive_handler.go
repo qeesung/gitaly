@@ -13,6 +13,7 @@ import (
 
 type procReceiveHandler struct {
 	stdout        io.Writer
+	stderr        io.Writer
 	doneCh        chan<- error
 	updates       []ReferenceUpdate
 	transactionID storage.TransactionID
@@ -30,7 +31,7 @@ type procReceiveHandler struct {
 //
 // The handler is transmitted to RPCs which executed git-receive-pack(1), so they
 // can accept or reject individual reference updates.
-func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (ProcReceiveHandler, <-chan error, error) {
+func NewProcReceiveHandler(env []string, stdin io.Reader, stdout, stderr io.Writer) (ProcReceiveHandler, <-chan error, error) {
 	payload, err := git.HooksPayloadFromEnv(env)
 	if err != nil {
 		return nil, nil, fmt.Errorf("extracting hooks payload: %w", err)
@@ -125,6 +126,7 @@ func NewProcReceiveHandler(env []string, stdin io.Reader, stdout io.Writer) (Pro
 		transactionID: payload.TransactionID,
 		atomic:        featureRequests.atomic,
 		stdout:        stdout,
+		stderr:        stderr,
 		updates:       updates,
 		doneCh:        ch,
 		pushOptions:   pushOptions,
@@ -168,6 +170,13 @@ func (h *procReceiveHandler) RejectUpdate(referenceName git.ReferenceName, reaso
 	}
 
 	return nil
+}
+
+// Write allows arbitrary data to be written to the proc-receive stderr. This is useful hook outputs
+// that need to be returned through git-receive-pack(1) as Git handles encapsulating stderr in
+// sideband packets and redirecting it to stdout.
+func (h *procReceiveHandler) Write(p []byte) (int, error) {
+	return h.stderr.Write(p)
 }
 
 // Close must be called to clean up the proc-receive hook. If the user

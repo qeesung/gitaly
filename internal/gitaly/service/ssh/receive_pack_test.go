@@ -223,9 +223,7 @@ func TestReceivePack_success(t *testing.T) {
 		expectedRepo.RelativePath = "OVERRIDDEN"
 		// When transactions are enabled the update hook is manually invoked as part of the
 		// proc-receive hook. Consequently, the requested hooks only specify the update hook.
-		//
-		// Temporarily disabled due to https://gitlab.com/gitlab-org/gitaly/-/issues/6173.
-		// expectedHooks = git.UpdateHook
+		expectedHooks = git.UpdateHook
 	}
 
 	// Compare the repository up front so that we can use require.Equal for
@@ -299,8 +297,12 @@ func TestReceivePack_invalidGitconfig(t *testing.T) {
 
 func TestReceivePack_client(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testReceivePackClient)
+}
 
-	ctx := testhelper.Context(t)
+func testReceivePackClient(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSSHServer(t, cfg)
 
@@ -475,10 +477,57 @@ func TestReceivePack_customHookFailure(t *testing.T) {
 	require.NotContains(t, string(slurpErr), "final transactional vote: transaction was stopped")
 }
 
-func TestReceivePack_hidesObjectPoolReferences(t *testing.T) {
+func TestReceivePack_hooks(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testReceivePackHooks)
+}
+
+func testReceivePackHooks(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
+	cfg := testcfg.Build(t)
+	cfg.SocketPath = runSSHServer(t, cfg)
+
+	testcfg.BuildGitalySSH(t, cfg)
+	testcfg.BuildGitalyHooks(t, cfg)
+
+	remoteRepo, remoteRepoPath := gittest.CreateRepository(t, ctx, cfg)
+
+	localRepo := setupRepoWithChange(t, cfg)
+
+	hookContent := []byte("#!/bin/sh\necho 'Hello stdout';echo 'Hello stderr' >&2;exit 0")
+	gittest.WriteCustomHook(t, remoteRepoPath, "post-receive", hookContent)
+
+	cmd := sshPushCommand(t, ctx, cfg, localRepo, &gitalypb.SSHReceivePackRequest{
+		Repository: remoteRepo,
+		GlId:       "1",
+	})
+
+	stdout, err := cmd.StdoutPipe()
+	require.NoError(t, err)
+	stderr, err := cmd.StderrPipe()
+	require.NoError(t, err)
+	require.NoError(t, cmd.Start())
+
+	c, err := io.Copy(io.Discard, stdout)
+	require.NoError(t, err)
+	require.Equal(t, c, int64(0))
+
+	slurpErr, err := io.ReadAll(stderr)
+	require.NoError(t, err)
+
+	require.NoError(t, cmd.Wait())
+	require.Contains(t, string(slurpErr), "Hello stdout")
+	require.Contains(t, string(slurpErr), "Hello stderr")
+}
+
+func TestReceivePack_hidesObjectPoolReferences(t *testing.T) {
+	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testReceivePackHidesObjectPoolReferences)
+}
+
+func testReceivePackHidesObjectPoolReferences(t *testing.T, ctx context.Context) {
+	t.Parallel()
 
 	cfg := testcfg.Build(t)
 	cfg.SocketPath = runSSHServer(t, cfg)
@@ -515,8 +564,12 @@ func TestReceivePack_hidesObjectPoolReferences(t *testing.T) {
 
 func TestReceivePack_transactional(t *testing.T) {
 	t.Parallel()
+	testhelper.NewFeatureSets(featureflag.TransactionProcReceive).Run(t, testReceivePackTransactional)
+}
 
-	ctx := testhelper.Context(t)
+func testReceivePackTransactional(t *testing.T, ctx context.Context) {
+	t.Parallel()
+
 	cfg := testcfg.Build(t)
 
 	txManager := transaction.NewTrackingManager()

@@ -52,6 +52,7 @@ func TestProcReceiveHandler(t *testing.T) {
 		expectedErr      error
 		expectedCloseErr error
 		expectedStdout   string
+		expectedStderr   string
 		expectedUpdates  []ReferenceUpdate
 		expectedAtomic   bool
 		handlerSteps     func(handler ProcReceiveHandler) error
@@ -337,6 +338,52 @@ func TestProcReceiveHandler(t *testing.T) {
 				}
 			},
 		},
+		{
+			desc: "handler writes to stderr",
+			setup: func(t *testing.T, ctx context.Context) setupData {
+				var stdin bytes.Buffer
+				_, err := pktline.WriteString(&stdin, "version=1\000push-options")
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdin)
+				require.NoError(t, err)
+				_, err = pktline.WriteString(&stdin, fmt.Sprintf("%s %s %s",
+					gittest.DefaultObjectHash.ZeroOID, gittest.DefaultObjectHash.EmptyTreeOID, "refs/heads/main"))
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdin)
+				require.NoError(t, err)
+
+				var stdout bytes.Buffer
+				_, err = pktline.WriteString(&stdout, "version=1\000push-options")
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdout)
+				require.NoError(t, err)
+				_, err = pktline.WriteString(&stdout, "ok refs/heads/main")
+				require.NoError(t, err)
+				err = pktline.WriteFlush(&stdout)
+				require.NoError(t, err)
+
+				return setupData{
+					env:            []string{payload},
+					ctx:            ctx,
+					stdin:          stdin.String(),
+					expectedStdout: stdout.String(),
+					expectedStderr: "foo",
+					expectedUpdates: []ReferenceUpdate{
+						{
+							Ref:    "refs/heads/main",
+							OldOID: gittest.DefaultObjectHash.ZeroOID,
+							NewOID: gittest.DefaultObjectHash.EmptyTreeOID,
+						},
+					},
+					handlerSteps: func(handler ProcReceiveHandler) error {
+						require.NoError(t, handler.AcceptUpdate("refs/heads/main"))
+						_, err := handler.Write([]byte("foo"))
+						require.NoError(t, err)
+						return handler.Close(nil)
+					},
+				}
+			},
+		},
 	} {
 		tc := tc
 
@@ -345,8 +392,8 @@ func TestProcReceiveHandler(t *testing.T) {
 
 			setup := tc.setup(t, ctx)
 
-			var stdout bytes.Buffer
-			handler, doneCh, err := NewProcReceiveHandler(setup.env, strings.NewReader(setup.stdin), &stdout)
+			var stdout, stderr bytes.Buffer
+			handler, doneCh, err := NewProcReceiveHandler(setup.env, strings.NewReader(setup.stdin), &stdout, &stderr)
 			if err != nil || setup.expectedErr != nil {
 				require.Equal(t, setup.expectedErr, err)
 				return
@@ -364,6 +411,7 @@ func TestProcReceiveHandler(t *testing.T) {
 			require.Equal(t, setup.expectedCloseErr, err)
 
 			require.Equal(t, setup.expectedStdout, stdout.String())
+			require.Equal(t, setup.expectedStderr, stderr.String())
 		})
 	}
 }

@@ -37,7 +37,13 @@ func (s *server) ProcReceiveHook(stream gitalypb.HookService_ProcReceiveHookServ
 		return stream.Send(&gitalypb.ProcReceiveHookResponse{Stdout: p})
 	})
 
-	handler, doneCh, err := gitalyhook.NewProcReceiveHandler(firstRequest.GetEnvironmentVariables(), stdin, stdout)
+	stderr := streamio.NewWriter(func(p []byte) error {
+		return stream.Send(&gitalypb.ProcReceiveHookResponse{Stderr: p})
+	})
+
+	handler, doneCh, err := gitalyhook.NewProcReceiveHandler(
+		firstRequest.GetEnvironmentVariables(), stdin, stdout, stderr,
+	)
 	if err != nil {
 		return structerr.NewInternal("creating handler: %w", err)
 	}
