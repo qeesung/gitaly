@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
@@ -194,13 +195,22 @@ func generateConsumerTests(t *testing.T, setup testTransactionSetup) []transacti
 				Database: DatabaseState{
 					string(keyAppliedLSN): storage.LSN(1).ToProto(),
 				},
-				Directory: testhelper.DirectoryState{
-					"/":                           {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal":                        {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/0000000000001":          {Mode: fs.ModeDir | perm.PrivateDir},
-					"/wal/0000000000001/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/main", setup.Commits.First.OID)),
-					"/wal/0000000000001/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
-				},
+				Directory: gittest.FilesOrReftables(
+					testhelper.DirectoryState{
+						"/":                           {Mode: fs.ModeDir | perm.PrivateDir},
+						"/wal":                        {Mode: fs.ModeDir | perm.PrivateDir},
+						"/wal/0000000000001":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/wal/0000000000001/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/main", setup.Commits.First.OID)),
+						"/wal/0000000000001/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+					}, testhelper.DirectoryState{
+						"/":                           {Mode: fs.ModeDir | perm.PrivateDir},
+						"/wal":                        {Mode: fs.ModeDir | perm.PrivateDir},
+						"/wal/0000000000001":          {Mode: fs.ModeDir | perm.PrivateDir},
+						"/wal/0000000000001/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/main", setup.Commits.First.OID)),
+						"/wal/0000000000001/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/wal/0000000000001/2":        reftableListDirectoryEntry(2),
+					},
+				),
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",

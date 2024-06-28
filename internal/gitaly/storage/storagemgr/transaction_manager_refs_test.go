@@ -824,6 +824,9 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 		},
 		{
 			desc: "concurrently delete two packed references",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			steps: steps{
 				StartManager{},
 				Begin{
@@ -937,6 +940,9 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 		},
 		{
 			desc: "concurrently delete loose and packed references",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			steps: steps{
 				StartManager{},
 				Begin{
@@ -1667,6 +1673,9 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 		},
 		{
 			desc: "no-op update of a packed reference",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			steps: steps{
 				StartManager{},
 				Begin{
@@ -1763,6 +1772,9 @@ func generateModifyReferencesTests(t *testing.T, setup testTransactionSetup) []t
 		},
 		{
 			desc: "remotes directory created by a reference deletion",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			steps: steps{
 				StartManager{},
 				Begin{

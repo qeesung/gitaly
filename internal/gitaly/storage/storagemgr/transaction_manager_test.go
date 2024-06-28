@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
@@ -46,6 +47,23 @@ func manifestDirectoryEntry(expected *gitalypb.LogEntry) testhelper.DirectoryEnt
 			var logEntry gitalypb.LogEntry
 			require.NoError(tb, proto.Unmarshal(content, &logEntry))
 			return &logEntry
+		},
+	}
+}
+
+func reftableListDirectoryEntry(expectedTables int) testhelper.DirectoryEntry {
+	return testhelper.DirectoryEntry{
+		Mode:    perm.SharedFile,
+		Content: expectedTables,
+		ParseContent: func(tb testing.TB, path string, content []byte) any {
+			tables := 0
+
+			for _, line := range bytes.Split(content, []byte("\n")) {
+				require.True(tb, git.ReftableTableNameRegex.Match(line))
+				tables += 1
+			}
+
+			return tables
 		},
 	}
 }
@@ -89,6 +107,32 @@ func validCustomHooks(tb testing.TB) []byte {
 }
 
 func refChangeLogEntry(setup testTransactionSetup, ref string, oid git.ObjectID) *gitalypb.LogEntry {
+	return &gitalypb.LogEntry{
+		RelativePath: setup.RelativePath,
+		ReferenceTransactions: []*gitalypb.LogEntry_ReferenceTransaction{
+			{
+				Changes: []*gitalypb.LogEntry_ReferenceTransaction_Change{
+					{
+						ReferenceName: []byte(ref),
+						NewOid:        []byte(oid),
+					},
+				},
+			},
+		},
+		Operations: []*gitalypb.LogEntry_Operation{
+			{
+				Operation: &gitalypb.LogEntry_Operation_CreateHardLink_{
+					CreateHardLink: &gitalypb.LogEntry_Operation_CreateHardLink{
+						SourcePath:      []byte("1"),
+						DestinationPath: []byte(filepath.Join(setup.RelativePath, ref)),
+					},
+				},
+			},
+		},
+	}
+}
+
+func reftableRefChangeLogEntry(setup testTransactionSetup, ref string, oid git.ObjectID) *gitalypb.LogEntry {
 	return &gitalypb.LogEntry{
 		RelativePath: setup.RelativePath,
 		ReferenceTransactions: []*gitalypb.LogEntry_ReferenceTransaction{
@@ -198,11 +242,15 @@ func setupTest(t *testing.T, ctx context.Context, testPartitionID storage.Partit
 }
 
 func TestTransactionManager(t *testing.T) {
-	testhelper.SkipWithReftable(t, "WAL moves around packed-refs, which is not present with the reftable backend")
+	testhelper.NewFeatureSets(featureflag.SymrefUpdate).Run(t, testTransactionManager)
+}
 
+func testTransactionManager(t *testing.T, ctx context.Context) {
 	t.Parallel()
 
-	ctx := testhelper.Context(t)
+	if !featureflag.SymrefUpdate.IsEnabled(ctx) {
+		testhelper.SkipWithReftable(t, "reftable requires symref updates to be enabled")
+	}
 
 	// testPartitionID is the partition ID used in the tests for the TransactionManager.
 	const testPartitionID storage.PartitionID = 1

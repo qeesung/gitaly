@@ -2653,14 +2653,32 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 		return nil, fmt.Errorf("quarantine: %w", err)
 	}
 
+	refBackend, err := stagingRepositoryWithQuarantine.ReferenceBackend(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("reference backend: %w", err)
+	}
+
 	droppedReferenceUpdates := map[git.ReferenceName]struct{}{}
 	for referenceName, update := range transaction.flattenReferenceTransactions() {
 		// Transactions should only stage references with valid names as otherwise Git would already
 		// fail when they try to stage them against their snapshot. `update-ref` happily accepts references
 		// outside of `refs` directory so such references could theoretically arrive here. We thus sanity
 		// check that all references modified are within the refs directory.
-		if !strings.HasPrefix(referenceName.String(), "refs/") {
-			return nil, InvalidReferenceFormatError{ReferenceName: referenceName}
+		//
+		// When using the reftable backend we also want handle default branch updates here, for the files
+		// backend default branch updates are handled manually.
+		if err := func() error {
+			if refBackend == git.ReferenceBackendReftables && referenceName.String() == "HEAD" {
+				return nil
+			}
+
+			if !strings.HasPrefix(referenceName.String(), "refs/") {
+				return InvalidReferenceFormatError{ReferenceName: referenceName}
+			}
+
+			return nil
+		}(); err != nil {
+			return nil, err
 		}
 
 		actualOldTip, err := stagingRepositoryWithQuarantine.ResolveRevision(ctx, referenceName.Revision())
@@ -2675,7 +2693,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 			return nil, fmt.Errorf("resolve revision: %w", err)
 		}
 
-		if update.OldOID != actualOldTip {
+		if referenceName.String() != "HEAD" && update.OldOID != actualOldTip {
 			if transaction.skipVerificationFailures {
 				droppedReferenceUpdates[referenceName] = struct{}{}
 				continue
@@ -2689,7 +2707,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 			}
 		}
 
-		if update.OldOID == update.NewOID {
+		if update.OldOID == update.NewOID && update.OldTarget == update.NewTarget {
 			// This was a no-op and doesn't need to be written out. The reference's old value has been
 			// verified now to match what is expected.
 			droppedReferenceUpdates[referenceName] = struct{}{}
@@ -2725,11 +2743,107 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 		})
 	}
 
-	if err := mgr.verifyReferencesWithGit(ctx, referenceTransactions, transaction); err != nil {
-		return nil, fmt.Errorf("verify references with git: %w", err)
+	if refBackend == git.ReferenceBackendReftables {
+		if err := mgr.verifyReferencesWithGitForReftables(ctx, referenceTransactions, transaction); err != nil {
+			return nil, fmt.Errorf("verify references with git: %w", err)
+		}
+	} else {
+		if err := mgr.verifyReferencesWithGit(ctx, referenceTransactions, transaction); err != nil {
+			return nil, fmt.Errorf("verify references with git: %w", err)
+		}
 	}
 
 	return referenceTransactions, nil
+}
+
+func (mgr *TransactionManager) verifyReferencesWithGitForReftables(
+	ctx context.Context,
+	referenceTransactions []*gitalypb.LogEntry_ReferenceTransaction,
+	tx *Transaction,
+) error {
+	repo, err := tx.stagingRepository.Quarantine(ctx, tx.quarantineDirectory)
+	if err != nil {
+		return fmt.Errorf("quarantine: %w", err)
+	}
+
+	reftablePath := mgr.getAbsolutePath(repo.GetRelativePath(), "reftable/")
+	existingTables := make(map[string]struct{})
+	lockedTables := make(map[string]struct{})
+
+	reftableWalker := func(handler func(path string) error) fs.WalkDirFunc {
+		return func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if d.IsDir() {
+				if filepath.Base(path) == "reftable" {
+					return nil
+				}
+
+				return fmt.Errorf("unexpected directory: %s", filepath.Base(path))
+			}
+
+			return handler(path)
+		}
+	}
+
+	if err = filepath.WalkDir(
+		reftablePath,
+		reftableWalker(func(path string) error {
+			if filepath.Base(path) == "tables.list" {
+				return nil
+			}
+
+			existingTables[path] = struct{}{}
+
+			return nil
+		}),
+	); err != nil {
+		return fmt.Errorf("finding reftables: %w", err)
+	}
+
+	for table := range existingTables {
+		lockedPath := table + ".lock"
+
+		f, err := os.Create(lockedPath)
+		if err != nil {
+			return fmt.Errorf("creating reftable lock: %w", err)
+		}
+		f.Close()
+
+		lockedTables[lockedPath] = struct{}{}
+	}
+
+	for _, referenceTransaction := range referenceTransactions {
+		if err := mgr.applyReferenceTransaction(ctx, referenceTransaction.GetChanges(), repo); err != nil {
+			return fmt.Errorf("applying reference: %w", err)
+		}
+	}
+
+	if err = filepath.WalkDir(
+		reftablePath,
+		reftableWalker(func(path string) error {
+			if _, ok := lockedTables[path]; ok {
+				return nil
+			}
+
+			if _, ok := existingTables[path]; ok {
+				return nil
+			}
+
+			base := filepath.Base(path)
+
+			if base == "tables.list" {
+				return tx.walEntry.RecordFileUpdate(tx.stagingSnapshot.Root(), filepath.Join(tx.relativePath, "reftable", base))
+			}
+			return tx.walEntry.RecordFileCreation(path, filepath.Join(tx.relativePath, "reftable", base))
+		}),
+	); err != nil {
+		return fmt.Errorf("finding reftables: %w", err)
+	}
+
+	return nil
 }
 
 // verifyReferencesWithGit verifies the reference updates with git by committing them against a snapshot of the target
@@ -3060,7 +3174,11 @@ func (mgr *TransactionManager) verifyCommitGraphs(ctx context.Context, transacti
 }
 
 // applyReferenceTransaction applies a reference transaction with `git update-ref`.
-func (mgr *TransactionManager) applyReferenceTransaction(ctx context.Context, changes []*gitalypb.LogEntry_ReferenceTransaction_Change, repository *localrepo.Repo) error {
+func (mgr *TransactionManager) applyReferenceTransaction(
+	ctx context.Context,
+	changes []*gitalypb.LogEntry_ReferenceTransaction_Change,
+	repository *localrepo.Repo,
+) error {
 	updater, err := updateref.New(ctx, repository, updateref.WithDisabledTransactions(), updateref.WithNoDeref())
 	if err != nil {
 		return fmt.Errorf("new: %w", err)
@@ -3070,9 +3188,24 @@ func (mgr *TransactionManager) applyReferenceTransaction(ctx context.Context, ch
 		return fmt.Errorf("start: %w", err)
 	}
 
+	version, err := repository.GitVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("git version: %w", err)
+	}
+
 	for _, change := range changes {
-		if err := updater.Update(git.ReferenceName(change.ReferenceName), git.ObjectID(change.NewOid), ""); err != nil {
-			return fmt.Errorf("update %q: %w", change.ReferenceName, err)
+		if bytes.Equal(change.ReferenceName, []byte("HEAD")) {
+			if err := updater.UpdateSymbolicReference(
+				version,
+				git.ReferenceName(change.ReferenceName),
+				git.ReferenceName(change.NewTarget),
+			); err != nil {
+				return fmt.Errorf("update symref %q: %w", change.ReferenceName, err)
+			}
+		} else {
+			if err := updater.Update(git.ReferenceName(change.ReferenceName), git.ObjectID(change.NewOid), ""); err != nil {
+				return fmt.Errorf("update %q: %w", change.ReferenceName, err)
+			}
 		}
 	}
 
