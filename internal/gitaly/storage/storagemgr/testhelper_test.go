@@ -140,7 +140,7 @@ func sortPackfilesState(packfilesState *PackfilesState) {
 func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, repo *localrepo.Repo, expected RepositoryState) {
 	tb.Helper()
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	require.NoError(tb, err)
 
 	headReference, err := repo.HeadReference(ctx)
@@ -926,11 +926,11 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 	umask := testhelper.Umask()
 
 	storageName := setup.Config.Storages[0].Name
-	storageScopedFactory, err := setup.RepositoryFactory.ScopeByStorage(storageName)
+	storageScopedFactory, err := setup.RepositoryFactory.ScopeByStorage(ctx, storageName)
 	require.NoError(t, err)
 	repo := storageScopedFactory.Build(setup.RelativePath)
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	require.NoError(t, err)
 
 	rawDatabase, err := keyvalue.NewBadgerStore(testhelper.SharedLogger(t), t.TempDir())
@@ -1071,7 +1071,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 				if step.UpdateAlternate != nil {
 					transaction.MarkAlternateUpdated()
 
-					repoPath, err := rewrittenRepo.Path()
+					repoPath, err := rewrittenRepo.Path(ctx)
 					require.NoError(t, err)
 
 					if step.UpdateAlternate.content != "" {
@@ -1131,7 +1131,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 							rewrittenRepo,
 						))
 					} else {
-						rewrittenPath, err := rewrittenRepo.Path()
+						rewrittenPath, err := rewrittenRepo.Path(ctx)
 						require.NoError(t, err)
 						require.NoError(t, os.RemoveAll(filepath.Join(rewrittenPath, repoutil.CustomHooksDir)))
 					}
@@ -1288,7 +1288,7 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 			))
 
 			if step.Alternate != "" {
-				repoPath, err := locator.GetRepoPath(rewrittenRepository)
+				repoPath, err := locator.GetRepoPath(ctx, rewrittenRepository)
 				require.NoError(t, err)
 
 				alternatesPath := stats.AlternatesFilePath(repoPath)

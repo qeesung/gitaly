@@ -599,7 +599,7 @@ func TestUpdateRemoteMirror(t *testing.T) {
 					references: tc.mirrorRefs,
 				},
 			} {
-				repoPath, err := c.repo.Path()
+				repoPath, err := c.repo.Path(ctx)
 				require.NoError(t, err)
 
 				// We compute the commits in a separate step as many of the tests

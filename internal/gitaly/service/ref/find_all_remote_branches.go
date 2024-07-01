@@ -1,6 +1,7 @@
 package ref
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,7 +13,7 @@ import (
 )
 
 func (s *server) FindAllRemoteBranches(req *gitalypb.FindAllRemoteBranchesRequest, stream gitalypb.RefService_FindAllRemoteBranchesServer) error {
-	if err := validateFindAllRemoteBranchesRequest(s.locator, req); err != nil {
+	if err := validateFindAllRemoteBranchesRequest(stream.Context(), s.locator, req); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -50,8 +51,8 @@ func (s *server) findAllRemoteBranches(req *gitalypb.FindAllRemoteBranchesReques
 	return nil
 }
 
-func validateFindAllRemoteBranchesRequest(locator storage.Locator, req *gitalypb.FindAllRemoteBranchesRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateFindAllRemoteBranchesRequest(ctx context.Context, locator storage.Locator, req *gitalypb.FindAllRemoteBranchesRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 

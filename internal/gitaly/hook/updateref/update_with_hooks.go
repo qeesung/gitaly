@@ -220,7 +220,7 @@ func (u *UpdaterWithHooks) UpdateReference(
 	// before we start updating the refs because git-update-ref(1) will verify that it got all
 	// referenced objects available.
 	if quarantineDir != nil {
-		if err := quarantineDir.Migrate(); err != nil {
+		if err := quarantineDir.Migrate(ctx); err != nil {
 			return fmt.Errorf("migrating quarantined objects: %w", err)
 		}
 

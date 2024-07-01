@@ -20,17 +20,17 @@ import (
 // path relative to the repository into the repository's "alternates" file. This does not trigger
 // deduplication, which is the responsibility of the caller.
 func (o *ObjectPool) Link(ctx context.Context, repo *localrepo.Repo) (returnedErr error) {
-	altPath, err := repo.InfoAlternatesPath()
+	altPath, err := repo.InfoAlternatesPath(ctx)
 	if err != nil {
 		return err
 	}
 
-	expectedRelPath, err := o.getRelativeObjectPath(repo)
+	expectedRelPath, err := o.getRelativeObjectPath(ctx, repo)
 	if err != nil {
 		return err
 	}
 
-	linked, err := o.LinkedToRepository(repo)
+	linked, err := o.LinkedToRepository(ctx, repo)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (o *ObjectPool) Link(ctx context.Context, repo *localrepo.Repo) (returnedEr
 		tx.MarkAlternateUpdated()
 	})
 
-	return o.removeMemberBitmaps(repo)
+	return o.removeMemberBitmaps(ctx, repo)
 }
 
 // removeMemberBitmaps removes packfile bitmaps from the member
@@ -80,8 +80,8 @@ func (o *ObjectPool) Link(ctx context.Context, repo *localrepo.Repo) (returnedEr
 // but none of its members will. With removeMemberBitmaps we try to
 // change "eventually" to "immediately", so that users won't see the
 // warning. https://gitlab.com/gitlab-org/gitaly/issues/1728
-func (o *ObjectPool) removeMemberBitmaps(repo *localrepo.Repo) error {
-	poolPath, err := o.Repo.Path()
+func (o *ObjectPool) removeMemberBitmaps(ctx context.Context, repo *localrepo.Repo) error {
+	poolPath, err := o.Repo.Path(ctx)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (o *ObjectPool) removeMemberBitmaps(repo *localrepo.Repo) error {
 		return nil
 	}
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return err
 	}
@@ -133,13 +133,13 @@ func getBitmaps(repoPath string) ([]string, error) {
 	return bitmaps, nil
 }
 
-func (o *ObjectPool) getRelativeObjectPath(repo *localrepo.Repo) (string, error) {
-	poolPath, err := o.Path()
+func (o *ObjectPool) getRelativeObjectPath(ctx context.Context, repo *localrepo.Repo) (string, error) {
+	poolPath, err := o.Path(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getting object pool path: %w", err)
 	}
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getting repository path: %w", err)
 	}
@@ -153,13 +153,13 @@ func (o *ObjectPool) getRelativeObjectPath(repo *localrepo.Repo) (string, error)
 }
 
 // LinkedToRepository tests if a repository is linked to an object pool
-func (o *ObjectPool) LinkedToRepository(repo *localrepo.Repo) (bool, error) {
-	poolPath, err := o.Path()
+func (o *ObjectPool) LinkedToRepository(ctx context.Context, repo *localrepo.Repo) (bool, error) {
+	poolPath, err := o.Path(ctx)
 	if err != nil {
 		return false, fmt.Errorf("getting object pool path: %w", err)
 	}
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return false, fmt.Errorf("getting repo path: %w", err)
 	}
@@ -174,7 +174,7 @@ func (o *ObjectPool) LinkedToRepository(repo *localrepo.Repo) (bool, error) {
 	}
 
 	relPath := altInfo.ObjectDirectories[0]
-	expectedRelPath, err := o.getRelativeObjectPath(repo)
+	expectedRelPath, err := o.getRelativeObjectPath(ctx, repo)
 	if err != nil {
 		return false, err
 	}

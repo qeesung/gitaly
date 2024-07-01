@@ -30,7 +30,7 @@ func (s *server) CheckObjectsExist(
 	}
 
 	repository := request.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

@@ -194,6 +194,7 @@ func (ptn *partition) isClosing() bool {
 
 // NewPartitionManager returns a new PartitionManager.
 func NewPartitionManager(
+	ctx context.Context,
 	configuredStorages []config.Storage,
 	cmdFactory git.CommandFactory,
 	localRepoFactory localrepo.Factory,
@@ -204,7 +205,7 @@ func NewPartitionManager(
 ) (*PartitionManager, error) {
 	storages := make(map[string]*storageManager, len(configuredStorages))
 	for _, configuredStorage := range configuredStorages {
-		repoFactory, err := localRepoFactory.ScopeByStorage(configuredStorage.Name)
+		repoFactory, err := localRepoFactory.ScopeByStorage(ctx, configuredStorage.Name)
 		if err != nil {
 			return nil, fmt.Errorf("scope by storage: %w", err)
 		}

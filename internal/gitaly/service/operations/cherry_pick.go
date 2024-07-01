@@ -17,7 +17,7 @@ import (
 // UserCherryPick tries to perform a cherry-pick of a given commit onto a
 // branch. See the protobuf documentation for details.
 func (s *Server) UserCherryPick(ctx context.Context, req *gitalypb.UserCherryPickRequest) (*gitalypb.UserCherryPickResponse, error) {
-	if err := validateCherryPickOrRevertRequest(s.locator, req); err != nil {
+	if err := validateCherryPickOrRevertRequest(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

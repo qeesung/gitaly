@@ -28,7 +28,7 @@ func (s *server) ObjectsSize(server gitalypb.RepositoryService_ObjectsSizeServer
 		return fmt.Errorf("receiving initial request: %w", err)
 	}
 
-	if err := s.locator.ValidateRepository(request.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, request.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

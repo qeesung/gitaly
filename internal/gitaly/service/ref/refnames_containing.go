@@ -19,7 +19,7 @@ import (
 func (s *server) ListBranchNamesContainingCommit(in *gitalypb.ListBranchNamesContainingCommitRequest, stream gitalypb.RefService_ListBranchNamesContainingCommitServer) error {
 	ctx := stream.Context()
 
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -74,7 +74,7 @@ func (bs *branchNamesContainingCommitSender) Send() error {
 func (s *server) ListTagNamesContainingCommit(in *gitalypb.ListTagNamesContainingCommitRequest, stream gitalypb.RefService_ListTagNamesContainingCommitServer) error {
 	ctx := stream.Context()
 
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

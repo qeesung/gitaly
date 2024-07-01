@@ -13,11 +13,13 @@ import (
 )
 
 func (s *server) GetInfoAttributes(in *gitalypb.GetInfoAttributesRequest, stream gitalypb.RepositoryService_GetInfoAttributesServer) (returnedErr error) {
+	ctx := stream.Context()
+
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
-	repoPath, err := s.locator.GetRepoPath(repository)
+	repoPath, err := s.locator.GetRepoPath(ctx, repository)
 	if err != nil {
 		return err
 	}
@@ -32,7 +34,6 @@ func (s *server) GetInfoAttributes(in *gitalypb.GetInfoAttributesRequest, stream
 	}
 
 	repo := s.localrepo(in.GetRepository())
-	ctx := stream.Context()
 	var stderr strings.Builder
 	// Call cat-file -p HEAD:.gitattributes instead of cat info/attributes
 	catFileCmd, err := repo.Exec(ctx, git.Command{

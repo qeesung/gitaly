@@ -15,7 +15,7 @@ import (
 )
 
 func (s *server) WriteRef(ctx context.Context, req *gitalypb.WriteRefRequest) (*gitalypb.WriteRefResponse, error) {
-	if err := validateWriteRefRequest(s.locator, req); err != nil {
+	if err := validateWriteRefRequest(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 	if err := s.writeRef(ctx, req); err != nil {
@@ -121,8 +121,8 @@ func updateRef(ctx context.Context, repo *localrepo.Repo, req *gitalypb.WriteRef
 	return nil
 }
 
-func validateWriteRefRequest(locator storage.Locator, req *gitalypb.WriteRefRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateWriteRefRequest(ctx context.Context, locator storage.Locator, req *gitalypb.WriteRefRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(req.Ref); err != nil {

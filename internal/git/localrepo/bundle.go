@@ -81,7 +81,7 @@ func (repo *Repo) CloneBundle(ctx context.Context, reader io.Reader) error {
 		return err
 	}
 
-	repoPath, err := repo.locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+	repoPath, err := repo.locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return fmt.Errorf("getting repo path: %w", err)
 	}

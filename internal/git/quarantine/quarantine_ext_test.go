@@ -57,7 +57,7 @@ func TestQuarantine_localrepo(t *testing.T) {
 		_, err = repo.ReadObject(ctx, blobID)
 		require.Error(t, err)
 
-		require.NoError(t, quarantine.Migrate())
+		require.NoError(t, quarantine.Migrate(ctx))
 
 		blobContents, err := repo.ReadObject(ctx, blobID)
 		require.NoError(t, err)

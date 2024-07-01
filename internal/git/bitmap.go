@@ -26,7 +26,7 @@ var badBitmapRequestCount = promauto.NewCounterVec(
 // repoPath, and if it finds any, it logs a warning. This is to help us
 // investigate https://gitlab.com/gitlab-org/gitaly/issues/1728.
 func WarnIfTooManyBitmaps(ctx context.Context, logger log.Logger, locator storage.Locator, storageName, repoPath string) {
-	storageRoot, err := locator.GetStorageByName(storageName)
+	storageRoot, err := locator.GetStorageByName(ctx, storageName)
 	if err != nil {
 		logger.WithError(err).InfoContext(ctx, "bitmap check failed")
 		return

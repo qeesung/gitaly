@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -20,11 +21,11 @@ var (
 )
 
 func (s *server) RawBlame(in *gitalypb.RawBlameRequest, stream gitalypb.CommitService_RawBlameServer) error {
-	if err := validateRawBlameRequest(s.locator, in); err != nil {
+	ctx := stream.Context()
+	if err := validateRawBlameRequest(ctx, s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
-	ctx := stream.Context()
 	revision := string(in.GetRevision())
 	path := string(in.GetPath())
 	blameRange := string(in.GetRange())
@@ -90,8 +91,8 @@ func (s *server) RawBlame(in *gitalypb.RawBlameRequest, stream gitalypb.CommitSe
 	return nil
 }
 
-func validateRawBlameRequest(locator storage.Locator, in *gitalypb.RawBlameRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateRawBlameRequest(ctx context.Context, locator storage.Locator, in *gitalypb.RawBlameRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(in.Revision); err != nil {

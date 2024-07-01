@@ -95,7 +95,7 @@ func (m *GitLabHookManager) PreReceiveHook(ctx context.Context, repo *gitalypb.R
 }
 
 func (m *GitLabHookManager) preReceiveHook(ctx context.Context, payload git.HooksPayload, repo *gitalypb.Repository, pushOptions, envs []string, changes []byte, stdout, stderr io.Writer) error {
-	repoPath, err := m.locator.GetRepoPath(repo)
+	repoPath, err := m.locator.GetRepoPath(ctx, repo)
 	if err != nil {
 		return structerr.NewInternal("getting repo path: %w", err)
 	}
@@ -166,7 +166,7 @@ func (m *GitLabHookManager) preReceiveHook(ctx context.Context, payload git.Hook
 		}
 	}
 
-	executor, err := m.newCustomHooksExecutor(repo, "pre-receive")
+	executor, err := m.newCustomHooksExecutor(ctx, repo, "pre-receive")
 	if err != nil {
 		return fmt.Errorf("creating custom hooks executor: %w", err)
 	}

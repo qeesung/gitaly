@@ -1,6 +1,7 @@
 package blob
 
 import (
+	"context"
 	"errors"
 	"io"
 
@@ -15,7 +16,7 @@ import (
 func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobService_GetBlobServer) error {
 	ctx := stream.Context()
 
-	if err := validateRequest(s.locator, in); err != nil {
+	if err := validateRequest(ctx, s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -81,8 +82,8 @@ func (s *server) GetBlob(in *gitalypb.GetBlobRequest, stream gitalypb.BlobServic
 	return nil
 }
 
-func validateRequest(locator storage.Locator, in *gitalypb.GetBlobRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateRequest(ctx context.Context, locator storage.Locator, in *gitalypb.GetBlobRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

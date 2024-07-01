@@ -15,7 +15,7 @@ import (
 // By default, the configuration will ask for an incremental commit-graph update. If the preexisting
 // commit-graph is missing bloom filters though then the whole commit-graph chain will be rewritten.
 func WriteCommitGraphConfigForRepository(ctx context.Context, repo *localrepo.Repo) (config.WriteCommitGraphConfig, error) {
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return config.WriteCommitGraphConfig{}, err
 	}

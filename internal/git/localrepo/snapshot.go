@@ -29,11 +29,11 @@ var ErrSnapshotAlternates = errors.New("error getting alternate object directori
 // CreateSnapshot creates a tar archive of the repository. This archive may be
 // corrupt if created during concurrent writes.
 func (repo *Repo) CreateSnapshot(ctx context.Context, out io.Writer) error {
-	path, err := repo.locator.GetRepoPath(repo)
+	path, err := repo.locator.GetRepoPath(ctx, repo)
 	if err != nil {
 		return err
 	}
-	storageRoot, err := repo.locator.GetStorageByName(repo.GetStorageName())
+	storageRoot, err := repo.locator.GetStorageByName(ctx, repo.GetStorageName())
 	if err != nil {
 		return fmt.Errorf("get storage path: %w", err)
 	}

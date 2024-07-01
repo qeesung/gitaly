@@ -18,7 +18,7 @@ func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 		return err
 	}
 
-	if err = validateFirstFilterShasWithSignaturesRequest(s.locator, firstRequest); err != nil {
+	if err = validateFirstFilterShasWithSignaturesRequest(bidi.Context(), s.locator, firstRequest); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -28,8 +28,8 @@ func (s *server) FilterShasWithSignatures(bidi gitalypb.CommitService_FilterShas
 	return nil
 }
 
-func validateFirstFilterShasWithSignaturesRequest(locator storage.Locator, in *gitalypb.FilterShasWithSignaturesRequest) error {
-	return locator.ValidateRepository(in.GetRepository())
+func validateFirstFilterShasWithSignaturesRequest(ctx context.Context, locator storage.Locator, in *gitalypb.FilterShasWithSignaturesRequest) error {
+	return locator.ValidateRepository(ctx, in.GetRepository())
 }
 
 func (s *server) filterShasWithSignatures(bidi gitalypb.CommitService_FilterShasWithSignaturesServer, firstRequest *gitalypb.FilterShasWithSignaturesRequest) error {

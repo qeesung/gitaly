@@ -10,7 +10,7 @@ import (
 )
 
 func (s *server) GetSnapshot(in *gitalypb.GetSnapshotRequest, stream gitalypb.RepositoryService_GetSnapshotServer) error {
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), in.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

@@ -20,7 +20,7 @@ func (s *server) RawRangeDiff(in *gitalypb.RawRangeDiffRequest, stream gitalypb.
 		"RangeSpec": in.GetRangeSpec(),
 	}).Debug("RawRangeDiff")
 
-	if err := validateRawRangeDiffRequest(s.locator, in); err != nil {
+	if err := validateRawRangeDiffRequest(stream.Context(), s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -59,8 +59,8 @@ func (s *server) RawRangeDiff(in *gitalypb.RawRangeDiffRequest, stream gitalypb.
 	return sendRawRangeDiffOutput(ctx, s.localrepo(in.GetRepository()), sw, subCmd)
 }
 
-func validateRawRangeDiffRequest(locator storage.Locator, in *gitalypb.RawRangeDiffRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateRawRangeDiffRequest(ctx context.Context, locator storage.Locator, in *gitalypb.RawRangeDiffRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

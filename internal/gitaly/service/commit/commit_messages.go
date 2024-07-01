@@ -2,6 +2,7 @@ package commit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func (s *server) GetCommitMessages(request *gitalypb.GetCommitMessagesRequest, stream gitalypb.CommitService_GetCommitMessagesServer) error {
-	if err := validateGetCommitMessagesRequest(s.locator, request); err != nil {
+	if err := validateGetCommitMessagesRequest(stream.Context(), s.locator, request); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 	if err := s.getAndStreamCommitMessages(request, stream); err != nil {
@@ -55,6 +56,6 @@ func (s *server) getAndStreamCommitMessages(request *gitalypb.GetCommitMessagesR
 	return nil
 }
 
-func validateGetCommitMessagesRequest(locator storage.Locator, request *gitalypb.GetCommitMessagesRequest) error {
-	return locator.ValidateRepository(request.GetRepository())
+func validateGetCommitMessagesRequest(ctx context.Context, locator storage.Locator, request *gitalypb.GetCommitMessagesRequest) error {
+	return locator.ValidateRepository(ctx, request.GetRepository())
 }

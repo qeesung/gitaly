@@ -57,7 +57,7 @@ func (m *GitLabHookManager) updateHook(ctx context.Context, payload git.HooksPay
 		return structerr.NewInternal("payload has no receive hooks info")
 	}
 
-	executor, err := m.newCustomHooksExecutor(repo, "update")
+	executor, err := m.newCustomHooksExecutor(ctx, repo, "update")
 	if err != nil {
 		return structerr.NewInternal("%w", err)
 	}

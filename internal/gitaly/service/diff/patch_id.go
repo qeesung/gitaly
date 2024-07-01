@@ -12,7 +12,7 @@ import (
 )
 
 func (s *server) GetPatchID(ctx context.Context, in *gitalypb.GetPatchIDRequest) (*gitalypb.GetPatchIDResponse, error) {
-	if err := validatePatchIDRequest(s.locator, in); err != nil {
+	if err := validatePatchIDRequest(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -82,8 +82,8 @@ func (s *server) GetPatchID(ctx context.Context, in *gitalypb.GetPatchIDRequest)
 	return &gitalypb.GetPatchIDResponse{PatchId: patchID}, nil
 }
 
-func validatePatchIDRequest(locator storage.Locator, in *gitalypb.GetPatchIDRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validatePatchIDRequest(ctx context.Context, locator storage.Locator, in *gitalypb.GetPatchIDRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if string(in.GetOldRevision()) == "" {

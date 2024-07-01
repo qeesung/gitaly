@@ -11,7 +11,7 @@ import (
 )
 
 func (s *server) DeleteObjectPool(ctx context.Context, in *gitalypb.DeleteObjectPoolRequest) (*gitalypb.DeleteObjectPoolResponse, error) {
-	pool, err := s.poolForRequest(in)
+	pool, err := s.poolForRequest(ctx, in)
 	if err != nil {
 		if errors.Is(err, objectpool.ErrInvalidPoolRepository) {
 			// TODO: we really should return an error in case we're trying to delete an

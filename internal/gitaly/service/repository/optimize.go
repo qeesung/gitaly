@@ -12,7 +12,7 @@ import (
 )
 
 func (s *server) OptimizeRepository(ctx context.Context, in *gitalypb.OptimizeRepositoryRequest) (*gitalypb.OptimizeRepositoryResponse, error) {
-	if err := s.validateOptimizeRepositoryRequest(in); err != nil {
+	if err := s.validateOptimizeRepositoryRequest(ctx, in); err != nil {
 		return nil, err
 	}
 
@@ -47,13 +47,13 @@ func (s *server) OptimizeRepository(ctx context.Context, in *gitalypb.OptimizeRe
 	return &gitalypb.OptimizeRepositoryResponse{}, nil
 }
 
-func (s *server) validateOptimizeRepositoryRequest(in *gitalypb.OptimizeRepositoryRequest) error {
+func (s *server) validateOptimizeRepositoryRequest(ctx context.Context, in *gitalypb.OptimizeRepositoryRequest) error {
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
-	_, err := s.locator.GetRepoPath(repository)
+	_, err := s.locator.GetRepoPath(ctx, repository)
 	if err != nil {
 		return err
 	}

@@ -15,13 +15,13 @@ import (
 func (s *server) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest) (*gitalypb.CreateForkResponse, error) {
 	// We don't validate existence of the source repository given that we may connect to a different Gitaly host in
 	// order to fetch from it. So it may or may not exist locally.
-	if err := s.locator.ValidateRepository(req.GetSourceRepository(), storage.WithSkipStorageExistenceCheck()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, req.GetSourceRepository(), storage.WithSkipStorageExistenceCheck()); err != nil {
 		return nil, structerr.NewInvalidArgument("validating source repository: %w", err)
 	}
 
 	// Neither do we validate existence of the target repository given that this is the repository we wish to create
 	// in the first place.
-	if err := s.locator.ValidateRepository(req.GetRepository(), storage.WithSkipRepositoryExistenceCheck()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, req.GetRepository(), storage.WithSkipRepositoryExistenceCheck()); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -29,7 +29,7 @@ func (s *server) CreateFork(ctx context.Context, req *gitalypb.CreateForkRequest
 	sourceRepository := req.SourceRepository
 
 	if err := repoutil.Create(ctx, s.logger, s.locator, s.gitCmdFactory, s.txManager, s.repositoryCounter, targetRepository, func(repo *gitalypb.Repository) error {
-		targetPath, err := s.locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+		targetPath, err := s.locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 		if err != nil {
 			return err
 		}

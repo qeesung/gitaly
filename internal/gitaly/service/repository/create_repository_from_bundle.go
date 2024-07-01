@@ -11,17 +11,17 @@ import (
 // CreateRepositoryFromBundle creates a Git repository at the specified storage and path, if it does
 // not already exist, from the provided Git bundle.
 func (s *server) CreateRepositoryFromBundle(stream gitalypb.RepositoryService_CreateRepositoryFromBundleServer) error {
+	ctx := stream.Context()
+
 	firstRequest, err := stream.Recv()
 	if err != nil {
 		return structerr.NewInternal("first request failed: %w", err)
 	}
 
 	repo := firstRequest.GetRepository()
-	if err := s.locator.ValidateRepository(repo, storage.WithSkipRepositoryExistenceCheck()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repo, storage.WithSkipRepositoryExistenceCheck()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
-
-	ctx := stream.Context()
 
 	firstRead := false
 	bundleReader := streamio.NewReader(func() ([]byte, error) {

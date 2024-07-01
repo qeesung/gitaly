@@ -19,7 +19,7 @@ import (
 func (s *server) FindAllTags(in *gitalypb.FindAllTagsRequest, stream gitalypb.RefService_FindAllTagsServer) error {
 	ctx := stream.Context()
 
-	if err := s.validateFindAllTagsRequest(in); err != nil {
+	if err := s.validateFindAllTagsRequest(ctx, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -165,9 +165,9 @@ func (s *server) findAllTags(ctx context.Context, repo *localrepo.Repo, sortFiel
 	return nil
 }
 
-func (s *server) validateFindAllTagsRequest(request *gitalypb.FindAllTagsRequest) error {
+func (s *server) validateFindAllTagsRequest(ctx context.Context, request *gitalypb.FindAllTagsRequest) error {
 	repository := request.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return err
 	}
 

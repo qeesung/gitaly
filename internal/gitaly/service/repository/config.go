@@ -16,11 +16,12 @@ func (s *server) GetConfig(
 	request *gitalypb.GetConfigRequest,
 	stream gitalypb.RepositoryService_GetConfigServer,
 ) error {
+	ctx := stream.Context()
 	repository := request.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
-	repoPath, err := s.locator.GetRepoPath(repository, storage.WithRepositoryVerificationSkipped())
+	repoPath, err := s.locator.GetRepoPath(ctx, repository, storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return err
 	}

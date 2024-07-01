@@ -1,6 +1,7 @@
 package hook
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -29,7 +30,7 @@ func (s *server) PostReceiveHook(stream gitalypb.HookService_PostReceiveHookServ
 		return structerr.NewInternal("%w", err)
 	}
 
-	if err := validatePostReceiveHookRequest(s.locator, firstRequest); err != nil {
+	if err := validatePostReceiveHookRequest(stream.Context(), s.locator, firstRequest); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -66,6 +67,6 @@ func (s *server) PostReceiveHook(stream gitalypb.HookService_PostReceiveHookServ
 	return postReceiveHookResponse(stream, 0, "")
 }
 
-func validatePostReceiveHookRequest(locator storage.Locator, in *gitalypb.PostReceiveHookRequest) error {
-	return locator.ValidateRepository(in.GetRepository())
+func validatePostReceiveHookRequest(ctx context.Context, locator storage.Locator, in *gitalypb.PostReceiveHookRequest) error {
+	return locator.ValidateRepository(ctx, in.GetRepository())
 }

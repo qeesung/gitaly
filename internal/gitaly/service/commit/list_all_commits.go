@@ -1,6 +1,8 @@
 package commit
 
 import (
+	"context"
+
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gitpipe"
@@ -10,19 +12,19 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func verifyListAllCommitsRequest(locator storage.Locator, request *gitalypb.ListAllCommitsRequest) error {
-	return locator.ValidateRepository(request.GetRepository())
+func verifyListAllCommitsRequest(ctx context.Context, locator storage.Locator, request *gitalypb.ListAllCommitsRequest) error {
+	return locator.ValidateRepository(ctx, request.GetRepository())
 }
 
 func (s *server) ListAllCommits(
 	request *gitalypb.ListAllCommitsRequest,
 	stream gitalypb.CommitService_ListAllCommitsServer,
 ) error {
-	if err := verifyListAllCommitsRequest(s.locator, request); err != nil {
+	ctx := stream.Context()
+	if err := verifyListAllCommitsRequest(ctx, s.locator, request); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
-	ctx := stream.Context()
 	repo := s.localrepo(request.GetRepository())
 
 	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)

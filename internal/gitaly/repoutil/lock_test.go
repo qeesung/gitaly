@@ -26,7 +26,7 @@ func TestLock(t *testing.T) {
 		RelativePath: gittest.NewRepositoryName(t),
 	}
 
-	repoPath, err := locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+	repoPath, err := locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 	require.NoError(t, err)
 
 	unlock, err := Lock(ctx, logger, locator, repo)

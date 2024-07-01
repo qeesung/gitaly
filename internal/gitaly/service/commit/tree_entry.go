@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -129,7 +130,7 @@ func sendTreeEntry(
 }
 
 func (s *server) TreeEntry(in *gitalypb.TreeEntryRequest, stream gitalypb.CommitService_TreeEntryServer) error {
-	if err := validateRequest(s.locator, in); err != nil {
+	if err := validateRequest(stream.Context(), s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -157,8 +158,8 @@ func (s *server) TreeEntry(in *gitalypb.TreeEntryRequest, stream gitalypb.Commit
 	return sendTreeEntry(stream, objectReader, objectInfoReader, string(in.GetRevision()), requestPath, in.GetLimit(), in.GetMaxSize())
 }
 
-func validateRequest(locator storage.Locator, in *gitalypb.TreeEntryRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateRequest(ctx context.Context, locator storage.Locator, in *gitalypb.TreeEntryRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(in.Revision); err != nil {

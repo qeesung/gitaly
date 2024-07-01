@@ -20,7 +20,7 @@ import (
 // Returns the error safe.ErrFileAlreadyLocked if the repository is already
 // locked.
 func Lock(ctx context.Context, logger log.Logger, locator storage.Locator, repository storage.Repository) (func(), error) {
-	path, err := locator.GetRepoPath(repository, storage.WithRepositoryVerificationSkipped())
+	path, err := locator.GetRepoPath(ctx, repository, storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return nil, err
 	}

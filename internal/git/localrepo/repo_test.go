@@ -58,7 +58,7 @@ func TestRepo_Quarantine(t *testing.T) {
 
 	quarantineDir := testhelper.TempDir(t)
 
-	quarantinedRepo, err := unquarantinedRepo.Quarantine(quarantineDir)
+	quarantinedRepo, err := unquarantinedRepo.Quarantine(ctx, quarantineDir)
 	require.NoError(t, err)
 
 	quarantinedBlob := []byte("quarantined blob")
@@ -149,6 +149,8 @@ func TestRepo_Quarantine_nonExistentRepository(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
+			ctx := testhelper.Context(t)
+
 			catfileCache := catfile.NewCache(cfg)
 			defer catfileCache.Stop()
 
@@ -160,7 +162,7 @@ func TestRepo_Quarantine_nonExistentRepository(t *testing.T) {
 				tc.inputRepo,
 			)
 
-			quarantinedRepo, err := repo.Quarantine(quarantineDir)
+			quarantinedRepo, err := repo.Quarantine(ctx, quarantineDir)
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 				return
@@ -202,7 +204,7 @@ func TestRepo_QuarantineOnly(t *testing.T) {
 	t.Run("returns the repository with only the quarantine directory", func(t *testing.T) {
 		t.Parallel()
 
-		quarantinedRepo, err := unquarantinedRepo.Quarantine(filepath.Join(repoPath, "quarantine-directory"))
+		quarantinedRepo, err := unquarantinedRepo.Quarantine(ctx, filepath.Join(repoPath, "quarantine-directory"))
 		require.NoError(t, err)
 
 		expectedRepo := &gitalypb.Repository{

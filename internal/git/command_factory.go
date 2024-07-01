@@ -497,7 +497,7 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repos
 	var repoPath string
 	if repo != nil {
 		var err error
-		repoPath, err = cf.locator.GetRepoPath(repo)
+		repoPath, err = cf.locator.GetRepoPath(ctx, repo)
 		if err != nil {
 			return nil, err
 		}
@@ -790,7 +790,7 @@ func (cf *ExecCommandFactory) findRepoPath(ctx context.Context, repo storage.Rep
 
 	var repoPath string
 	if repo != nil {
-		repoPath, _ = cf.locator.GetRepoPath(repo)
+		repoPath, _ = cf.locator.GetRepoPath(ctx, repo)
 	}
 
 	if config.worktreePath != "" {

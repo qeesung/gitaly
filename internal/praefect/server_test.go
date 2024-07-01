@@ -519,7 +519,7 @@ func TestRemoveRepository(t *testing.T) {
 	verifyReposExistence := func(t *testing.T, code codes.Code) {
 		for i, gitalyCfg := range gitalyCfgs {
 			locator := gconfig.NewLocator(gitalyCfg)
-			_, err := locator.GetRepoPath(repos[i])
+			_, err := locator.GetRepoPath(ctx, repos[i])
 			st, ok := status.FromError(err)
 			require.True(t, ok)
 			require.Equal(t, code, st.Code())

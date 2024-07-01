@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 }
 
 func getExpectedEnv(tb testing.TB, ctx context.Context, locator storage.Locator, gitCmdFactory git.CommandFactory, repo *gitalypb.Repository) []string {
-	repoPath, err := locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+	repoPath, err := locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 	require.NoError(tb, err)
 
 	expectedEnv := map[string]string{

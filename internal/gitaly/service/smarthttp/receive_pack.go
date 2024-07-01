@@ -1,6 +1,7 @@
 package smarthttp
 
 import (
+	"context"
 	"errors"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
@@ -30,7 +31,7 @@ func (s *server) PostReceivePack(stream gitalypb.SmartHTTPService_PostReceivePac
 		"GitConfigOptions": req.GitConfigOptions,
 	}).DebugContext(ctx, "PostReceivePack")
 
-	if err := validateReceivePackRequest(s.locator, req); err != nil {
+	if err := validateReceivePackRequest(ctx, s.locator, req); err != nil {
 		return err
 	}
 
@@ -76,7 +77,7 @@ func (s *server) postReceivePack(
 		return stream.Send(&gitalypb.PostReceivePackResponse{Data: p})
 	})
 
-	repoPath, err := s.locator.GetRepoPath(req.Repository)
+	repoPath, err := s.locator.GetRepoPath(ctx, req.Repository)
 	if err != nil {
 		return err
 	}
@@ -126,14 +127,14 @@ func (s *server) postReceivePack(
 	return nil
 }
 
-func validateReceivePackRequest(locator storage.Locator, req *gitalypb.PostReceivePackRequest) error {
+func validateReceivePackRequest(ctx context.Context, locator storage.Locator, req *gitalypb.PostReceivePackRequest) error {
 	if req.GlId == "" {
 		return structerr.NewInvalidArgument("empty GlId")
 	}
 	if req.Data != nil {
 		return structerr.NewInvalidArgument("non-empty Data")
 	}
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

@@ -1,6 +1,7 @@
 package hook
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -18,7 +19,7 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 		return structerr.NewInternal("receiving first request: %w", err)
 	}
 
-	if err := validatePreReceiveHookRequest(s.locator, firstRequest); err != nil {
+	if err := validatePreReceiveHookRequest(stream.Context(), s.locator, firstRequest); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 	repository := firstRequest.GetRepository()
@@ -56,8 +57,8 @@ func (s *server) PreReceiveHook(stream gitalypb.HookService_PreReceiveHookServer
 	return preReceiveHookResponse(stream, 0, "")
 }
 
-func validatePreReceiveHookRequest(locator storage.Locator, in *gitalypb.PreReceiveHookRequest) error {
-	return locator.ValidateRepository(in.GetRepository())
+func validatePreReceiveHookRequest(ctx context.Context, locator storage.Locator, in *gitalypb.PreReceiveHookRequest) error {
+	return locator.ValidateRepository(ctx, in.GetRepository())
 }
 
 func preReceiveHookResponse(stream gitalypb.HookService_PreReceiveHookServer, code int32, stderr string) error {

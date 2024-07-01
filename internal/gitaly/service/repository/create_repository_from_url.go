@@ -77,12 +77,12 @@ func (s *server) cloneFromURLCommand(
 }
 
 func (s *server) CreateRepositoryFromURL(ctx context.Context, req *gitalypb.CreateRepositoryFromURLRequest) (*gitalypb.CreateRepositoryFromURLResponse, error) {
-	if err := validateCreateRepositoryFromURLRequest(s.locator, req); err != nil {
+	if err := validateCreateRepositoryFromURLRequest(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
 	if err := repoutil.Create(ctx, s.logger, s.locator, s.gitCmdFactory, s.txManager, s.repositoryCounter, req.GetRepository(), func(repo *gitalypb.Repository) error {
-		targetPath, err := s.locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+		targetPath, err := s.locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 		if err != nil {
 			return fmt.Errorf("getting temporary repository path: %w", err)
 		}
@@ -120,8 +120,8 @@ func (s *server) CreateRepositoryFromURL(ctx context.Context, req *gitalypb.Crea
 	return &gitalypb.CreateRepositoryFromURLResponse{}, nil
 }
 
-func validateCreateRepositoryFromURLRequest(locator storage.Locator, req *gitalypb.CreateRepositoryFromURLRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository(), storage.WithSkipRepositoryExistenceCheck()); err != nil {
+func validateCreateRepositoryFromURLRequest(ctx context.Context, locator storage.Locator, req *gitalypb.CreateRepositoryFromURLRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository(), storage.WithSkipRepositoryExistenceCheck()); err != nil {
 		return err
 	}
 

@@ -12,7 +12,7 @@ import (
 )
 
 func (s *server) FindRefsByOID(ctx context.Context, in *gitalypb.FindRefsByOIDRequest) (*gitalypb.FindRefsByOIDResponse, error) {
-	if err := validateFindRefsReq(s.locator, in); err != nil {
+	if err := validateFindRefsReq(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -51,8 +51,8 @@ func (s *server) FindRefsByOID(ctx context.Context, in *gitalypb.FindRefsByOIDRe
 	}, nil
 }
 
-func validateFindRefsReq(locator storage.Locator, in *gitalypb.FindRefsByOIDRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateFindRefsReq(ctx context.Context, locator storage.Locator, in *gitalypb.FindRefsByOIDRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

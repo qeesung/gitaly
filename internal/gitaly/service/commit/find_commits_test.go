@@ -35,7 +35,7 @@ func TestFindCommits(t *testing.T) {
 		t.Helper()
 
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
-		repoPath, err := repo.Path()
+		repoPath, err := repo.Path(ctx)
 		require.NoError(t, err)
 
 		commitID := gittest.WriteCommit(t, cfg, repoPath, opts...)

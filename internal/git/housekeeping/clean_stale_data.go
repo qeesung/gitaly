@@ -102,7 +102,7 @@ func DefaultStaleDataCleanup() CleanStaleDataConfig {
 
 // PruneEmptyConfigSections prunes all empty sections from the repo's config.
 func PruneEmptyConfigSections(ctx context.Context, repo *localrepo.Repo) (_ int, returnedErr error) {
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("getting repo path: %w", err)
 	}
@@ -546,7 +546,7 @@ func FindServerInfo(ctx context.Context, repoPath string) ([]string, error) {
 // RemoveRefEmptyDirs removes empty directories inside refs directory. They are left-over of ref deletion
 // operations.
 func RemoveRefEmptyDirs(ctx context.Context, repository *localrepo.Repo) (int, error) {
-	rPath, err := repository.Path()
+	rPath, err := repository.Path(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -642,7 +642,7 @@ func removeEmptyDirs(ctx context.Context, target string) (int, error) {
 // .info/attributes. The old info/attributes file must be
 // removed because it has higher precedence than HEAD:.gitattributes.
 func RemoveInfoAttributes(ctx context.Context, repo *localrepo.Repo) (int, error) {
-	rPath, err := repo.Path()
+	rPath, err := repo.Path(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("find repo path: %w", err)
 	}

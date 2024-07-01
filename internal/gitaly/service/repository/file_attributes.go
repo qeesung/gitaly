@@ -14,7 +14,7 @@ import (
 )
 
 func (s *server) GetFileAttributes(ctx context.Context, in *gitalypb.GetFileAttributesRequest) (*gitalypb.GetFileAttributesResponse, error) {
-	if err := validateGetFileAttributesRequest(s.locator, in); err != nil {
+	if err := validateGetFileAttributesRequest(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -25,7 +25,7 @@ func (s *server) GetFileAttributes(ctx context.Context, in *gitalypb.GetFileAttr
 	// we delete it if it exists when reading from HEAD:.gitattributes is called.
 	// This logic can be removed when ApplyGitattributes and GetInfoAttributes RPC are totally removed from
 	// the code base.
-	repoPath, err := s.locator.GetRepoPath(repo)
+	repoPath, err := s.locator.GetRepoPath(ctx, repo)
 	if err != nil {
 		return nil, structerr.NewInternal("get repo path: %w", err)
 	}
@@ -57,8 +57,8 @@ func (s *server) GetFileAttributes(ctx context.Context, in *gitalypb.GetFileAttr
 	return &gitalypb.GetFileAttributesResponse{AttributeInfos: attrValues}, nil
 }
 
-func validateGetFileAttributesRequest(locator storage.Locator, in *gitalypb.GetFileAttributesRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateGetFileAttributesRequest(ctx context.Context, locator storage.Locator, in *gitalypb.GetFileAttributesRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

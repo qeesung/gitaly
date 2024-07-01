@@ -19,10 +19,10 @@ func (s *server) ApplyGitattributes(ctx context.Context, in *gitalypb.ApplyGitat
 	// This logic can be removed when ApplyGitattributes and GetInfoAttributes RPC are totally removed from
 	// the code base.
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return nil, structerr.NewInvalidArgument("validate repo error: %w", err)
 	}
-	repoPath, err := s.locator.GetRepoPath(repository)
+	repoPath, err := s.locator.GetRepoPath(ctx, repository)
 	if err != nil {
 		return nil, structerr.NewInternal("find repo path: %w", err).WithMetadata("path", repoPath)
 	}

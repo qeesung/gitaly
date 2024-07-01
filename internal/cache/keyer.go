@@ -59,7 +59,7 @@ func newLeaseKeyer(logger log.Logger, locator storage.Locator, countErr func(err
 }
 
 func (keyer leaseKeyer) updateLatest(ctx context.Context, repo *gitalypb.Repository) (_ string, returnedErr error) {
-	repoStatePath, err := keyer.getRepoStatePath(repo)
+	repoStatePath, err := keyer.getRepoStatePath(ctx, repo)
 	if err != nil {
 		return "", err
 	}
@@ -106,12 +106,12 @@ const staleAge = time.Hour
 // specified repo for the current generation. The context must contain the gRPC
 // method in its values.
 func (keyer leaseKeyer) keyPath(ctx context.Context, repo *gitalypb.Repository, req proto.Message) (string, error) {
-	pending, err := keyer.currentLeases(repo)
+	pending, err := keyer.currentLeases(ctx, repo)
 	if err != nil {
 		return "", err
 	}
 
-	repoStatePath, err := keyer.getRepoStatePath(repo)
+	repoStatePath, err := keyer.getRepoStatePath(ctx, repo)
 	if err != nil {
 		return "", err
 	}
@@ -170,8 +170,8 @@ func radixPath(root, key string) (string, error) {
 	return filepath.Join(root, key[0:2], key[2:]), nil
 }
 
-func (keyer leaseKeyer) newPendingLease(repo *gitalypb.Repository) (string, error) {
-	repoStatePath, err := keyer.getRepoStatePath(repo)
+func (keyer leaseKeyer) newPendingLease(ctx context.Context, repo *gitalypb.Repository) (string, error) {
+	repoStatePath, err := keyer.getRepoStatePath(ctx, repo)
 	if err != nil {
 		return "", err
 	}
@@ -209,8 +209,8 @@ func (keyer leaseKeyer) cacheDir(repo *gitalypb.Repository) (string, error) {
 	return cacheDir, nil
 }
 
-func (keyer leaseKeyer) getRepoStatePath(repo *gitalypb.Repository) (string, error) {
-	storagePath, err := keyer.locator.GetStorageByName(repo.StorageName)
+func (keyer leaseKeyer) getRepoStatePath(ctx context.Context, repo *gitalypb.Repository) (string, error) {
+	storagePath, err := keyer.locator.GetStorageByName(ctx, repo.StorageName)
 	if err != nil {
 		return "", fmt.Errorf("getRepoStatePath: storage not found for %v", repo)
 	}
@@ -232,8 +232,8 @@ func (keyer leaseKeyer) getRepoStatePath(repo *gitalypb.Repository) (string, err
 	return filepath.Join(stateDir, relativePath), nil
 }
 
-func (keyer leaseKeyer) currentLeases(repo *gitalypb.Repository) ([]fs.DirEntry, error) {
-	repoStatePath, err := keyer.getRepoStatePath(repo)
+func (keyer leaseKeyer) currentLeases(ctx context.Context, repo *gitalypb.Repository) ([]fs.DirEntry, error) {
+	repoStatePath, err := keyer.getRepoStatePath(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (keyer leaseKeyer) currentLeases(repo *gitalypb.Repository) ([]fs.DirEntry,
 }
 
 func (keyer leaseKeyer) currentGenID(ctx context.Context, repo *gitalypb.Repository) (string, error) {
-	repoStatePath, err := keyer.getRepoStatePath(repo)
+	repoStatePath, err := keyer.getRepoStatePath(ctx, repo)
 	if err != nil {
 		return "", err
 	}

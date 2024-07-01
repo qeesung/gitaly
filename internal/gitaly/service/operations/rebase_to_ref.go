@@ -15,7 +15,7 @@ import (
 // SourceSHA on top of FirstParentRef, and returns the SHA of the HEAD of
 // TargetRef.
 func (s *Server) UserRebaseToRef(ctx context.Context, request *gitalypb.UserRebaseToRefRequest) (*gitalypb.UserRebaseToRefResponse, error) {
-	if err := validateUserRebaseToRefRequest(s.locator, request); err != nil {
+	if err := validateUserRebaseToRefRequest(ctx, s.locator, request); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -96,7 +96,7 @@ func (s *Server) UserRebaseToRef(ctx context.Context, request *gitalypb.UserReba
 		return nil, structerr.NewInternal("rebasing commits: %w", err)
 	}
 
-	if err := quarantineDir.Migrate(); err != nil {
+	if err := quarantineDir.Migrate(ctx); err != nil {
 		return nil, structerr.NewInternal("migrating quarantined objects: %w", err)
 	}
 

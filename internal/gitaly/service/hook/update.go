@@ -1,6 +1,7 @@
 package hook
 
 import (
+	"context"
 	"errors"
 	"os/exec"
 	"sync"
@@ -11,12 +12,12 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/streamio"
 )
 
-func validateUpdateHookRequest(locator storage.Locator, in *gitalypb.UpdateHookRequest) error {
-	return locator.ValidateRepository(in.GetRepository())
+func validateUpdateHookRequest(ctx context.Context, locator storage.Locator, in *gitalypb.UpdateHookRequest) error {
+	return locator.ValidateRepository(ctx, in.GetRepository())
 }
 
 func (s *server) UpdateHook(in *gitalypb.UpdateHookRequest, stream gitalypb.HookService_UpdateHookServer) error {
-	if err := validateUpdateHookRequest(s.locator, in); err != nil {
+	if err := validateUpdateHookRequest(stream.Context(), s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

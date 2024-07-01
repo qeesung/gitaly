@@ -172,7 +172,7 @@ func TestGetSnapshot(t *testing.T) {
 				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 				repo := localrepo.NewTestRepo(t, cfg, repoProto)
-				altFile, err := repo.InfoAlternatesPath()
+				altFile, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 
 				// Write an object database with bad permissions to the repository's alternates
@@ -209,7 +209,7 @@ func TestGetSnapshot(t *testing.T) {
 				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 				repo := localrepo.NewTestRepo(t, cfg, repoProto)
-				altFile, err := repo.InfoAlternatesPath()
+				altFile, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 
 				altObjectDir := filepath.Join(cfg.Storages[0].Path, "../alt-dir")

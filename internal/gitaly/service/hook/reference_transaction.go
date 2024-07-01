@@ -1,6 +1,7 @@
 package hook
 
 import (
+	"context"
 	"errors"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook"
@@ -11,8 +12,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/streamio"
 )
 
-func validateReferenceTransactionHookRequest(locator storage.Locator, in *gitalypb.ReferenceTransactionHookRequest) error {
-	return locator.ValidateRepository(in.GetRepository())
+func validateReferenceTransactionHookRequest(ctx context.Context, locator storage.Locator, in *gitalypb.ReferenceTransactionHookRequest) error {
+	return locator.ValidateRepository(ctx, in.GetRepository())
 }
 
 func (s *server) ReferenceTransactionHook(stream gitalypb.HookService_ReferenceTransactionHookServer) error {
@@ -21,7 +22,7 @@ func (s *server) ReferenceTransactionHook(stream gitalypb.HookService_ReferenceT
 		return structerr.NewInternal("receiving first request: %w", err)
 	}
 
-	if err := validateReferenceTransactionHookRequest(s.locator, request); err != nil {
+	if err := validateReferenceTransactionHookRequest(stream.Context(), s.locator, request); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

@@ -104,7 +104,7 @@ func writeCommit(
 ) (git.ObjectID, *gitalypb.GitCommit) {
 	tb.Helper()
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	require.NoError(tb, err)
 
 	commitID := gittest.WriteCommit(tb, cfg, repoPath, opts...)

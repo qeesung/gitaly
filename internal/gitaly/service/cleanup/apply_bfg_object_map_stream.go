@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"context"
 	"errors"
 	"io"
 
@@ -30,11 +31,11 @@ func (s *server) ApplyBfgObjectMapStream(server gitalypb.CleanupService_ApplyBfg
 		return structerr.NewInternal("%w", err)
 	}
 
-	if err := validateFirstRequest(s.locator, firstRequest); err != nil {
+	ctx := server.Context()
+	if err := validateFirstRequest(ctx, s.locator, firstRequest); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
-	ctx := server.Context()
 	repo := s.localrepo(firstRequest.GetRepository())
 	reader := &bfgStreamReader{firstRequest: firstRequest, server: server}
 	chunker := chunk.New(&bfgStreamWriter{server: server})
@@ -68,8 +69,8 @@ func (s *server) ApplyBfgObjectMapStream(server gitalypb.CleanupService_ApplyBfg
 	return nil
 }
 
-func validateFirstRequest(locator storage.Locator, req *gitalypb.ApplyBfgObjectMapStreamRequest) error {
-	return locator.ValidateRepository(req.GetRepository())
+func validateFirstRequest(ctx context.Context, locator storage.Locator, req *gitalypb.ApplyBfgObjectMapStreamRequest) error {
+	return locator.ValidateRepository(ctx, req.GetRepository())
 }
 
 func (r *bfgStreamReader) readOne() ([]byte, error) {

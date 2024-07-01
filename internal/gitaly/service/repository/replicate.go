@@ -41,12 +41,12 @@ var ErrInvalidSourceRepository = status.Error(codes.NotFound, "invalid source re
 // - Custom Git hooks,
 // - References and objects
 func (s *server) ReplicateRepository(ctx context.Context, in *gitalypb.ReplicateRepositoryRequest) (*gitalypb.ReplicateRepositoryResponse, error) {
-	if err := validateReplicateRepository(s.locator, in); err != nil {
+	if err := validateReplicateRepository(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
-		repoPath, err := s.locator.GetRepoPath(in.GetRepository(), storage.WithRepositoryVerificationSkipped())
+	if err := s.locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
+		repoPath, err := s.locator.GetRepoPath(ctx, in.GetRepository(), storage.WithRepositoryVerificationSkipped())
 		if err != nil {
 			return nil, structerr.NewInternal("%w", err)
 		}
@@ -103,7 +103,7 @@ func (s *server) replicateRepository(ctx context.Context, source, target *gitaly
 	// This logic can be removed when ApplyGitattributes and GetInfoAttributes RPC are totally removed from
 	// the code base.
 	if target != nil {
-		repoPath, err := s.locator.GetRepoPath(target)
+		repoPath, err := s.locator.GetRepoPath(ctx, target)
 		if err != nil {
 			return structerr.NewInternal("get repo path: %w", err)
 		}
@@ -123,8 +123,8 @@ func (s *server) replicateRepository(ctx context.Context, source, target *gitaly
 	return nil
 }
 
-func validateReplicateRepository(locator storage.Locator, in *gitalypb.ReplicateRepositoryRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository(), storage.WithSkipRepositoryExistenceCheck()); err != nil {
+func validateReplicateRepository(ctx context.Context, locator storage.Locator, in *gitalypb.ReplicateRepositoryRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository(), storage.WithSkipRepositoryExistenceCheck()); err != nil {
 		return err
 	}
 
@@ -216,7 +216,7 @@ func (s *server) extractSnapshot(ctx context.Context, source, target *gitalypb.R
 		}),
 	)
 
-	targetPath, err := s.locator.GetRepoPath(target, storage.WithRepositoryVerificationSkipped())
+	targetPath, err := s.locator.GetRepoPath(ctx, target, storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return fmt.Errorf("target path: %w", err)
 	}
@@ -339,7 +339,7 @@ func (s *server) syncGitconfig(ctx context.Context, source, target *gitalypb.Rep
 		return err
 	}
 
-	repoPath, err := s.locator.GetRepoPath(target)
+	repoPath, err := s.locator.GetRepoPath(ctx, target)
 	if err != nil {
 		return err
 	}

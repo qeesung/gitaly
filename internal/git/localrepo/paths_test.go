@@ -31,7 +31,7 @@ func TestRepo_Path(t *testing.T) {
 		})
 		repo := localrepo.NewTestRepo(t, cfg, repoProto)
 
-		path, err := repo.Path()
+		path, err := repo.Path(ctx)
 		require.NoError(t, err)
 		require.Equal(t, repoPath, path)
 	})
@@ -44,7 +44,7 @@ func TestRepo_Path(t *testing.T) {
 
 		require.NoError(t, os.RemoveAll(repoPath))
 
-		_, err := repo.Path()
+		_, err := repo.Path(ctx)
 		require.Equal(t, storage.NewRepositoryNotFoundError(cfg.Storages[0].Name, repoProto.GetRelativePath()), err)
 	})
 
@@ -59,7 +59,7 @@ func TestRepo_Path(t *testing.T) {
 		require.NoError(t, os.RemoveAll(repoPath))
 		require.NoError(t, os.MkdirAll(repoPath, perm.PublicDir))
 
-		_, err := repo.Path()
+		_, err := repo.Path(ctx)
 		require.Equal(t, structerr.NewFailedPrecondition("%w: %q does not exist", storage.ErrRepositoryNotValid, "objects").WithMetadata("repository_path", repoPath), err)
 	})
 }
@@ -181,7 +181,7 @@ func TestRepo_ObjectDirectoryPath(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			repo := localrepo.NewTestRepo(t, cfg, tc.repo)
 
-			path, err := repo.ObjectDirectoryPath()
+			path, err := repo.ObjectDirectoryPath(ctx)
 
 			if tc.err != codes.OK {
 				st, ok := status.FromError(err)
