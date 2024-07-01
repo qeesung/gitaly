@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -151,11 +152,19 @@ func TestReceivePack_success(t *testing.T) {
 	var capturedHookEnv []string
 	var preReceiveCount, postReceiveCount int
 	mockHookManager := hook.NewMockManager(t,
-		func(_ *testing.T, _ context.Context, _ *gitalypb.Repository, _, _ []string, _ io.Reader, _, _ io.Writer) error {
+		func(_ *testing.T, _ context.Context, _ *gitalypb.Repository, _, _ []string, stdin io.Reader, _, _ io.Writer) error {
+			// Discard the stream before returning so the HookService RPC does not return before the stdin has been
+			// fully consumed.
+			_, err := io.Copy(io.Discard, stdin)
+			assert.NoError(t, err)
 			preReceiveCount++
 			return nil
 		},
-		func(_ *testing.T, _ context.Context, _ *gitalypb.Repository, _, _ []string, _ io.Reader, _, _ io.Writer) error {
+		func(_ *testing.T, _ context.Context, _ *gitalypb.Repository, _, _ []string, stdin io.Reader, _, _ io.Writer) error {
+			// Discard the stream before returning so the HookService RPC does not return before the stdin has been
+			// fully consumed.
+			_, err := io.Copy(io.Discard, stdin)
+			assert.NoError(t, err)
 			postReceiveCount++
 			return nil
 		},
