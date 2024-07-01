@@ -31,7 +31,6 @@ func RegisterProcReceiveHook(
 	hookManager hook.Manager,
 	txRegistry hook.TransactionRegistry,
 	transactionID storage.TransactionID,
-	stdout, stderr io.Writer,
 ) (func() error, error) {
 	receiveDoneCh := make(chan struct{})
 	handlerErrCh := make(chan error, 1)
@@ -52,7 +51,7 @@ func RegisterProcReceiveHook(
 		case <-ctx.Done():
 		case <-receiveDoneCh:
 		case handler := <-handlerCh:
-			if err := procReceiveHook(ctx, logger, cfg, req, repo, hookManager, tx, handler, stdout, stderr); err != nil {
+			if err := procReceiveHook(ctx, logger, cfg, req, repo, hookManager, tx, handler); err != nil {
 				handlerErrCh <- err
 			}
 		}
@@ -87,7 +86,6 @@ func procReceiveHook(
 	hookManager hook.Manager,
 	tx hook.Transaction,
 	handler hook.ProcReceiveHandler,
-	stdout, stderr io.Writer,
 ) (returnedErr error) {
 	var acceptedUpdates []hook.ReferenceUpdate
 	rejectedUpdates := make(map[git.ReferenceName]string)
@@ -100,7 +98,9 @@ func procReceiveHook(
 
 	if handler.Atomic() {
 		// Atomic reference updates are all or nothing. If this fails for any reason, return an error.
-		err := receivePackReferenceUpdates(ctx, cfg, req, repo, hookManager, handler.ReferenceUpdates(), stdout, stderr)
+		err := receivePackReferenceUpdates(
+			ctx, cfg, req, repo, hookManager, handler.ReferenceUpdates(), handler, handler,
+		)
 		if err != nil {
 			return fmt.Errorf("updating references atomically: %w", err)
 		}
@@ -113,7 +113,9 @@ func procReceiveHook(
 		// failing are expected and should signal to the client it was rejected instead of
 		// completely failing.
 		for _, update := range handler.ReferenceUpdates() {
-			if err := receivePackReferenceUpdates(ctx, cfg, req, repo, hookManager, []hook.ReferenceUpdate{update}, stdout, stderr); err != nil {
+			if err := receivePackReferenceUpdates(
+				ctx, cfg, req, repo, hookManager, []hook.ReferenceUpdate{update}, handler, handler,
+			); err != nil {
 				var (
 					reason    string
 					hookErr   hook.CustomHookError
@@ -170,8 +172,8 @@ func procReceiveHook(
 			handler.PushOptions(),
 			[]string{hooksPayload},
 			strings.NewReader(changes.String()),
-			stdout,
-			stderr,
+			handler,
+			handler,
 		); err != nil {
 			if errors.As(err, &customHookErr) {
 				// Only log the error when we've got a custom-hook error.
