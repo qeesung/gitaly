@@ -2,6 +2,7 @@ package hook
 
 import (
 	"fmt"
+	"sync"
 
 	gitalyhook "gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/hook"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
@@ -33,11 +34,18 @@ func (s *server) ProcReceiveHook(stream gitalypb.HookService_ProcReceiveHookServ
 		return req.GetStdin(), err
 	})
 
-	stdout := streamio.NewWriter(func(p []byte) error {
+	var m sync.Mutex
+	stdout := streamio.NewSyncWriter(&m, func(p []byte) error {
 		return stream.Send(&gitalypb.ProcReceiveHookResponse{Stdout: p})
 	})
 
-	handler, doneCh, err := gitalyhook.NewProcReceiveHandler(firstRequest.GetEnvironmentVariables(), stdin, stdout)
+	stderr := streamio.NewSyncWriter(&m, func(p []byte) error {
+		return stream.Send(&gitalypb.ProcReceiveHookResponse{Stderr: p})
+	})
+
+	handler, doneCh, err := gitalyhook.NewProcReceiveHandler(
+		firstRequest.GetEnvironmentVariables(), stdin, stdout, stderr,
+	)
 	if err != nil {
 		return structerr.NewInternal("creating handler: %w", err)
 	}

@@ -56,9 +56,9 @@ func TestProcReceiveRegistry(t *testing.T) {
 		err = pktline.WriteFlush(&stdin)
 		require.NoError(t, err)
 
-		var stdout bytes.Buffer
+		var stdout, stderr bytes.Buffer
 
-		handler, doneCh, err := NewProcReceiveHandler([]string{payload}, &stdin, &stdout)
+		handler, doneCh, err := NewProcReceiveHandler([]string{payload}, &stdin, &stdout, &stderr)
 		require.NoError(t, err)
 
 		return handler, doneCh

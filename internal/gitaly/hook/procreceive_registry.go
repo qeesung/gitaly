@@ -40,6 +40,11 @@ type ProcReceiveHandler interface {
 	// with a reason.
 	RejectUpdate(referenceName git.ReferenceName, reason string) error
 
+	// Write allows arbitrary data to be written to the proc-receive stderr. This is useful hook
+	// outputs that need to be returned through git-receive-pack(1) as Git handles encapsulating
+	// stderr in sideband packets and redirecting it to stdout.
+	Write(p []byte) (int, error)
+
 	// Close must be called to clean up the proc-receive hook. If the user
 	// of the handler encounters an error, it should be transferred to the
 	// hook too.
