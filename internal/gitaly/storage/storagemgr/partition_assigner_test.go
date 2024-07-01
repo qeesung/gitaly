@@ -15,6 +15,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/stats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/gitstorage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -266,7 +267,7 @@ func TestPartitionAssigner_alternates(t *testing.T) {
 		{
 			desc:                    "multiple alternates fail",
 			memberAlternatesContent: []byte("../../pool/objects\nother-alternate"),
-			expectedError:           errMultipleAlternates,
+			expectedError:           gitstorage.ErrMultipleAlternates,
 		},
 		{
 			desc:                    "alternate pointing to self fails",

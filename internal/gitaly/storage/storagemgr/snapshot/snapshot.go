@@ -1,4 +1,4 @@
-package storagemgr
+package snapshot
 
 import (
 	"context"
@@ -10,10 +10,11 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/housekeeping"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/gitstorage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 )
 
-// snapshot represents a snapshot of a partition's state at a given time.
+// snapshot is a snapshot of a file system's state.
 type snapshot struct {
 	// root is the absolute path of the snapshot.
 	root string
@@ -21,24 +22,59 @@ type snapshot struct {
 	prefix string
 }
 
-// relativePath returns the given relative path rewritten to point to the relative
+// Root returns the root of the snapshot's file system.
+func (s *snapshot) Root() string {
+	return s.root
+}
+
+// Prefix returns the prefix of the snapshot within the original root file system.
+func (s *snapshot) Prefix() string {
+	return s.prefix
+}
+
+// RelativePath returns the given relative path rewritten to point to the relative
 // path in the snapshot.
-func (s snapshot) relativePath(relativePath string) string {
+func (s *snapshot) RelativePath(relativePath string) string {
 	return filepath.Join(s.prefix, relativePath)
 }
 
-// newSnapshot creates a snapshot of the given relative paths and their alternates under snapshotPath.
-func newSnapshot(ctx context.Context, storagePath, snapshotPath string, relativePaths []string) (snapshot, error) {
-	snapshotPrefix, err := filepath.Rel(storagePath, snapshotPath)
+// Closes removes the snapshot.
+func (s *snapshot) Close() error {
+	if err := os.RemoveAll(s.root); err != nil {
+		return fmt.Errorf("remove all: %w", err)
+	}
+
+	return nil
+}
+
+// newSnapshot creates a new file system snapshot of the given root directory. The snapshot is created by copying
+// the directory hierarchy and hard linking the files in place. The copied directory hierarchy is placed
+// at destinationPath. Only files within Git directories are included in the snapshot. The provided relative
+// paths are used to select the Git repositories that are included.
+//
+// destinationPath must be a subdirectory within roothPath. The prefix of the snapshot within the root file system
+// can be retrieved by calling Prefix.
+func newSnapshot(ctx context.Context, rootPath, destinationPath string, relativePaths []string) (_ FileSystem, returnedErr error) {
+	snapshotPrefix, err := filepath.Rel(rootPath, destinationPath)
 	if err != nil {
-		return snapshot{}, fmt.Errorf("rel snapshot prefix: %w", err)
+		return nil, fmt.Errorf("rel snapshot prefix: %w", err)
 	}
 
-	if err := createRepositorySnapshots(ctx, storagePath, snapshotPrefix, relativePaths); err != nil {
-		return snapshot{}, fmt.Errorf("create repository snapshots: %w", err)
+	s := &snapshot{root: destinationPath, prefix: snapshotPrefix}
+
+	defer func() {
+		if returnedErr != nil {
+			if err := s.Close(); err != nil {
+				returnedErr = errors.Join(returnedErr, fmt.Errorf("close: %w", err))
+			}
+		}
+	}()
+
+	if err := createRepositorySnapshots(ctx, rootPath, snapshotPrefix, relativePaths); err != nil {
+		return nil, fmt.Errorf("create repository snapshots: %w", err)
 	}
 
-	return snapshot{root: snapshotPath, prefix: snapshotPrefix}, nil
+	return s, nil
 }
 
 // createRepositorySnapshots creates a snapshot of the partition containing all repositories at the given relative paths
@@ -80,7 +116,7 @@ func createRepositorySnapshots(ctx context.Context, storagePath, snapshotPrefix 
 		// Read the repository's 'objects/info/alternates' file to figure out whether it is connected
 		// to an alternate. If so, we need to include the alternate repository in the snapshot along
 		// with the repository itself to ensure the objects from the alternate are also available.
-		if alternate, err := readAlternatesFile(targetPath); err != nil && !errors.Is(err, errNoAlternate) {
+		if alternate, err := gitstorage.ReadAlternatesFile(targetPath); err != nil && !errors.Is(err, gitstorage.ErrNoAlternate) {
 			return fmt.Errorf("get alternate path: %w", err)
 		} else if alternate != "" {
 			// The repository had an alternate. The path is a relative from the repository's 'objects' directory
