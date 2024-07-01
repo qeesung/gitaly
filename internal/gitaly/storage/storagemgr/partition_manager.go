@@ -276,7 +276,10 @@ func NewPartitionManager(
 			stagingDir,
 			cmdFactory,
 			storageMgr.repoFactory,
-			metrics,
+			newTransactionManagerMetrics(
+				metrics.housekeeping,
+				metrics.snapshot.Scope(storageMgr.name),
+			),
 			logConsumer,
 		)
 	}

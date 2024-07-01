@@ -26,7 +26,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/repoutil"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/gitstorage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr/snapshot"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/wal"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
@@ -209,6 +211,10 @@ const (
 	transactionStateCommit
 )
 
+type transactionMetrics struct {
+	housekeeping *housekeeping.Metrics
+}
+
 // Transaction is a unit-of-work that contains reference changes to perform on the repository.
 type Transaction struct {
 	// readOnly denotes whether or not this transaction is read-only.
@@ -216,7 +222,7 @@ type Transaction struct {
 	// repositoryExists indicates whether the target repository existed when this transaction began.
 	repositoryExists bool
 	// metrics stores metric reporters inherited from the manager.
-	metrics *metrics
+	metrics transactionMetrics
 
 	// state records whether the transaction is still open. Transaction is open until either Commit()
 	// or Rollback() is called on it.
@@ -266,7 +272,7 @@ type Transaction struct {
 	snapshotLSN storage.LSN
 	// snapshot is the transaction's snapshot of the partition file system state. It's used to rewrite
 	// relative paths to point to the snapshot instead of the actual repositories.
-	snapshot snapshot
+	snapshot snapshot.FileSystem
 	// db is the transaction's snapshot of the partition's key-value state. The keyvalue.Transaction is
 	// discarded when the transaction finishes. The recorded writes are write-ahead logged and applied
 	// to the partition from the WAL.
@@ -282,7 +288,7 @@ type Transaction struct {
 	stagingRepository *localrepo.Repo
 	// stagingSnapshot is the snapshot used for staging the transaction, and where the staging repository
 	// exists.
-	stagingSnapshot snapshot
+	stagingSnapshot snapshot.FileSystem
 
 	// walEntry is the log entry where the transaction stages its state for committing.
 	walEntry                 *wal.Entry
@@ -343,7 +349,7 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		snapshotLSN:  mgr.appendedLSN,
 		finished:     make(chan struct{}),
 		relativePath: relativePath,
-		metrics:      mgr.metrics,
+		metrics:      transactionMetrics{housekeeping: mgr.metrics.housekeeping},
 	}
 
 	mgr.snapshotLocks[txn.snapshotLSN].activeSnapshotters.Add(1)
@@ -390,13 +396,26 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 			}
 		}()
 
-		if txn.stagingDirectory != "" {
-			if err := os.RemoveAll(txn.stagingDirectory); err != nil {
-				return fmt.Errorf("remove staging directory: %w", err)
+		var cleanupErr error
+		if txn.snapshot != nil {
+			if err := txn.snapshot.Close(); err != nil {
+				cleanupErr = errors.Join(cleanupErr, fmt.Errorf("close snapshot: %w", err))
 			}
 		}
 
-		return nil
+		if txn.stagingSnapshot != nil {
+			if err := txn.stagingSnapshot.Close(); err != nil {
+				cleanupErr = errors.Join(cleanupErr, fmt.Errorf("close staging snapshot: %w", err))
+			}
+		}
+
+		if txn.stagingDirectory != "" {
+			if err := os.RemoveAll(txn.stagingDirectory); err != nil {
+				cleanupErr = errors.Join(cleanupErr, fmt.Errorf("remove staging directory: %w", err))
+			}
+		}
+
+		return cleanupErr
 	}
 
 	defer func() {
@@ -422,34 +441,33 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		if txn.repositoryTarget() {
 			snapshottedRelativePaths = append(snapshottedRelativePaths, txn.relativePath)
 		}
-		if txn.snapshot, err = newSnapshot(ctx,
-			mgr.storagePath,
-			filepath.Join(txn.stagingDirectory, "snapshot"),
+
+		if txn.snapshot, err = mgr.snapshotManager.GetSnapshot(ctx,
 			snapshottedRelativePaths,
+			!txn.readOnly,
 		); err != nil {
-			return nil, fmt.Errorf("new snapshot: %w", err)
+			return nil, fmt.Errorf("get snapshot: %w", err)
 		}
 
 		if txn.repositoryTarget() {
-			txn.repositoryExists, err = mgr.doesRepositoryExist(txn.snapshot.relativePath(txn.relativePath))
+			txn.repositoryExists, err = mgr.doesRepositoryExist(txn.snapshot.RelativePath(txn.relativePath))
 			if err != nil {
 				return nil, fmt.Errorf("does repository exist: %w", err)
 			}
 
-			txn.snapshotRepository = mgr.repositoryFactory.Build(txn.snapshot.relativePath(txn.relativePath))
+			txn.snapshotRepository = mgr.repositoryFactory.Build(txn.snapshot.RelativePath(txn.relativePath))
 			if !txn.readOnly {
 				if txn.repositoryExists {
 					txn.quarantineDirectory = filepath.Join(txn.stagingDirectory, "quarantine")
 					if err := os.MkdirAll(filepath.Join(txn.quarantineDirectory, "pack"), perm.PrivateDir); err != nil {
 						return nil, fmt.Errorf("create quarantine directory: %w", err)
 					}
-
 					txn.snapshotRepository, err = txn.snapshotRepository.Quarantine(txn.quarantineDirectory)
 					if err != nil {
 						return nil, fmt.Errorf("quarantine: %w", err)
 					}
 				} else {
-					txn.quarantineDirectory = filepath.Join(mgr.storagePath, txn.snapshot.relativePath(txn.relativePath), "objects")
+					txn.quarantineDirectory = filepath.Join(mgr.storagePath, txn.snapshot.RelativePath(txn.relativePath), "objects")
 				}
 			}
 		}
@@ -476,7 +494,7 @@ func (txn *Transaction) originalPackedRefsFilePath() string {
 // the repository in the transaction's snapshot.
 func (txn *Transaction) RewriteRepository(repo *gitalypb.Repository) *gitalypb.Repository {
 	rewritten := proto.Clone(repo).(*gitalypb.Repository)
-	rewritten.RelativePath = txn.snapshot.relativePath(repo.RelativePath)
+	rewritten.RelativePath = txn.snapshot.RelativePath(repo.RelativePath)
 
 	if repo.RelativePath == txn.relativePath {
 		rewritten.GitObjectDirectory = txn.snapshotRepository.GetGitObjectDirectory()
@@ -489,7 +507,7 @@ func (txn *Transaction) RewriteRepository(repo *gitalypb.Repository) *gitalypb.R
 // OriginalRepository returns the repository as it was before rewriting it to point to the snapshot.
 func (txn *Transaction) OriginalRepository(repo *gitalypb.Repository) *gitalypb.Repository {
 	original := proto.Clone(repo).(*gitalypb.Repository)
-	original.RelativePath = strings.TrimPrefix(repo.RelativePath, txn.snapshot.prefix+string(os.PathSeparator))
+	original.RelativePath = strings.TrimPrefix(repo.RelativePath, txn.snapshot.Prefix()+string(os.PathSeparator))
 	original.GitObjectDirectory = ""
 	original.GitAlternateObjectDirectories = nil
 	return original
@@ -587,7 +605,7 @@ func (txn *Transaction) SnapshotLSN() storage.LSN {
 
 // Root returns the path to the read snapshot.
 func (txn *Transaction) Root() string {
-	return txn.snapshot.root
+	return txn.snapshot.Root()
 }
 
 // SkipVerificationFailures configures the transaction to skip reference updates that fail verification.
@@ -903,6 +921,18 @@ func (p *consumerPosition) setPosition(pos storage.LSN) {
 	p.position = pos
 }
 
+type transactionManagerMetrics struct {
+	housekeeping *housekeeping.Metrics
+	snapshot     snapshot.ManagerMetrics
+}
+
+func newTransactionManagerMetrics(housekeeping *housekeeping.Metrics, snapshot snapshot.ManagerMetrics) transactionManagerMetrics {
+	return transactionManagerMetrics{
+		housekeeping: housekeeping,
+		snapshot:     snapshot,
+	}
+}
+
 // TransactionManager is responsible for transaction management of a single repository. Each repository has
 // a single TransactionManager; it is the repository's single-writer. It accepts writes one at a time from
 // the admissionQueue. Each admitted write is processed in three steps:
@@ -994,6 +1024,8 @@ type TransactionManager struct {
 	// snapshotLocks contains state used for synchronizing snapshotters with the log application. The
 	// lock is released after the corresponding log entry is applied.
 	snapshotLocks map[storage.LSN]*snapshotLock
+	// snapshotManager is responsible for creation and management of file system snapshots.
+	snapshotManager *snapshot.Manager
 
 	// appendedLSN holds the LSN of the last log entry appended to the partition's write-ahead log.
 	appendedLSN storage.LSN
@@ -1027,7 +1059,7 @@ type TransactionManager struct {
 	testHooks testHooks
 
 	// metrics stores reporters which facilitate metric recording of transactional operations.
-	metrics *metrics
+	metrics transactionManagerMetrics
 }
 
 type testHooks struct {
@@ -1050,7 +1082,7 @@ func NewTransactionManager(
 	stagingDir string,
 	cmdFactory git.CommandFactory,
 	repositoryFactory localrepo.StorageScopedFactory,
-	metrics *metrics,
+	metrics transactionManagerMetrics,
 	consumer LogConsumer,
 ) *TransactionManager {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1151,7 +1183,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 		}
 
 		if err := transaction.walEntry.RecordRepositoryCreation(
-			transaction.snapshot.root,
+			transaction.snapshot.Root(),
 			transaction.relativePath,
 		); err != nil {
 			return fmt.Errorf("record repository creation: %w", err)
@@ -1163,7 +1195,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 	} else {
 		if transaction.alternateUpdated {
 			stagedAlternatesRelativePath := stats.AlternatesFilePath(transaction.relativePath)
-			stagedAlternatesAbsolutePath := mgr.getAbsolutePath(transaction.snapshot.relativePath(stagedAlternatesRelativePath))
+			stagedAlternatesAbsolutePath := mgr.getAbsolutePath(transaction.snapshot.RelativePath(stagedAlternatesRelativePath))
 			if _, err := os.Stat(stagedAlternatesAbsolutePath); err != nil {
 				if !errors.Is(err, fs.ErrNotExist) {
 					return fmt.Errorf("check alternates existence: %w", err)
@@ -1187,7 +1219,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 			// If the transaction removed the custom hooks, we won't have anything to log. We'll ignore the
 			// ErrNotExist and stage the deletion later.
 			if err := transaction.walEntry.RecordDirectoryCreation(
-				transaction.snapshot.root,
+				transaction.snapshot.Root(),
 				filepath.Join(transaction.relativePath, repoutil.CustomHooksDir),
 			); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("record custom hook directory: %w", err)
@@ -1209,7 +1241,7 @@ func (mgr *TransactionManager) commit(ctx context.Context, transaction *Transact
 
 		if transaction.defaultBranchUpdated {
 			if err := transaction.walEntry.RecordFileUpdate(
-				transaction.snapshot.root,
+				transaction.snapshot.Root(),
 				filepath.Join(transaction.relativePath, "HEAD"),
 			); err != nil {
 				return fmt.Errorf("record HEAD update: %w", err)
@@ -1357,8 +1389,8 @@ func (mgr *TransactionManager) stageRepositoryCreation(ctx context.Context, tran
 		transaction.MarkCustomHooksUpdated()
 	}
 
-	if _, err := readAlternatesFile(mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())); err != nil {
-		if !errors.Is(err, errNoAlternate) {
+	if _, err := gitstorage.ReadAlternatesFile(mgr.getAbsolutePath(transaction.snapshotRepository.GetRelativePath())); err != nil {
+		if !errors.Is(err, gitstorage.ErrNoAlternate) {
 			return fmt.Errorf("read alternates file: %w", err)
 		}
 
@@ -1385,11 +1417,8 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		relativePaths = append(relativePaths, alternateRelativePath)
 	}
 
-	snapshot, err := newSnapshot(ctx,
-		mgr.storagePath,
-		filepath.Join(transaction.stagingDirectory, "staging-snapshot"),
-		relativePaths,
-	)
+	var err error
+	transaction.stagingSnapshot, err = mgr.snapshotManager.GetSnapshot(ctx, relativePaths, true)
 	if err != nil {
 		return fmt.Errorf("new snapshot: %w", err)
 	}
@@ -1402,7 +1431,7 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		// repository to ensure they'll apply when the log entry creates the repository. After the
 		// transaction is logged, the staging repository is removed, and the actual repository will be
 		// created when the log entry is applied.
-		if err := mgr.createRepository(ctx, mgr.getAbsolutePath(snapshot.relativePath(transaction.relativePath)), transaction.repositoryCreation.objectHash.ProtoFormat); err != nil {
+		if err := mgr.createRepository(ctx, mgr.getAbsolutePath(transaction.stagingSnapshot.RelativePath(transaction.relativePath)), transaction.repositoryCreation.objectHash.ProtoFormat); err != nil {
 			return fmt.Errorf("create staging repository: %w", err)
 		}
 	}
@@ -1417,7 +1446,7 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		}
 
 		if err := os.WriteFile(
-			stats.AlternatesFilePath(mgr.getAbsolutePath(snapshot.relativePath(transaction.relativePath))),
+			stats.AlternatesFilePath(mgr.getAbsolutePath(transaction.stagingSnapshot.RelativePath(transaction.relativePath))),
 			[]byte(alternatesContent),
 			perm.PrivateFile,
 		); err != nil {
@@ -1425,8 +1454,7 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		}
 	}
 
-	transaction.stagingSnapshot = snapshot
-	transaction.stagingRepository = mgr.repositoryFactory.Build(snapshot.relativePath(transaction.relativePath))
+	transaction.stagingRepository = mgr.repositoryFactory.Build(transaction.stagingSnapshot.RelativePath(transaction.relativePath))
 
 	return nil
 }
@@ -1787,7 +1815,7 @@ func (mgr *TransactionManager) prepareRepacking(ctx context.Context, transaction
 
 	// Build a working repository pointing to snapshot repository. Housekeeping task can access the repository
 	// without the needs for quarantine.
-	workingRepository := mgr.repositoryFactory.Build(transaction.snapshot.relativePath(transaction.relativePath))
+	workingRepository := mgr.repositoryFactory.Build(transaction.snapshot.RelativePath(transaction.relativePath))
 	repoPath := mgr.getAbsolutePath(workingRepository.GetRelativePath())
 
 	if repack.isFullRepack, err = housekeeping.ValidateRepacking(repack.config); err != nil {
@@ -1913,7 +1941,7 @@ func (mgr *TransactionManager) prepareCommitGraphs(ctx context.Context, transact
 	finishTimer := mgr.metrics.housekeeping.ReportTaskLatency("commit-graph", "prepare")
 	defer finishTimer()
 
-	workingRepository := mgr.repositoryFactory.Build(transaction.snapshot.relativePath(transaction.relativePath))
+	workingRepository := mgr.repositoryFactory.Build(transaction.snapshot.RelativePath(transaction.relativePath))
 	repoPath := mgr.getAbsolutePath(workingRepository.GetRelativePath())
 
 	if err := housekeeping.WriteCommitGraph(ctx, workingRepository, transaction.runHousekeeping.writeCommitGraphs.config); err != nil {
@@ -2311,6 +2339,11 @@ func (mgr *TransactionManager) isClosing() bool {
 	}
 }
 
+// snapshotsDir returns the directory where the transactions' snapshots are stored.
+func (mgr *TransactionManager) snapshotsDir() string {
+	return filepath.Join(mgr.stagingDirectory, "snapshots")
+}
+
 // initialize initializes the TransactionManager's state from the database. It loads the appended and the applied
 // LSNs and initializes the notification channels that synchronize transaction beginning with log entry applying.
 func (mgr *TransactionManager) initialize(ctx context.Context) error {
@@ -2326,6 +2359,12 @@ func (mgr *TransactionManager) initialize(ctx context.Context) error {
 	if err := mgr.createStateDirectory(); err != nil {
 		return fmt.Errorf("create state directory: %w", err)
 	}
+
+	if err := os.Mkdir(mgr.snapshotsDir(), perm.PrivateDir); err != nil {
+		return fmt.Errorf("create snapshot manager directory: %w", err)
+	}
+
+	mgr.snapshotManager = snapshot.NewManager(mgr.storagePath, mgr.snapshotsDir(), mgr.metrics.snapshot)
 
 	// The LSN of the last appended log entry is determined from the LSN of the latest entry in the log and
 	// the latest applied log entry. The manager also keeps track of committed entries and reserves them until there
@@ -2525,8 +2564,8 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 	defer span.Finish()
 
 	repositoryPath := mgr.getAbsolutePath(transaction.relativePath)
-	existingAlternate, err := readAlternatesFile(repositoryPath)
-	if err != nil && !errors.Is(err, errNoAlternate) {
+	existingAlternate, err := gitstorage.ReadAlternatesFile(repositoryPath)
+	if err != nil && !errors.Is(err, gitstorage.ErrNoAlternate) {
 		return "", fmt.Errorf("read existing alternates file: %w", err)
 	}
 
@@ -2535,8 +2574,8 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 		return "", fmt.Errorf("snapshot repo path: %w", err)
 	}
 
-	stagedAlternate, err := readAlternatesFile(snapshotRepoPath)
-	if err != nil && !errors.Is(err, errNoAlternate) {
+	stagedAlternate, err := gitstorage.ReadAlternatesFile(snapshotRepoPath)
+	if err != nil && !errors.Is(err, gitstorage.ErrNoAlternate) {
 		return "", fmt.Errorf("read staged alternates file: %w", err)
 	}
 
@@ -2544,7 +2583,7 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 		if existingAlternate == "" {
 			// Transaction attempted to remove an alternate from the repository
 			// even if it didn't have one.
-			return "", errNoAlternate
+			return "", gitstorage.ErrNoAlternate
 		}
 
 		if err := transaction.walEntry.RecordAlternateUnlink(mgr.storagePath, transaction.relativePath, existingAlternate); err != nil {
@@ -2578,7 +2617,7 @@ func (mgr *TransactionManager) verifyAlternateUpdate(ctx context.Context, transa
 		return "", fmt.Errorf("validate git directory: %w", err)
 	}
 
-	if _, err := readAlternatesFile(alternateRepositoryPath); !errors.Is(err, errNoAlternate) {
+	if _, err := gitstorage.ReadAlternatesFile(alternateRepositoryPath); !errors.Is(err, gitstorage.ErrNoAlternate) {
 		if err == nil {
 			// We don't support chaining alternates like repo-1 > repo-2 > repo-3.
 			return "", errAlternateHasAlternate
@@ -2699,7 +2738,7 @@ func (mgr *TransactionManager) verifyReferences(ctx context.Context, transaction
 // invalid reference names and file/directory conflicts with Git's loose reference storage which can occur with references
 // like 'refs/heads/parent' and 'refs/heads/parent/child'.
 func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, referenceTransactions []*gitalypb.LogEntry_ReferenceTransaction, tx *Transaction) error {
-	snapshotPackedRefsPath := mgr.getAbsolutePath(tx.stagingSnapshot.relativePath(tx.relativePath), "packed-refs")
+	snapshotPackedRefsPath := mgr.getAbsolutePath(tx.stagingSnapshot.RelativePath(tx.relativePath), "packed-refs")
 
 	// Record the original packed-refs file. We use it for determining whether the transaction has changed it and
 	// for conflict checking to see if other concurrent transactions have changed the `packed-refs` file. We link
@@ -2724,7 +2763,7 @@ func (mgr *TransactionManager) verifyReferencesWithGit(ctx context.Context, refe
 	for _, referenceTransaction := range referenceTransactions {
 		if err := tx.walEntry.RecordReferenceUpdates(ctx,
 			mgr.storagePath,
-			tx.stagingSnapshot.prefix,
+			tx.stagingSnapshot.Prefix(),
 			tx.relativePath,
 			referenceTransaction,
 			objectHash,
@@ -2917,7 +2956,7 @@ func (mgr *TransactionManager) verifyPackRefs(ctx context.Context, transaction *
 //
 // As we don't have a list of pruned objects at hand, the conflicts are identified by checking whether the recorded
 // dependencies of a transaction would still exist in the repository after applying the pruning operation.
-func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction *Transaction) (_ *gitalypb.LogEntry_Housekeeping_Repack, finalErr error) {
+func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction *Transaction) (_ *gitalypb.LogEntry_Housekeeping_Repack, returnedErr error) {
 	repack := transaction.runHousekeeping.repack
 	if repack == nil {
 		return nil, nil
@@ -2941,16 +2980,17 @@ func (mgr *TransactionManager) verifyRepacking(ctx context.Context, transaction 
 
 	// Setup a working repository of the destination repository and all changes of current transactions. All
 	// concurrent changes must land in that repository already.
-	snapshot, err := newSnapshot(ctx,
-		mgr.storagePath,
-		filepath.Join(transaction.stagingDirectory, "staging"),
-		[]string{transaction.relativePath},
-	)
+	snapshot, err := mgr.snapshotManager.GetSnapshot(ctx, []string{transaction.relativePath}, true)
 	if err != nil {
 		return nil, fmt.Errorf("setting up new snapshot for verifying repacking: %w", err)
 	}
+	defer func() {
+		if err := snapshot.Close(); err != nil {
+			returnedErr = errors.Join(returnedErr, fmt.Errorf("close snapshot: %w", err))
+		}
+	}()
 
-	workingRepository := mgr.repositoryFactory.Build(snapshot.relativePath(transaction.relativePath))
+	workingRepository := mgr.repositoryFactory.Build(snapshot.RelativePath(transaction.relativePath))
 	workingRepositoryPath, err := workingRepository.Path()
 	if err != nil {
 		return nil, fmt.Errorf("getting working repository path: %w", err)
@@ -3157,6 +3197,7 @@ func (mgr *TransactionManager) applyLogEntry(ctx context.Context, lsn storage.LS
 	}
 
 	mgr.appliedLSN = lsn
+	mgr.snapshotManager.SetLSN(lsn)
 
 	// There is no awaiter for a transaction if the transaction manager is recovering
 	// transactions from the log after starting up.
