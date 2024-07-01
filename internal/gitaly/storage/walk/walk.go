@@ -19,7 +19,7 @@ func FindRepositories(
 	storageName string,
 	repoAction func(relPath string, gitDirInfo fs.FileInfo) error,
 ) error {
-	storagePath, err := locator.GetStorageByName(storageName)
+	storagePath, err := locator.GetStorageByName(ctx, storageName)
 	if err != nil {
 		return structerr.NewNotFound("looking up storage: %w", err)
 	}
@@ -50,7 +50,7 @@ func FindRepositories(
 			return fs.SkipDir
 		}
 
-		if locator.ValidateRepository(&gitalypb.Repository{
+		if locator.ValidateRepository(ctx, &gitalypb.Repository{
 			StorageName:  storageName,
 			RelativePath: relPath,
 		}) == nil {

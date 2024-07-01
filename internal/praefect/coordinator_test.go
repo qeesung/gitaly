@@ -2108,7 +2108,7 @@ type mockDiskCache struct {
 	cache.Cache
 }
 
-func (c *mockDiskCache) StartLease(*gitalypb.Repository) (cache.LeaseEnder, error) {
+func (c *mockDiskCache) StartLease(context.Context, *gitalypb.Repository) (cache.LeaseEnder, error) {
 	return mockLeaseEnder{}, nil
 }
 

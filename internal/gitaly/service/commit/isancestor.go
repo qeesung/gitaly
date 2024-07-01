@@ -11,8 +11,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func validateCommitIsAncestorRequest(locator storage.Locator, in *gitalypb.CommitIsAncestorRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateCommitIsAncestorRequest(ctx context.Context, locator storage.Locator, in *gitalypb.CommitIsAncestorRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if in.GetAncestorId() == "" {
@@ -25,7 +25,7 @@ func validateCommitIsAncestorRequest(locator storage.Locator, in *gitalypb.Commi
 }
 
 func (s *server) CommitIsAncestor(ctx context.Context, in *gitalypb.CommitIsAncestorRequest) (*gitalypb.CommitIsAncestorResponse, error) {
-	if err := validateCommitIsAncestorRequest(s.locator, in); err != nil {
+	if err := validateCommitIsAncestorRequest(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

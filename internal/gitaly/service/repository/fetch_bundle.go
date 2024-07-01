@@ -8,12 +8,14 @@ import (
 )
 
 func (s *server) FetchBundle(stream gitalypb.RepositoryService_FetchBundleServer) error {
+	ctx := stream.Context()
+
 	firstRequest, err := stream.Recv()
 	if err != nil {
 		return structerr.NewInternal("first request: %w", err)
 	}
 
-	if err := s.locator.ValidateRepository(firstRequest.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, firstRequest.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -28,12 +30,10 @@ func (s *server) FetchBundle(stream gitalypb.RepositoryService_FetchBundleServer
 		return request.GetData(), err
 	})
 
-	ctx := stream.Context()
-
 	repo := s.localrepo(firstRequest.GetRepository())
 
 	// Verify that the repository actually exists.
-	if _, err := repo.Path(); err != nil {
+	if _, err := repo.Path(ctx); err != nil {
 		return err
 	}
 

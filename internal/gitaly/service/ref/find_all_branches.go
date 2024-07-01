@@ -10,7 +10,7 @@ import (
 )
 
 func (s *server) FindAllBranches(in *gitalypb.FindAllBranchesRequest, stream gitalypb.RefService_FindAllBranchesServer) error {
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), in.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 	if err := s.findAllBranches(in, stream); err != nil {

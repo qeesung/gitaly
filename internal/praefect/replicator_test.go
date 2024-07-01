@@ -762,7 +762,7 @@ func TestProcessBacklog_Success(t *testing.T) {
 	cancel()
 	<-replMgrDone
 
-	require.NoError(t, backupLocator.ValidateRepository(&gitalypb.Repository{
+	require.NoError(t, backupLocator.ValidateRepository(ctx, &gitalypb.Repository{
 		StorageName:  backupCfg.Storages[0].Name,
 		RelativePath: testRepo.GetRelativePath(),
 	}), "repository must exist at the relative path")

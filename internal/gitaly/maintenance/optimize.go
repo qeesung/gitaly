@@ -155,7 +155,7 @@ func walkReposShuffled(
 			RelativePath: relativeRepoPath,
 		}
 
-		if locator.ValidateRepository(repo) != nil {
+		if locator.ValidateRepository(ctx, repo) != nil {
 			continue
 		}
 		walker.skipDir()

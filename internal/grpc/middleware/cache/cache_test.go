@@ -180,7 +180,7 @@ func (mc *mockCache) EndLease(_ context.Context) error {
 	return nil
 }
 
-func (mc *mockCache) StartLease(repo *gitalypb.Repository) (diskcache.LeaseEnder, error) {
+func (mc *mockCache) StartLease(_ context.Context, repo *gitalypb.Repository) (diskcache.LeaseEnder, error) {
 	mc.invalidatedRepos = append(mc.invalidatedRepos, repo)
 	return mc, nil
 }

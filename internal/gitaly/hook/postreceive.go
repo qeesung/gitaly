@@ -213,7 +213,7 @@ func (m *GitLabHookManager) postReceiveHook(ctx context.Context, payload git.Hoo
 		return errors.New("")
 	}
 
-	executor, err := m.newCustomHooksExecutor(repo, "post-receive")
+	executor, err := m.newCustomHooksExecutor(ctx, repo, "post-receive")
 	if err != nil {
 		return structerr.NewInternal("creating custom hooks executor: %w", err)
 	}

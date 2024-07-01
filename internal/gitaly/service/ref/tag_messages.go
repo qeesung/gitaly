@@ -2,6 +2,7 @@ package ref
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func (s *server) GetTagMessages(request *gitalypb.GetTagMessagesRequest, stream gitalypb.RefService_GetTagMessagesServer) error {
-	if err := validateGetTagMessagesRequest(s.locator, request); err != nil {
+	if err := validateGetTagMessagesRequest(stream.Context(), s.locator, request); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 	if err := s.getAndStreamTagMessages(request, stream); err != nil {
@@ -24,8 +25,8 @@ func (s *server) GetTagMessages(request *gitalypb.GetTagMessagesRequest, stream 
 	return nil
 }
 
-func validateGetTagMessagesRequest(locator storage.Locator, request *gitalypb.GetTagMessagesRequest) error {
-	return locator.ValidateRepository(request.GetRepository())
+func validateGetTagMessagesRequest(ctx context.Context, locator storage.Locator, request *gitalypb.GetTagMessagesRequest) error {
+	return locator.ValidateRepository(ctx, request.GetRepository())
 }
 
 func (s *server) getAndStreamTagMessages(request *gitalypb.GetTagMessagesRequest, stream gitalypb.RefService_GetTagMessagesServer) error {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -40,7 +41,7 @@ type configLocator struct {
 // - ErrRepositoryNotFound when the path cannot be found.
 // - ErrRepositoryNotValid when the repository is not a valid Git repository.
 // - An unspecified error when stat(3P)ing files fails due to other reasons.
-func (l *configLocator) ValidateRepository(repo storage.Repository, opts ...storage.ValidateRepositoryOption) error {
+func (l *configLocator) ValidateRepository(ctx context.Context, repo storage.Repository, opts ...storage.ValidateRepositoryOption) error {
 	var cfg storage.ValidateRepositoryConfig
 	for _, opt := range opts {
 		opt(&cfg)
@@ -62,7 +63,7 @@ func (l *configLocator) ValidateRepository(repo storage.Repository, opts ...stor
 		return nil
 	}
 
-	storagePath, err := l.GetStorageByName(repo.GetStorageName())
+	storagePath, err := l.GetStorageByName(ctx, repo.GetStorageName())
 	if err != nil {
 		return err
 	}
@@ -118,7 +119,7 @@ func (l *configLocator) ValidateRepository(repo storage.Repository, opts ...stor
 // the `GetRepoPathOption` produced by `WithRepositoryVerificationSkipped()`, this validation
 // will be skipped. The errors returned are gRPC errors with relevant error codes and should be
 // passed back to gRPC without further decoration.
-func (l *configLocator) GetRepoPath(repo storage.Repository, opts ...storage.GetRepoPathOption) (string, error) {
+func (l *configLocator) GetRepoPath(ctx context.Context, repo storage.Repository, opts ...storage.GetRepoPathOption) (string, error) {
 	var cfg storage.GetRepoPathConfig
 	for _, opt := range opts {
 		opt(&cfg)
@@ -131,11 +132,11 @@ func (l *configLocator) GetRepoPath(repo storage.Repository, opts ...storage.Get
 		}
 	}
 
-	if err := l.ValidateRepository(repo, validationOptions...); err != nil {
+	if err := l.ValidateRepository(ctx, repo, validationOptions...); err != nil {
 		return "", err
 	}
 
-	storagePath, err := l.GetStorageByName(repo.GetStorageName())
+	storagePath, err := l.GetStorageByName(ctx, repo.GetStorageName())
 	if err != nil {
 		return "", err
 	}
@@ -146,7 +147,7 @@ func (l *configLocator) GetRepoPath(repo storage.Repository, opts ...storage.Get
 
 // GetStorageByName will return the path for the storage, which is fetched by
 // its key. An error is return if it cannot be found.
-func (l *configLocator) GetStorageByName(storageName string) (string, error) {
+func (l *configLocator) GetStorageByName(ctx context.Context, storageName string) (string, error) {
 	if storageName == "" {
 		return "", structerr.NewInvalidArgument("%w", storage.ErrStorageNotSet)
 	}

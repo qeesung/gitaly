@@ -53,6 +53,7 @@ func TestCreate(t *testing.T) {
 	require.NoError(t, err)
 
 	pool, err := objectpool.FromProto(
+		ctx,
 		logger,
 		config.NewLocator(cfg),
 		gittest.NewCommandFactory(t, cfg),
@@ -67,10 +68,10 @@ func TestCreate(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	poolPath := gittest.RepositoryPath(t, pool)
+	poolPath := gittest.RepositoryPath(t, ctx, pool)
 
 	// Assert that the now-created object pool exists and is valid.
-	require.True(t, pool.IsValid())
+	require.True(t, pool.IsValid(ctx))
 	require.NoDirExists(t, filepath.Join(poolPath, "hooks"))
 	gittest.RequireObjectExists(t, cfg, poolPath, commitID)
 
@@ -80,7 +81,7 @@ func TestCreate(t *testing.T) {
 		Origin:     repo,
 	})
 	require.Error(t, err)
-	require.True(t, pool.IsValid())
+	require.True(t, pool.IsValid(ctx))
 }
 
 func TestCreate_emptySource(t *testing.T) {

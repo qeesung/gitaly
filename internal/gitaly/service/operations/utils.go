@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"context"
 	"errors"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
@@ -15,8 +16,8 @@ type cherryPickOrRevertRequest interface {
 	GetMessage() []byte
 }
 
-func validateCherryPickOrRevertRequest(locator storage.Locator, req cherryPickOrRevertRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateCherryPickOrRevertRequest(ctx context.Context, locator storage.Locator, req cherryPickOrRevertRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 

@@ -19,7 +19,7 @@ import (
 // UserSquash collapses a range of commits identified via a start and end revision into a single
 // commit whose single parent is the start revision.
 func (s *Server) UserSquash(ctx context.Context, req *gitalypb.UserSquashRequest) (*gitalypb.UserSquashResponse, error) {
-	if err := validateUserSquashRequest(s.locator, req); err != nil {
+	if err := validateUserSquashRequest(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -31,8 +31,8 @@ func (s *Server) UserSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 	return &gitalypb.UserSquashResponse{SquashSha: sha}, nil
 }
 
-func validateUserSquashRequest(locator storage.Locator, req *gitalypb.UserSquashRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateUserSquashRequest(ctx context.Context, locator storage.Locator, req *gitalypb.UserSquashRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 
@@ -186,7 +186,7 @@ func (s *Server) userSquash(ctx context.Context, req *gitalypb.UserSquashRequest
 		return "", structerr.NewAborted("preparatory vote on squashed commit: %w", err)
 	}
 
-	if err := quarantineDir.Migrate(); err != nil {
+	if err := quarantineDir.Migrate(ctx); err != nil {
 		return "", structerr.NewInternal("migrating quarantine directory: %w", err)
 	}
 

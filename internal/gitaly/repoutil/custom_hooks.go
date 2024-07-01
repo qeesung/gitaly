@@ -105,7 +105,7 @@ func SetCustomHooks(
 	reader io.Reader,
 	repo storage.Repository,
 ) error {
-	repoPath, err := locator.GetRepoPath(repo)
+	repoPath, err := locator.GetRepoPath(ctx, repo)
 	if err != nil {
 		return fmt.Errorf("getting repo path: %w", err)
 	}

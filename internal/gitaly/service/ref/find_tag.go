@@ -14,7 +14,7 @@ import (
 )
 
 func (s *server) FindTag(ctx context.Context, in *gitalypb.FindTagRequest) (*gitalypb.FindTagResponse, error) {
-	if err := s.validateFindTagRequest(in); err != nil {
+	if err := s.validateFindTagRequest(ctx, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -114,9 +114,9 @@ func (s *server) findTag(ctx context.Context, repo git.RepositoryExecutor, tagNa
 	return tag, nil
 }
 
-func (s *server) validateFindTagRequest(in *gitalypb.FindTagRequest) error {
+func (s *server) validateFindTagRequest(ctx context.Context, in *gitalypb.FindTagRequest) error {
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return err
 	}
 

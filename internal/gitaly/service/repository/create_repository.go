@@ -12,7 +12,7 @@ import (
 
 func (s *server) CreateRepository(ctx context.Context, req *gitalypb.CreateRepositoryRequest) (*gitalypb.CreateRepositoryResponse, error) {
 	repository := req.GetRepository()
-	if err := s.locator.ValidateRepository(repository, storage.WithSkipRepositoryExistenceCheck()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository, storage.WithSkipRepositoryExistenceCheck()); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

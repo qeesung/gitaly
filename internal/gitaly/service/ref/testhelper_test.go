@@ -72,7 +72,7 @@ func writeCommit(
 	tb.Helper()
 
 	repo := localrepo.NewTestRepo(tb, cfg, repoProto)
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	require.NoError(tb, err)
 
 	commitID := gittest.WriteCommit(tb, cfg, repoPath, opts...)

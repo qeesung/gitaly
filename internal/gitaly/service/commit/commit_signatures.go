@@ -17,7 +17,7 @@ import (
 func (s *server) GetCommitSignatures(request *gitalypb.GetCommitSignaturesRequest, stream gitalypb.CommitService_GetCommitSignaturesServer) error {
 	ctx := stream.Context()
 
-	if err := s.locator.ValidateRepository(request.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), request.GetRepository()); err != nil {
 		return err
 	}
 

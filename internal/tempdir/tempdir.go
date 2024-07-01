@@ -56,7 +56,7 @@ func NewWithoutContext(storageName string, logger log.Logger, locator storage.Lo
 // NewRepository is the same as New, but it returns a *gitalypb.Repository for the created directory
 // as well as the bare path as a string.
 func NewRepository(ctx context.Context, storageName string, logger log.Logger, locator storage.Locator) (*gitalypb.Repository, Dir, error) {
-	storagePath, err := locator.GetStorageByName(storageName)
+	storagePath, err := locator.GetStorageByName(ctx, storageName)
 	if err != nil {
 		return nil, Dir{}, err
 	}

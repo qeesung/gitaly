@@ -12,8 +12,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func validateFetchSourceBranchRequest(locator storage.Locator, in *gitalypb.FetchSourceBranchRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateFetchSourceBranchRequest(ctx context.Context, locator storage.Locator, in *gitalypb.FetchSourceBranchRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(in.GetSourceBranch()); err != nil {
@@ -26,7 +26,7 @@ func validateFetchSourceBranchRequest(locator storage.Locator, in *gitalypb.Fetc
 }
 
 func (s *server) FetchSourceBranch(ctx context.Context, req *gitalypb.FetchSourceBranchRequest) (*gitalypb.FetchSourceBranchResponse, error) {
-	if err := validateFetchSourceBranchRequest(s.locator, req); err != nil {
+	if err := validateFetchSourceBranchRequest(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -100,7 +100,7 @@ func (s *server) FetchSourceBranch(ctx context.Context, req *gitalypb.FetchSourc
 		}
 	}
 
-	if err := quarantineDir.Migrate(); err != nil {
+	if err := quarantineDir.Migrate(ctx); err != nil {
 		return nil, structerr.NewInternal("migrating quarantined objects: %w", err)
 	}
 

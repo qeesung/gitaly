@@ -19,7 +19,7 @@ func (s *server) CommitDiff(in *gitalypb.CommitDiffRequest, stream gitalypb.Diff
 		"Paths":         logPaths(in.Paths),
 	}).DebugContext(ctx, "CommitDiff")
 
-	if err := validateRequest(s.locator, in); err != nil {
+	if err := validateRequest(ctx, s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

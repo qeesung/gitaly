@@ -14,7 +14,7 @@ import (
 func (s *server) ListCommitsByRefName(in *gitalypb.ListCommitsByRefNameRequest, stream gitalypb.CommitService_ListCommitsByRefNameServer) error {
 	ctx := stream.Context()
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 	repo := s.localrepo(repository)

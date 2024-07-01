@@ -17,8 +17,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func validateUserDeleteTagRequest(locator storage.Locator, in *gitalypb.UserDeleteTagRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateUserDeleteTagRequest(ctx context.Context, locator storage.Locator, in *gitalypb.UserDeleteTagRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if len(in.GetTagName()) == 0 {
@@ -32,7 +32,7 @@ func validateUserDeleteTagRequest(locator storage.Locator, in *gitalypb.UserDele
 
 // UserDeleteTag deletes an existing tag.
 func (s *Server) UserDeleteTag(ctx context.Context, req *gitalypb.UserDeleteTagRequest) (*gitalypb.UserDeleteTagResponse, error) {
-	if err := validateUserDeleteTagRequest(s.locator, req); err != nil {
+	if err := validateUserDeleteTagRequest(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 	referenceName := git.ReferenceName(fmt.Sprintf("refs/tags/%s", req.TagName))
@@ -87,7 +87,7 @@ func (s *Server) UserDeleteTag(ctx context.Context, req *gitalypb.UserDeleteTagR
 	return &gitalypb.UserDeleteTagResponse{}, nil
 }
 
-func validateUserCreateTag(locator storage.Locator, req *gitalypb.UserCreateTagRequest) error {
+func validateUserCreateTag(ctx context.Context, locator storage.Locator, req *gitalypb.UserCreateTagRequest) error {
 	if len(req.TagName) == 0 {
 		return errors.New("empty tag name")
 	}
@@ -108,7 +108,7 @@ func validateUserCreateTag(locator storage.Locator, req *gitalypb.UserCreateTagR
 		return errors.New("tag message contains NUL byte")
 	}
 
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 
@@ -117,7 +117,7 @@ func validateUserCreateTag(locator storage.Locator, req *gitalypb.UserCreateTagR
 
 //nolint:revive // This is unintentionally missing documentation.
 func (s *Server) UserCreateTag(ctx context.Context, req *gitalypb.UserCreateTagRequest) (*gitalypb.UserCreateTagResponse, error) {
-	if err := validateUserCreateTag(s.locator, req); err != nil {
+	if err := validateUserCreateTag(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

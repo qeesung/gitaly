@@ -1,6 +1,7 @@
 package ref
 
 import (
+	"context"
 	"errors"
 	"io"
 
@@ -14,8 +15,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func verifyGetTagSignaturesRequest(locator storage.Locator, req *gitalypb.GetTagSignaturesRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func verifyGetTagSignaturesRequest(ctx context.Context, locator storage.Locator, req *gitalypb.GetTagSignaturesRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 
@@ -32,11 +33,11 @@ func verifyGetTagSignaturesRequest(locator storage.Locator, req *gitalypb.GetTag
 }
 
 func (s *server) GetTagSignatures(req *gitalypb.GetTagSignaturesRequest, stream gitalypb.RefService_GetTagSignaturesServer) error {
-	if err := verifyGetTagSignaturesRequest(s.locator, req); err != nil {
+	ctx := stream.Context()
+	if err := verifyGetTagSignaturesRequest(ctx, s.locator, req); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
-	ctx := stream.Context()
 	repo := s.localrepo(req.GetRepository())
 
 	objectReader, cancel, err := s.catfileCache.ObjectReader(ctx, repo)

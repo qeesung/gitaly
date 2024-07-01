@@ -213,7 +213,7 @@ func TestCreateFork_refs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	storagePath, err := config.NewLocator(cfg).GetStorageByName(targetRepo.GetStorageName())
+	storagePath, err := config.NewLocator(cfg).GetStorageByName(ctx, targetRepo.GetStorageName())
 	require.NoError(t, err)
 
 	targetRepoPath := filepath.Join(storagePath, gittest.GetReplicaPath(t, ctx, cfg, targetRepo))

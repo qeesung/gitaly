@@ -19,7 +19,7 @@ func (s *server) RangeDiff(in *gitalypb.RangeDiffRequest, stream gitalypb.DiffSe
 		"RangeSpec": in.GetRangeSpec(),
 	}).Info("RangeDiff")
 
-	if err := validateRangeDiffRequest(s.locator, in); err != nil {
+	if err := validateRangeDiffRequest(stream.Context(), s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -90,8 +90,8 @@ func (s *server) RangeDiff(in *gitalypb.RangeDiffRequest, stream gitalypb.DiffSe
 	})
 }
 
-func validateRangeDiffRequest(locator storage.Locator, in *gitalypb.RangeDiffRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateRangeDiffRequest(ctx context.Context, locator storage.Locator, in *gitalypb.RangeDiffRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

@@ -34,7 +34,7 @@ func Create(
 	proto *gitalypb.ObjectPool,
 	sourceRepo *localrepo.Repo,
 ) (*ObjectPool, error) {
-	objectPoolPath, err := locator.GetRepoPath(proto.GetRepository(), storage.WithRepositoryVerificationSkipped())
+	objectPoolPath, err := locator.GetRepoPath(ctx, proto.GetRepository(), storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func Create(
 			WithMetadata("object_pool_path", objectPoolPath)
 	}
 
-	sourceRepoPath, err := sourceRepo.Path()
+	sourceRepoPath, err := sourceRepo.Path(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting source repository path: %w", err)
 	}
@@ -84,7 +84,7 @@ func Create(
 		return nil, fmt.Errorf("cloning to pool: %w, stderr: %q", err, stderr.String())
 	}
 
-	objectPool, err := FromProto(logger, locator, gitCmdFactory, catfileCache, txManager, housekeepingManager, proto)
+	objectPool, err := FromProto(ctx, logger, locator, gitCmdFactory, catfileCache, txManager, housekeepingManager, proto)
 	if err != nil {
 		return nil, err
 	}

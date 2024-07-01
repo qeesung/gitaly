@@ -21,7 +21,7 @@ func (s *server) CheckBlobsGenerated(stream gitalypb.AnalysisService_CheckBlobsG
 	}
 
 	repository := req.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

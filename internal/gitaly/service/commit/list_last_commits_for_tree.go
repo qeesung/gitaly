@@ -19,7 +19,7 @@ import (
 var maxNumStatBatchSize = 10
 
 func (s *server) ListLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeRequest, stream gitalypb.CommitService_ListLastCommitsForTreeServer) error {
-	if err := validateListLastCommitsForTreeRequest(s.locator, in); err != nil {
+	if err := validateListLastCommitsForTreeRequest(stream.Context(), s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -34,7 +34,7 @@ func (s *server) listLastCommitsForTree(in *gitalypb.ListLastCommitsForTreeReque
 	ctx := stream.Context()
 	repo := s.localrepo(in.GetRepository())
 
-	if _, err := repo.Path(); err != nil {
+	if _, err := repo.Path(ctx); err != nil {
 		return err
 	}
 
@@ -156,8 +156,8 @@ func sendCommitsForTree(batch []*gitalypb.ListLastCommitsForTreeResponse_CommitF
 	return nil
 }
 
-func validateListLastCommitsForTreeRequest(locator storage.Locator, in *gitalypb.ListLastCommitsForTreeRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateListLastCommitsForTreeRequest(ctx context.Context, locator storage.Locator, in *gitalypb.ListLastCommitsForTreeRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision([]byte(in.Revision)); err != nil {

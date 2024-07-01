@@ -16,7 +16,7 @@ import (
 // CountDivergingCommits counts the diverging commits between from and to. Important to note that when --max-count is applied, the counts are not guaranteed to be
 // accurate because --max-count is applied before it does the rev walk.
 func (s *server) CountDivergingCommits(ctx context.Context, req *gitalypb.CountDivergingCommitsRequest) (*gitalypb.CountDivergingCommitsResponse, error) {
-	if err := s.validateCountDivergingCommitsRequest(req); err != nil {
+	if err := s.validateCountDivergingCommitsRequest(ctx, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -30,13 +30,13 @@ func (s *server) CountDivergingCommits(ctx context.Context, req *gitalypb.CountD
 	return &gitalypb.CountDivergingCommitsResponse{LeftCount: left, RightCount: right}, nil
 }
 
-func (s *server) validateCountDivergingCommitsRequest(req *gitalypb.CountDivergingCommitsRequest) error {
+func (s *server) validateCountDivergingCommitsRequest(ctx context.Context, req *gitalypb.CountDivergingCommitsRequest) error {
 	if req.GetFrom() == nil || req.GetTo() == nil {
 		return errors.New("from and to are both required")
 	}
 
 	repository := req.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return err
 	}
 

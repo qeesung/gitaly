@@ -34,7 +34,7 @@ import (
 // the repository may be in a broken state until an administrator intervenes and restores the backed
 // up copy of objects/info/alternates.
 func Disconnect(ctx context.Context, repo *localrepo.Repo, logger log.Logger, txManager transaction.Manager) error {
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func Disconnect(ctx context.Context, repo *localrepo.Repo, logger log.Logger, tx
 		return fmt.Errorf("committed vote for migrating objects: %w", err)
 	}
 
-	altFile, err := repo.InfoAlternatesPath()
+	altFile, err := repo.InfoAlternatesPath(ctx)
 	if err != nil {
 		return err
 	}

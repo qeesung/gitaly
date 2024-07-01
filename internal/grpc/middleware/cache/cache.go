@@ -100,7 +100,7 @@ func UnaryInvalidator(ci diskcache.Invalidator, reg *protoregistry.Registry, log
 			return handler(ctx, req)
 		}
 
-		le, err := ci.StartLease(target)
+		le, err := ci.StartLease(ctx, target)
 		if err != nil {
 			errLogger(err)
 			return handler(ctx, req)
@@ -118,7 +118,7 @@ func UnaryInvalidator(ci diskcache.Invalidator, reg *protoregistry.Registry, log
 	}
 }
 
-type recvMsgCallback func(interface{}, error)
+type recvMsgCallback func(context.Context, interface{}, error)
 
 func invalidateCache(ci diskcache.Invalidator, mInfo protoregistry.MethodInfo, handler grpc.StreamHandler, errLogger func(error)) (grpc.StreamHandler, recvMsgCallback) {
 	var le struct {
@@ -144,7 +144,7 @@ func invalidateCache(ci diskcache.Invalidator, mInfo protoregistry.MethodInfo, h
 
 	// starts the cache lease and sets the lease ender iff the request's target
 	// repository can be determined from the first request message
-	peekerCallback := func(firstReq interface{}, err error) {
+	peekerCallback := func(ctx context.Context, firstReq interface{}, err error) {
 		if err != nil {
 			errLogger(err)
 			return
@@ -165,7 +165,7 @@ func invalidateCache(ci diskcache.Invalidator, mInfo protoregistry.MethodInfo, h
 		le.Lock()
 		defer le.Unlock()
 
-		l, err := ci.StartLease(target)
+		l, err := ci.StartLease(ctx, target)
 		if err != nil {
 			errLogger(err)
 			return
@@ -201,6 +201,6 @@ func newStreamPeeker(stream grpc.ServerStream, callback recvMsgCallback) grpc.Se
 // that the callback is called on the first call.
 func (sp *streamPeeker) RecvMsg(m interface{}) error {
 	err := sp.ServerStream.RecvMsg(m)
-	sp.onFirstRecvOnce.Do(func() { sp.onFirstRecvCallback(m, err) })
+	sp.onFirstRecvOnce.Do(func() { sp.onFirstRecvCallback(sp.ServerStream.Context(), m, err) })
 	return err
 }

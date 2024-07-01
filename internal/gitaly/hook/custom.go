@@ -46,8 +46,8 @@ func (e CustomHookError) Unwrap() error {
 // 3. <custom_hooks_dir>/hooks/<hook_name>.d/* - global hooks
 //
 // Any files which are either not executable or have a trailing `~` are ignored.
-func (m *GitLabHookManager) newCustomHooksExecutor(repo *gitalypb.Repository, hookName string) (customHooksExecutor, error) {
-	repoPath, err := m.locator.GetRepoPath(repo)
+func (m *GitLabHookManager) newCustomHooksExecutor(ctx context.Context, repo *gitalypb.Repository, hookName string) (customHooksExecutor, error) {
+	repoPath, err := m.locator.GetRepoPath(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func isValidHook(path string) bool {
 }
 
 func (m *GitLabHookManager) customHooksEnv(ctx context.Context, payload git.HooksPayload, pushOptions []string, envs []string) ([]string, error) {
-	repoPath, err := m.locator.GetRepoPath(payload.Repo, storage.WithRepositoryVerificationSkipped())
+	repoPath, err := m.locator.GetRepoPath(ctx, payload.Repo, storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return nil, err
 	}

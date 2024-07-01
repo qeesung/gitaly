@@ -11,7 +11,7 @@ import (
 
 // FindLocalBranches creates a stream of branches for all local branches in the given repository
 func (s *server) FindLocalBranches(in *gitalypb.FindLocalBranchesRequest, stream gitalypb.RefService_FindLocalBranchesServer) error {
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), in.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 	if err := s.findLocalBranches(in, stream); err != nil {

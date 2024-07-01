@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"context"
 	"fmt"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -10,7 +11,7 @@ import (
 )
 
 func (s *server) FindAllCommits(in *gitalypb.FindAllCommitsRequest, stream gitalypb.CommitService_FindAllCommitsServer) error {
-	if err := validateFindAllCommitsRequest(s.locator, in); err != nil {
+	if err := validateFindAllCommitsRequest(stream.Context(), s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -39,8 +40,8 @@ func (s *server) FindAllCommits(in *gitalypb.FindAllCommitsRequest, stream gital
 	return nil
 }
 
-func validateFindAllCommitsRequest(locator storage.Locator, in *gitalypb.FindAllCommitsRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateFindAllCommitsRequest(ctx context.Context, locator storage.Locator, in *gitalypb.FindAllCommitsRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

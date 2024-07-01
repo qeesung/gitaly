@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"crypto/sha1"
 	"errors"
 	"fmt"
@@ -75,16 +76,16 @@ func RepoPathEqual(a, b Repository) bool {
 type Locator interface {
 	// ValidateRepository validates whether the given repository is a valid Git repository. This
 	// function can be configured by passing ValidateRepositoryOptions.
-	ValidateRepository(Repository, ...ValidateRepositoryOption) error
+	ValidateRepository(context.Context, Repository, ...ValidateRepositoryOption) error
 	// GetRepoPath returns the full path of the repository referenced by an RPC Repository message.
 	// By default, it verifies that the path is an existing git directory. However, if invoked with
 	// the `GetRepoPathOption` produced by `WithRepositoryVerificationSkipped()`, this validation
 	// will be skipped. The errors returned are gRPC errors with relevant error codes and should be
 	// passed back to gRPC without further decoration.
-	GetRepoPath(repo Repository, opts ...GetRepoPathOption) (string, error)
+	GetRepoPath(ctx context.Context, repo Repository, opts ...GetRepoPathOption) (string, error)
 	// GetStorageByName will return the path for the storage, which is fetched by
 	// its key. An error is return if it cannot be found.
-	GetStorageByName(storageName string) (string, error)
+	GetStorageByName(ctx context.Context, storageName string) (string, error)
 
 	// CacheDir returns the path to the cache dir for a storage.
 	CacheDir(storageName string) (string, error)

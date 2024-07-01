@@ -27,12 +27,12 @@ func TestFromProto(t *testing.T) {
 		cfg, pool, _ := setupObjectPool(t, ctx)
 		locator := config.NewLocator(cfg)
 
-		_, err := FromProto(logger, locator, nil, nil, nil, nil, pool.ToProto())
+		_, err := FromProto(ctx, logger, locator, nil, nil, nil, nil, pool.ToProto())
 		require.NoError(t, err)
 	})
 
 	t.Run("nonexistent", func(t *testing.T) {
-		_, err := FromProto(logger, locator, nil, nil, nil, nil, &gitalypb.ObjectPool{
+		_, err := FromProto(ctx, logger, locator, nil, nil, nil, nil, &gitalypb.ObjectPool{
 			Repository: &gitalypb.Repository{
 				StorageName:  cfg.Storages[0].Name,
 				RelativePath: gittest.NewObjectPoolName(t),
@@ -42,7 +42,7 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("unknown storage", func(t *testing.T) {
-		_, err := FromProto(logger, locator, nil, nil, nil, nil, &gitalypb.ObjectPool{
+		_, err := FromProto(ctx, logger, locator, nil, nil, nil, nil, &gitalypb.ObjectPool{
 			Repository: &gitalypb.Repository{
 				StorageName:  "mepmep",
 				RelativePath: gittest.NewObjectPoolName(t),
@@ -63,7 +63,7 @@ func TestFromRepo_successful(t *testing.T) {
 
 	require.NoError(t, pool.Link(ctx, repo))
 
-	poolFromRepo, err := FromRepo(logger, locator, pool.gitCmdFactory, nil, nil, nil, repo)
+	poolFromRepo, err := FromRepo(ctx, logger, locator, pool.gitCmdFactory, nil, nil, nil, repo)
 	require.NoError(t, err)
 	require.Equal(t, pool.GetRelativePath(), poolFromRepo.GetRelativePath())
 	require.Equal(t, pool.GetStorageName(), poolFromRepo.GetStorageName())
@@ -79,7 +79,7 @@ func TestFromRepo_failures(t *testing.T) {
 		logger := testhelper.NewLogger(t)
 		locator := config.NewLocator(cfg)
 
-		poolFromRepo, err := FromRepo(logger, locator, pool.gitCmdFactory, nil, nil, nil, repo)
+		poolFromRepo, err := FromRepo(ctx, logger, locator, pool.gitCmdFactory, nil, nil, nil, repo)
 		require.Equal(t, ErrAlternateObjectDirNotExist, err)
 		require.Nil(t, poolFromRepo)
 	})
@@ -109,13 +109,13 @@ func TestFromRepo_failures(t *testing.T) {
 			cfg, pool, repo := setupObjectPool(t, ctx)
 			logger := testhelper.NewLogger(t)
 			locator := config.NewLocator(cfg)
-			repoPath, err := repo.Path()
+			repoPath, err := repo.Path(ctx)
 			require.NoError(t, err)
 
 			require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "info"), perm.SharedDir))
 			alternateFilePath := filepath.Join(repoPath, "objects", "info", "alternates")
 			require.NoError(t, os.WriteFile(alternateFilePath, tc.fileContent, perm.SharedFile))
-			poolFromRepo, err := FromRepo(logger, locator, pool.gitCmdFactory, nil, nil, nil, repo)
+			poolFromRepo, err := FromRepo(ctx, logger, locator, pool.gitCmdFactory, nil, nil, nil, repo)
 			require.Equal(t, tc.expectedErr, err)
 			require.Nil(t, poolFromRepo)
 
@@ -131,7 +131,7 @@ func TestRemove(t *testing.T) {
 
 	_, pool, _ := setupObjectPool(t, ctx)
 
-	require.True(t, pool.Exists())
+	require.True(t, pool.Exists(ctx))
 	require.NoError(t, pool.Remove(ctx))
-	require.False(t, pool.Exists())
+	require.False(t, pool.Exists(ctx))
 }

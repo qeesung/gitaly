@@ -14,7 +14,7 @@ import (
 )
 
 func (s *server) LastCommitForPath(ctx context.Context, in *gitalypb.LastCommitForPathRequest) (*gitalypb.LastCommitForPathResponse, error) {
-	if err := validateLastCommitForPathRequest(s.locator, in); err != nil {
+	if err := validateLastCommitForPathRequest(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -63,8 +63,8 @@ func (s *server) lastCommitForPath(ctx context.Context, in *gitalypb.LastCommitF
 	return &gitalypb.LastCommitForPathResponse{Commit: commit.GitCommit}, err
 }
 
-func validateLastCommitForPathRequest(locator storage.Locator, in *gitalypb.LastCommitForPathRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateLastCommitForPathRequest(ctx context.Context, locator storage.Locator, in *gitalypb.LastCommitForPathRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(in.Revision); err != nil {

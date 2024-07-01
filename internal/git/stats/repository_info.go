@@ -99,8 +99,8 @@ func FullRepackTimestamp(repoPath string) (time.Time, error) {
 }
 
 // PackfilesCount returns the number of packfiles a repository has.
-func PackfilesCount(repo *localrepo.Repo) (uint64, error) {
-	packfilesInfo, err := PackfilesInfoForRepository(repo)
+func PackfilesCount(ctx context.Context, repo *localrepo.Repo) (uint64, error) {
+	packfilesInfo, err := PackfilesInfoForRepository(ctx, repo)
 	if err != nil {
 		return 0, fmt.Errorf("deriving packfiles info: %w", err)
 	}
@@ -109,8 +109,8 @@ func PackfilesCount(repo *localrepo.Repo) (uint64, error) {
 }
 
 // LooseObjects returns the number of loose objects that are not in a packfile.
-func LooseObjects(repo *localrepo.Repo) (uint64, error) {
-	objectsInfo, err := LooseObjectsInfoForRepository(repo, time.Now())
+func LooseObjects(ctx context.Context, repo *localrepo.Repo) (uint64, error) {
+	objectsInfo, err := LooseObjectsInfoForRepository(ctx, repo, time.Now())
 	if err != nil {
 		return 0, err
 	}
@@ -150,19 +150,19 @@ func RepositoryInfoForRepository(ctx context.Context, repo *localrepo.Repo) (Rep
 	var info RepositoryInfo
 	var err error
 
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return RepositoryInfo{}, err
 	}
 
 	info.IsObjectPool = storage.IsPoolRepository(repo)
 
-	info.LooseObjects, err = LooseObjectsInfoForRepository(repo, time.Now().Add(StaleObjectsGracePeriod))
+	info.LooseObjects, err = LooseObjectsInfoForRepository(ctx, repo, time.Now().Add(StaleObjectsGracePeriod))
 	if err != nil {
 		return RepositoryInfo{}, fmt.Errorf("counting loose objects: %w", err)
 	}
 
-	info.Packfiles, err = PackfilesInfoForRepository(repo)
+	info.Packfiles, err = PackfilesInfoForRepository(ctx, repo)
 	if err != nil {
 		return RepositoryInfo{}, fmt.Errorf("counting packfiles: %w", err)
 	}
@@ -219,7 +219,7 @@ type ReftableTable struct {
 
 // ReferencesInfoForRepository derives information about references in the repository.
 func ReferencesInfoForRepository(ctx context.Context, repo *localrepo.Repo) (ReferencesInfo, error) {
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return ReferencesInfo{}, fmt.Errorf("getting repository path: %w", err)
 	}
@@ -348,8 +348,8 @@ type LooseObjectsInfo struct {
 // LooseObjectsInfoForRepository derives information about loose objects in the repository. If a
 // cutoff date is given, then this function will only take into account objects which are older than
 // the given point in time.
-func LooseObjectsInfoForRepository(repo *localrepo.Repo, cutoffDate time.Time) (LooseObjectsInfo, error) {
-	repoPath, err := repo.Path()
+func LooseObjectsInfoForRepository(ctx context.Context, repo *localrepo.Repo, cutoffDate time.Time) (LooseObjectsInfo, error) {
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return LooseObjectsInfo{}, fmt.Errorf("getting repository path: %w", err)
 	}
@@ -438,8 +438,8 @@ type PackfilesInfo struct {
 }
 
 // PackfilesInfoForRepository derives various information about packfiles for the given repository.
-func PackfilesInfoForRepository(repo *localrepo.Repo) (PackfilesInfo, error) {
-	repoPath, err := repo.Path()
+func PackfilesInfoForRepository(ctx context.Context, repo *localrepo.Repo) (PackfilesInfo, error) {
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return PackfilesInfo{}, fmt.Errorf("getting repository path: %w", err)
 	}

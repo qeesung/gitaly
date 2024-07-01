@@ -16,7 +16,7 @@ import (
 
 //nolint:revive // This is unintentionally missing documentation.
 func (s *Server) UserRevert(ctx context.Context, req *gitalypb.UserRevertRequest) (*gitalypb.UserRevertResponse, error) {
-	if err := validateCherryPickOrRevertRequest(s.locator, req); err != nil {
+	if err := validateCherryPickOrRevertRequest(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

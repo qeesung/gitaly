@@ -14,11 +14,11 @@ import (
 
 func (s *server) CalculateChecksum(ctx context.Context, in *gitalypb.CalculateChecksumRequest) (*gitalypb.CalculateChecksumResponse, error) {
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 	repo := repository
-	repoPath, err := s.locator.GetRepoPath(repo)
+	repoPath, err := s.locator.GetRepoPath(ctx, repo)
 	if err != nil {
 		return nil, err
 	}

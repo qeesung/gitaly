@@ -93,6 +93,7 @@ func testWithAndWithoutTransaction(t *testing.T, desc string, testFunc func(*tes
 			t.Cleanup(dbMgr.Close)
 
 			partitionManager, err := storagemgr.NewPartitionManager(
+				testhelper.Context(t),
 				cfg.Storages,
 				cmdFactory,
 				localRepoFactory,

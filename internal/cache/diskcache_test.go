@@ -32,7 +32,7 @@ func TestStreamDBNaiveKeyer(t *testing.T) {
 	}
 
 	invalidationEvent := func(ctx context.Context, cache Cache, repo *gitalypb.Repository) {
-		lease, err := cache.StartLease(repo)
+		lease, err := cache.StartLease(ctx, repo)
 		require.NoError(t, err)
 		// imagine repo being modified here
 		require.NoError(t, lease.EndLease(ctx))
@@ -124,7 +124,7 @@ func TestStreamDBNaiveKeyer(t *testing.T) {
 		storeAndRetrieve(ctx, cache, req2, "unrelated")
 
 		// Start critical section without closing it.
-		repo1Lease, err := cache.StartLease(req1.Repository)
+		repo1Lease, err := cache.StartLease(ctx, req1.Repository)
 		require.NoError(t, err)
 
 		// Accessing repo cache with open critical section should fail.
@@ -155,7 +155,7 @@ func TestStreamDBNaiveKeyer(t *testing.T) {
 		}
 
 		// Creating a lease on a repo that doesn't exist yet should succeed.
-		_, err := cache.StartLease(nonexistentRepo)
+		_, err := cache.StartLease(ctx, nonexistentRepo)
 		require.NoError(t, err)
 	})
 }

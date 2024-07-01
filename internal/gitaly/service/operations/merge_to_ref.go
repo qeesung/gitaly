@@ -17,7 +17,7 @@ import (
 // FirstParentRef. Afterwards, it performs a merge of SourceSHA with either
 // Branch or FirstParentRef and updates TargetRef to the merge commit.
 func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMergeToRefRequest) (*gitalypb.UserMergeToRefResponse, error) {
-	if err := validateUserMergeToRefRequest(s.locator, request); err != nil {
+	if err := validateUserMergeToRefRequest(ctx, s.locator, request); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -130,8 +130,8 @@ func (s *Server) UserMergeToRef(ctx context.Context, request *gitalypb.UserMerge
 	}, nil
 }
 
-func validateUserMergeToRefRequest(locator storage.Locator, in *gitalypb.UserMergeToRefRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateUserMergeToRefRequest(ctx context.Context, locator storage.Locator, in *gitalypb.UserMergeToRefRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

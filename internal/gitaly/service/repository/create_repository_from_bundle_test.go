@@ -147,7 +147,7 @@ func TestCreateRepositoryFromBundle(t *testing.T) {
 			require.NoError(t, err)
 
 			repo := localrepo.NewTestRepo(t, cfg, setup.repoProto)
-			repoPath, err := repo.Path()
+			repoPath, err := repo.Path(ctx)
 			require.NoError(t, err)
 
 			// Verify connectivity and validity of the repository objects.

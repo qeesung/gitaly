@@ -28,15 +28,15 @@ func TestLink(t *testing.T) {
 	ctx := testhelper.Context(t)
 
 	requireHasBitmap := func(t *testing.T, repo *localrepo.Repo, expected bool) {
-		packfilesInfo, err := stats.PackfilesInfoForRepository(repo)
+		packfilesInfo, err := stats.PackfilesInfoForRepository(ctx, repo)
 		require.NoError(t, err)
 		require.Equal(t, expected, packfilesInfo.Bitmap.Exists)
 	}
 
 	getRelAltPath := func(t *testing.T, repo, poolRepo *localrepo.Repo) string {
 		relAltPath, err := filepath.Rel(
-			filepath.Join(gittest.RepositoryPath(t, repo), "objects"),
-			filepath.Join(gittest.RepositoryPath(t, poolRepo), "objects"),
+			filepath.Join(gittest.RepositoryPath(t, ctx, repo), "objects"),
+			filepath.Join(gittest.RepositoryPath(t, ctx, poolRepo), "objects"),
 		)
 		require.NoError(t, err)
 
@@ -63,7 +63,7 @@ func TestLink(t *testing.T) {
 
 				// The repository is linked to the object pool via the Git alternates file. Prior to
 				// linking, the repository should not contain an alternates file.
-				altPath, err := repo.InfoAlternatesPath()
+				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 				require.NoFileExists(t, altPath)
 
@@ -78,8 +78,8 @@ func TestLink(t *testing.T) {
 			desc: "repository bitmap removed",
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				cfg, pool, repo := setupObjectPool(t, ctx)
-				poolPath := gittest.RepositoryPath(t, pool)
-				repoPath := gittest.RepositoryPath(t, repo)
+				poolPath := gittest.RepositoryPath(t, ctx, pool)
+				repoPath := gittest.RepositoryPath(t, ctx, repo)
 
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
 
@@ -106,12 +106,12 @@ func TestLink(t *testing.T) {
 			setup: func(t *testing.T, ctx context.Context) setupData {
 				cfg, pool, repo := setupObjectPool(t, ctx)
 
-				altPath, err := repo.InfoAlternatesPath()
+				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 
 				// Link the repository to object pool using the absolute path of the object pool.
 				// The alternates file should be rewritten to use the relative path.
-				poolObjectsPath := gittest.RepositoryPath(t, pool, "objects")
+				poolObjectsPath := gittest.RepositoryPath(t, ctx, pool, "objects")
 				require.NoError(t, os.WriteFile(altPath, []byte(poolObjectsPath), perm.SharedFile))
 
 				return setupData{
@@ -128,7 +128,7 @@ func TestLink(t *testing.T) {
 
 				// When the repository is already linked to the object pool, the link operation does
 				// nothing and completes normally.
-				altPath, err := repo.InfoAlternatesPath()
+				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 				require.NoError(t, os.WriteFile(altPath, []byte(getRelAltPath(t, repo, pool.Repo)), perm.SharedFile))
 
@@ -146,7 +146,7 @@ func TestLink(t *testing.T) {
 
 				// If the repository alternates file already references a different object pool, the
 				// linking operation fails.
-				altPath, err := repo.InfoAlternatesPath()
+				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 				require.NoError(t, os.WriteFile(altPath, []byte("../different/object/pool"), perm.SharedFile))
 
@@ -193,7 +193,7 @@ func TestLink(t *testing.T) {
 
 				// When transactions are enabled, a vote is cast if the repository is already linked
 				// to the same object pool.
-				altPath, err := repo.InfoAlternatesPath()
+				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
 				require.NoError(t, os.WriteFile(altPath, []byte(getRelAltPath(t, repo, pool.Repo)), perm.SharedFile))
 
@@ -221,8 +221,8 @@ func TestLink(t *testing.T) {
 				}
 				pool.txManager = txManager
 
-				poolPath := gittest.RepositoryPath(t, pool)
-				repoPath := gittest.RepositoryPath(t, repo)
+				poolPath := gittest.RepositoryPath(t, ctx, pool)
+				repoPath := gittest.RepositoryPath(t, ctx, repo)
 
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
 
@@ -252,7 +252,7 @@ func TestLink(t *testing.T) {
 
 			setup := tc.setup(t, ctx)
 
-			repoPath := gittest.RepositoryPath(t, setup.repo)
+			repoPath := gittest.RepositoryPath(t, ctx, setup.repo)
 
 			// Capture the Git alternates file state in the repository before performing the link.
 			altInfoBefore, err := stats.AlternatesInfoForRepository(repoPath)
@@ -260,9 +260,9 @@ func TestLink(t *testing.T) {
 
 			// Check if the repository and pool repository has a bitmap. Pool repository bitmaps are
 			// expected to remain unchanged.
-			repoPackInfo, err := stats.PackfilesInfoForRepository(setup.repo)
+			repoPackInfo, err := stats.PackfilesInfoForRepository(ctx, setup.repo)
 			require.NoError(t, err)
-			poolPackInfo, err := stats.PackfilesInfoForRepository(setup.pool.Repo)
+			poolPackInfo, err := stats.PackfilesInfoForRepository(ctx, setup.pool.Repo)
 			require.NoError(t, err)
 
 			// If the testcase uses transaction manager, inject transaction into context.
@@ -318,7 +318,7 @@ func TestLink(t *testing.T) {
 			requireHasBitmap(t, setup.repo, expectedRepoBitmap)
 			requireHasBitmap(t, setup.pool.Repo, poolPackInfo.Bitmap.Exists)
 
-			require.Empty(t, gittest.Exec(t, setup.cfg, "-C", gittest.RepositoryPath(t, setup.pool), "remote"))
+			require.Empty(t, gittest.Exec(t, setup.cfg, "-C", gittest.RepositoryPath(t, ctx, setup.pool), "remote"))
 
 			// Sanity-check that the repository is still consistent.
 			gittest.Exec(t, setup.cfg, "-C", repoPath, "fsck")

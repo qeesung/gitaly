@@ -30,7 +30,7 @@ func (s *server) RewriteHistory(server gitalypb.CleanupService_RewriteHistorySer
 	}
 
 	repoProto := request.GetRepository()
-	if err := s.locator.ValidateRepository(repoProto); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repoProto); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -246,12 +246,12 @@ func (s *server) runFilterRepo(
 		flags = append(flags, git.Flag{Name: "--replace-text=" + replacePath})
 	}
 
-	srcPath, err := srcRepo.Path()
+	srcPath, err := srcRepo.Path(ctx)
 	if err != nil {
 		return fmt.Errorf("getting source repo path: %w", err)
 	}
 
-	stagingPath, err := stagingRepo.Path()
+	stagingPath, err := stagingRepo.Path(ctx)
 	if err != nil {
 		return fmt.Errorf("getting target repo path: %w", err)
 	}

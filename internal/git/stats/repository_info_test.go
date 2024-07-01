@@ -33,13 +33,13 @@ func TestRepositoryProfile(t *testing.T) {
 
 	// Assert that the repository is an empty repository that ain't got any packfiles, bitmaps
 	// or anything else.
-	packfilesInfo, err := PackfilesInfoForRepository(repo)
+	packfilesInfo, err := PackfilesInfoForRepository(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, PackfilesInfo{}, packfilesInfo)
 
 	blobIDs := gittest.WriteBlobs(t, cfg, repoPath, 10)
 
-	looseObjects, err := LooseObjects(repo)
+	looseObjects, err := LooseObjects(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, uint64(len(blobIDs)), looseObjects)
 
@@ -57,7 +57,7 @@ func TestRepositoryProfile(t *testing.T) {
 
 	gittest.Exec(t, cfg, "-C", repoPath, "repack", "-A", "-b", "-d")
 
-	looseObjects, err = LooseObjects(repo)
+	looseObjects, err = LooseObjects(ctx, repo)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), looseObjects)
 
@@ -68,7 +68,7 @@ func TestRepositoryProfile(t *testing.T) {
 	theFuture := time.Now().Add(10 * time.Minute)
 	require.NoError(t, os.Chtimes(filepath.Join(repoPath, "objects", blobID[0:2], blobID[2:]), theFuture, theFuture))
 
-	looseObjects, err = LooseObjects(repo)
+	looseObjects, err = LooseObjects(ctx, repo)
 	require.NoError(t, err)
 	require.EqualValues(t, 2, looseObjects)
 }
@@ -80,7 +80,7 @@ func TestLogObjectInfo(t *testing.T) {
 	cfg := testcfg.Build(t)
 
 	locator := config.NewLocator(cfg)
-	storagePath, err := locator.GetStorageByName(cfg.Storages[0].Name)
+	storagePath, err := locator.GetStorageByName(ctx, cfg.Storages[0].Name)
 	require.NoError(t, err)
 
 	requireRepositoryInfo := func(entries []*logrus.Entry) RepositoryInfo {
@@ -1087,7 +1087,7 @@ func TestCountLooseObjects(t *testing.T) {
 	}
 
 	requireLooseObjectsInfo := func(t *testing.T, repo *localrepo.Repo, cutoff time.Time, expectedInfo LooseObjectsInfo) {
-		info, err := LooseObjectsInfoForRepository(repo, cutoff)
+		info, err := LooseObjectsInfoForRepository(ctx, repo, cutoff)
 		require.NoError(t, err)
 		require.Equal(t, expectedInfo, info)
 	}
@@ -1203,7 +1203,7 @@ func BenchmarkCountLooseObjects(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, err := LooseObjectsInfoForRepository(repo, time.Now())
+			_, err := LooseObjectsInfoForRepository(ctx, repo, time.Now())
 			require.NoError(b, err)
 		}
 	})
@@ -1217,7 +1217,7 @@ func BenchmarkCountLooseObjects(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, err := LooseObjectsInfoForRepository(repo, time.Now())
+			_, err := LooseObjectsInfoForRepository(ctx, repo, time.Now())
 			require.NoError(b, err)
 		}
 	})
@@ -1233,7 +1233,7 @@ func BenchmarkCountLooseObjects(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, err := LooseObjectsInfoForRepository(repo, time.Now())
+			_, err := LooseObjectsInfoForRepository(ctx, repo, time.Now())
 			require.NoError(b, err)
 		}
 	})
@@ -1263,7 +1263,7 @@ func BenchmarkCountLooseObjects(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, err := LooseObjectsInfoForRepository(repo, time.Now())
+			_, err := LooseObjectsInfoForRepository(ctx, repo, time.Now())
 			require.NoError(b, err)
 		}
 	})
@@ -1283,7 +1283,7 @@ func BenchmarkCountLooseObjects(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, err := LooseObjectsInfoForRepository(repo, time.Now())
+			_, err := LooseObjectsInfoForRepository(ctx, repo, time.Now())
 			require.NoError(b, err)
 		}
 	})
@@ -1483,7 +1483,7 @@ func TestPackfileInfoForRepository(t *testing.T) {
 
 			tc.seedRepository(t, repoPath)
 
-			info, err := PackfilesInfoForRepository(repo)
+			info, err := PackfilesInfoForRepository(ctx, repo)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedInfo, info)
 		})

@@ -15,6 +15,8 @@ import (
 )
 
 func TestFactory(t *testing.T) {
+	ctx := testhelper.Context(t)
+
 	cfg := testcfg.Build(t, testcfg.WithStorages("storage-1", "storage-2"))
 
 	locator := config.NewLocator(cfg)
@@ -39,20 +41,20 @@ func TestFactory(t *testing.T) {
 
 	t.Run("ScopeByStorage/Build", func(t *testing.T) {
 		t.Run("non-existent storage fails", func(t *testing.T) {
-			scopedFactory, err := factory.ScopeByStorage("non-existent")
+			scopedFactory, err := factory.ScopeByStorage(ctx, "non-existent")
 			require.Equal(t, fmt.Errorf("get storage by name: %w", storage.NewStorageNotFoundError("non-existent")), err)
 			require.Empty(t, scopedFactory)
 		})
 
 		t.Run("successfully builds repositories", func(t *testing.T) {
-			scopedFactory1, err := factory.ScopeByStorage("storage-1")
+			scopedFactory1, err := factory.ScopeByStorage(ctx, "storage-1")
 			require.NoError(t, err)
 
 			repo1 := scopedFactory1.Build("relative-path-1")
 			require.Equal(t, "storage-1", repo1.GetStorageName())
 			require.Equal(t, "relative-path-1", repo1.GetRelativePath())
 
-			scopedFactory2, err := factory.ScopeByStorage("storage-2")
+			scopedFactory2, err := factory.ScopeByStorage(ctx, "storage-2")
 			require.NoError(t, err)
 
 			repo2 := scopedFactory2.Build("relative-path-2")

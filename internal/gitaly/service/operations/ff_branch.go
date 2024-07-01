@@ -14,7 +14,7 @@ import (
 
 // UserFFBranch tries to perform a fast-forward merge of a given commit into the given branch.
 func (s *Server) UserFFBranch(ctx context.Context, in *gitalypb.UserFFBranchRequest) (*gitalypb.UserFFBranchResponse, error) {
-	if err := validateFFRequest(s.locator, in); err != nil {
+	if err := validateFFRequest(ctx, s.locator, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -99,8 +99,8 @@ func (s *Server) UserFFBranch(ctx context.Context, in *gitalypb.UserFFBranchRequ
 	}, nil
 }
 
-func validateFFRequest(locator storage.Locator, in *gitalypb.UserFFBranchRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateFFRequest(ctx context.Context, locator storage.Locator, in *gitalypb.UserFFBranchRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

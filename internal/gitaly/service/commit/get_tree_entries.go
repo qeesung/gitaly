@@ -24,8 +24,8 @@ const (
 	defaultFlatTreeRecursion = 10
 )
 
-func validateGetTreeEntriesRequest(locator storage.Locator, in *gitalypb.GetTreeEntriesRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateGetTreeEntriesRequest(ctx context.Context, locator storage.Locator, in *gitalypb.GetTreeEntriesRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 	if err := git.ValidateRevision(in.Revision); err != nil {
@@ -314,7 +314,7 @@ func (s *server) GetTreeEntries(in *gitalypb.GetTreeEntriesRequest, stream gital
 		"Path":     in.Path,
 	}).DebugContext(ctx, "GetTreeEntries")
 
-	if err := validateGetTreeEntriesRequest(s.locator, in); err != nil {
+	if err := validateGetTreeEntriesRequest(ctx, s.locator, in); err != nil {
 		return err
 	}
 

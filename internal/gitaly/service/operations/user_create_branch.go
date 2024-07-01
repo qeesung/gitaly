@@ -12,8 +12,8 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
-func validateUserCreateBranchRequest(locator storage.Locator, in *gitalypb.UserCreateBranchRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateUserCreateBranchRequest(ctx context.Context, locator storage.Locator, in *gitalypb.UserCreateBranchRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if len(in.BranchName) == 0 {
@@ -31,7 +31,7 @@ func validateUserCreateBranchRequest(locator storage.Locator, in *gitalypb.UserC
 // UserCreateBranch creates a single branch in the context of a specific user. It executes
 // hooks and contacts Rails to verify that the user is allowed to create the branch.
 func (s *Server) UserCreateBranch(ctx context.Context, req *gitalypb.UserCreateBranchRequest) (*gitalypb.UserCreateBranchResponse, error) {
-	if err := validateUserCreateBranchRequest(s.locator, req); err != nil {
+	if err := validateUserCreateBranchRequest(ctx, s.locator, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, req.GetRepository())

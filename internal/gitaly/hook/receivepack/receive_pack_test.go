@@ -405,7 +405,7 @@ func TestRegisterProcReceiveHook(t *testing.T) {
 			procReceiveRegistry := hook.NewProcReceiveRegistry()
 			transactionID := storage.TransactionID(9001)
 			repo := localrepo.NewTestRepo(t, cfg, data.repoProto)
-			repoPath, err := repo.Path()
+			repoPath, err := repo.Path(ctx)
 			require.NoError(t, err)
 
 			cleanup, err := RegisterProcReceiveHook(

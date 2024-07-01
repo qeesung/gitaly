@@ -367,7 +367,7 @@ func bufferStdin(r io.Reader, h hash.Hash) (_ io.ReadCloser, err error) {
 }
 
 func (s *server) PackObjectsHookWithSidechannel(ctx context.Context, req *gitalypb.PackObjectsHookWithSidechannelRequest) (*gitalypb.PackObjectsHookWithSidechannelResponse, error) {
-	if err := s.locator.ValidateRepository(req.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

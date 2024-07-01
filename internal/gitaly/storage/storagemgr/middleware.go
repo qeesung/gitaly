@@ -265,7 +265,7 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 	// return the exact same error messages as some RPCs are testing for at the moment. In order to maintain
 	// compatibility with said tests, validate the repository here ahead of time and return the possible error
 	// as is.
-	if err := locator.ValidateRepository(targetRepo, storage.WithSkipRepositoryExistenceCheck()); err != nil {
+	if err := locator.ValidateRepository(ctx, targetRepo, storage.WithSkipRepositoryExistenceCheck()); err != nil {
 		return transactionalizedRequest{}, err
 	}
 

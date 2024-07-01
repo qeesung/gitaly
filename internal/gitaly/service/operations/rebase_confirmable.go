@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,11 +26,10 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 		return structerr.NewInvalidArgument("empty UserRebaseConfirmableRequest.Header")
 	}
 
-	if err := validateUserRebaseConfirmableHeader(s.locator, header); err != nil {
+	ctx := stream.Context()
+	if err := validateUserRebaseConfirmableHeader(ctx, s.locator, header); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
-
-	ctx := stream.Context()
 
 	quarantineDir, quarantineRepo, err := s.quarantinedRepo(ctx, header.GetRepository())
 	if err != nil {
@@ -145,8 +145,8 @@ func (s *Server) UserRebaseConfirmable(stream gitalypb.OperationService_UserReba
 // ErrInvalidBranch indicates a branch name is invalid
 var ErrInvalidBranch = errors.New("invalid branch name")
 
-func validateUserRebaseConfirmableHeader(locator storage.Locator, header *gitalypb.UserRebaseConfirmableRequest_Header) error {
-	if err := locator.ValidateRepository(header.GetRepository()); err != nil {
+func validateUserRebaseConfirmableHeader(ctx context.Context, locator storage.Locator, header *gitalypb.UserRebaseConfirmableRequest_Header) error {
+	if err := locator.ValidateRepository(ctx, header.GetRepository()); err != nil {
 		return err
 	}
 
@@ -200,8 +200,8 @@ func (r rebaseRemoteFetch) GetStartBranchName() []byte {
 	return r.header.GetRemoteBranch()
 }
 
-func validateUserRebaseToRefRequest(locator storage.Locator, in *gitalypb.UserRebaseToRefRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateUserRebaseToRefRequest(ctx context.Context, locator storage.Locator, in *gitalypb.UserRebaseToRefRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 

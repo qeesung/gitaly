@@ -216,7 +216,7 @@ func TestRepo_CloneBundle(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			repoPath, err := repo.Path()
+			repoPath, err := repo.Path(ctx)
 			require.NoError(t, err)
 
 			// Verify connectivity and validity of the repository objects.

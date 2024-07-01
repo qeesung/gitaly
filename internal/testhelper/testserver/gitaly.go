@@ -343,6 +343,7 @@ func (gsd *gitalyServerDeps) createDependencies(tb testing.TB, cfg config.Cfg) *
 		tb.Cleanup(dbMgr.Close)
 
 		partitionManager, err = storagemgr.NewPartitionManager(
+			testhelper.Context(tb),
 			cfg.Storages,
 			gsd.gitCmdFactory,
 			localrepo.NewFactory(gsd.logger, gsd.locator, gsd.gitCmdFactory, gsd.catfileCache),

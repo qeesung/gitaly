@@ -16,7 +16,7 @@ func (s *server) BackupRepository(ctx context.Context, in *gitalypb.BackupReposi
 	if s.backupSink == nil || s.backupLocator == nil {
 		return nil, structerr.NewFailedPrecondition("backup repository: server-side backups are not configured")
 	}
-	if err := s.validateBackupRepositoryRequest(in); err != nil {
+	if err := s.validateBackupRepositoryRequest(ctx, in); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -50,14 +50,14 @@ func (s *server) BackupRepository(ctx context.Context, in *gitalypb.BackupReposi
 	return &gitalypb.BackupRepositoryResponse{}, nil
 }
 
-func (s *server) validateBackupRepositoryRequest(in *gitalypb.BackupRepositoryRequest) error {
+func (s *server) validateBackupRepositoryRequest(ctx context.Context, in *gitalypb.BackupRepositoryRequest) error {
 	if in.GetBackupId() == "" {
 		return fmt.Errorf("empty BackupId")
 	}
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
-	if err := s.locator.ValidateRepository(in.GetVanityRepository(),
+	if err := s.locator.ValidateRepository(ctx, in.GetVanityRepository(),
 		storage.WithSkipStorageExistenceCheck(),
 	); err != nil {
 		return err

@@ -29,8 +29,8 @@ func TestFetchFromOrigin_dangling(t *testing.T) {
 		ctx := testhelper.Context(t)
 
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
-		poolPath := gittest.RepositoryPath(t, pool)
-		repoPath := gittest.RepositoryPath(t, repo)
+		poolPath := gittest.RepositoryPath(t, ctx, pool)
+		repoPath := gittest.RepositoryPath(t, ctx, repo)
 
 		// Write some reachable objects into the object pool member and fetch them into the pool.
 		blobID := gittest.WriteBlob(t, cfg, repoPath, []byte("contents"))
@@ -89,7 +89,7 @@ func TestFetchFromOrigin_fsck(t *testing.T) {
 	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
-		repoPath, err := repo.Path()
+		repoPath, err := repo.Path(ctx)
 		require.NoError(t, err)
 
 		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo), "seed pool")
@@ -114,8 +114,8 @@ func TestFetchFromOrigin_deltaIslands(t *testing.T) {
 	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
-		poolPath := gittest.RepositoryPath(t, pool)
-		repoPath := gittest.RepositoryPath(t, repo)
+		poolPath := gittest.RepositoryPath(t, ctx, pool)
+		repoPath := gittest.RepositoryPath(t, ctx, repo)
 
 		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo), "seed pool")
 		require.NoError(t, pool.Link(ctx, repo))
@@ -140,14 +140,14 @@ func TestFetchFromOrigin_bitmapHashCache(t *testing.T) {
 	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
-		repoPath, err := repo.Path()
+		repoPath, err := repo.Path(ctx)
 		require.NoError(t, err)
 
 		gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("master"))
 
 		require.NoError(t, pool.FetchFromOrigin(ctx, repo, newLocalRepo))
 
-		bitmaps, err := filepath.Glob(gittest.RepositoryPath(t, pool, "objects", "pack", "*.bitmap"))
+		bitmaps, err := filepath.Glob(gittest.RepositoryPath(t, ctx, pool, "objects", "pack", "*.bitmap"))
 		require.NoError(t, err)
 		require.Len(t, bitmaps, 1)
 
@@ -166,10 +166,10 @@ func TestFetchFromOrigin_refUpdates(t *testing.T) {
 	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
-		repoPath, err := repo.Path()
+		repoPath, err := repo.Path(ctx)
 		require.NoError(t, err)
 
-		poolPath := gittest.RepositoryPath(t, pool)
+		poolPath := gittest.RepositoryPath(t, ctx, pool)
 
 		// Seed the pool member with some preliminary data.
 		oldRefs := map[string]git.ObjectID{}
@@ -213,11 +213,11 @@ func TestFetchFromOrigin_refs(t *testing.T) {
 	testWithAndWithoutTransaction(t, func(t *testing.T, cfg config.Cfg, newLocalRepo LocalRepoFactory) {
 		ctx := testhelper.Context(t)
 		pool, repo := setupObjectPoolWithCfg(t, ctx, cfg)
-		repoPath, err := repo.Path()
+		repoPath, err := repo.Path(ctx)
 		require.NoError(t, err)
 
 		// Verify that the object pool ain't yet got any references.
-		poolPath := gittest.RepositoryPath(t, pool)
+		poolPath := gittest.RepositoryPath(t, ctx, pool)
 		require.Empty(t, gittest.Exec(t, cfg, "-C", poolPath, "for-each-ref", "--format=%(refname)"))
 
 		// Initialize the repository with a bunch of references.
@@ -258,7 +258,7 @@ func TestFetchFromOrigin_missingPool(t *testing.T) {
 		require.NoError(t, pool.Remove(ctx))
 
 		require.Equal(t, structerr.NewInvalidArgument("object pool does not exist"), pool.FetchFromOrigin(ctx, repo, newLocalRepo))
-		require.False(t, pool.Exists())
+		require.False(t, pool.Exists(ctx))
 	})
 }
 
@@ -310,7 +310,7 @@ func TestObjectPool_logStats(t *testing.T) {
 			desc: "normal reference",
 			setup: func(t *testing.T, logger log.Logger) setupData {
 				cfg, pool, _ := setupObjectPool(t, ctx, withLogger(logger))
-				gittest.WriteCommit(t, cfg, gittest.RepositoryPath(t, pool), gittest.WithBranch("main"))
+				gittest.WriteCommit(t, cfg, gittest.RepositoryPath(t, ctx, pool), gittest.WithBranch("main"))
 
 				return setupData{
 					pool: pool,
@@ -348,7 +348,7 @@ func TestObjectPool_logStats(t *testing.T) {
 			desc: "dangling reference",
 			setup: func(t *testing.T, logger log.Logger) setupData {
 				cfg, pool, _ := setupObjectPool(t, ctx, withLogger(logger))
-				gittest.WriteCommit(t, cfg, gittest.RepositoryPath(t, pool), gittest.WithReference("refs/dangling/commit"))
+				gittest.WriteCommit(t, cfg, gittest.RepositoryPath(t, ctx, pool), gittest.WithReference("refs/dangling/commit"))
 
 				return setupData{
 					pool: pool,
@@ -417,6 +417,7 @@ func testWithAndWithoutTransaction(t *testing.T, testFunc func(*testing.T, confi
 
 		localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
 		partitionManager, err := storagemgr.NewPartitionManager(
+			testhelper.Context(t),
 			cfg.Storages,
 			cmdFactory,
 			localRepoFactory,

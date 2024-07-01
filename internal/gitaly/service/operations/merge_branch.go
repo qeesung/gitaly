@@ -1,6 +1,7 @@
 package operations
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -24,7 +25,7 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 		return err
 	}
 
-	if err := validateMergeBranchRequest(s.locator, firstRequest); err != nil {
+	if err := validateMergeBranchRequest(ctx, s.locator, firstRequest); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -194,8 +195,8 @@ func (s *Server) UserMergeBranch(stream gitalypb.OperationService_UserMergeBranc
 	return nil
 }
 
-func validateMergeBranchRequest(locator storage.Locator, request *gitalypb.UserMergeBranchRequest) error {
-	if err := locator.ValidateRepository(request.GetRepository()); err != nil {
+func validateMergeBranchRequest(ctx context.Context, locator storage.Locator, request *gitalypb.UserMergeBranchRequest) error {
+	if err := locator.ValidateRepository(ctx, request.GetRepository()); err != nil {
 		return err
 	}
 

@@ -16,7 +16,7 @@ import (
 )
 
 func (s *server) FetchRemote(ctx context.Context, req *gitalypb.FetchRemoteRequest) (*gitalypb.FetchRemoteResponse, error) {
-	if err := s.validateFetchRemoteRequest(req); err != nil {
+	if err := s.validateFetchRemoteRequest(ctx, req); err != nil {
 		return nil, err
 	}
 
@@ -200,7 +200,7 @@ func (s *server) fetchRemoteAtomic(ctx context.Context, req *gitalypb.FetchRemot
 
 	// Before committing the remaining reference updates, fetched objects must be migrated out of
 	// the quarantine directory.
-	if err := quarantineDir.Migrate(); err != nil {
+	if err := quarantineDir.Migrate(ctx); err != nil {
 		return false, fmt.Errorf("migrating quarantined objects: %w", err)
 	}
 
@@ -251,8 +251,8 @@ func buildCommandOpts(opts *localrepo.FetchOpts, req *gitalypb.FetchRemoteReques
 	return nil
 }
 
-func (s *server) validateFetchRemoteRequest(req *gitalypb.FetchRemoteRequest) error {
-	if err := s.locator.ValidateRepository(req.GetRepository()); err != nil {
+func (s *server) validateFetchRemoteRequest(ctx context.Context, req *gitalypb.FetchRemoteRequest) error {
+	if err := s.locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 

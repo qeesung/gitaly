@@ -21,10 +21,10 @@ const (
 
 func (s *server) InfoRefsUploadPack(in *gitalypb.InfoRefsRequest, stream gitalypb.SmartHTTPService_InfoRefsUploadPackServer) error {
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
-	repoPath, err := s.locator.GetRepoPath(repository)
+	repoPath, err := s.locator.GetRepoPath(stream.Context(), repository)
 	if err != nil {
 		return err
 	}
@@ -40,10 +40,10 @@ func (s *server) InfoRefsUploadPack(in *gitalypb.InfoRefsRequest, stream gitalyp
 
 func (s *server) InfoRefsReceivePack(in *gitalypb.InfoRefsRequest, stream gitalypb.SmartHTTPService_InfoRefsReceivePackServer) error {
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(stream.Context(), repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
-	repoPath, err := s.locator.GetRepoPath(repository)
+	repoPath, err := s.locator.GetRepoPath(stream.Context(), repository)
 	if err != nil {
 		return err
 	}

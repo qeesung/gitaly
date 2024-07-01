@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -22,12 +23,12 @@ func (s *server) ListFiles(in *gitalypb.ListFilesRequest, stream gitalypb.Commit
 		"Revision": in.GetRevision(),
 	}).DebugContext(ctx, "ListFiles")
 
-	if err := validateListFilesRequest(s.locator, in); err != nil {
+	if err := validateListFilesRequest(ctx, s.locator, in); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
 	repo := s.localrepo(in.GetRepository())
-	if _, err := repo.Path(); err != nil {
+	if _, err := repo.Path(ctx); err != nil {
 		return err
 	}
 
@@ -61,8 +62,8 @@ func (s *server) ListFiles(in *gitalypb.ListFilesRequest, stream gitalypb.Commit
 	return nil
 }
 
-func validateListFilesRequest(locator storage.Locator, in *gitalypb.ListFilesRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateListFilesRequest(ctx context.Context, locator storage.Locator, in *gitalypb.ListFilesRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(in.Revision, git.AllowEmptyRevision()); err != nil {

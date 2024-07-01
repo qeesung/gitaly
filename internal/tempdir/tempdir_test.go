@@ -25,7 +25,7 @@ func TestNewRepositorySuccess(t *testing.T) {
 	require.Equal(t, cfg.Storages[0].Name, repo.StorageName)
 	require.Contains(t, repo.RelativePath, tmpRootPrefix)
 
-	calculatedPath, err := locator.GetRepoPath(repo, storage.WithRepositoryVerificationSkipped())
+	calculatedPath, err := locator.GetRepoPath(ctx, repo, storage.WithRepositoryVerificationSkipped())
 	require.NoError(t, err)
 	require.Equal(t, tempDir.Path(), calculatedPath)
 

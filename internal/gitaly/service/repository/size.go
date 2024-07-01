@@ -16,12 +16,12 @@ import (
 // calculation is performed using the disk usage command.
 func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySizeRequest) (*gitalypb.RepositorySizeResponse, error) {
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 	repo := s.localrepo(repository)
 
-	path, err := repo.Path()
+	path, err := repo.Path(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -36,12 +36,12 @@ func (s *server) RepositorySize(ctx context.Context, in *gitalypb.RepositorySize
 
 func (s *server) GetObjectDirectorySize(ctx context.Context, in *gitalypb.GetObjectDirectorySizeRequest) (*gitalypb.GetObjectDirectorySizeResponse, error) {
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 	repo := s.localrepo(repository)
 
-	path, err := repo.ObjectDirectoryPath()
+	path, err := repo.ObjectDirectoryPath(ctx)
 	if err != nil {
 		return nil, err
 	}

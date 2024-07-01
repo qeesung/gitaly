@@ -18,8 +18,8 @@ import (
 
 var errAmbigRef = errors.New("ambiguous reference")
 
-func (s *server) validateCommitLanguagesRequest(req *gitalypb.CommitLanguagesRequest) error {
-	if err := s.locator.ValidateRepository(req.GetRepository()); err != nil {
+func (s *server) validateCommitLanguagesRequest(ctx context.Context, req *gitalypb.CommitLanguagesRequest) error {
+	if err := s.locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 	if err := git.ValidateRevision(req.Revision, git.AllowEmptyRevision()); err != nil {
@@ -29,7 +29,7 @@ func (s *server) validateCommitLanguagesRequest(req *gitalypb.CommitLanguagesReq
 }
 
 func (s *server) CommitLanguages(ctx context.Context, req *gitalypb.CommitLanguagesRequest) (*gitalypb.CommitLanguagesResponse, error) {
-	if err := s.validateCommitLanguagesRequest(req); err != nil {
+	if err := s.validateCommitLanguagesRequest(ctx, req); err != nil {
 		return nil, structerr.NewInvalidArgument("%w", err)
 	}
 

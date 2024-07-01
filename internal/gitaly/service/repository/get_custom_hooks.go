@@ -15,7 +15,7 @@ import (
 func (s *server) GetCustomHooks(in *gitalypb.GetCustomHooksRequest, stream gitalypb.RepositoryService_GetCustomHooksServer) error {
 	ctx := stream.Context()
 
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -23,7 +23,7 @@ func (s *server) GetCustomHooks(in *gitalypb.GetCustomHooksRequest, stream gital
 		return stream.Send(&gitalypb.GetCustomHooksResponse{Data: p})
 	})
 
-	repoPath, err := s.locator.GetRepoPath(in.GetRepository())
+	repoPath, err := s.locator.GetRepoPath(ctx, in.GetRepository())
 	if err != nil {
 		return fmt.Errorf("get repo path: %w", err)
 	}
@@ -41,7 +41,7 @@ func (s *server) GetCustomHooks(in *gitalypb.GetCustomHooksRequest, stream gital
 func (s *server) BackupCustomHooks(in *gitalypb.BackupCustomHooksRequest, stream gitalypb.RepositoryService_BackupCustomHooksServer) error {
 	ctx := stream.Context()
 
-	if err := s.locator.ValidateRepository(in.GetRepository()); err != nil {
+	if err := s.locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -49,7 +49,7 @@ func (s *server) BackupCustomHooks(in *gitalypb.BackupCustomHooksRequest, stream
 		return stream.Send(&gitalypb.BackupCustomHooksResponse{Data: p})
 	})
 
-	repoPath, err := s.locator.GetRepoPath(in.GetRepository())
+	repoPath, err := s.locator.GetRepoPath(ctx, in.GetRepository())
 	if err != nil {
 		return fmt.Errorf("get repo path: %w", err)
 	}

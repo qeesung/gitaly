@@ -19,7 +19,7 @@ import (
 func (s *server) ListConflictFiles(request *gitalypb.ListConflictFilesRequest, stream gitalypb.ConflictsService_ListConflictFilesServer) error {
 	ctx := stream.Context()
 
-	if err := validateListConflictFilesRequest(s.locator, request); err != nil {
+	if err := validateListConflictFilesRequest(ctx, s.locator, request); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -203,8 +203,8 @@ func (s *server) conflictFilesWithGitMergeTree(
 	return nil
 }
 
-func validateListConflictFilesRequest(locator storage.Locator, in *gitalypb.ListConflictFilesRequest) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateListConflictFilesRequest(ctx context.Context, locator storage.Locator, in *gitalypb.ListConflictFilesRequest) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if in.GetOurCommitOid() == "" {

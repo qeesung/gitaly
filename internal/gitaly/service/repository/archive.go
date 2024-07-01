@@ -34,13 +34,13 @@ type archiveParams struct {
 func (s *server) GetArchive(in *gitalypb.GetArchiveRequest, stream gitalypb.RepositoryService_GetArchiveServer) error {
 	ctx := stream.Context()
 	repository := in.GetRepository()
-	if err := s.locator.ValidateRepository(repository); err != nil {
+	if err := s.locator.ValidateRepository(ctx, repository); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 	compressArgs, format := parseArchiveFormat(in.GetFormat())
 	repo := s.localrepo(repository)
 
-	repoRoot, err := repo.Path()
+	repoRoot, err := repo.Path(ctx)
 	if err != nil {
 		return err
 	}

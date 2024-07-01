@@ -44,7 +44,7 @@ func remove(
 	repository storage.Repository,
 	removeAll func(string) error,
 ) error {
-	path, err := locator.GetRepoPath(repository, storage.WithRepositoryVerificationSkipped())
+	path, err := locator.GetRepoPath(ctx, repository, storage.WithRepositoryVerificationSkipped())
 	if err != nil {
 		return structerr.NewInternal("%w", err)
 	}

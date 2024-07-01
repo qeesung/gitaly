@@ -19,8 +19,8 @@ type requestWithLeftRightCommitIDs interface {
 	GetRightCommitId() string
 }
 
-func validateRequest(locator storage.Locator, in requestWithLeftRightCommitIDs) error {
-	if err := locator.ValidateRepository(in.GetRepository()); err != nil {
+func validateRequest(ctx context.Context, locator storage.Locator, in requestWithLeftRightCommitIDs) error {
+	if err := locator.ValidateRepository(ctx, in.GetRepository()); err != nil {
 		return err
 	}
 	if in.GetLeftCommitId() == "" {

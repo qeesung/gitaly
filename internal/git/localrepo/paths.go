@@ -1,6 +1,7 @@
 package localrepo
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,14 +12,14 @@ import (
 )
 
 // Path returns the on-disk path of the repository.
-func (repo *Repo) Path() (string, error) {
-	return repo.locator.GetRepoPath(repo)
+func (repo *Repo) Path(ctx context.Context) (string, error) {
+	return repo.locator.GetRepoPath(ctx, repo)
 }
 
 // ObjectDirectoryPath returns the full path of the object directory. The errors returned are gRPC
 // errors with relevant error codes and should be passed back to gRPC without further decoration.
-func (repo *Repo) ObjectDirectoryPath() (string, error) {
-	repoPath, err := repo.Path()
+func (repo *Repo) ObjectDirectoryPath(ctx context.Context) (string, error) {
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -28,7 +29,7 @@ func (repo *Repo) ObjectDirectoryPath() (string, error) {
 		return "", structerr.NewInvalidArgument("object directory path is not set")
 	}
 
-	storagePath, err := repo.locator.GetStorageByName(repo.GetStorageName())
+	storagePath, err := repo.locator.GetStorageByName(ctx, repo.GetStorageName())
 	if err != nil {
 		return "", fmt.Errorf("get storage by name: %w", err)
 	}
@@ -82,8 +83,8 @@ func (repo *Repo) ObjectDirectoryPath() (string, error) {
 }
 
 // InfoAlternatesPath returns the full path of the alternates file.
-func (repo *Repo) InfoAlternatesPath() (string, error) {
-	repoPath, err := repo.Path()
+func (repo *Repo) InfoAlternatesPath(ctx context.Context) (string, error) {
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return "", err
 	}

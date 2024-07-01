@@ -1117,7 +1117,7 @@ func TestOptimizeRepository(t *testing.T) {
 					manager.metrics.TasksTotal, &buf, "gitaly_housekeeping_tasks_total",
 				))
 
-				path, err := setup.repo.Path()
+				path, err := setup.repo.Path(ctx)
 				require.NoError(t, err)
 				// The state of the repo should be cleared after running housekeeping.
 				require.NotContains(t, manager.repositoryStates.values, path)

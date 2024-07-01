@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -29,7 +30,7 @@ func (s *server) UpdateRemoteMirror(stream gitalypb.RemoteService_UpdateRemoteMi
 		return structerr.NewInternal("receive first request: %w", err)
 	}
 
-	if err = validateUpdateRemoteMirrorRequest(s.locator, firstRequest); err != nil {
+	if err = validateUpdateRemoteMirrorRequest(stream.Context(), s.locator, firstRequest); err != nil {
 		return structerr.NewInvalidArgument("%w", err)
 	}
 
@@ -274,8 +275,8 @@ func newReferenceMatcher(branchMatchers [][]byte) (*regexp.Regexp, error) {
 	return regexp.Compile(sb.String())
 }
 
-func validateUpdateRemoteMirrorRequest(locator storage.Locator, req *gitalypb.UpdateRemoteMirrorRequest) error {
-	if err := locator.ValidateRepository(req.GetRepository()); err != nil {
+func validateUpdateRemoteMirrorRequest(ctx context.Context, locator storage.Locator, req *gitalypb.UpdateRemoteMirrorRequest) error {
+	if err := locator.ValidateRepository(ctx, req.GetRepository()); err != nil {
 		return err
 	}
 

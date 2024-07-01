@@ -58,7 +58,7 @@ func ValidateRepacking(cfg config.RepackObjectsConfig) (bool, error) {
 // RepackObjects repacks objects in the given repository and updates the commit-graph. The way
 // objects are repacked is determined via the config.RepackObjectsConfig.
 func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg config.RepackObjectsConfig) error {
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func RepackObjects(ctx context.Context, repo *localrepo.Repo, cfg config.RepackO
 // It packs all loose objects into a pack. This will omit packing objects part of alternates. It does not prune the
 // loose objects that were packed.
 func PerformIncrementalRepackingWithUnreachable(ctx context.Context, repo *localrepo.Repo) error {
-	repoPath, err := repo.Path()
+	repoPath, err := repo.Path(ctx)
 	if err != nil {
 		return fmt.Errorf("repo path: %w", err)
 	}

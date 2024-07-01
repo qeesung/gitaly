@@ -380,6 +380,7 @@ func run(cfg config.Cfg, logger log.Logger) error {
 		}
 
 		partitionMgr, err = storagemgr.NewPartitionManager(
+			ctx,
 			cfg.Storages,
 			gitCmdFactory,
 			localrepo.NewFactory(logger, locator, gitCmdFactory, catfileCache),
