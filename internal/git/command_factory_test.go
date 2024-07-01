@@ -811,6 +811,11 @@ func TestExecCommandFactory_config(t *testing.T) {
 		"core.bigfilethreshold=50m",
 	}
 
+	if featureflag.SetAttrTreeConfig.IsEnabled(ctx) {
+		// We force SHA1 here, since we've removed the default config above.
+		expectedEnv = append(expectedEnv, fmt.Sprintf("attr.tree=%s", git.ObjectHashSHA1.EmptyTreeOID))
+	}
+
 	gitCmdFactory := gittest.NewCommandFactory(t, cfg)
 
 	gitVersion, err := gitCmdFactory.GitVersion(ctx)
