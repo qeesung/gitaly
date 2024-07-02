@@ -16,6 +16,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/cache"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/customfieldshandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/loghandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/panichandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/requestinfohandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/sentryhandler"
@@ -91,8 +92,8 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 	))
 
 	logMsgProducer := grpcmwlogrus.WithMessageProducer(
-		gitalylog.MessageProducer(
-			gitalylog.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
+		loghandler.MessageProducer(
+			loghandler.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
 			customfieldshandler.FieldsProducer,
 			grpcstats.FieldsProducer,
 			featureflag.FieldsProducer,
@@ -111,7 +112,7 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 			grpcmwlogrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
 			logMsgProducer,
 		), logMatcher),
-		gitalylog.StreamLogDataCatcherServerInterceptor(),
+		loghandler.StreamLogDataCatcherServerInterceptor(),
 		sentryhandler.StreamLogHandler(),
 		statushandler.Stream, // Should be below LogHandler
 		auth.StreamServerInterceptor(s.cfg.Auth),
@@ -125,7 +126,7 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 			grpcmwlogrus.WithTimestampFormat(gitalylog.LogTimestampFormat),
 			logMsgProducer,
 		), logMatcher),
-		gitalylog.UnaryLogDataCatcherServerInterceptor(),
+		loghandler.UnaryLogDataCatcherServerInterceptor(),
 		sentryhandler.UnaryLogHandler(),
 		statushandler.Unary, // Should be below LogHandler
 		auth.UnaryServerInterceptor(s.cfg.Auth),
@@ -169,9 +170,9 @@ func (s *GitalyServerFactory) New(external, secure bool, opts ...Option) (*grpc.
 	}
 
 	serverOptions := []grpc.ServerOption{
-		grpc.StatsHandler(gitalylog.PerRPCLogHandler{
+		grpc.StatsHandler(loghandler.PerRPCLogHandler{
 			Underlying:     &grpcstats.PayloadBytes{},
-			FieldProducers: []gitalylog.FieldsProducer{grpcstats.FieldsProducer},
+			FieldProducers: []loghandler.FieldsProducer{grpcstats.FieldsProducer},
 		}),
 		grpc.Creds(lm),
 		grpc.ChainStreamInterceptor(streamServerInterceptors...),

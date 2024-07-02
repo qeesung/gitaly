@@ -1,15 +1,16 @@
-package log
+package loghandler
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	grpcmw "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus/ctxlogrus"
-	grpcmwloggingv2 "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/stats"
@@ -18,8 +19,8 @@ import (
 func TestMessageProducer(t *testing.T) {
 	triggered := false
 
-	attachedFields := Fields{"e": "stub"}
-	msgProducer := MessageProducer(func(c context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
+	attachedFields := log.Fields{"e": "stub"}
+	msgProducer := MessageProducer(func(c context.Context, format string, level logrus.Level, code codes.Code, err error, fields log.Fields) {
 		require.Equal(t, createContext(), c)
 		require.Equal(t, "format-stub", format)
 		require.Equal(t, logrus.DebugLevel, level)
@@ -40,22 +41,22 @@ func TestMessageProducerWithFieldsProducers(t *testing.T) {
 	ctx := createContext()
 	ctx = context.WithValue(ctx, infoFromCtx, "world")
 
-	fieldsProducer1 := func(context.Context, error) Fields {
-		return Fields{"a": 1}
+	fieldsProducer1 := func(context.Context, error) log.Fields {
+		return log.Fields{"a": 1}
 	}
-	fieldsProducer2 := func(context.Context, error) Fields {
-		return Fields{"b": "test"}
+	fieldsProducer2 := func(context.Context, error) log.Fields {
+		return log.Fields{"b": "test"}
 	}
-	fieldsProducer3 := func(ctx context.Context, err error) Fields {
-		return Fields{"c": err.Error()}
+	fieldsProducer3 := func(ctx context.Context, err error) log.Fields {
+		return log.Fields{"c": err.Error()}
 	}
-	fieldsProducer4 := func(ctx context.Context, err error) Fields {
-		return Fields{"d": ctx.Value(infoFromCtx)}
+	fieldsProducer4 := func(ctx context.Context, err error) log.Fields {
+		return log.Fields{"d": ctx.Value(infoFromCtx)}
 	}
-	attachedFields := Fields{"e": "stub"}
+	attachedFields := log.Fields{"e": "stub"}
 
-	msgProducer := MessageProducer(func(c context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
-		require.Equal(t, Fields{"a": 1, "b": "test", "c": err.Error(), "d": "world", "e": "stub"}, fields)
+	msgProducer := MessageProducer(func(c context.Context, format string, level logrus.Level, code codes.Code, err error, fields log.Fields) {
+		require.Equal(t, log.Fields{"a": 1, "b": "test", "c": err.Error(), "d": "world", "e": "stub"}, fields)
 		triggered = true
 	}, fieldsProducer1, fieldsProducer2, fieldsProducer3, fieldsProducer4)
 	msgProducer(ctx, "format-stub", logrus.InfoLevel, codes.OK, assert.AnError, attachedFields)
@@ -66,7 +67,7 @@ func TestMessageProducerWithFieldsProducers(t *testing.T) {
 func TestPropagationMessageProducer(t *testing.T) {
 	t.Run("empty context", func(t *testing.T) {
 		ctx := createContext()
-		mp := PropagationMessageProducer(func(context.Context, string, logrus.Level, codes.Code, error, Fields) {})
+		mp := PropagationMessageProducer(func(context.Context, string, logrus.Level, codes.Code, error, log.Fields) {})
 		mp(ctx, "", logrus.DebugLevel, codes.OK, nil, nil)
 	})
 
@@ -74,15 +75,15 @@ func TestPropagationMessageProducer(t *testing.T) {
 		holder := new(messageProducerHolder)
 		ctx := context.WithValue(createContext(), messageProducerHolderKey{}, holder)
 		triggered := false
-		mp := PropagationMessageProducer(func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
+		mp := PropagationMessageProducer(func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields log.Fields) {
 			triggered = true
 		})
-		mp(ctx, "format-stub", logrus.DebugLevel, codes.OutOfRange, assert.AnError, Fields{"a": 1})
+		mp(ctx, "format-stub", logrus.DebugLevel, codes.OutOfRange, assert.AnError, log.Fields{"a": 1})
 		require.Equal(t, "format-stub", holder.format)
 		require.Equal(t, logrus.DebugLevel, holder.level)
 		require.Equal(t, codes.OutOfRange, holder.code)
 		require.Equal(t, assert.AnError, holder.err)
-		require.Equal(t, Fields{"a": 1}, holder.fields)
+		require.Equal(t, log.Fields{"a": 1}, holder.fields)
 		holder.actual(ctx, "", logrus.DebugLevel, codes.OK, nil, nil)
 		require.True(t, triggered)
 	})
@@ -94,9 +95,9 @@ func TestPerRPCLogHandler(t *testing.T) {
 	lh := PerRPCLogHandler{
 		Underlying: msh,
 		FieldProducers: []FieldsProducer{
-			func(ctx context.Context, err error) Fields { return Fields{"a": 1} },
-			func(ctx context.Context, err error) Fields { return Fields{"b": "2"} },
-			func(ctx context.Context, err error) Fields { return Fields{"c": err.Error()} },
+			func(ctx context.Context, err error) log.Fields { return log.Fields{"a": 1} },
+			func(ctx context.Context, err error) log.Fields { return log.Fields{"b": "2"} },
+			func(ctx context.Context, err error) log.Fields { return log.Fields{"c": err.Error()} },
 		},
 	}
 
@@ -129,12 +130,12 @@ func TestPerRPCLogHandler(t *testing.T) {
 		mpp.level = logrus.InfoLevel
 		mpp.code = codes.InvalidArgument
 		mpp.err = assert.AnError
-		mpp.actual = func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
+		mpp.actual = func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields log.Fields) {
 			assert.Equal(t, "message", format)
 			assert.Equal(t, logrus.InfoLevel, level)
 			assert.Equal(t, codes.InvalidArgument, code)
 			assert.Equal(t, assert.AnError, err)
-			assert.Equal(t, Fields{"a": 1, "b": "2", "c": mpp.err.Error()}, mpp.fields)
+			assert.Equal(t, log.Fields{"a": 1, "b": "2", "c": mpp.err.Error()}, mpp.fields)
 		}
 		lh.HandleRPC(ctx, &stats.End{})
 	})
@@ -192,7 +193,7 @@ func TestUnaryLogDataCatcherServerInterceptor(t *testing.T) {
 		ctx = ctxlogrus.ToContext(ctx, newLogger().WithField("a", 1))
 		interceptor := UnaryLogDataCatcherServerInterceptor()
 		_, _ = interceptor(ctx, nil, nil, handlerStub)
-		assert.Equal(t, Fields{"a": 1}, mpp.fields)
+		assert.Equal(t, log.Fields{"a": 1}, mpp.fields)
 	})
 }
 
@@ -224,7 +225,7 @@ func TestStreamLogDataCatcherServerInterceptor(t *testing.T) {
 		interceptor := StreamLogDataCatcherServerInterceptor()
 		ss := &grpcmw.WrappedServerStream{WrappedContext: ctx}
 		_ = interceptor(nil, ss, nil, func(interface{}, grpc.ServerStream) error { return nil })
-		assert.Equal(t, Fields{"a": 1}, mpp.fields)
+		assert.Equal(t, log.Fields{"a": 1}, mpp.fields)
 	})
 }
 
@@ -234,44 +235,9 @@ func createContext() context.Context {
 	return context.Background()
 }
 
-func TestConvertLoggingFields(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		desc     string
-		input    grpcmwloggingv2.Fields
-		expected map[string]any
-	}{
-		{
-			desc:     "Converting v2 logging fields to map[string]any, even number of fields",
-			input:    grpcmwloggingv2.Fields{"k1", "v1", "k2", "v2"},
-			expected: map[string]any{"k1": "v1", "k2": "v2"},
-		},
-		{
-			desc:     "Converting v2 logging fields to map[string]any, odd number of fields",
-			input:    grpcmwloggingv2.Fields{"k1", "v1", "k2"},
-			expected: map[string]any{"k1": "v1", "k2": ""},
-		},
-		{
-			desc:     "Converting v2 logging fields to map[string]any, duplicate keys",
-			input:    grpcmwloggingv2.Fields{"k1", "v1", "k1", "v2"},
-			expected: map[string]any{"k1": "v2"},
-		},
-		{
-			desc:     "Converting v2 logging fields to map[string]any, empty input",
-			input:    grpcmwloggingv2.Fields{},
-			expected: map[string]any{},
-		},
-		{
-			desc:     "Converting v2 logging fields to map[string]any, nil input",
-			input:    nil,
-			expected: map[string]any{},
-		},
-	} {
-		tc := tc
-
-		t.Run(tc.desc, func(t *testing.T) {
-			actual := ConvertLoggingFields(tc.input)
-			require.Equal(t, tc.expected, actual)
-		})
-	}
+//nolint:forbidigo
+func newLogger() *logrus.Logger {
+	logger := logrus.New()
+	logger.Out = io.Discard
+	return logger
 }

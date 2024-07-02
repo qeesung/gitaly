@@ -17,6 +17,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/service/ref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/transaction"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/loghandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -34,13 +35,13 @@ func createNewServer(t *testing.T, cfg config.Cfg, logger log.Logger) *grpc.Serv
 			StreamInterceptor,
 			logger.StreamServerInterceptor(
 				grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
-				grpcmwlogrus.WithMessageProducer(log.MessageProducer(grpcmwlogrus.DefaultMessageProducer, FieldsProducer))),
+				grpcmwlogrus.WithMessageProducer(loghandler.MessageProducer(grpcmwlogrus.DefaultMessageProducer, FieldsProducer))),
 		),
 		grpc.ChainUnaryInterceptor(
 			UnaryInterceptor,
 			logger.UnaryServerInterceptor(
 				grpcmwlogrus.WithTimestampFormat(log.LogTimestampFormat),
-				grpcmwlogrus.WithMessageProducer(log.MessageProducer(grpcmwlogrus.DefaultMessageProducer, FieldsProducer))),
+				grpcmwlogrus.WithMessageProducer(loghandler.MessageProducer(grpcmwlogrus.DefaultMessageProducer, FieldsProducer))),
 		),
 	}
 

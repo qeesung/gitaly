@@ -14,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/backchannel"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/grpcstats"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/listenmux"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/loghandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/panichandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/requestinfohandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/sentryhandler"
@@ -45,8 +46,8 @@ import (
 // NewBackchannelServerFactory returns a ServerFactory that serves the RefTransactionServer on the backchannel
 // connection.
 func NewBackchannelServerFactory(logger log.Logger, refSvc gitalypb.RefTransactionServer, registry *sidechannel.Registry) backchannel.ServerFactory {
-	logMsgProducer := log.MessageProducer(
-		log.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
+	logMsgProducer := loghandler.MessageProducer(
+		loghandler.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
 		structerr.FieldsProducer,
 	)
 
@@ -117,8 +118,8 @@ func NewGRPCServer(
 		opt(&serverCfg)
 	}
 
-	logMsgProducer := log.MessageProducer(
-		log.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
+	logMsgProducer := loghandler.MessageProducer(
+		loghandler.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
 		structerr.FieldsProducer,
 	)
 
@@ -150,9 +151,9 @@ func NewGRPCServer(
 
 	grpcOpts := proxyRequiredOpts(deps.Director)
 	grpcOpts = append(grpcOpts, []grpc.ServerOption{
-		grpc.StatsHandler(log.PerRPCLogHandler{
+		grpc.StatsHandler(loghandler.PerRPCLogHandler{
 			Underlying:     &grpcstats.PayloadBytes{},
-			FieldProducers: []log.FieldsProducer{grpcstats.FieldsProducer},
+			FieldProducers: []loghandler.FieldsProducer{grpcstats.FieldsProducer},
 		}),
 		grpc.ChainStreamInterceptor(streamInterceptors...),
 		grpc.ChainUnaryInterceptor(unaryInterceptors...),
