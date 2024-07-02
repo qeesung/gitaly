@@ -941,7 +941,7 @@ func TestLimitConcurrency_queueWaitTime(t *testing.T) {
 
 		testhelper.RequireGrpcCode(t, err, codes.ResourceExhausted)
 		assert.Equal(t, ErrMaxQueueTime.Error(), limitErr.ErrorMessage)
-		assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+		assert.Equal(t, durationpb.New(0).AsDuration(), limitErr.RetryAfter.AsDuration())
 
 		assert.Equal(t, monitor.droppedTime, 1)
 		close(ch)
@@ -1004,7 +1004,7 @@ func TestLimitConcurrency_queueWaitTimeRealTimeout(t *testing.T) {
 
 		testhelper.RequireGrpcCode(t, err, codes.ResourceExhausted)
 		assert.Equal(t, ErrMaxQueueTime.Error(), limitErr.ErrorMessage)
-		assert.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+		assert.Equal(t, durationpb.New(0).AsDuration(), limitErr.RetryAfter.AsDuration())
 
 		close(release)
 	})
