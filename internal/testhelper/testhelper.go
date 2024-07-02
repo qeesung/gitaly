@@ -292,8 +292,9 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.UseResizableSemaphoreInConcurrencyLimiter, rnd.Int()%2 == 0)
 	// Disable LogGitTraces
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.LogGitTraces, false)
-	// Disable SetAttrTreeConfig
-	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.SetAttrTreeConfig, false)
+	// Randomly enable SetAttrTreeConfig, since this could have breaking effects once we move
+	// to Git 2.46.0.
+	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.SetAttrTreeConfig, rnd.Int()%2 == 0)
 	// Enable SymrefUpdates
 	symrefUpdateEnabled, _ := env.GetBool("GITALY_TEST_ENABLE_SYMREF_UPDATE", false)
 	ctx = featureflag.ContextWithFeatureFlag(ctx, featureflag.SymrefUpdate, symrefUpdateEnabled)

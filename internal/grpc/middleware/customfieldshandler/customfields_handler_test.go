@@ -9,6 +9,7 @@ import (
 
 	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -100,16 +101,7 @@ func TestInterceptor(t *testing.T) {
 				require.NoError(t, err)
 			},
 			expectedLogData: map[string]interface{}{
-				// Until we bump our minimum required Git version to v2.36.0 we are
-				// forced to carry a version check whenever we spawn Git commands.
-				// The command count here is thus 2 because of the additional
-				// git-version(1) command. Note that the next command count remains
-				// 1 though: the version is cached, and consequentially we don't
-				// re-run git-version(1).
-				//
-				// This test will break again as soon as we bump the minimum Git
-				// version and thus remove the version check.
-				"command.count": 2,
+				"command.count": testhelper.EnabledOrDisabledFlag(ctx, featureflag.SetAttrTreeConfig, 3, 2),
 			},
 		},
 		{
@@ -129,7 +121,7 @@ func TestInterceptor(t *testing.T) {
 				}
 			},
 			expectedLogData: map[string]interface{}{
-				"command.count": 1,
+				"command.count": testhelper.EnabledOrDisabledFlag(ctx, featureflag.SetAttrTreeConfig, 2, 1),
 			},
 		},
 	}
