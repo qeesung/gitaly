@@ -91,6 +91,9 @@ type Limits struct {
 	MaxPatchBytes int
 	// Max number of bytes for specific file type. This overrides MaxPatchBytes
 	MaxPatchBytesForFileExtension map[string]int
+	// PatchLimitsOnly uses only the MaxPatchBytes and MaxPatchBytesForFileExtension limits when
+	// enabled. Cumulative size limits, such as Max{Files,Lines,Bytes}, are ignored.
+	PatchLimitsOnly bool
 }
 
 const (
@@ -217,7 +220,7 @@ func (parser *Parser) Parse() bool {
 		maxLinesExceeded := parser.linesProcessed - parser.limits.MaxLines
 		maxBytesExceeded := parser.bytesProcessed - parser.limits.MaxBytes
 		maxLimitsExceeded := maxLinesExceeded >= 0 || maxBytesExceeded >= 0 || maxFilesExceeded > 0
-		if maxLimitsExceeded {
+		if maxLimitsExceeded && !parser.limits.PatchLimitsOnly {
 			if parser.limits.CollectAllPaths {
 				parser.currentDiff.CollectAllPaths = true
 				// Do allow parser to finish, but since limits are hit

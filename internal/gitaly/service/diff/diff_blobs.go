@@ -62,11 +62,18 @@ func (s *server) DiffBlobs(request *gitalypb.DiffBlobsRequest, stream gitalypb.D
 		cmdOpts = append(cmdOpts, git.Flag{Name: "--word-diff=porcelain"})
 	}
 
+	var limits diff.Limits
+	if request.PatchBytesLimit > 0 {
+		limits.EnforceLimits = true
+		limits.PatchLimitsOnly = true
+		limits.MaxPatchBytes = int(request.PatchBytesLimit)
+	}
+
 	for _, blobPair := range request.BlobPairs {
 		// Each diff gets computed using an independent Git process and diff parser. Ideally a
 		// single Git process could be used to process each blob pair, but unfortunately Git
 		// does not yet have a means to accomplish this.
-		blobDiff, err := diffBlob(ctx, repo, objectHash, blobPair, diff.Limits{}, cmdOpts)
+		blobDiff, err := diffBlob(ctx, repo, objectHash, blobPair, limits, cmdOpts)
 		if err != nil {
 			return structerr.NewInternal("generating diff: %w", err)
 		}
@@ -154,9 +161,10 @@ func diffBlob(ctx context.Context,
 
 func (s *server) sendDiff(stream gitalypb.DiffService_DiffBlobsServer, diff *diff.Diff) error {
 	response := &gitalypb.DiffBlobsResponse{
-		LeftBlobId:  diff.FromID,
-		RightBlobId: diff.ToID,
-		Binary:      diff.Binary,
+		LeftBlobId:          diff.FromID,
+		RightBlobId:         diff.ToID,
+		Binary:              diff.Binary,
+		OverPatchBytesLimit: diff.TooLarge,
 	}
 
 	for {
