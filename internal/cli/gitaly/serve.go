@@ -422,7 +422,7 @@ func run(appCtx *cli.Context, cfg config.Cfg, logger log.Logger) error {
 			}
 			raftManager, err := raft.NewManager(ctx, cfg.Storages, cfg.Raft, raft.ManagerConfig{
 				BootstrapCluster: initRaft,
-			}, dbMgr, logger)
+			}, partitionMgr, logger)
 			if err != nil {
 				return fmt.Errorf("initializing raft manager: %w", err)
 			}

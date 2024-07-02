@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -13,9 +14,10 @@ import (
 )
 
 type metadataStateMachine struct {
+	ctx       context.Context
 	groupID   raftID
 	replicaID raftID
-	db        keyvalue.Transactioner
+	accessDB  dbAccessor
 }
 
 const (
@@ -50,41 +52,44 @@ func (s *metadataStateMachine) Open(stopC <-chan struct{}) (uint64, error) {
 }
 
 // LastApplied returns the last applied index of the state machine.
-func (s *metadataStateMachine) LastApplied() (raftID, error) {
-	txn := s.db.NewTransaction(false)
-	defer txn.Discard()
-
-	lastApplied, err := s.getLastIndex(txn)
-	if err != nil {
-		return 0, fmt.Errorf("reading last index from DB: %w", err)
-	}
-	return lastApplied, err
+func (s *metadataStateMachine) LastApplied() (lastApplied raftID, err error) {
+	s.accessDB(s.ctx, func(txn keyvalue.ReadWriter) error {
+		lastApplied, err = s.getLastIndex(txn)
+		if err != nil {
+			err = fmt.Errorf("getting cluster from DB: %w", err)
+		}
+		return err
+	})
+	return
 }
 
 // Cluster returns the latest cluster state of state machine.
-func (s *metadataStateMachine) Cluster() (*gitalypb.Cluster, error) {
-	txn := s.db.NewTransaction(false)
-	defer txn.Discard()
-
-	cluster, err := s.getCluster(txn)
-	if err != nil {
-		return nil, fmt.Errorf("getting cluster from DB: %w", err)
-	}
-	return cluster, err
+func (s *metadataStateMachine) Cluster() (cluster *gitalypb.Cluster, err error) {
+	s.accessDB(s.ctx, func(txn keyvalue.ReadWriter) error {
+		cluster, err = s.getCluster(txn)
+		if err != nil {
+			err = fmt.Errorf("getting cluster from DB: %w", err)
+		}
+		return err
+	})
+	return
 }
 
 // Update applies each entry to the cluster. The Cmd of each entry can be one of the
 // following operations:
 //   - gitalypb.BootstrapClusterRequest to bootstrap a cluster for the first time.
 //   - gitalypb.RegisterStorageRequest to register a new storage.
-func (s *metadataStateMachine) Update(entries []statemachine.Entry) (_ []statemachine.Entry, returnedErr error) {
-	txn := s.db.NewTransaction(true)
-	defer func() {
-		if returnedErr != nil {
-			txn.Discard()
-		}
-	}()
+func (s *metadataStateMachine) Update(entries []statemachine.Entry) (returnedEntries []statemachine.Entry, returnedErr error) {
+	if err := s.accessDB(s.ctx, func(txn keyvalue.ReadWriter) error {
+		returnedEntries, returnedErr = s.update(txn, entries)
+		return returnedErr
+	}); err != nil {
+		return nil, fmt.Errorf("committing metadata transaction: %w", err)
+	}
+	return
+}
 
+func (s *metadataStateMachine) update(txn keyvalue.ReadWriter, entries []statemachine.Entry) (_ []statemachine.Entry, returnedErr error) {
 	cluster, err := s.getCluster(txn)
 	if err != nil {
 		return nil, fmt.Errorf("reading cluster from DB: %w", err)
@@ -122,9 +127,6 @@ func (s *metadataStateMachine) Update(entries []statemachine.Entry) (_ []statema
 	}
 	if err := txn.Set(keyLastApplied, lastApplied.MarshalBinary()); err != nil {
 		return nil, fmt.Errorf("setting last index: %w", err)
-	}
-	if err := txn.Commit(); err != nil {
-		return nil, fmt.Errorf("committing metadata transaction: %w", err)
 	}
 	return returnedEntries, nil
 }
@@ -255,7 +257,7 @@ func (s *metadataStateMachine) RecoverFromSnapshot(_ io.Reader, _ <-chan struct{
 // Close is a no-op because our DB is managed externally.
 func (s *metadataStateMachine) Close() error { return nil }
 
-func (s *metadataStateMachine) getLastIndex(txn keyvalue.Transaction) (raftID, error) {
+func (s *metadataStateMachine) getLastIndex(txn keyvalue.ReadWriter) (raftID, error) {
 	var appliedIndex raftID
 
 	item, err := txn.Get(keyLastApplied)
@@ -271,7 +273,7 @@ func (s *metadataStateMachine) getLastIndex(txn keyvalue.Transaction) (raftID, e
 	})
 }
 
-func (s *metadataStateMachine) getCluster(txn keyvalue.Transaction) (*gitalypb.Cluster, error) {
+func (s *metadataStateMachine) getCluster(txn keyvalue.ReadWriter) (*gitalypb.Cluster, error) {
 	var cluster gitalypb.Cluster
 
 	item, err := txn.Get(keyClusterInfo)
@@ -286,10 +288,11 @@ func (s *metadataStateMachine) getCluster(txn keyvalue.Transaction) (*gitalypb.C
 
 var _ = Statemachine(&metadataStateMachine{})
 
-func newMetadataStatemachine(groupID raftID, replicaID raftID, db keyvalue.Transactioner) *metadataStateMachine {
+func newMetadataStatemachine(ctx context.Context, groupID raftID, replicaID raftID, accessDB dbAccessor) *metadataStateMachine {
 	return &metadataStateMachine{
+		ctx:       ctx,
 		groupID:   groupID,
 		replicaID: replicaID,
-		db:        db,
+		accessDB:  accessDB,
 	}
 }

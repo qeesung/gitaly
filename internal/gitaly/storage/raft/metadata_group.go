@@ -14,7 +14,6 @@ import (
 	"github.com/lni/dragonboat/v4/statemachine"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backoff"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
@@ -38,7 +37,7 @@ func parseInitialMembers(input map[string]string) (map[uint64]string, error) {
 	return initialMembers, nil
 }
 
-func newMetadataRaftGroup(ctx context.Context, nodeHost *dragonboat.NodeHost, groupDB keyvalue.Transactioner, clusterCfg config.Raft, logger log.Logger) (*metadataRaftGroup, error) {
+func newMetadataRaftGroup(ctx context.Context, nodeHost *dragonboat.NodeHost, accessDB dbAccessor, clusterCfg config.Raft, logger log.Logger) (*metadataRaftGroup, error) {
 	initialMembers, err := parseInitialMembers(clusterCfg.InitialMembers)
 	if err != nil {
 		return nil, fmt.Errorf("parsing initial members: %w", err)
@@ -56,7 +55,7 @@ func newMetadataRaftGroup(ctx context.Context, nodeHost *dragonboat.NodeHost, gr
 
 	var metadataSM Statemachine
 	if err := nodeHost.StartOnDiskReplica(initialMembers, false, func(groupID, replicaID uint64) statemachine.IOnDiskStateMachine {
-		return newMetadataStatemachine(raftID(groupID), raftID(replicaID), groupDB)
+		return newMetadataStatemachine(ctx, raftID(groupID), raftID(replicaID), accessDB)
 	}, groupCfg); err != nil {
 		return nil, fmt.Errorf("starting metadata group: %w", err)
 	}

@@ -2,89 +2,29 @@ package raft
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"sync/atomic"
 
-	"github.com/dgraph-io/badger/v4"
 	"github.com/lni/dragonboat/v4"
 	dragonboatConf "github.com/lni/dragonboat/v4/config"
 	"github.com/lni/dragonboat/v4/statemachine"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/storagemgr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"google.golang.org/protobuf/proto"
 )
 
-// dbForGroup returns a keyvalue.Transactioner for the given Raft group.
-func dbForGroup(db keyvalue.Transactioner, groupID raftID, replicaID raftID) keyvalue.Transactioner {
-	return keyvalue.NewPrefixedTransactioner(db, []byte(fmt.Sprintf("%s/%s", groupID.MarshalBinary(), replicaID.MarshalBinary())))
-}
-
-// dbForStorage returns a keyvalue.Transactioner used to store Raft-related data for a given storage.
-func dbForStorage(db keyvalue.Store) keyvalue.Transactioner {
-	return keyvalue.NewPrefixedTransactioner(db, []byte("raft"))
-}
-
 // storageManager is responsible for managing the Raft storage for a single storage. It provides a
 // keyvalue.Transactioner for each Raft group, allowing the Raft groups to store their data in the
 // underlying keyvalue store.
 type storageManager struct {
-	id        raftID
-	name      string
-	storageDB keyvalue.Transactioner
-	nodeHost  *dragonboat.NodeHost
+	id       raftID
+	name     string
+	ptnMgr   *storagemgr.PartitionManager
+	nodeHost *dragonboat.NodeHost
 }
-
-// newStorageManager returns an instance of storage manager.
-func newStorageManager(name string, db keyvalue.Store, nodeHost *dragonboat.NodeHost) *storageManager {
-	return &storageManager{
-		name:      name,
-		storageDB: dbForStorage(db),
-		nodeHost:  nodeHost,
-	}
-}
-
-// Close closes the storage manager.
-func (m *storageManager) Close() { m.nodeHost.Close() }
-
-func (m *storageManager) loadStorageID() error {
-	return m.storageDB.View(func(txn keyvalue.ReadWriter) error {
-		item, err := txn.Get([]byte("storage_id"))
-		if err != nil {
-			if errors.Is(err, badger.ErrKeyNotFound) {
-				return nil
-			}
-			return err
-		}
-		return item.Value(func(value []byte) error {
-			m.id.UnmarshalBinary(value)
-			return nil
-		})
-	})
-}
-
-func (m *storageManager) saveStorageID(id raftID) error {
-	return m.storageDB.Update(func(txn keyvalue.ReadWriter) error {
-		_, err := txn.Get([]byte("storage_id"))
-		if err == nil {
-			return fmt.Errorf("storage ID already exists")
-		} else if !errors.Is(err, badger.ErrKeyNotFound) {
-			return err
-		}
-		if err := txn.Set([]byte("storage_id"), id.MarshalBinary()); err != nil {
-			return err
-		}
-		m.id = id
-		return nil
-	})
-}
-
-// clearStorageID clears the storage ID inside the in-memory storage of the storage manager. It does
-// not clean the underlying storage ID.
-func (m *storageManager) clearStorageID() { m.id = 0 }
 
 // Group is an abstract data structure that stores information of a Raft group.
 type Group struct {
@@ -201,7 +141,7 @@ func NewManager(
 	storages []config.Storage,
 	clusterCfg config.Raft,
 	managerCfg ManagerConfig,
-	dbMgr *keyvalue.DBManager,
+	ptnMgr *storagemgr.PartitionManager,
 	logger log.Logger,
 ) (*Manager, error) {
 	SetLogger(logger, true)
@@ -224,11 +164,6 @@ func NewManager(
 	}
 
 	storage := storages[0]
-	db, err := dbMgr.GetDB(storage.Name)
-	if err != nil {
-		return nil, fmt.Errorf("could not get DB for storage: %w", err)
-	}
-
 	nodeHost, err := dragonboat.NewNodeHost(dragonboatConf.NodeHostConfig{
 		WALDir:                     walDir(storage),
 		NodeHostDir:                nodeHostDir(storage),
@@ -246,7 +181,7 @@ func NewManager(
 		return nil, fmt.Errorf("creating dragonboat nodehost: %w", err)
 	}
 
-	m.storageManagers[storage.Name] = newStorageManager(storage.Name, db, nodeHost)
+	m.storageManagers[storage.Name] = newStorageManager(storage.Name, ptnMgr, nodeHost)
 	if m.firstStorage == nil {
 		m.firstStorage = m.storageManagers[storage.Name]
 	}
@@ -343,7 +278,7 @@ func (m *Manager) initMetadataGroup(storageMgr *storageManager) error {
 	metadataGroup, err := newMetadataRaftGroup(
 		m.ctx,
 		storageMgr.nodeHost,
-		dbForGroup(storageMgr.storageDB, MetadataGroupID, raftID(m.clusterConfig.NodeID)),
+		storageMgr.dbForGroup(MetadataGroupID, raftID(m.clusterConfig.NodeID)),
 		m.clusterConfig,
 		m.logger,
 	)
