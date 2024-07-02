@@ -466,20 +466,20 @@ func (cf *ExecCommandFactory) newCommand(ctx context.Context, repo storage.Repos
 		return nil, fmt.Errorf("getting Git version: %w", err)
 	}
 
-	// Starting with Git version 2.45.1, 2.44.1, 2.43.4, and 2.42.2, the `symlinkPointsToGitDir`
-	// fsck check was added which warns if a repository contains symlinks pointing inside the
-	// Git directory. While by default these are only supposed to be warnings, because Gitaly sets
-	// `transfer.fsckObjects=true` the warnings are upgraded to errors and consequently can break
+	// Starting with Git version 2.45.1, 2.44.1, 2.43.4, and 2.42.2 the `symlinkPointsToGitDir` fsck
+	// check was added which warns if a repository contains symlinks pointing inside the Git
+	// directory. While by default these are only supposed to be warnings, because Gitaly sets
+	//`transfer.fsckObjects=true` the warnings are upgraded to errors and consequently can break
 	// existing repositories. To avoid this, the fsck check is disabled. Since we support versions
 	// of Git that do not contain this option, we apply the configuration to the corresponding
 	// versions to avoid an unknown config warning.
 	//
-	// This behavior of this Git configuration may be altered or reverted in the future so that it
-	// no longer breaks some repositories. If so, this can be removed.
-	if (cmdGitVersion.GreaterOrEqual(NewVersion(2, 45, 1, 0))) ||
-		(cmdGitVersion.GreaterOrEqual(NewVersion(2, 44, 1, 0)) && cmdGitVersion.LessThan(NewVersion(2, 45, 0, 0))) ||
-		(cmdGitVersion.GreaterOrEqual(NewVersion(2, 43, 4, 0)) && cmdGitVersion.LessThan(NewVersion(2, 44, 0, 0))) ||
-		(cmdGitVersion.GreaterOrEqual(NewVersion(2, 42, 1, 0)) && cmdGitVersion.LessThan(NewVersion(2, 43, 0, 0))) {
+	// This Git configuration has been reverted in versions 2.45.2, 2.44.2, 2.43.5, and 2.42.3. Once
+	// these versions are no longer supported by Gitaly, these options can be removed.
+	if (cmdGitVersion.GreaterOrEqual(NewVersion(2, 45, 1, 0))) && cmdGitVersion.LessThan(NewVersion(2, 45, 2, 0)) ||
+		(cmdGitVersion.GreaterOrEqual(NewVersion(2, 44, 1, 0)) && cmdGitVersion.LessThan(NewVersion(2, 44, 2, 0))) ||
+		(cmdGitVersion.GreaterOrEqual(NewVersion(2, 43, 4, 0)) && cmdGitVersion.LessThan(NewVersion(2, 43, 5, 0))) ||
+		(cmdGitVersion.GreaterOrEqual(NewVersion(2, 42, 2, 0)) && cmdGitVersion.LessThan(NewVersion(2, 42, 3, 0))) {
 		config.globals = append(config.globals,
 			ConfigPair{Key: "fsck.symlinkPointsToGitDir", Value: "ignore"},
 			ConfigPair{Key: "fetch.fsck.symlinkPointsToGitDir", Value: "ignore"},
