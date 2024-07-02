@@ -119,6 +119,24 @@ func testUserMergeBranch(t *testing.T, ctx context.Context) {
 			},
 		},
 		{
+			desc:  "merge + squash",
+			hooks: []string{},
+			setup: func(data setupData) setupResponse {
+				return setupResponse{
+					firstRequest: &gitalypb.UserMergeBranchRequest{
+						Repository: data.repoProto,
+						User:       gittest.TestUser,
+						CommitId:   data.commitToMerge,
+						Branch:     []byte(data.branch),
+						Message:    []byte(data.message),
+						Squash:     true,
+					},
+					secondRequest:          &gitalypb.UserMergeBranchRequest{Apply: true},
+					secondExpectedResponse: &gitalypb.OperationBranchUpdate{},
+				}
+			},
+		},
+		{
 			desc:  "merge successful + expectedOldOID",
 			hooks: []string{},
 			setup: func(data setupData) setupResponse {
@@ -313,7 +331,12 @@ func testUserMergeBranch(t *testing.T, ctx context.Context) {
 			commit, err := repo.ReadCommit(ctx, git.Revision(branchToMerge))
 			require.NoError(t, err, "look up git commit after call has finished")
 
-			require.Contains(t, commit.ParentIds, mergeCommitID.String())
+			if data.firstRequest.Squash {
+				require.NotContains(t, commit.ParentIds, mergeCommitID.String())
+			} else {
+				require.Contains(t, commit.ParentIds, mergeCommitID.String())
+			}
+
 			require.True(t, strings.HasPrefix(string(commit.Body), message), "expected %q to start with %q", commit.Body, message)
 
 			if len(tc.hooks) > 0 {

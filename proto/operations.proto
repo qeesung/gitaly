@@ -418,6 +418,10 @@ message UserMergeBranchRequest {
   // zero object ID in case the branch should be created. Otherwise, this RPC
   // will return an error.
   string expected_old_oid = 8;
+  // squash is a flag to indicate that `commit_id` is a squash commit.
+  // When set to `true`, it merges only the squash commit without creating
+  // the merge commit.
+  bool squash = 9;
 
   // apply is used in the second message. Setting it to true will proceed with
   // the merge. Setting it to false will abort the merge.
