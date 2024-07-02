@@ -10,8 +10,8 @@ import (
 // internally. In Gitaly, "group" is used exclusively to refer to a Raft group.
 type raftID uint64
 
-// MetadataGroupGroupID is a hard-coded ID of the cluster-wide metadata Raft group.
-const MetadataGroupGroupID = raftID(1)
+// MetadataGroupID is a hard-coded ID of the cluster-wide metadata Raft group.
+const MetadataGroupID = raftID(1)
 
 // MarshalBinary returns a binary representation of the raftID.
 func (id raftID) MarshalBinary() []byte {

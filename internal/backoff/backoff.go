@@ -5,6 +5,7 @@ package backoff
 import (
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -19,6 +20,8 @@ type Strategy interface {
 // Backoff(retries) = BaseDelay * (Multiplier ^ retries) + rand(0, Jitter)
 // The backoff time can never exceed the MaxDelay.
 type Exponential struct {
+	sync.Mutex
+
 	// BaseDelay is the minimum delay for the first attempt.
 	BaseDelay time.Duration
 	// MaxDelay is the upper limit for exponential backoff.
@@ -67,6 +70,10 @@ func NewDefaultExponential(r *rand.Rand) *Exponential {
 // increasing the attempt of the caller, which is Backoff(0). It means the backoff time after the
 // first failure.
 func (e *Exponential) Backoff(retries uint) time.Duration {
+	// Rand's source is not thread-safe. We could create per-goroutine rand source or use a mutex.
+	e.Lock()
+	defer e.Unlock()
+
 	backoff := math.Min(
 		float64(e.MaxDelay),
 		float64(e.BaseDelay)*math.Pow(e.Multiplier, float64(retries)),
