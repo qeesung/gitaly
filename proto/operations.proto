@@ -422,6 +422,8 @@ message UserMergeBranchRequest {
   // apply is used in the second message. Setting it to true will proceed with
   // the merge. Setting it to false will abort the merge.
   bool apply = 6;
+
+  bool squash = 9;
 }
 
 // UserMergeBranchResponse is a response for the UserMergeBranch RPC.
