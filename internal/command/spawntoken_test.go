@@ -193,7 +193,7 @@ func TestGetSpawnToken_CommandStats_timeout(t *testing.T) {
 
 	testhelper.RequireGrpcCode(t, err, codes.ResourceExhausted)
 	require.Equal(t, "process spawn timed out after 1ms", limitErr.ErrorMessage)
-	require.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+	require.Equal(t, durationpb.New(0).AsDuration(), limitErr.RetryAfter.AsDuration())
 
 	customFields := log.CustomFieldsFromContext(ctx)
 	require.NotNil(t, customFields)
