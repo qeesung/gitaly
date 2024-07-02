@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -9,13 +8,15 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
+	"github.com/google/uuid"
 	"github.com/lni/dragonboat/v4"
 	dragonboatConfig "github.com/lni/dragonboat/v4/config"
 	"github.com/lni/dragonboat/v4/statemachine"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"google.golang.org/protobuf/proto"
 )
@@ -99,60 +100,59 @@ type (
 	mockUpdaterFunc func(proto.Message) (uint64, proto.Message, error)
 )
 
+// dragonboatTestingProfile defines an engine profile that is friendly to testing environments.
+var dragonboatTestingProfile = func() dragonboatConfig.ExpertConfig {
+	// Reduce the capacity of log DB and engines. We don't need that capacity in tests. They do cost
+	// memory and cpu resources to maintain.
+	logDBConf := dragonboatConfig.GetTinyMemLogDBConfig()
+	logDBConf.Shards = 2
+	engineConf := dragonboatConfig.EngineConfig{
+		ExecShards:     2,
+		CommitShards:   2,
+		ApplyShards:    2,
+		SnapshotShards: 2,
+		CloseShards:    2,
+	}
+	return dragonboatConfig.ExpertConfig{
+		LogDB:  logDBConf,
+		Engine: engineConf,
+	}
+}()
+
 type testNode struct {
 	nodeHost *dragonboat.NodeHost
+	manager  *Manager
 	sm       *testStateMachine
 	close    func()
 }
 
 type testRaftCluster struct {
 	sync.Mutex
+	clusterID      string
 	initialMembers map[uint64]string
 	nodes          map[raftID]*testNode
 }
 
-func (c *testRaftCluster) startNode(t *testing.T, node raftID) bool {
+func (c *testRaftCluster) startNode(t *testing.T, node raftID) (*testNode, error) {
 	tmpDir := testhelper.TempDir(t)
-	// Reduce the capacity of log DB and engines. We don't need that capacity in tests. They do cost
-	// memory and cpu resources to maintain.
-	logDBConf := dragonboatConfig.GetTinyMemLogDBConfig()
-	logDBConf.Shards = 4
-	engineConf := dragonboatConfig.EngineConfig{
-		ExecShards:     4,
-		CommitShards:   4,
-		ApplyShards:    4,
-		SnapshotShards: 4,
-		CloseShards:    4,
-	}
 	nodeHostConfig := dragonboatConfig.NodeHostConfig{
 		WALDir:         tmpDir,
 		NodeHostDir:    tmpDir,
 		RaftAddress:    c.initialMembers[node.ToUint64()],
 		RTTMillisecond: config.RaftDefaultRTT,
-		Expert: dragonboatConfig.ExpertConfig{
-			LogDB:  logDBConf,
-			Engine: engineConf,
-		},
+		Expert:         dragonboatTestingProfile,
 	}
 	nodeHost, err := dragonboat.NewNodeHost(nodeHostConfig)
 	if err != nil {
-		t.Log(err)
-		if strings.Contains(err.Error(), "address already in use") {
-			return true
-		}
-		require.NoError(t, err)
+		return nil, err
 	}
 
 	require.NoError(t, err)
 
-	c.Lock()
-	c.nodes[node] = &testNode{
+	return &testNode{
 		nodeHost: nodeHost,
 		close:    nodeHost.Close,
-	}
-	c.Unlock()
-
-	return false
+	}, nil
 }
 
 func (c *testRaftCluster) closeAll() {
@@ -180,6 +180,7 @@ func (c *testRaftCluster) startTestGroups(t *testing.T, nodes []raftID, groupIDs
 
 func (c *testRaftCluster) startTestGroup(t *testing.T, node raftID, groupID raftID, updater mockUpdaterFunc, reader mockReaderFunc) {
 	c.Lock()
+	clusterNode := c.nodes[node]
 	raftConfig := dragonboatConfig.Config{
 		ReplicaID:    node.ToUint64(),
 		ShardID:      groupID.ToUint64(),
@@ -188,7 +189,7 @@ func (c *testRaftCluster) startTestGroup(t *testing.T, node raftID, groupID raft
 		WaitReady:    true,
 	}
 	require.NoError(t, c.nodes[node].nodeHost.StartOnDiskReplica(c.initialMembers, false, func(shardID, replicaID uint64) statemachine.IOnDiskStateMachine {
-		c.nodes[node].sm = &testStateMachine{
+		clusterNode.sm = &testStateMachine{
 			t:       t,
 			shardID: raftID(shardID),
 			replica: node,
@@ -200,41 +201,64 @@ func (c *testRaftCluster) startTestGroup(t *testing.T, node raftID, groupID raft
 	c.Unlock()
 
 	// Poll until the Raft group is ready within 30-second timeout.
-	c.waitUntilReady(t, node, groupID)
+	require.NoError(t, WaitGroupReady(testhelper.Context(t), c.nodes[node].nodeHost, groupID))
 }
 
 func (c *testRaftCluster) stopGroup(t *testing.T, node raftID, groupID raftID) {
 	require.NoError(t, c.nodes[node].nodeHost.StopShard(groupID.ToUint64()))
 }
 
-func (c *testRaftCluster) waitUntilReady(t *testing.T, node raftID, groupID raftID) {
-	c.Lock()
-	clusterNode := c.nodes[node]
-	c.Unlock()
-	ctx := testhelper.Context(t)
-	for {
-		_, err := func(ctx context.Context) (any, error) {
-			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			defer cancel()
-			return clusterNode.nodeHost.SyncGetShardMembership(ctx, groupID.ToUint64())
-		}(ctx)
-
-		if err == nil {
-			break
-		} else if !dragonboat.IsTempError(err) {
-			require.Error(t, err)
-		}
-		select {
-		case <-ctx.Done():
-			t.Error("timeout waiting for Raft cluster's readiness")
-			return
-		case <-time.After(200 * time.Millisecond):
-		}
+func (c *testRaftCluster) createRaftConfig(node raftID) config.Raft {
+	initialMembers := map[string]string{}
+	for node, addr := range c.initialMembers {
+		initialMembers[fmt.Sprintf("%d", node)] = addr
+	}
+	return config.Raft{
+		Enabled:         true,
+		ClusterID:       c.clusterID,
+		NodeID:          node.ToUint64(),
+		RaftAddr:        c.initialMembers[node.ToUint64()],
+		InitialMembers:  initialMembers,
+		RTTMilliseconds: config.RaftDefaultRTT,
+		ElectionTicks:   config.RaftDefaultElectionTicks,
+		HeartbeatTicks:  config.RaftDefaultHeartbeatTicks,
 	}
 }
 
-func newTestRaftCluster(t *testing.T, numNodes int) *testRaftCluster {
+type testRaftClusterConfig struct {
+	startNode nodeStarter
+}
+
+type testRaftClusterOption func(*testRaftClusterConfig)
+
+// nodeStarter should start the node with raftID in the cluster, and return its details or an error.
+type nodeStarter func(*testRaftCluster, raftID) (*testNode, error)
+
+func withNodeStarter(startNode nodeStarter) testRaftClusterOption {
+	return func(cfg *testRaftClusterConfig) {
+		cfg.startNode = startNode
+	}
+}
+
+// newTestRaftCluster creates a Raft cluster having N nodes. Each node in the cluster is powered by
+// either a test Raft group or a proper Raft manager.
+func newTestRaftCluster(t *testing.T, numNodes int, options ...testRaftClusterOption) *testRaftCluster {
+	testhelper.SkipWithPraefect(t, `Raft is not compatible with Praefect.`)
+
+	cfg := &testRaftClusterConfig{
+		startNode: func(cluster *testRaftCluster, node raftID) (*testNode, error) {
+			return cluster.startNode(t, node)
+		},
+	}
+	for _, option := range options {
+		option(cfg)
+	}
+
+	id, err := uuid.NewUUID()
+	require.NoError(t, err)
+
 	cluster := &testRaftCluster{
+		clusterID:      id.String(),
 		nodes:          map[raftID]*testNode{},
 		initialMembers: map[uint64]string{},
 	}
@@ -252,10 +276,20 @@ func newTestRaftCluster(t *testing.T, numNodes int) *testRaftCluster {
 			wg.Add(1)
 			go func(i uint64) {
 				defer wg.Done()
-				conflict := cluster.startNode(t, raftID(i))
-				if conflict {
-					retry.Store(true)
+				node, err := cfg.startNode(cluster, raftID(i))
+				if err != nil {
+					t.Log(err)
+					if strings.Contains(err.Error(), "address already in use") {
+						retry.Store(true)
+					} else {
+						require.NoError(t, err)
+					}
+					return
 				}
+
+				cluster.Lock()
+				cluster.nodes[raftID(i)] = node
+				cluster.Unlock()
 			}(i)
 		}
 		wg.Wait()
@@ -291,6 +325,53 @@ func reserveEphemeralAddrs(t *testing.T, count int) []string {
 		addrs = append(addrs, addr)
 	}
 	return addrs
+}
+
+func setupTestDB(t *testing.T, cfg config.Cfg) *keyvalue.DBManager {
+	logger := testhelper.NewLogger(t)
+
+	dbMgr, err := keyvalue.NewDBManager(cfg.Storages, keyvalue.NewBadgerStore, helper.NewNullTickerFactory(), logger)
+	require.NoError(t, err)
+
+	return dbMgr
+}
+
+func setupStorageDB(t *testing.T, cfg config.Cfg) (keyvalue.Transactioner, func()) {
+	dbMgr := setupTestDB(t, cfg)
+
+	storage := cfg.Storages[0]
+	db, err := dbMgr.GetDB(storage.Name)
+	require.NoError(t, err)
+
+	return dbForStorage(db), dbMgr.Close
+}
+
+// fanOut executes f concurrently num times. The supplied raftID begins from 1.
+func fanOut(num int, f func(raftID)) {
+	var wg sync.WaitGroup
+	for i := 1; i <= num; i++ {
+		wg.Add(1)
+		go func(i raftID) {
+			defer wg.Done()
+
+			f(i)
+		}(raftID(i))
+	}
+	wg.Wait()
+}
+
+// fanOutNodes executes f concurrently for each node in the cluster.
+func fanOutNodes(cluster *testRaftCluster, f func(node *testNode)) {
+	var wg sync.WaitGroup
+	for _, node := range cluster.nodes {
+		wg.Add(1)
+		go func(node *testNode) {
+			defer wg.Done()
+
+			f(node)
+		}(node)
+	}
+	wg.Wait()
 }
 
 func TestMain(m *testing.M) {

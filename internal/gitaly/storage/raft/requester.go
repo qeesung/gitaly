@@ -8,6 +8,7 @@ import (
 
 	"github.com/lni/dragonboat/v4"
 	"github.com/lni/dragonboat/v4/statemachine"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/backoff"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"google.golang.org/protobuf/proto"
@@ -41,6 +42,7 @@ func anyProtoUnmarshal(msg []byte) (proto.Message, error) {
 
 type requestOption struct {
 	timeout         time.Duration
+	exponential     *backoff.Exponential
 	retry           int
 	failureCallback func(error)
 }
@@ -162,9 +164,13 @@ func (r *requester[reqT, resT]) withRetry(ctx context.Context, request any, perf
 			return nil, ctx.Err()
 		}
 		attempt++
-		ctx, cancel := context.WithTimeout(ctx, r.option.timeout)
-		response, err := perform(ctx)
-		cancel()
+		response, err := func(ctx context.Context) (any, error) {
+			ctx, cancel := context.WithTimeout(ctx, r.option.timeout)
+			defer cancel()
+
+			return perform(ctx)
+		}(ctx)
+
 		if err == nil {
 			return response, nil
 		} else if r.option.failureCallback != nil {
@@ -183,6 +189,15 @@ func (r *requester[reqT, resT]) withRetry(ctx context.Context, request any, perf
 		} else if attempt > r.option.retry {
 			return response, fmt.Errorf("retry exhausted: %w", err)
 		}
+
+		if r.option.exponential != nil {
+			backoff := r.option.exponential.Backoff(uint(attempt - 1))
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
 	}
 }
 
@@ -199,4 +214,30 @@ func GetLeaderState(nodeHost *dragonboat.NodeHost, groupID raftID) (*gitalypb.Le
 		Term:     term,
 		Valid:    valid,
 	}, nil
+}
+
+// WaitGroupReady blocks until the group is ready to serve requests or if the context is cancelled.
+func WaitGroupReady(ctx context.Context, nodeHost *dragonboat.NodeHost, groupID raftID) error {
+	cfg := nodeHost.NodeHostConfig()
+	for {
+		_, err := func(ctx context.Context) (any, error) {
+			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+
+			// Check readiness by polling group members for membership info.
+			return nodeHost.SyncGetShardMembership(ctx, groupID.ToUint64())
+		}(ctx)
+
+		if err == nil {
+			return nil
+		} else if !dragonboat.IsTempError(err) {
+			return fmt.Errorf("waiting group ready: %w", err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("waiting group ready: %w", ctx.Err())
+		case <-time.After(time.Duration(cfg.RTTMillisecond) * time.Millisecond * 2):
+		}
+	}
 }
