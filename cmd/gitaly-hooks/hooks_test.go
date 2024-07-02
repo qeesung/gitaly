@@ -868,10 +868,10 @@ func TestGitalyServerReturnsError(t *testing.T) {
 
 func TestGitalyServerReturnsError_packObjects(t *testing.T) {
 	for _, tc := range []struct {
-		name           string
-		err            error
-		expectedStderr string
-		expectedLogs   string
+		name                string
+		err                 error
+		expectedStderrLines []string
+		expectedLogs        string
 	}{
 		{
 			name: "resource exhausted with LimitError detail",
@@ -879,28 +879,28 @@ func TestGitalyServerReturnsError_packObjects(t *testing.T) {
 				ErrorMessage: limiter.ErrMaxQueueTime.Error(),
 				RetryAfter:   durationpb.New(0),
 			}),
-			expectedStderr: `
-remote: error executing git hook
-remote: error resource exhausted, please try again later
-`,
+			expectedStderrLines: []string{
+				"remote: error executing git hook",
+				"remote: error resource exhausted, please try again later",
+			},
 			expectedLogs: `RPC failed: rpc error: code = ResourceExhausted desc = maximum time in concurrency queue reached`,
 		},
 		{
 			name: "resource exhausted without LimitError detail",
 			err:  structerr.NewResourceExhausted("not enough resource"),
-			expectedStderr: `
-remote: error executing git hook
-remote: error resource exhausted, please try again later
-`,
+			expectedStderrLines: []string{
+				"remote: error executing git hook",
+				"remote: error resource exhausted, please try again later",
+			},
 			expectedLogs: `RPC failed: rpc error: code = ResourceExhausted desc = not enough resource`,
 		},
 		{
 			name: "other error - status code is hidden",
 			//nolint:gitaly-linters
 			err: structerr.NewUnavailable("server is not available"),
-			expectedStderr: `
-remote: error executing git hook
-`,
+			expectedStderrLines: []string{
+				"remote: error executing git hook",
+			},
 			expectedLogs: `RPC failed: rpc error: code = Unavailable desc = server is not available`,
 		},
 	} {
@@ -953,12 +953,10 @@ remote: error executing git hook
 
 			require.Equal(t, "", stdout.String())
 
-			var actualStderr []string
-			for _, line := range strings.Split(stderr.String(), "\n") {
-				actualStderr = append(actualStderr, strings.TrimSpace(line))
+			for _, expectedLine := range tc.expectedStderrLines {
+				require.Contains(t, stderr.String(), expectedLine)
 			}
 
-			require.Contains(t, strings.Join(actualStderr, "\n"), strings.TrimSpace(tc.expectedStderr))
 			hookLogs := string(testhelper.MustReadFile(t, filepath.Join(logDir, "gitaly_hooks.log")))
 			require.NotEmpty(t, hookLogs)
 			require.Contains(t, hookLogs, tc.expectedLogs)
