@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
@@ -62,7 +64,8 @@ func TestDiffBlobs(t *testing.T) {
 						fmt.Sprintf(
 							"validating right blob: validating blob ID: invalid object ID: \"\", expected length %d, got 0",
 							gittest.DefaultObjectHash.EncodedLen(),
-						)).WithMetadata("revision", "")),
+						)).WithMetadata("revision", ""),
+					),
 				}
 			},
 		},
@@ -85,7 +88,8 @@ func TestDiffBlobs(t *testing.T) {
 						},
 					},
 					expectedErr: testhelper.ToInterceptedMetadata(structerr.NewInvalidArgument(
-						"validating right blob: revision is not blob").WithMetadata("revision", string(commitID))),
+						"validating right blob: revision is not blob").WithMetadata("revision", string(commitID)),
+					),
 				}
 			},
 		},
@@ -107,7 +111,8 @@ func TestDiffBlobs(t *testing.T) {
 						},
 					},
 					expectedErr: testhelper.ToInterceptedMetadata(structerr.NewInvalidArgument(
-						"validating left blob: getting revision info: object not found").WithMetadata("revision", "HEAD:foo")),
+						"validating left blob: getting revision info: object not found").WithMetadata("revision", "HEAD:foo"),
+					),
 				}
 			},
 		},
@@ -167,6 +172,26 @@ func TestDiffBlobs(t *testing.T) {
 					},
 				))
 
+				expectedResponse := []*gitalypb.DiffBlobsResponse{
+					{
+						LeftBlobId:  blobID1.String(),
+						RightBlobId: blobID2.String(),
+						Patch:       []byte(fmt.Sprintf("Binary files a/foo and b/%s differ\n", blobID2.String())),
+						Status:      gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
+						Binary:      true,
+					},
+				}
+
+				if !featureflag.SetAttrTreeConfig.IsEnabled(ctx) {
+					version, err := gittest.NewCommandFactory(t, cfg).GitVersion(ctx)
+					require.NoError(t, err)
+
+					if version.GreaterOrEqual(git.NewVersion(2, 46, 0, 0)) {
+						expectedResponse[0].Binary = false
+						expectedResponse[0].Patch = []byte("@@ -1 +1 @@\n-foo\n+bar\n")
+					}
+				}
+
 				return setupData{
 					request: &gitalypb.DiffBlobsRequest{
 						Repository: repoProto,
@@ -177,15 +202,7 @@ func TestDiffBlobs(t *testing.T) {
 							},
 						},
 					},
-					expectedResponses: []*gitalypb.DiffBlobsResponse{
-						{
-							LeftBlobId:  blobID1.String(),
-							RightBlobId: blobID2.String(),
-							Patch:       []byte(fmt.Sprintf("Binary files a/foo and b/%s differ\n", blobID2.String())),
-							Status:      gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
-							Binary:      true,
-						},
-					},
+					expectedResponses: expectedResponse,
 				}
 			},
 		},

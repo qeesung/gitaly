@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/catfile"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
@@ -281,7 +282,16 @@ func TestRepo_ObjectHash(t *testing.T) {
 	require.Equal(t, gittest.DefaultObjectHash.EmptyTreeOID, objectHash.EmptyTreeOID)
 
 	// We should see that the detection logic has been executed once.
-	require.Equal(t, "detection-logic\n", string(testhelper.MustReadFile(t, outputFile)))
+	// But if we're adding the `attr.tree` config, we also check the object
+	// hash there to get the empty tree OID, so the logic would be executed
+	// once more.
+	require.Equal(t,
+		testhelper.EnabledOrDisabledFlag(ctx,
+			featureflag.SetAttrTreeConfig,
+			"detection-logic\ndetection-logic\n",
+			"detection-logic\n"),
+		string(testhelper.MustReadFile(t, outputFile)),
+	)
 
 	// Verify that running this a second time continues to return the object hash alright
 	// regardless of the cache.
@@ -290,5 +300,12 @@ func TestRepo_ObjectHash(t *testing.T) {
 	require.Equal(t, gittest.DefaultObjectHash.EmptyTreeOID, objectHash.EmptyTreeOID)
 
 	// But the detection logic should not have been executed a second time.
-	require.Equal(t, "detection-logic\n", string(testhelper.MustReadFile(t, outputFile)))
+	// Read the comment in the first check for logic regarding the flag.
+	require.Equal(t,
+		testhelper.EnabledOrDisabledFlag(ctx,
+			featureflag.SetAttrTreeConfig,
+			"detection-logic\ndetection-logic\n",
+			"detection-logic\n"),
+		string(testhelper.MustReadFile(t, outputFile)),
+	)
 }
