@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/dgraph-io/badger/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
@@ -32,6 +33,15 @@ import (
 type stoppedTransactionManager struct{ transactionManager }
 
 func (stoppedTransactionManager) Run() error { return nil }
+
+func requirePartitionOpen(t *testing.T, storageMgr *storageManager, ptnID storage.PartitionID, expectOpen bool) {
+	t.Helper()
+
+	storageMgr.mu.Lock()
+	defer storageMgr.mu.Unlock()
+	_, ptnOpen := storageMgr.partitions[ptnID]
+	require.Equal(t, expectOpen, ptnOpen)
+}
 
 // blockOnPartitionClosing checks if any partitions are currently in the process of
 // closing. If some are, the function waits for the closing process to complete before
@@ -1032,19 +1042,10 @@ func TestPartitionManager_callLogManager(t *testing.T) {
 	require.True(t, ok)
 
 	ptnID := storage.PartitionID(1)
-	requirePartitionOpen := func(expectOpen bool) {
-		t.Helper()
-
-		storageMgr.mu.Lock()
-		defer storageMgr.mu.Unlock()
-		_, ptnOpen := storageMgr.partitions[ptnID]
-		require.Equal(t, expectOpen, ptnOpen)
-	}
-
-	requirePartitionOpen(false)
+	requirePartitionOpen(t, storageMgr, ptnID, false)
 
 	require.NoError(t, partitionManager.CallLogManager(ctx, cfg.Storages[0].Name, ptnID, func(lm LogManager) {
-		requirePartitionOpen(true)
+		requirePartitionOpen(t, storageMgr, ptnID, true)
 		tm, ok := lm.(*TransactionManager)
 		require.True(t, ok)
 
@@ -1052,5 +1053,170 @@ func TestPartitionManager_callLogManager(t *testing.T) {
 	}))
 
 	blockOnPartitionClosing(t, partitionManager)
-	requirePartitionOpen(false)
+	requirePartitionOpen(t, storageMgr, ptnID, false)
+}
+
+func TestPartitionManager_StorageKV(t *testing.T) {
+	t.Parallel()
+
+	setupPartitionManager := func(t *testing.T, ctx context.Context, cfg config.Cfg) *PartitionManager {
+		logger := testhelper.SharedLogger(t)
+
+		cmdFactory := gittest.NewCommandFactory(t, cfg)
+		catfileCache := catfile.NewCache(cfg)
+		defer catfileCache.Stop()
+
+		localRepoFactory := localrepo.NewFactory(logger, config.NewLocator(cfg), cmdFactory, catfileCache)
+
+		dbMgr, err := keyvalue.NewDBManager(cfg.Storages, keyvalue.NewBadgerStore, helper.NewNullTickerFactory(), logger)
+		require.NoError(t, err)
+
+		partitionManager, err := NewPartitionManager(ctx, cfg.Storages, cmdFactory, localRepoFactory, logger, dbMgr, cfg.Prometheus, nil)
+		require.NoError(t, err)
+
+		t.Cleanup(partitionManager.Close)
+		t.Cleanup(dbMgr.Close)
+
+		return partitionManager
+	}
+
+	t.Run("read/write/delete keys successfully", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := testhelper.Context(t)
+		cfg := testcfg.Build(t)
+		partitionManager := setupPartitionManager(t, ctx, cfg)
+
+		storageMgr, ok := partitionManager.storages[cfg.Storages[0].Name]
+		require.True(t, ok)
+
+		ptnID := storage.PartitionID(storagePartitionID)
+
+		requirePartitionOpen(t, storageMgr, ptnID, false)
+
+		require.NoError(t, partitionManager.StorageKV(ctx, cfg.Storages[0].Name, func(kv keyvalue.ReadWriter) error {
+			requirePartitionOpen(t, storageMgr, ptnID, true)
+
+			require.NoError(t, kv.Set([]byte("key1"), []byte("value1")))
+			require.NoError(t, kv.Set([]byte("key2"), []byte("value2")))
+			return nil
+		}))
+
+		blockOnPartitionClosing(t, partitionManager)
+		requirePartitionOpen(t, storageMgr, ptnID, false)
+
+		require.NoError(t, partitionManager.StorageKV(ctx, cfg.Storages[0].Name, func(kv keyvalue.ReadWriter) error {
+			requirePartitionOpen(t, storageMgr, ptnID, true)
+
+			item, err := kv.Get([]byte("key1"))
+			require.NoError(t, err)
+			require.NoError(t, item.Value(func(val []byte) error {
+				require.Equal(t, []byte("value1"), val)
+				return nil
+			}))
+
+			item, err = kv.Get([]byte("key2"))
+			require.NoError(t, err)
+			require.NoError(t, item.Value(func(val []byte) error {
+				require.Equal(t, []byte("value2"), val)
+				return nil
+			}))
+
+			it := kv.NewIterator(keyvalue.IteratorOptions{})
+			defer it.Close()
+			values := map[string][]byte{}
+			for it.Rewind(); it.Valid(); it.Next() {
+				require.NoError(t, it.Item().Value(func(v []byte) error {
+					values[string(it.Item().Key())] = v
+					return nil
+				}))
+			}
+			require.Equal(t, map[string][]byte{
+				"key1": []byte("value1"),
+				"key2": []byte("value2"),
+			}, values)
+
+			require.NoError(t, kv.Delete([]byte("key1")))
+
+			return nil
+		}))
+
+		blockOnPartitionClosing(t, partitionManager)
+		requirePartitionOpen(t, storageMgr, ptnID, false)
+
+		require.NoError(t, partitionManager.StorageKV(ctx, cfg.Storages[0].Name, func(kv keyvalue.ReadWriter) error {
+			requirePartitionOpen(t, storageMgr, ptnID, true)
+
+			_, err := kv.Get([]byte("key1"))
+			require.Equal(t, badger.ErrKeyNotFound, err)
+
+			return nil
+		}))
+
+		blockOnPartitionClosing(t, partitionManager)
+		requirePartitionOpen(t, storageMgr, ptnID, false)
+	})
+
+	t.Run("rollback a failed operation", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := testhelper.Context(t)
+		cfg := testcfg.Build(t)
+		partitionManager := setupPartitionManager(t, ctx, cfg)
+
+		storageMgr, ok := partitionManager.storages[cfg.Storages[0].Name]
+		require.True(t, ok)
+
+		ptnID := storage.PartitionID(storagePartitionID)
+
+		requirePartitionOpen(t, storageMgr, ptnID, false)
+
+		// Set key1, key2
+		require.NoError(t, partitionManager.StorageKV(ctx, cfg.Storages[0].Name, func(kv keyvalue.ReadWriter) error {
+			requirePartitionOpen(t, storageMgr, ptnID, true)
+
+			require.NoError(t, kv.Set([]byte("key1"), []byte("value1")))
+			require.NoError(t, kv.Set([]byte("key2"), []byte("value2")))
+			return nil
+		}))
+
+		blockOnPartitionClosing(t, partitionManager)
+		requirePartitionOpen(t, storageMgr, ptnID, false)
+
+		// Attempt to delete key1 and set key2
+		require.EqualError(t, partitionManager.StorageKV(ctx, cfg.Storages[0].Name, func(kv keyvalue.ReadWriter) error {
+			requirePartitionOpen(t, storageMgr, ptnID, true)
+
+			require.NoError(t, kv.Delete([]byte("key1")))
+			require.NoError(t, kv.Set([]byte("key3"), []byte("value3")))
+
+			return fmt.Errorf("something goes wrong")
+		}), "something goes wrong")
+
+		blockOnPartitionClosing(t, partitionManager)
+		requirePartitionOpen(t, storageMgr, ptnID, false)
+
+		// The above update doesn't take any effect because the underlying transaction is rolled back.
+		require.NoError(t, partitionManager.StorageKV(ctx, cfg.Storages[0].Name, func(kv keyvalue.ReadWriter) error {
+			requirePartitionOpen(t, storageMgr, ptnID, true)
+
+			it := kv.NewIterator(keyvalue.IteratorOptions{})
+			defer it.Close()
+			values := map[string][]byte{}
+			for it.Rewind(); it.Valid(); it.Next() {
+				require.NoError(t, it.Item().Value(func(v []byte) error {
+					values[string(it.Item().Key())] = v
+					return nil
+				}))
+			}
+			require.Equal(t, map[string][]byte{
+				"key1": []byte("value1"),
+				"key2": []byte("value2"),
+			}, values)
+			return nil
+		}))
+
+		blockOnPartitionClosing(t, partitionManager)
+		requirePartitionOpen(t, storageMgr, ptnID, false)
+	})
 }
