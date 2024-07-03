@@ -97,7 +97,14 @@ func loadConfig(configPath string) (config.Cfg, error) {
 		return config.Cfg{}, err
 	}
 
-	if err := cfg.Validate(); err != nil {
+	var validateFunc func() error
+	if useValidateV2, _ := env.GetBool("GITALY_USE_VALIDATE_V2", false); useValidateV2 {
+		validateFunc = cfg.ValidateV2
+	} else {
+		validateFunc = cfg.Validate
+	}
+
+	if err := validateFunc(); err != nil {
 		return config.Cfg{}, fmt.Errorf("invalid config: %w", err)
 	}
 

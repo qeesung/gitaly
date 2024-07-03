@@ -4,10 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/duration"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
@@ -120,10 +122,6 @@ func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
 		require.NoError(tb, os.WriteFile(cfg.Gitlab.SecretFile, nil, perm.PublicFile))
 	}
 
-	// cfg.SetDefaults() should only be called after cfg.Gitlab.SecretFile is set (so it doesn't override it with
-	// its own) and before cfg.Storages is set (so it doesn't attempt to attach a storage to cfg.DailyMaintenance).
-	require.NoError(tb, cfg.SetDefaults())
-
 	if len(cfg.Storages) == 0 {
 		storagesDir := filepath.Join(root, "storages.d")
 		require.NoError(tb, os.Mkdir(storagesDir, perm.SharedDir))
@@ -142,9 +140,17 @@ func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
 		}
 	}
 
+	// Set a non-empty DailyJob so that calling SetDefault() below doesn't attempt to attach a storage to cfg.DailyMaintenance.
+	cfg.DailyMaintenance = config.DailyJob{
+		Hour:     12,
+		Minute:   0,
+		Duration: duration.Duration(10 * time.Minute),
+	}
+
 	cfg.Transactions.Enabled = testhelper.IsWALEnabled()
 
-	require.NoError(tb, cfg.Validate())
+	require.NoError(tb, cfg.SetDefaults())
+	require.NoError(tb, cfg.ValidateV2())
 
 	return cfg
 }
