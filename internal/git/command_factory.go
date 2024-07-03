@@ -663,26 +663,6 @@ func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]Config
 		// disable this mechanism.
 		{Key: "core.useReplaceRefs", Value: "false"},
 
-		// When deleting references, Git needs to rewrite the `packed-refs` file to evict
-		// the reference from it. In order to not race with concurrent writers it thus needs
-		// to lock the file for concurrent access. This lock is thus a shared resource, and
-		// in high-activity repositories we see a lot of contention around this lock: for
-		// once because we typically have many writes there, but second because these repos
-		// tend to have many references and thus rewriting the `packed-refs` file takes
-		// proportionally longer.
-		//
-		// Git has a default timeout of 1 second to try and lock the file. In practice
-		// though we see that this is not sufficient, and epsecially the `DeleteRefs` RPC is
-		// erroring out very frequently. We thus increase the timeout to 10 seconds. While
-		// comparatively high, context cancellation would still cause us to exit early in
-		// case the caller doesn't want to wait this long.
-		{Key: "core.packedRefsTimeout", Value: "10000"},
-		// Similarly, for loose references we bump the limit from 100 milliseconds to 1 second. We aim for a
-		// lower limit here as the locking for loose references is typically a lot more fine-grained. We have
-		// still observed lock contention around them though, but mostly in cases where the host system was
-		// heavily loaded by a storm of incoming RPCs.
-		{Key: "core.filesRefLockTimeout", Value: "1000"},
-
 		// Change the size of files we consider to be big from 512MB to 50MB. This setting influences a bunch of
 		// things for blobs that are larger than this size:
 		//
@@ -718,6 +698,30 @@ func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]Config
 			// likelihood of repository corruption in case the server crashes.
 			ConfigPair{Key: "core.fsync", Value: "objects,derived-metadata,reference"},
 			ConfigPair{Key: "core.fsyncMethod", Value: "fsync"},
+
+			// The lock timeouts below are not set when transactions are in use as they are
+			// unnecessary. Transactions execute against their own snapshots and won't encounter
+			// lock files created by other transactions.
+			//
+			// When deleting references, Git needs to rewrite the `packed-refs` file to evict
+			// the reference from it. In order to not race with concurrent writers it thus needs
+			// to lock the file for concurrent access. This lock is thus a shared resource, and
+			// in high-activity repositories we see a lot of contention around this lock: for
+			// once because we typically have many writes there, but second because these repos
+			// tend to have many references and thus rewriting the `packed-refs` file takes
+			// proportionally longer.
+			//
+			// Git has a default timeout of 1 second to try and lock the file. In practice
+			// though we see that this is not sufficient, and especially the `DeleteRefs` RPC is
+			// erroring out very frequently. We thus increase the timeout to 10 seconds. While
+			// comparatively high, context cancellation would still cause us to exit early in
+			// case the caller doesn't want to wait this long.
+			ConfigPair{Key: "core.packedRefsTimeout", Value: "10000"},
+			// Similarly, for loose references we bump the limit from 100 milliseconds to 1 second. We aim for a
+			// lower limit here as the locking for loose references is typically a lot more fine-grained. We have
+			// still observed lock contention around them though, but mostly in cases where the host system was
+			// heavily loaded by a storm of incoming RPCs.
+			ConfigPair{Key: "core.filesRefLockTimeout", Value: "1000"},
 		)
 	}
 
