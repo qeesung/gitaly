@@ -20,6 +20,12 @@ var (
 		"GO-2024-2887": {
 			GitLabIssueURL: "https://gitlab.com/gitlab-org/gitaly/-/issues/6116",
 		},
+		"GO-2024-2963": {
+			GitLabIssueURL: "https://gitlab.com/gitlab-org/gitaly/-/issues/6185",
+		},
+		"GO-2024-2918": {
+			GitLabIssueURL: "https://gitlab.com/gitlab-org/gitaly/-/issues/6186",
+		},
 	}
 
 	outputPrologue = `
