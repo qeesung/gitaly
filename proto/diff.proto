@@ -580,6 +580,9 @@ message DiffBlobsRequest {
   // whitespace_changes states which whitespace changes should be included in the diff. Refer to the
   // enum declaration above for supported modes.
   WhitespaceChanges whitespace_changes = 4;
+  // patch_bytes_limit is the max size in bytes of a single patch generated from a pair of blobs.
+  // Patches surpassing this limit are pruned. If set to zero, no limit is enforced.
+  int32 patch_bytes_limit = 5;
 }
 
 // DiffBlobsResponse is a response for the DiffBlobs RPC.
@@ -605,4 +608,6 @@ message DiffBlobsResponse {
   // binary indicates whether or not the diff compares binary data. If Git considers either blob to
   // be binary, Git only reports whether the files differ.
   bool binary = 5;
+  // over_patch_bytes_limit indicates the patch was pruned since it surpassed the set limit.
+  bool over_patch_bytes_limit = 6;
 }

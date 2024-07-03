@@ -659,6 +659,78 @@ func TestDiffBlobs(t *testing.T) {
 				}
 			},
 		},
+		{
+			desc: "diff limit exceeded",
+			setup: func() setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				blobID1 := gittest.WriteBlob(t, cfg, repoPath, []byte("foo\n"))
+				blobID2 := gittest.WriteBlob(t, cfg, repoPath, []byte("bar\n"))
+
+				return setupData{
+					request: &gitalypb.DiffBlobsRequest{
+						Repository: repoProto,
+						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
+							{
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
+							},
+						},
+						PatchBytesLimit: 1,
+					},
+					expectedResponses: []*gitalypb.DiffBlobsResponse{
+						{
+							LeftBlobId:          blobID1.String(),
+							RightBlobId:         blobID2.String(),
+							Status:              gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
+							OverPatchBytesLimit: true,
+						},
+					},
+				}
+			},
+		},
+		{
+			desc: "single diff limit exceeded in batch",
+			setup: func() setupData {
+				repoProto, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				blobID1 := gittest.WriteBlob(t, cfg, repoPath, []byte("foo\n"))
+				blobID2 := gittest.WriteBlob(t, cfg, repoPath, []byte("bar\n"))
+				blobID3 := gittest.WriteBlob(t, cfg, repoPath, []byte("foo bar baz\n"))
+
+				return setupData{
+					request: &gitalypb.DiffBlobsRequest{
+						Repository: repoProto,
+						BlobPairs: []*gitalypb.DiffBlobsRequest_BlobPair{
+							{
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID3),
+							},
+							{
+								LeftBlob:  []byte(blobID1),
+								RightBlob: []byte(blobID2),
+							},
+						},
+						PatchBytesLimit: 23,
+					},
+					expectedResponses: []*gitalypb.DiffBlobsResponse{
+						{
+							LeftBlobId:          blobID1.String(),
+							RightBlobId:         blobID3.String(),
+							Status:              gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
+							OverPatchBytesLimit: true,
+						},
+						{
+							LeftBlobId:          blobID1.String(),
+							RightBlobId:         blobID2.String(),
+							Patch:               []byte("@@ -1 +1 @@\n-foo\n+bar\n"),
+							Status:              gitalypb.DiffBlobsResponse_STATUS_END_OF_PATCH,
+							OverPatchBytesLimit: false,
+						},
+					},
+				}
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
