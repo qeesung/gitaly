@@ -804,11 +804,20 @@ func TestExecCommandFactory_config(t *testing.T) {
 		"maintenance.auto=0",
 		"core.autocrlf=false",
 		"core.usereplacerefs=false",
-		"core.fsync=objects,derived-metadata,reference",
-		"core.fsyncmethod=fsync",
 		"core.packedrefstimeout=10000",
 		"core.filesreflocktimeout=1000",
 		"core.bigfilethreshold=50m",
+	}
+
+	if testhelper.IsWALEnabled() {
+		expectedEnv = append(expectedEnv,
+			"core.fsync=none",
+		)
+	} else {
+		expectedEnv = append(expectedEnv,
+			"core.fsync=objects,derived-metadata,reference",
+			"core.fsyncmethod=fsync",
+		)
 	}
 
 	if featureflag.SetAttrTreeConfig.IsEnabled(ctx) {

@@ -663,12 +663,6 @@ func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]Config
 		// disable this mechanism.
 		{Key: "core.useReplaceRefs", Value: "false"},
 
-		// We configure for what data should be fsynced and how that should happen.
-		// Synchronize object files, packed-refs and loose refs to disk to lessen the
-		// likelihood of repository corruption in case the server crashes.
-		{Key: "core.fsync", Value: "objects,derived-metadata,reference"},
-		{Key: "core.fsyncMethod", Value: "fsync"},
-
 		// When deleting references, Git needs to rewrite the `packed-refs` file to evict
 		// the reference from it. In order to not race with concurrent writers it thus needs
 		// to lock the file for concurrent access. This lock is thus a shared resource, and
@@ -708,6 +702,23 @@ func (cf *ExecCommandFactory) GlobalConfiguration(ctx context.Context) ([]Config
 		// packfile window anyway while it should on the other hand lead to lower memory consumption and faster
 		// computation of diffs when large blobs are involved.
 		{Key: "core.bigFileThreshold", Value: fmt.Sprintf("%dm", BigFileThresholdMB)},
+	}
+
+	if cf.cfg.Transactions.Enabled {
+		config = append(config,
+			// When transactions are enabled, the TransactionManager is responsible for
+			// fsyncing as needed. Disable fsyncing by Git as they'd lead to unnecessarily
+			// fsyncing the data in transaction snapshots.
+			ConfigPair{Key: "core.fsync", Value: "none"},
+		)
+	} else {
+		config = append(config,
+			// We configure for what data should be fsynced and how that should happen.
+			// Synchronize object files, packed-refs and loose refs to disk to lessen the
+			// likelihood of repository corruption in case the server crashes.
+			ConfigPair{Key: "core.fsync", Value: "objects,derived-metadata,reference"},
+			ConfigPair{Key: "core.fsyncMethod", Value: "fsync"},
+		)
 	}
 
 	return config, nil
