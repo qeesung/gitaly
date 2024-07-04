@@ -87,13 +87,9 @@ var (
 	errConcurrentAlternateUnlink = errors.New("concurrent alternate unlinking with repack")
 
 	// Below errors are used to error out in cases when updates have been staged in a read-only transaction.
-	errReadOnlyReferenceUpdates    = errors.New("reference updates staged in a read-only transaction")
-	errReadOnlyDefaultBranchUpdate = errors.New("default branch update staged in a read-only transaction")
-	errReadOnlyCustomHooksUpdate   = errors.New("custom hooks update staged in a read-only transaction")
-	errReadOnlyRepositoryDeletion  = errors.New("repository deletion staged in a read-only transaction")
-	errReadOnlyObjectsIncluded     = errors.New("objects staged in a read-only transaction")
-	errReadOnlyHousekeeping        = errors.New("housekeeping in a read-only transaction")
-	errReadOnlyKeyValue            = errors.New("key-value writes in a read-only transaction")
+	errReadOnlyRepositoryDeletion = errors.New("repository deletion staged in a read-only transaction")
+	errReadOnlyHousekeeping       = errors.New("housekeeping in a read-only transaction")
+	errReadOnlyKeyValue           = errors.New("key-value writes in a read-only transaction")
 
 	// keyAppliedLSN is the database key storing a partition's last applied log entry's LSN.
 	keyAppliedLSN = []byte("applied_lsn")
@@ -561,16 +557,8 @@ func (txn *Transaction) Commit(ctx context.Context) (returnedErr error) {
 		// accidentally staged in a read-only transaction. The changes would not be anyway
 		// performed as read-only transactions are not committed through the manager.
 		switch {
-		case txn.referenceUpdates != nil:
-			return errReadOnlyReferenceUpdates
-		case txn.defaultBranchUpdated:
-			return errReadOnlyDefaultBranchUpdate
-		case txn.customHooksUpdated:
-			return errReadOnlyCustomHooksUpdate
 		case txn.deleteRepository:
 			return errReadOnlyRepositoryDeletion
-		case txn.includedObjects != nil:
-			return errReadOnlyObjectsIncluded
 		case txn.runHousekeeping != nil:
 			return errReadOnlyHousekeeping
 		case len(txn.recordingReadWriter.WriteSet()) > 0:

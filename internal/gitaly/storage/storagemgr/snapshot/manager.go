@@ -95,7 +95,7 @@ func (mgr *Manager) SetLSN(currentLSN storage.LSN) {
 func (mgr *Manager) GetSnapshot(ctx context.Context, relativePaths []string, exclusive bool) (_ FileSystem, returnedErr error) {
 	if exclusive {
 		mgr.metrics.createdExclusiveSnapshotTotal.Inc()
-		filesystem, err := mgr.newSnapshot(ctx, relativePaths)
+		filesystem, err := mgr.newSnapshot(ctx, relativePaths, false)
 		if err != nil {
 			return nil, fmt.Errorf("new exclusive snapshot: %w", err)
 		}
@@ -185,7 +185,7 @@ func (mgr *Manager) GetSnapshot(ctx context.Context, relativePaths []string, exc
 	if !ok {
 		mgr.metrics.createdSharedSnapshotTotal.Inc()
 		// If there was no existing snapshot, we need to create it.
-		wrapper.filesystem, wrapper.snapshotErr = mgr.newSnapshot(ctx, relativePaths)
+		wrapper.filesystem, wrapper.snapshotErr = mgr.newSnapshot(ctx, relativePaths, true)
 		// Other goroutines are waiting on the ready channel for us to finish the snapshotting
 		// so close it to signal the process is finished.
 		close(wrapper.ready)
@@ -208,11 +208,12 @@ func (mgr *Manager) GetSnapshot(ctx context.Context, relativePaths []string, exc
 	}, nil
 }
 
-func (mgr *Manager) newSnapshot(ctx context.Context, relativePaths []string) (FileSystem, error) {
+func (mgr *Manager) newSnapshot(ctx context.Context, relativePaths []string, readOnly bool) (FileSystem, error) {
 	return newSnapshot(ctx,
 		mgr.storageDir,
 		filepath.Join(mgr.workingDir, strconv.FormatUint(mgr.nextDirectory.Add(1), 36)),
 		relativePaths,
+		readOnly,
 	)
 }
 
