@@ -145,11 +145,11 @@ func TestEntry(t *testing.T) {
 			expectedOperations: func() operations {
 				var ops operations
 				ops.removeDirectoryEntry("sentinel-op")
-				ops.createDirectory("test-dir", perm.PrivateDir)
+				ops.createDirectory("test-dir")
 				ops.createHardLink("1", "test-dir/file-1", false)
-				ops.createDirectory("test-dir/subdir-private", perm.PrivateDir)
+				ops.createDirectory("test-dir/subdir-private")
 				ops.createHardLink("2", "test-dir/subdir-private/file-2", false)
-				ops.createDirectory("test-dir/subdir-shared", perm.SharedDir)
+				ops.createDirectory("test-dir/subdir-shared")
 				ops.createHardLink("3", "test-dir/subdir-shared/file-3", false)
 				return ops
 			}(),
@@ -168,11 +168,11 @@ func TestEntry(t *testing.T) {
 			expectedOperations: func() operations {
 				var ops operations
 				ops.removeDirectoryEntry("sentinel-op")
-				ops.createDirectory("second-level/test-dir", perm.PrivateDir)
+				ops.createDirectory("second-level/test-dir")
 				ops.createHardLink("1", "second-level/test-dir/file-1", false)
-				ops.createDirectory("second-level/test-dir/subdir-private", perm.PrivateDir)
+				ops.createDirectory("second-level/test-dir/subdir-private")
 				ops.createHardLink("2", "second-level/test-dir/subdir-private/file-2", false)
-				ops.createDirectory("second-level/test-dir/subdir-shared", perm.SharedDir)
+				ops.createDirectory("second-level/test-dir/subdir-shared")
 				ops.createHardLink("3", "second-level/test-dir/subdir-shared/file-3", false)
 				return ops
 			}(),
@@ -290,10 +290,10 @@ func TestRecordAlternateUnlink(t *testing.T) {
 			},
 			expectedOperations: func() operations {
 				var ops operations
-				ops.createDirectory("target/objects/3f", perm.PrivateDir)
+				ops.createDirectory("target/objects/3f")
 				ops.createHardLink("source/objects/3f/1", "target/objects/3f/1", true)
 				ops.createHardLink("source/objects/3f/2", "target/objects/3f/2", true)
-				ops.createDirectory("target/objects/4f", perm.SharedDir)
+				ops.createDirectory("target/objects/4f")
 				ops.createHardLink("source/objects/4f/3", "target/objects/4f/3", true)
 				ops.createHardLink("source/objects/pack/pack.idx", "target/objects/pack/pack.idx", true)
 				ops.createHardLink("source/objects/pack/pack.pack", "target/objects/pack/pack.pack", true)
@@ -422,10 +422,10 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						var ops operations
 						ops.createHardLink("1", "relative-path/refs/heads/branch-1", false)
 						ops.createHardLink("2", "relative-path/refs/heads/branch-2", false)
-						ops.createDirectory("relative-path/refs/heads/subdir", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/heads/subdir")
 						ops.createHardLink("3", "relative-path/refs/heads/subdir/branch-3", false)
 						ops.createHardLink("4", "relative-path/refs/heads/subdir/branch-4", false)
-						ops.createDirectory("relative-path/refs/heads/subdir/no-refs", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/heads/subdir/no-refs")
 						ops.createHardLink("5", "relative-path/refs/heads/subdir/no-refs/branch-5", false)
 						return ops
 					}(),
@@ -573,9 +573,9 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						var ops operations
 						ops.removeDirectoryEntry("relative-path/refs/heads/parent")
 						ops.createHardLink("1", "relative-path/refs/heads/branch-1", false)
-						ops.createDirectory("relative-path/refs/heads/parent", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/heads/parent")
 						ops.createHardLink("2", "relative-path/refs/heads/parent/branch-2", false)
-						ops.createDirectory("relative-path/refs/heads/parent/subdir", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/heads/parent/subdir")
 						ops.createHardLink("3", "relative-path/refs/heads/parent/subdir/branch-3", false)
 						return ops
 					}(),
@@ -627,8 +627,8 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						//
 						// We assert here the directory created by the deletion is properly logged to ensure
 						// it exists when we attempt to create the child directory.
-						ops.createDirectory("relative-path/refs/remotes", umask.Mask(fs.ModePerm))
-						ops.createDirectory("relative-path/refs/remotes/upstream", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/remotes")
+						ops.createDirectory("relative-path/refs/remotes/upstream")
 						ops.createHardLink("1", "relative-path/refs/remotes/upstream/created-branch", false)
 						return ops
 					}(),
