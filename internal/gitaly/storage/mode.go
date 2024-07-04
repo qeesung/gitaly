@@ -5,5 +5,11 @@ import "io/fs"
 const (
 	// ModeDirectory is the mode directories are stored with in the storage.
 	// It gives the owner read, write, and execute permissions on directories.
-	ModeDirectory = fs.ModeDir | 0o700
+	ModeDirectory fs.FileMode = fs.ModeDir | 0o700
+	// ModeExecutable is the mode executable files are stored with in the storage.
+	// It gives the owner read and execute permissions on the executable files.
+	ModeExecutable fs.FileMode = 0o500
+	// ModeFile is the mode files are stored with in the storage.
+	// It gives the owner read permissions on the files.
+	ModeFile fs.FileMode = 0o400
 )
