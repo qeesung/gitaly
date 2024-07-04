@@ -116,11 +116,19 @@ func testUploadPackGitConfig(t *testing.T, ctx context.Context) {
 				},
 				{
 					Key:   "bundle.mode",
-					Value: "any",
+					Value: "all",
+				},
+				{
+					Key:   "bundle.heuristic",
+					Value: "creationToken",
 				},
 				{
 					Key:   "bundle.default.uri",
 					Value: "https://example.com/bundle.git?signed=ok",
+				},
+				{
+					Key:   "bundle.default.creationToken",
+					Value: "1",
 				},
 			},
 		},

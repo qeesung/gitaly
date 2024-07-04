@@ -63,11 +63,33 @@ func UploadPackGitConfig(
 		},
 		{
 			Key:   "bundle.mode",
-			Value: "any",
+			Value: "all",
+		},
+		{
+			Key:   "bundle.heuristic",
+			Value: "creationToken",
 		},
 		{
 			Key:   fmt.Sprintf("bundle.%s.uri", defaultBundle),
 			Value: uri,
+		},
+		{
+			// Gitaly uses only one bundle URI bundle, and it's a
+			// bundle that contains the full history up to the point
+			// when the bundle was generated. When the client is
+			// enabled to download bundle URIs on git-fetch(1)
+			// (see https://gitlab.com/gitlab-org/git/-/issues/271),
+			// we want to avoid it to download that bundle, because
+			// the client probably has most of the history already.
+			//
+			// Thus we set `creationToken` to a fixed value "1".
+			// When Git fetches the bundle URI, it saved this value
+			// to `fetch.bundleCreationToken` in the repository's
+			// git config. The next time Git attempts to fetch
+			// bundles, it ignores all bundles with `creationToken`
+			// lower or equal to the saved value.
+			Key:   fmt.Sprintf("bundle.%s.creationToken", defaultBundle),
+			Value: "1",
 		},
 	}, nil
 }
