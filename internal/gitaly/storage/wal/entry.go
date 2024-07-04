@@ -13,6 +13,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
@@ -25,6 +26,10 @@ type Entry struct {
 	operations operations
 	// stateDirectory is the directory where the entry's state is stored.
 	stateDirectory string
+}
+
+func newIrregularFileStagedError(mode fs.FileMode) error {
+	return structerr.NewInvalidArgument("irregular file staged").WithMetadata("mode", mode.String())
 }
 
 // NewEntry returns a new Entry that can be used to construct a write-ahead
@@ -42,6 +47,17 @@ func (e *Entry) Operations() []*gitalypb.LogEntry_Operation {
 // The file's name in the state directory is returned and can be used to link the file
 // subsequently into the correct location.
 func (e *Entry) stageFile(path string) (string, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return "", fmt.Errorf("lstat: %w", err)
+	}
+
+	// Error out if there is an attempt to stage someting other than a regular file, ie.
+	// symlink, directory or anything else.
+	if !info.Mode().IsRegular() {
+		return "", newIrregularFileStagedError(info.Mode().Type())
+	}
+
 	e.fileIDSequence++
 
 	// We use base 36 as it produces shorter names and thus smaller log entries.
