@@ -27,6 +27,10 @@ type Entry struct {
 	stateDirectory string
 }
 
+func newIrregularFileStagedError(mode fs.FileMode) error {
+	return fmt.Errorf("irregular file staged: %q", mode)
+}
+
 // NewEntry returns a new Entry that can be used to construct a write-ahead
 // log entry.
 func NewEntry(stateDirectory string) *Entry {
@@ -42,6 +46,17 @@ func (e *Entry) Operations() []*gitalypb.LogEntry_Operation {
 // The file's name in the state directory is returned and can be used to link the file
 // subsequently into the correct location.
 func (e *Entry) stageFile(path string) (string, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return "", fmt.Errorf("lstat: %w", err)
+	}
+
+	// Error out if there is an attempt to stage someting other than a regular file, ie.
+	// symlink, directory or anything else.
+	if !info.Mode().IsRegular() {
+		return "", newIrregularFileStagedError(info.Mode().Type())
+	}
+
 	e.fileIDSequence++
 
 	// We use base 36 as it produces shorter names and thus smaller log entries.

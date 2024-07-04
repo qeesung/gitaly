@@ -40,6 +40,12 @@ func TestEntry(t *testing.T) {
 	setupTestDirectory(t, filepath.Join(storageRoot, firstLevelDir))
 	setupTestDirectory(t, filepath.Join(storageRoot, secondLevelDir))
 
+	symlinkPath := filepath.Join(storageRoot, "symlink-to-file")
+	require.NoError(t, os.Symlink(
+		filepath.Join(storageRoot, "root-file"),
+		symlinkPath,
+	))
+
 	rootDirPerm := testhelper.Umask().Mask(fs.ModePerm)
 
 	for _, tc := range []struct {
@@ -48,6 +54,21 @@ func TestEntry(t *testing.T) {
 		expectedOperations operations
 		expectedFiles      testhelper.DirectoryState
 	}{
+		{
+			desc: "stage non-regular file",
+			run: func(t *testing.T, entry *Entry) {
+				_, err := entry.stageFile(symlinkPath)
+				require.Equal(t, newIrregularFileStagedError(fs.ModeSymlink), err)
+			},
+			expectedOperations: func() operations {
+				var ops operations
+				ops.removeDirectoryEntry("sentinel-op")
+				return ops
+			}(),
+			expectedFiles: testhelper.DirectoryState{
+				"/": {Mode: fs.ModeDir | rootDirPerm},
+			},
+		},
 		{
 			desc: "RecordFileCreation",
 			run: func(t *testing.T, entry *Entry) {
