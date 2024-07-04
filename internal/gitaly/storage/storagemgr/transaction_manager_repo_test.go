@@ -191,12 +191,12 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: storage.ModeDirectory},
+								"/": {Mode: storage.ModeReadOnlyDirectory},
 								"/pre-receive": {
 									Mode:    storage.ModeExecutable,
 									Content: []byte("hook content"),
 								},
-								"/private-dir":              {Mode: storage.ModeDirectory},
+								"/private-dir":              {Mode: storage.ModeReadOnlyDirectory},
 								"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 							},
 						},

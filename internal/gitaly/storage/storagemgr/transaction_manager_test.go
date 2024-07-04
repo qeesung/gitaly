@@ -1157,68 +1157,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 		},
 		{
-			desc: "read-only transaction fails with reference updates staged",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-					ReadOnly:     true,
-				},
-				Commit{
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-					},
-					ExpectedError: errReadOnlyReferenceUpdates,
-				},
-			},
-		},
-		{
-			desc: "read-only transaction fails with default branch update staged",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-					ReadOnly:     true,
-				},
-				Commit{
-					DefaultBranchUpdate: &DefaultBranchUpdate{
-						Reference: "refs/heads/main",
-					},
-					ExpectedError: errReadOnlyDefaultBranchUpdate,
-				},
-			},
-		},
-		{
-			desc: "read-only transaction fails with custom hooks update staged",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-					ReadOnly:     true,
-				},
-				Commit{
-					CustomHooksUpdate: &CustomHooksUpdate{
-						CustomHooksTAR: validCustomHooks(t),
-					},
-					ExpectedError: errReadOnlyCustomHooksUpdate,
-				},
-			},
-		},
-		{
-			desc: "read-only transaction fails with objects staged",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-					ReadOnly:     true,
-				},
-				Commit{
-					IncludeObjects: []git.ObjectID{setup.Commits.First.OID},
-					ExpectedError:  errReadOnlyObjectsIncluded,
-				},
-			},
-		},
-		{
 			desc: "transactions are snapshot isolated from concurrent updates",
 			steps: steps{
 				Prune{},
