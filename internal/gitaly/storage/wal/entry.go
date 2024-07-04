@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
@@ -55,6 +56,18 @@ func (e *Entry) stageFile(path string) (string, error) {
 	// symlink, directory or anything else.
 	if !info.Mode().IsRegular() {
 		return "", newIrregularFileStagedError(info.Mode().Type())
+	}
+
+	// Strip the write permissions of the files. Our snapshot isolation relies on files not
+	// being modified. Also strip permissions of other users than Gitaly's user.
+	//
+	// ModeExecutable is used as the mask since it has the widest permission bits we allow
+	// with both read and execute permissions set.
+	actualPerms := info.Mode().Perm()
+	if expectedPerms := actualPerms & (storage.ModeExecutable); actualPerms != expectedPerms {
+		if err := os.Chmod(path, expectedPerms); err != nil {
+			return "", fmt.Errorf("chmod: %w", err)
+		}
 	}
 
 	e.fileIDSequence++

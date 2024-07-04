@@ -2,7 +2,6 @@ package storagemgr
 
 import (
 	"bytes"
-	"io/fs"
 	"path/filepath"
 	"testing"
 
@@ -12,13 +11,10 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/gitstorage"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
 
 func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
-	umask := testhelper.Umask()
-
 	return []transactionTestCase{
 		{
 			desc: "repository is linked to alternate on creation",
@@ -1439,11 +1435,11 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 							CustomHooks: testhelper.DirectoryState{
 								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
-									Mode:    umask.Mask(fs.ModePerm),
+									Mode:    storage.ModeExecutable,
 									Content: []byte("hook content"),
 								},
 								"/private-dir":              {Mode: storage.ModeDirectory},
-								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+								"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 							},
 						},
 						"repository-2": {
@@ -1498,11 +1494,11 @@ func generateAlternateTests(t *testing.T, setup testTransactionSetup) []transact
 						CustomHooks: testhelper.DirectoryState{
 							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
-								Mode:    umask.Mask(fs.ModePerm),
+								Mode:    storage.ModeExecutable,
 								Content: []byte("hook content"),
 							},
 							"/private-dir":              {Mode: storage.ModeDirectory},
-							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+							"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 						},
 					},
 					"repository-2": {

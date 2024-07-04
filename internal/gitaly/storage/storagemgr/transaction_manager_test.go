@@ -259,8 +259,6 @@ func TestTransactionManager(t *testing.T) {
 }
 
 func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactionSetup) []transactionTestCase {
-	umask := testhelper.Umask()
-
 	return []transactionTestCase{
 		{
 			desc: "begin returns if context is canceled before initialization",
@@ -407,7 +405,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							},
 						},
 					}),
-					"/wal/0000000000001/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+					"/wal/0000000000001/1": {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 				},
 			},
 		},
@@ -505,11 +503,11 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							CustomHooks: testhelper.DirectoryState{
 								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
-									Mode:    umask.Mask(fs.ModePerm),
+									Mode:    storage.ModeExecutable,
 									Content: []byte("hook content"),
 								},
 								"/private-dir":              {Mode: fs.ModeDir | perm.PrivateDir},
-								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+								"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 							},
 						},
 					},
@@ -1278,11 +1276,11 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							CustomHooks: testhelper.DirectoryState{
 								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
-									Mode:    umask.Mask(fs.ModePerm),
+									Mode:    storage.ModeExecutable,
 									Content: []byte("hook content"),
 								},
 								"/private-dir":              {Mode: storage.ModeDirectory},
-								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+								"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 							},
 						},
 					},
@@ -1313,11 +1311,11 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 						CustomHooks: testhelper.DirectoryState{
 							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
-								Mode:    umask.Mask(fs.ModePerm),
+								Mode:    storage.ModeExecutable,
 								Content: []byte("hook content"),
 							},
 							"/private-dir":              {Mode: storage.ModeDirectory},
-							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+							"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 						},
 					},
 				},
@@ -1351,7 +1349,6 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 			i++
 		}
 	}
-	umask := testhelper.Umask()
 
 	return []transactionTestCase{
 		{
@@ -1631,10 +1628,10 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID)),
-						"/0000000000002/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000002/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-2", setup.Commits.First.OID)),
-						"/0000000000003/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000003/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
 				StartManager{},
@@ -1719,7 +1716,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					// appended log entries at the same time.
 					logEntryPath := filepath.Join(t.TempDir(), "log_entry")
 					require.NoError(t, os.Mkdir(logEntryPath, perm.PrivateDir))
-					require.NoError(t, os.WriteFile(filepath.Join(logEntryPath, "1"), []byte(setup.Commits.First.OID+"\n"), perm.SharedFile))
+					require.NoError(t, os.WriteFile(filepath.Join(logEntryPath, "1"), []byte(setup.Commits.First.OID+"\n"), storage.ModeFile))
 					require.NoError(t, tm.appendLogEntry(map[git.ObjectID]struct{}{setup.Commits.First.OID: {}}, refChangeLogEntry(setup, "refs/heads/branch-3", setup.Commits.First.OID), logEntryPath))
 
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
@@ -1730,13 +1727,13 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID)),
-						"/0000000000002/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000002/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-2", setup.Commits.First.OID)),
-						"/0000000000003/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000003/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000004":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000004/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-3", setup.Commits.First.OID)),
-						"/0000000000004/1":        {Mode: umask.Mask(perm.SharedFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000004/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
 				StartManager{},

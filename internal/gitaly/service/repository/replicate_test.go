@@ -340,7 +340,11 @@ func TestReplicateRepository(t *testing.T) {
 
 				// Corrupt the repository by writing garbage into HEAD to verify the RPC fails to
 				// fetch the source repository and returns an error as expected.
-				require.NoError(t, os.WriteFile(filepath.Join(sourcePath, "HEAD"), []byte("garbage"), perm.PublicFile))
+				//
+				// Remove the HEAD first as the files are read-only with transactions.
+				headPath := filepath.Join(sourcePath, "HEAD")
+				require.NoError(t, os.Remove(headPath))
+				require.NoError(t, os.WriteFile(headPath, []byte("garbage"), perm.PublicFile))
 
 				return setupData{
 					source:        source,
