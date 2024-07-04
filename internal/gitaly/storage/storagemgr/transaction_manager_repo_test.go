@@ -115,12 +115,12 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							setup.Commits.Second.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
 							},
-							"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+							"/private-dir":              {Mode: storage.ModeDirectory},
 							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
 						},
 					},
@@ -195,12 +195,12 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
 								},
-								"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+								"/private-dir":              {Mode: storage.ModeDirectory},
 								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
 							},
 						},
@@ -351,12 +351,12 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							},
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
 							},
-							"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+							"/private-dir":              {Mode: storage.ModeDirectory},
 							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
 						},
 						Objects: []git.ObjectID{
@@ -439,12 +439,12 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							setup.Commits.First.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
 							},
-							"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+							"/private-dir":              {Mode: storage.ModeDirectory},
 							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
 						},
 					},
@@ -896,12 +896,12 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
 								},
-								"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+								"/private-dir":              {Mode: storage.ModeDirectory},
 								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
 							},
 						},

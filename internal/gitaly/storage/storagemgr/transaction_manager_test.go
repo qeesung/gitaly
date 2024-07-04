@@ -503,7 +503,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								setup.Commits.Diverging.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
@@ -1276,12 +1276,12 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
 									Mode:    umask.Mask(fs.ModePerm),
 									Content: []byte("hook content"),
 								},
-								"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+								"/private-dir":              {Mode: storage.ModeDirectory},
 								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
 							},
 						},
@@ -1311,12 +1311,12 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							setup.Commits.First.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
 								Mode:    umask.Mask(fs.ModePerm),
 								Content: []byte("hook content"),
 							},
-							"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
+							"/private-dir":              {Mode: storage.ModeDirectory},
 							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
 						},
 					},

@@ -46,7 +46,13 @@ func TestSetHooksSubcommand(t *testing.T) {
 
 	configPath := testcfg.WriteTemporaryGitalyConfigFile(t, cfg)
 
-	expectedMode := umask.Mask(fs.ModePerm)
+	expectedDirectoryMode := testhelper.WithOrWithoutWAL(
+		// TAR does not store the directory mode in the mode field. It's stored
+		// in the type field of the header. Remove the directory mode bit.
+		storage.ModeDirectory^fs.ModeDir,
+		umask.Mask(fs.ModePerm),
+	)
+
 	for _, tc := range []struct {
 		desc          string
 		setup         func() ([]string, *gitalypb.Repository)
@@ -128,7 +134,7 @@ func TestSetHooksSubcommand(t *testing.T) {
 			},
 			hooks: &bytes.Buffer{},
 			expectedState: testhelper.DirectoryState{
-				"custom_hooks/": {Mode: expectedMode},
+				"custom_hooks/": {Mode: expectedDirectoryMode},
 			},
 		},
 		{
@@ -143,7 +149,7 @@ func TestSetHooksSubcommand(t *testing.T) {
 			},
 			hooks: testhelper.MustCreateCustomHooksTar(t),
 			expectedState: testhelper.DirectoryState{
-				"custom_hooks/":            {Mode: expectedMode},
+				"custom_hooks/":            {Mode: expectedDirectoryMode},
 				"custom_hooks/pre-commit":  {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-commit content")},
 				"custom_hooks/pre-push":    {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-push content")},
 				"custom_hooks/pre-receive": {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-receive content")},
@@ -167,7 +173,7 @@ func TestSetHooksSubcommand(t *testing.T) {
 			},
 			hooks: testhelper.MustCreateCustomHooksTar(t),
 			expectedState: testhelper.DirectoryState{
-				"custom_hooks/":            {Mode: expectedMode},
+				"custom_hooks/":            {Mode: expectedDirectoryMode},
 				"custom_hooks/pre-commit":  {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-commit content")},
 				"custom_hooks/pre-push":    {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-push content")},
 				"custom_hooks/pre-receive": {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-receive content")},
