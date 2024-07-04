@@ -207,7 +207,7 @@ func TestNew_spawnTimeout(t *testing.T) {
 
 	testhelper.RequireGrpcCode(t, err, codes.ResourceExhausted)
 	require.Equal(t, "process spawn timed out after 200ms", limitErr.ErrorMessage)
-	require.Equal(t, durationpb.New(0), limitErr.RetryAfter)
+	require.Equal(t, durationpb.New(0).AsDuration(), limitErr.RetryAfter.AsDuration())
 }
 
 func TestCommand_Wait_contextCancellationKillsCommand(t *testing.T) {
