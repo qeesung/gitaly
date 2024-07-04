@@ -53,6 +53,11 @@ func TestSetHooksSubcommand(t *testing.T) {
 		umask.Mask(fs.ModePerm),
 	)
 
+	expectedExecutableMode := testhelper.WithOrWithoutWAL(
+		storage.ModeExecutable,
+		umask.Mask(perm.SharedExecutable),
+	)
+
 	for _, tc := range []struct {
 		desc          string
 		setup         func() ([]string, *gitalypb.Repository)
@@ -150,9 +155,9 @@ func TestSetHooksSubcommand(t *testing.T) {
 			hooks: testhelper.MustCreateCustomHooksTar(t),
 			expectedState: testhelper.DirectoryState{
 				"custom_hooks/":            {Mode: expectedDirectoryMode},
-				"custom_hooks/pre-commit":  {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-commit content")},
-				"custom_hooks/pre-push":    {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-push content")},
-				"custom_hooks/pre-receive": {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-receive content")},
+				"custom_hooks/pre-commit":  {Mode: expectedExecutableMode, Content: []byte("pre-commit content")},
+				"custom_hooks/pre-push":    {Mode: expectedExecutableMode, Content: []byte("pre-push content")},
+				"custom_hooks/pre-receive": {Mode: expectedExecutableMode, Content: []byte("pre-receive content")},
 			},
 		},
 		{
@@ -174,9 +179,9 @@ func TestSetHooksSubcommand(t *testing.T) {
 			hooks: testhelper.MustCreateCustomHooksTar(t),
 			expectedState: testhelper.DirectoryState{
 				"custom_hooks/":            {Mode: expectedDirectoryMode},
-				"custom_hooks/pre-commit":  {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-commit content")},
-				"custom_hooks/pre-push":    {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-push content")},
-				"custom_hooks/pre-receive": {Mode: umask.Mask(perm.SharedExecutable), Content: []byte("pre-receive content")},
+				"custom_hooks/pre-commit":  {Mode: expectedExecutableMode, Content: []byte("pre-commit content")},
+				"custom_hooks/pre-push":    {Mode: expectedExecutableMode, Content: []byte("pre-push content")},
+				"custom_hooks/pre-receive": {Mode: expectedExecutableMode, Content: []byte("pre-receive content")},
 			},
 		},
 	} {

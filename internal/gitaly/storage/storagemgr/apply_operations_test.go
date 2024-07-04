@@ -78,8 +78,8 @@ func TestApplyOperations(t *testing.T) {
 		"/":                                  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
 		"/parent":                            {Mode: storage.ModeDirectory},
 		"/parent/relative-path":              {Mode: storage.ModeDirectory},
-		"/parent/relative-path/private-file": {Mode: perm.PrivateFile, Content: []byte("private")},
-		"/parent/relative-path/shared-file":  {Mode: perm.SharedFile, Content: []byte("shared")},
+		"/parent/relative-path/private-file": {Mode: storage.ModeFile, Content: []byte("private")},
+		"/parent/relative-path/shared-file":  {Mode: storage.ModeFile, Content: []byte("shared")},
 		"/parent/relative-path/empty-dir":    {Mode: storage.ModeDirectory},
 		"/parent/relative-path/dir-with-removed-file": {Mode: storage.ModeDirectory},
 	})

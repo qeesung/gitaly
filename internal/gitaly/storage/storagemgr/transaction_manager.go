@@ -87,9 +87,9 @@ var (
 	errConcurrentAlternateUnlink = errors.New("concurrent alternate unlinking with repack")
 
 	// Below errors are used to error out in cases when updates have been staged in a read-only transaction.
-	errReadOnlyReferenceUpdates    = errors.New("reference updates staged in a read-only transaction")
 	errReadOnlyDefaultBranchUpdate = errors.New("default branch update staged in a read-only transaction")
 	errReadOnlyCustomHooksUpdate   = errors.New("custom hooks update staged in a read-only transaction")
+	errReadOnlyReferenceUpdates    = errors.New("reference updates staged in a read-only transaction")
 	errReadOnlyRepositoryDeletion  = errors.New("repository deletion staged in a read-only transaction")
 	errReadOnlyObjectsIncluded     = errors.New("objects staged in a read-only transaction")
 	errReadOnlyHousekeeping        = errors.New("housekeeping in a read-only transaction")
