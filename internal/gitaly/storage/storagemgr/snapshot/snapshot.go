@@ -20,6 +20,8 @@ type snapshot struct {
 	root string
 	// prefix is the snapshot root relative to the storage root.
 	prefix string
+	// readOnly indicates whether the snapshot is a read-only snapshot.
+	readOnly bool
 }
 
 // Root returns the root of the snapshot's file system.
@@ -40,11 +42,29 @@ func (s *snapshot) RelativePath(relativePath string) string {
 
 // Closes removes the snapshot.
 func (s *snapshot) Close() error {
+	if s.readOnly {
+		// Make the directories writable again so we can remove the snapshot.
+		if err := s.setDirectoryMode(storage.ModeDirectory); err != nil {
+			return fmt.Errorf("make writable: %w", err)
+		}
+	}
+
 	if err := os.RemoveAll(s.root); err != nil {
 		return fmt.Errorf("remove all: %w", err)
 	}
 
 	return nil
+}
+
+// setDirectoryMode walks the snapshot and sets each directory's mode to the given mode.
+func (s *snapshot) setDirectoryMode(mode fs.FileMode) error {
+	return filepath.WalkDir(s.root, func(path string, d fs.DirEntry, err error) error {
+		if !d.IsDir() {
+			return nil
+		}
+
+		return os.Chmod(path, mode)
+	})
 }
 
 // newSnapshot creates a new file system snapshot of the given root directory. The snapshot is created by copying
@@ -54,13 +74,13 @@ func (s *snapshot) Close() error {
 //
 // destinationPath must be a subdirectory within roothPath. The prefix of the snapshot within the root file system
 // can be retrieved by calling Prefix.
-func newSnapshot(ctx context.Context, rootPath, destinationPath string, relativePaths []string) (_ FileSystem, returnedErr error) {
+func newSnapshot(ctx context.Context, rootPath, destinationPath string, relativePaths []string, readOnly bool) (_ FileSystem, returnedErr error) {
 	snapshotPrefix, err := filepath.Rel(rootPath, destinationPath)
 	if err != nil {
 		return nil, fmt.Errorf("rel snapshot prefix: %w", err)
 	}
 
-	s := &snapshot{root: destinationPath, prefix: snapshotPrefix}
+	s := &snapshot{root: destinationPath, prefix: snapshotPrefix, readOnly: readOnly}
 
 	defer func() {
 		if returnedErr != nil {
@@ -72,6 +92,14 @@ func newSnapshot(ctx context.Context, rootPath, destinationPath string, relative
 
 	if err := createRepositorySnapshots(ctx, rootPath, snapshotPrefix, relativePaths); err != nil {
 		return nil, fmt.Errorf("create repository snapshots: %w", err)
+	}
+
+	if readOnly {
+		// Now that we've finished creating the snapshot, change the directory permissions to read-only
+		// to prevent writing in the snapshot.
+		if err := s.setDirectoryMode(storage.ModeReadOnlyDirectory); err != nil {
+			return nil, fmt.Errorf("make read-only: %w", err)
+		}
 	}
 
 	return s, nil
