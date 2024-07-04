@@ -142,6 +142,8 @@ func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
 		}
 	}
 
+	cfg.Transactions.Enabled = testhelper.IsWALEnabled()
+
 	require.NoError(tb, cfg.Validate())
 
 	return cfg
