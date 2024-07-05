@@ -1,8 +1,7 @@
 package wal
 
 import (
-	"io/fs"
-
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
@@ -16,12 +15,12 @@ func (ops *operations) append(op *gitalypb.LogEntry_Operation) {
 
 // createDirectory appends an operations that creates a directory in the storage
 // at the given relative path with the given permissions.
-func (ops *operations) createDirectory(relativePath string, permissions fs.FileMode) {
+func (ops *operations) createDirectory(relativePath string) {
 	ops.append(&gitalypb.LogEntry_Operation{
 		Operation: &gitalypb.LogEntry_Operation_CreateDirectory_{
 			CreateDirectory: &gitalypb.LogEntry_Operation_CreateDirectory{
 				Path:        []byte(relativePath),
-				Permissions: uint32(permissions),
+				Permissions: uint32(storage.ModeDirectory.Perm()),
 			},
 		},
 	})

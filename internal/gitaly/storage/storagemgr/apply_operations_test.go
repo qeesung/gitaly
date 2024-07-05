@@ -7,6 +7,7 @@ import (
 	"testing/fstest"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/keyvalue"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage/wal"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
@@ -75,12 +76,12 @@ func TestApplyOperations(t *testing.T) {
 	}, syncedPaths)
 	testhelper.RequireDirectoryState(t, storageRoot, "", testhelper.DirectoryState{
 		"/":                                  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-		"/parent":                            {Mode: fs.ModeDir | perm.PrivateDir},
-		"/parent/relative-path":              {Mode: fs.ModeDir | perm.SharedDir},
-		"/parent/relative-path/private-file": {Mode: perm.PrivateFile, Content: []byte("private")},
-		"/parent/relative-path/shared-file":  {Mode: perm.SharedFile, Content: []byte("shared")},
-		"/parent/relative-path/empty-dir":    {Mode: fs.ModeDir | perm.PrivateDir},
-		"/parent/relative-path/dir-with-removed-file": {Mode: fs.ModeDir | perm.PrivateDir},
+		"/parent":                            {Mode: storage.ModeDirectory},
+		"/parent/relative-path":              {Mode: storage.ModeDirectory},
+		"/parent/relative-path/private-file": {Mode: storage.ModeFile, Content: []byte("private")},
+		"/parent/relative-path/shared-file":  {Mode: storage.ModeFile, Content: []byte("shared")},
+		"/parent/relative-path/empty-dir":    {Mode: storage.ModeDirectory},
+		"/parent/relative-path/dir-with-removed-file": {Mode: storage.ModeDirectory},
 	})
 
 	RequireDatabase(t, ctx, db, DatabaseState{
