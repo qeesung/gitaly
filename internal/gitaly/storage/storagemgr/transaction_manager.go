@@ -311,6 +311,13 @@ type Transaction struct {
 	objectDependencies map[git.ObjectID]struct{}
 }
 
+// BeginOptions contains options supported by begin.
+type BeginOptions struct {
+	// ForceExclusiveSnapshot forces the transactions to use an exclusive snapshot. This is a temporary
+	// workaround for some RPCs that do not work well with shared read-only snapshots yet.
+	ForceExclusiveSnapshot bool
+}
+
 // Begin opens a new transaction. The caller must call either Commit or Rollback to release
 // the resources tied to the transaction. The returned Transaction is not safe for concurrent use.
 //
@@ -324,7 +331,7 @@ type Transaction struct {
 //
 // readOnly indicates whether this is a read-only transaction. Read-only transactions are not
 // configured with a quarantine directory and do not commit a log entry.
-func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, snapshottedRelativePaths []string, readOnly bool) (_ *Transaction, returnedErr error) {
+func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, snapshottedRelativePaths []string, readOnly bool, possibleOpts ...BeginOptions) (_ *Transaction, returnedErr error) {
 	// Wait until the manager has been initialized so the notification channels
 	// and the LSNs are loaded.
 	select {
@@ -334,6 +341,11 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		if !mgr.initializationSuccessful {
 			return nil, errInitializationFailed
 		}
+	}
+
+	var opts BeginOptions
+	if len(possibleOpts) > 0 {
+		opts = possibleOpts[0]
 	}
 
 	span, _ := tracing.StartSpanIfHasParent(ctx, "transaction.Begin", nil)
@@ -444,7 +456,7 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 
 		if txn.snapshot, err = mgr.snapshotManager.GetSnapshot(ctx,
 			snapshottedRelativePaths,
-			!txn.readOnly,
+			!txn.readOnly || opts.ForceExclusiveSnapshot,
 		); err != nil {
 			return nil, fmt.Errorf("get snapshot: %w", err)
 		}
