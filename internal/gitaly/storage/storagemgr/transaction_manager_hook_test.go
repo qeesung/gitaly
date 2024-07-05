@@ -49,8 +49,6 @@ func installHooks(mgr *TransactionManager, inflightTransactions *sync.WaitGroup,
 }
 
 func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
-	umask := testhelper.Umask()
-
 	return []transactionTestCase{
 		{
 			desc: "set custom hooks successfully",
@@ -124,13 +122,13 @@ func generateCustomHooksTests(t *testing.T, setup testTransactionSetup) []transa
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
-								Mode:    umask.Mask(fs.ModePerm),
+								Mode:    storage.ModeExecutable,
 								Content: []byte("hook content"),
 							},
-							"/private-dir":              {Mode: fs.ModeDir | perm.PrivateDir},
-							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+							"/private-dir":              {Mode: storage.ModeDirectory},
+							"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 						},
 					},
 				},
