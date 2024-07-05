@@ -756,6 +756,7 @@ func (cf *ExecCommandFactory) AttrTreeConfig(ctx context.Context, repo storage.R
 	whiteList := map[string]struct{}{
 		"diff":         {},
 		"merge":        {},
+		"merge-tree":   {},
 		"check-attr":   {},
 		"worktree":     {},
 		"archive":      {},
