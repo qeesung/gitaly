@@ -519,6 +519,56 @@ func TestListConflictFiles(t *testing.T) {
 			},
 		},
 		{
+			"conflict does not exist when using merge:union attribute",
+			func(tb testing.TB, ctx context.Context) setupData {
+				cfg, client := setupConflictsService(tb, nil)
+				repo, repoPath := gittest.CreateRepository(tb, ctx, cfg)
+
+				baseCommit := gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch("main"), gittest.WithTreeEntries(
+					gittest.TreeEntry{
+						Mode:    "100644",
+						Path:    ".gitattributes",
+						Content: "a merge=union",
+					},
+					gittest.TreeEntry{
+						Path: "a", Mode: "100644",
+						Content: `- A test change
+- Update readme`,
+					},
+				))
+
+				ourCommitID := gittest.WriteCommit(tb, cfg, repoPath, gittest.WithParents(baseCommit),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{
+							Path: "a", Mode: "100644",
+							Content: `- A test change
+- Update readme
+- Fire the chef!`,
+						},
+					))
+				theirCommitID := gittest.WriteCommit(tb, cfg, repoPath, gittest.WithParents(baseCommit),
+					gittest.WithTreeEntries(
+						gittest.TreeEntry{
+							Path: "a", Mode: "100644",
+							Content: `- A test change
+- Update readme
+- Add to somechanges file`,
+						},
+					))
+
+				request := &gitalypb.ListConflictFilesRequest{
+					Repository:     repo,
+					OurCommitOid:   ourCommitID.String(),
+					TheirCommitOid: theirCommitID.String(),
+				}
+
+				return setupData{
+					client:  client,
+					request: request,
+				}
+			},
+		},
+		{
 			"encoding error",
 			func(tb testing.TB, ctx context.Context) setupData {
 				cfg, client := setupConflictsService(tb, nil)
