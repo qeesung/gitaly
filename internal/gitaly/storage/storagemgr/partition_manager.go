@@ -30,7 +30,7 @@ var ErrPartitionManagerClosed = errors.New("partition manager closed")
 // transactionManager is the interface of TransactionManager as used by PartitionManager. See the
 // TransactionManager's documentation for more details.
 type transactionManager interface {
-	Begin(context.Context, string, []string, bool) (*Transaction, error)
+	Begin(context.Context, string, []string, bool, ...BeginOptions) (*Transaction, error)
 	Run() error
 	Close()
 	isClosing() bool
@@ -311,6 +311,9 @@ type TransactionOptions struct {
 	// AllowPartitionAssignmentWithoutRepository determines whether a partition assignment should be
 	// written out even if repository does not exist.
 	AllowPartitionAssignmentWithoutRepository bool
+	// ForceExclusiveSnapshot forces the transactions to use an exclusive snapshot. This is a temporary
+	// workaround for some RPCs that do not work well with shared read-only snapshots yet.
+	ForceExclusiveSnapshot bool
 }
 
 // Begin gets the TransactionManager for the specified repository and starts a transaction. If a
@@ -364,7 +367,9 @@ func (pm *PartitionManager) Begin(ctx context.Context, storageName, relativePath
 		snapshottedRelativePaths = []string{opts.AlternateRelativePath}
 	}
 
-	transaction, err := ptn.transactionManager.Begin(ctx, relativePath, snapshottedRelativePaths, opts.ReadOnly)
+	transaction, err := ptn.transactionManager.Begin(ctx, relativePath, snapshottedRelativePaths, opts.ReadOnly, BeginOptions{
+		ForceExclusiveSnapshot: opts.ForceExclusiveSnapshot,
+	})
 	if err != nil {
 		// The pending transaction count needs to be decremented since the transaction is no longer
 		// inflight. A transaction failing does not necessarily mean the transaction manager has
