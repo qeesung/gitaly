@@ -3,9 +3,7 @@ package git_test
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -414,7 +411,6 @@ func TestExecCommandFactory_addAttrTree(t *testing.T) {
 
 func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 	testhelper.Unsetenv(t, "GITALY_TESTING_GIT_BINARY")
-	testhelper.Unsetenv(t, "GITALY_TESTING_BUNDLED_GIT_PATH")
 
 	ctx := testhelper.Context(t)
 
@@ -464,161 +460,34 @@ func TestCommandFactory_ExecutionEnvironment(t *testing.T) {
 		})
 	})
 
-	t.Run("set using GITALY_TESTING_BUNDLED_GIT_PATH", func(t *testing.T) {
-		writeExecutables := func(t *testing.T, dir string, executables ...string) {
-			for _, executable := range executables {
-				testhelper.WriteExecutable(t, filepath.Join(dir, executable), nil)
-			}
-		}
+	t.Run("set with the default bundled Git environment", func(t *testing.T) {
+		suffix := git.BundledGitConstructors[0].Suffix
 
-		missingBinaryError := func(dir, binary string) error {
-			return fmt.Errorf("setting up Git execution environment: %w",
-				fmt.Errorf("constructing Git environment: %w",
-					fmt.Errorf("statting %q: %w", binary,
-						&fs.PathError{
-							Op:   "stat",
-							Path: filepath.Join(dir, binary),
-							Err:  syscall.ENOENT,
-						},
-					),
-				),
-			)
-		}
+		cfg := testcfg.Build(t)
 
-		type setupData struct {
-			binaryDir     string
-			bundledGitDir string
-			expectedErr   error
-		}
-
-		for _, tc := range []struct {
-			desc  string
-			setup func(t *testing.T) setupData
-		}{
-			{
-				desc: "unset binary directory",
-				setup: func(t *testing.T) setupData {
-					return setupData{
-						binaryDir:     "",
-						bundledGitDir: "/does/not/exist",
-						expectedErr: fmt.Errorf("setting up Git execution environment: %w",
-							fmt.Errorf("constructing Git environment: %w",
-								errors.New("cannot use bundled binaries without bin path being set"),
-							),
-						),
-					}
+		gitCmdFactory, cleanup, err := git.NewExecCommandFactory(
+			cfg,
+			testhelper.SharedLogger(t),
+			git.WithSkipHooks(),
+			git.WithExecutionEnvironmentConstructors(
+				git.BundledGitEnvironmentConstructor{
+					Suffix: suffix,
 				},
-			},
-			{
-				desc: "missing directory",
-				setup: func(t *testing.T) setupData {
-					return setupData{
-						binaryDir:     testhelper.TempDir(t),
-						bundledGitDir: "/does/not/exist",
-						expectedErr:   missingBinaryError("/does/not/exist", "gitaly-git-v2.38"),
-					}
-				},
-			},
-			{
-				desc: "missing gitaly-git",
-				setup: func(t *testing.T) setupData {
-					bundledGitDir := testhelper.TempDir(t)
+			),
+		)
+		require.NoError(t, err)
+		defer cleanup()
 
-					return setupData{
-						binaryDir:     testhelper.TempDir(t),
-						bundledGitDir: bundledGitDir,
-						expectedErr:   missingBinaryError(bundledGitDir, "gitaly-git-v2.38"),
-					}
-				},
-			},
-			{
-				desc: "missing gitaly-git-remote-http",
-				setup: func(t *testing.T) setupData {
-					bundledGitDir := testhelper.TempDir(t)
+		// When the command factory has been successfully created then we
+		// verify that the symlink that it has created match what we expect.
+		gitBinPath := gitCmdFactory.GetExecutionEnvironment(ctx).BinaryPath
+		for _, binary := range []string{"git", "git-remote-http", "git-http-backend"} {
+			symlinkPath := filepath.Join(filepath.Dir(gitBinPath), binary)
 
-					writeExecutables(t, bundledGitDir, "gitaly-git-v2.38")
-
-					return setupData{
-						binaryDir:     testhelper.TempDir(t),
-						bundledGitDir: bundledGitDir,
-						expectedErr:   missingBinaryError(bundledGitDir, "gitaly-git-remote-http-v2.38"),
-					}
-				},
-			},
-			{
-				desc: "missing gitaly-git-http-backend",
-				setup: func(t *testing.T) setupData {
-					bundledGitDir := testhelper.TempDir(t)
-
-					writeExecutables(t, bundledGitDir,
-						"gitaly-git-v2.38",
-						"gitaly-git-remote-http-v2.38",
-					)
-
-					return setupData{
-						binaryDir:     testhelper.TempDir(t),
-						bundledGitDir: bundledGitDir,
-						expectedErr:   missingBinaryError(bundledGitDir, "gitaly-git-http-backend-v2.38"),
-					}
-				},
-			},
-			{
-				desc: "successful",
-				setup: func(t *testing.T) setupData {
-					bundledGitDir := testhelper.TempDir(t)
-					writeExecutables(t, bundledGitDir, "gitaly-git-v2.38", "gitaly-git-remote-http-v2.38", "gitaly-git-http-backend-v2.38")
-
-					return setupData{
-						binaryDir:     testhelper.TempDir(t),
-						bundledGitDir: bundledGitDir,
-					}
-				},
-			},
-		} {
-			t.Run(tc.desc, func(t *testing.T) {
-				setupData := tc.setup(t)
-				t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", setupData.bundledGitDir)
-
-				gitCmdFactory, cleanup, err := git.NewExecCommandFactory(
-					config.Cfg{
-						BinDir: setupData.binaryDir,
-					},
-					testhelper.SharedLogger(t),
-					git.WithSkipHooks(),
-					// Override the constructors so that we don't have to change
-					// tests every time we're upgrading our bundled Git version.
-					git.WithExecutionEnvironmentConstructors(
-						git.BundledGitEnvironmentConstructor{
-							Suffix: "-v2.38",
-						},
-					),
-				)
-				require.Equal(t, setupData.expectedErr, err)
-				if err != nil {
-					return
-				}
-				defer cleanup()
-
-				// When the command factory has been successfully created then we
-				// verify that the symlink that it has created match what we expect.
-				gitBinPath := gitCmdFactory.GetExecutionEnvironment(ctx).BinaryPath
-				for _, executable := range []string{"git", "git-remote-http", "git-http-backend"} {
-					symlinkPath := filepath.Join(filepath.Dir(gitBinPath), executable)
-
-					// The symlink in Git's temporary BinPath points to the Git
-					// executable in Gitaly's BinDir.
-					target, err := os.Readlink(symlinkPath)
-					require.NoError(t, err)
-					require.Equal(t, filepath.Join(setupData.binaryDir, "gitaly-"+executable+"-v2.38"), target)
-
-					// And in a test setup, the symlink in Gitaly's BinDir must point to
-					// the Git binary pointed to by the GITALY_TESTING_BUNDLED_GIT_PATH
-					// environment variable.
-					target, err = os.Readlink(target)
-					require.NoError(t, err)
-					require.Equal(t, filepath.Join(setupData.bundledGitDir, "gitaly-"+executable+"-v2.38"), target)
-				}
-			})
+			// The symlink in the Gitaly RuntimeDir should link back to _build/bin in testing.
+			target, err := os.Readlink(symlinkPath)
+			require.NoError(t, err)
+			require.Equal(t, filepath.Join(testhelper.SourceRoot(t), "_build", "bin", fmt.Sprintf("gitaly-%s%s", binary, suffix)), target)
 		}
 	})
 

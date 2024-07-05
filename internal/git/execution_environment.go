@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
@@ -18,21 +20,32 @@ var (
 	// environment was not configured.
 	ErrNotConfigured = errors.New("execution environment is not configured")
 
+	// BundledGitConstructors defines the versions of Git that we embed into the Gitaly
+	// binary.
+	BundledGitConstructors = []BundledGitEnvironmentConstructor{
+		{
+			Suffix: "-v2.45",
+		},
+
+		{
+			Suffix: "-v2.44",
+		},
+	}
+
 	// defaultExecutionEnvironmentConstructors is the list of Git environments supported by the
 	// Git command factory. The order is important and signifies the priority in which the
 	// environments will be used: the environment created by the first constructor is the one
 	// that will be preferred when executing Git commands. Later environments may be used in
 	// case `IsEnabled()` returns `false` though.
-	defaultExecutionEnvironmentConstructors = []ExecutionEnvironmentConstructor{
-		BundledGitEnvironmentConstructor{
-			Suffix: "-v2.45",
-		},
+	defaultExecutionEnvironmentConstructors = func() (constructors []ExecutionEnvironmentConstructor) {
+		for _, c := range BundledGitConstructors {
+			constructors = append(constructors, c)
+		}
 
-		BundledGitEnvironmentConstructor{
-			Suffix: "-v2.44",
-		},
-		DistributedGitEnvironmentConstructor{},
-	}
+		constructors = append(constructors, DistributedGitEnvironmentConstructor{})
+
+		return constructors
+	}()
 )
 
 // ExecutionEnvironmentConstructor is an interface for constructors of Git execution environments.
@@ -130,50 +143,30 @@ type BundledGitEnvironmentConstructor struct {
 // binaries with their usual names as expected by Git. Furthermore, we configure the GIT_EXEC_PATH
 // environment variable to point to that directory such that Git is able to locate its auxiliary
 // binaries.
-//
-// For testing purposes, this function will automatically enable use of bundled Git in case the
-// `GITALY_TESTING_BUNDLED_GIT_PATH` environment variable is set.
 func (c BundledGitEnvironmentConstructor) Construct(cfg config.Cfg) (_ ExecutionEnvironment, returnedErr error) {
-	useBundledBinaries := cfg.Git.UseBundledBinaries
-
-	if bundledGitPath := os.Getenv("GITALY_TESTING_BUNDLED_GIT_PATH"); bundledGitPath != "" {
-		if cfg.BinDir == "" {
-			return ExecutionEnvironment{}, errors.New("cannot use bundled binaries without bin path being set")
-		}
-
-		// We need to symlink pre-built Git binaries into Gitaly's binary directory.
-		// Normally they would of course already exist there, but in tests we create a new
-		// binary directory for each server and thus need to populate it first.
-		for _, binary := range []string{"gitaly-git", "gitaly-git-remote-http", "gitaly-git-http-backend"} {
-			binary := binary + c.Suffix
-
-			bundledGitBinary := filepath.Join(bundledGitPath, binary)
-			if _, err := os.Stat(bundledGitBinary); err != nil {
-				return ExecutionEnvironment{}, fmt.Errorf("statting %q: %w", binary, err)
-			}
-
-			if err := os.Symlink(bundledGitBinary, filepath.Join(cfg.BinDir, binary)); err != nil {
-				// Multiple Git command factories might be created for the same configuration.
-				// Each of them will create the execution environment every time,
-				// therefore these symlinks might already exist.
-				// It would be nice if we could fix this, but gracefully handling the error is a
-				// more boring solution.
-				if errors.Is(err, os.ErrExist) {
-					continue
-				}
-				return ExecutionEnvironment{}, fmt.Errorf("symlinking bundled %q: %w", binary, err)
-			}
-		}
-
-		useBundledBinaries = true
-	}
-
-	if !useBundledBinaries {
+	if !cfg.Git.UseBundledBinaries {
 		return ExecutionEnvironment{}, ErrNotConfigured
 	}
 
-	if cfg.BinDir == "" {
-		return ExecutionEnvironment{}, errors.New("cannot use bundled binaries without bin path being set")
+	// We need to source the Git binaries from different locations depending on the environment we're running in:
+	// - In production, the Git binaries get unpacked by packed_binaries.go into Gitaly's RuntimeDir, which for
+	//   Omnibus is something like /var/opt/gitlab/gitaly/run/gitaly-<xxx>.
+	// - In testing, the binaries remain in the _build/bin directory of the repository root.
+	bundledGitPath := cfg.RuntimeDir
+	if testing.Testing() {
+		var err error
+
+		// Infer the location of the bundled Git binaries. The Makefile ensures this is fixed at
+		// _build/bin by default.
+		_, curr, _, ok := runtime.Caller(0)
+		if !ok {
+			return ExecutionEnvironment{}, errors.New("failed to get current directory")
+		}
+
+		bundledGitPath, err = filepath.Abs(filepath.Join(filepath.Dir(curr), "..", "..", "_build", "bin"))
+		if err != nil {
+			return ExecutionEnvironment{}, fmt.Errorf("get bundled bin path: %w", err)
+		}
 	}
 
 	// In order to support having a single Git binary only as compared to a complete Git
@@ -209,7 +202,7 @@ func (c BundledGitEnvironmentConstructor) Construct(cfg config.Cfg) (_ Execution
 		"git-remote-ftps":    "gitaly-git-remote-http",
 	} {
 		target := target + c.Suffix
-		targetPath := filepath.Join(cfg.BinDir, target)
+		targetPath := filepath.Join(bundledGitPath, target)
 
 		if err := unix.Access(targetPath, unix.X_OK); err != nil {
 			return ExecutionEnvironment{}, fmt.Errorf("checking bundled Git binary %q: %w", target, err)
