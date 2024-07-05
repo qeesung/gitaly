@@ -491,7 +491,17 @@ func run(appCtx *cli.Context, cfg config.Cfg, logger log.Logger) error {
 
 	var bundleURISink *bundleuri.Sink
 	if cfg.BundleURI.GoCloudURL != "" {
-		bundleURISink, err = bundleuri.NewSink(ctx, cfg.BundleURI.GoCloudURL)
+		bundleURISink, err = bundleuri.NewSink(
+			ctx,
+			cfg.BundleURI.GoCloudURL,
+			bundleuri.WithBundleGenerationNotifier(func(bundlePath string, err error) {
+				if err != nil {
+					logger.WithField("bundle_path", bundlePath).
+						WithError(err).
+						Warn("bundle generation failed")
+				}
+			}),
+		)
 		if err != nil {
 			return fmt.Errorf("create bundle-URI sink: %w", err)
 		}
@@ -540,6 +550,7 @@ func run(appCtx *cli.Context, cfg config.Cfg, logger log.Logger) error {
 			BackupSink:          backupSink,
 			BackupLocator:       backupLocator,
 			BundleURISink:       bundleURISink,
+			InflightTracker:     service.NewInflightTracker(),
 		})
 		b.RegisterStarter(starter.New(c, srv, logger))
 	}

@@ -11,6 +11,9 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 )
 
+// ErrSinkMissing indicates a sink is missing
+var ErrSinkMissing = errors.New("bundle-URI sink missing")
+
 // CapabilitiesGitConfig returns a slice of git.ConfigPairs that can be injected
 // into the Git config to make it aware the bundle-URI capabilities are
 // supported.
@@ -42,7 +45,7 @@ func UploadPackGitConfig(
 	}
 
 	if sink == nil {
-		return CapabilitiesGitConfig(ctx), errors.New("bundle-URI sink missing")
+		return CapabilitiesGitConfig(ctx), ErrSinkMissing
 	}
 
 	uri, err := sink.SignedURL(ctx, repo)

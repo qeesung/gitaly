@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/backup"
@@ -29,21 +30,61 @@ const (
 	defaultExpiry = 10 * time.Minute
 )
 
+var (
+	// ErrBundleGenerationInProgress indicates that an existing bundle generation
+	// is already in progress.
+	ErrBundleGenerationInProgress = errors.New("bundle generation in progress")
+	// ErrBundleNotFound indicates that no bundle could be found for a given repository.
+	ErrBundleNotFound = errors.New("no bundle found")
+)
+
 // Sink is a wrapper around the storage bucket used for accessing/writing
 // bundleuri bundles.
 type Sink struct {
-	bucket *blob.Bucket
+	bucket              *blob.Bucket
+	bundleCreationMutex map[string]*sync.Mutex
+
+	config sinkConfig
+}
+
+type sinkConfig struct {
+	notifyBundleGeneration func(string, error)
+}
+
+// SinkOption can be passed into NewSink to pass in options when creating a new sink.
+type SinkOption func(s *sinkConfig)
+
+// WithBundleGenerationNotifier sets a notifier function that gets called when GenerateOneAtATime
+// finishes. GenerateOneAtATime will be called in a separate background goroutine, so this function
+// is an entrypoint to pass in logic to be called after the bundle has been generated.
+func WithBundleGenerationNotifier(f func(string, error)) SinkOption {
+	return func(s *sinkConfig) {
+		s.notifyBundleGeneration = f
+	}
 }
 
 // NewSink creates a Sink from the given parameters.
-func NewSink(ctx context.Context, uri string) (*Sink, error) {
+func NewSink(ctx context.Context, uri string, options ...SinkOption) (*Sink, error) {
 	bucket, err := blob.OpenBucket(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("open bucket: %w", err)
 	}
-	return &Sink{
-		bucket: bucket,
-	}, nil
+
+	s := &Sink{
+		bucket:              bucket,
+		bundleCreationMutex: make(map[string]*sync.Mutex),
+	}
+
+	var c sinkConfig
+	if len(options) > 0 {
+		for _, option := range options {
+			option(&c)
+		}
+
+		s.config = c
+	}
+
+	return s, nil
 }
 
 // relativePath returns a relative path of the bundle-URI bundle inside the
@@ -71,6 +112,44 @@ func (s *Sink) getWriter(ctx context.Context, relativePath string) (io.WriteClos
 		return nil, fmt.Errorf("new writer for %q: %w", relativePath, err)
 	}
 	return writer, nil
+}
+
+// GenerateOneAtATime generates a bundle for a repository, but only if there is not already
+// one in flight.
+func (s *Sink) GenerateOneAtATime(ctx context.Context, repo *localrepo.Repo) error {
+	bundlePath := s.relativePath(repo, defaultBundle)
+
+	var m *sync.Mutex
+	var ok bool
+
+	if m, ok = s.bundleCreationMutex[bundlePath]; !ok {
+		s.bundleCreationMutex[bundlePath] = &sync.Mutex{}
+		m = s.bundleCreationMutex[bundlePath]
+	}
+
+	if m.TryLock() {
+		defer m.Unlock()
+		timer := time.NewTimer(24 * time.Hour)
+		errChan := make(chan error)
+
+		go func() {
+			errChan <- s.Generate(ctx, repo)
+		}()
+		var err error
+
+		select {
+		case <-timer.C:
+		case err = <-errChan:
+		}
+
+		if s.config.notifyBundleGeneration != nil {
+			s.config.notifyBundleGeneration(bundlePath, err)
+		}
+	} else {
+		return fmt.Errorf("%w: %s", ErrBundleGenerationInProgress, bundlePath)
+	}
+
+	return nil
 }
 
 // Generate creates a bundle for bundle-URI use into the bucket.
@@ -132,9 +211,9 @@ func (s Sink) SignedURL(ctx context.Context, repo storage.Repository) (string, e
 
 	if exists, err := s.bucket.Exists(ctx, relativePath); !exists {
 		if err == nil {
-			return "", structerr.NewNotFound("no bundle available")
+			return "", ErrBundleNotFound
 		}
-		return "", structerr.NewNotFound("no bundle available: %w", err)
+		return "", fmt.Errorf("%w: %w", ErrBundleNotFound, err)
 	}
 
 	uri, err := s.bucket.SignedURL(ctx, relativePath, &blob.SignedURLOptions{
