@@ -78,7 +78,7 @@ func (s *Server) userApplyPatch(ctx context.Context, header *gitalypb.UserApplyP
 			return fmt.Errorf("resolve target branch: %w", err)
 		}
 
-		defaultBranch, err := repo.GetDefaultBranch(ctx)
+		defaultBranch, err := repo.HeadReference(ctx)
 		if err != nil {
 			return fmt.Errorf("default branch name: %w", err)
 		}
