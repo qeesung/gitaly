@@ -4,6 +4,7 @@ package gitaly;
 
 import "google/protobuf/timestamp.proto";
 import "lint.proto";
+import "shared.proto";
 
 option go_package = "gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb";
 
@@ -16,6 +17,13 @@ service InternalGitaly {
     option (op_type) = {
       op:          ACCESSOR
       scope_level: STORAGE
+    };
+  }
+
+  // RunCommand runs an arbitrary Git command on a repository
+  rpc RunCommand (RunCommandRequest) returns (RunCommandResponse) {
+    option (op_type) = {
+      op:          ACCESSOR
     };
   }
 }
@@ -34,4 +42,36 @@ message WalkReposResponse {
   // This can be used as a proxy for when the repository was last
   // modified.
   google.protobuf.Timestamp modification_time = 2;
+}
+
+// GitCommand represents the command and arguments of a Git command
+message GitCommand {
+  // name is the name of the Git command
+  string name = 1;
+  // action is the subcommand of the Git command
+  string action = 2;
+  // flags contains the flags passed to the Git command
+  repeated string flags = 3;
+  // args are the arguments passed to the Git command
+  repeated string args  = 4;
+  // post_separator_args are the arguments after the post separator
+  repeated string post_separator_args = 5;
+}
+
+// RunCommandRequest is a request for the RunCommand RPC
+message RunCommandRequest {
+  // repository is the repository in which to run the command
+  Repository repository = 1 [(target_repository)=true];
+  // git_command is the Git command to run on the repository
+  GitCommand git_command = 2;
+}
+
+// RunCommandResponse is the resposne from the RunCommand RPC
+message RunCommandResponse {
+  // return_code is the return code of the command
+  int32 return_code = 1;
+  // output is the stdot from the command
+  bytes output = 2;
+  // error_output is the stderr from the command
+  bytes error_output = 3;
 }
