@@ -1078,6 +1078,62 @@ func TestGetTreeEntries(t *testing.T) {
 			},
 		},
 		{
+			desc: "ensure page token is for the same tree entry",
+			setup: func(t *testing.T) setupData {
+				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
+
+				// Initial tree structure
+				blobOID := gittest.WriteBlob(t, cfg, repoPath, []byte("test"))
+				treeOID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+					{OID: blobOID, Mode: "100644", Path: "test"},
+				})
+				initialCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
+					gittest.TreeEntry{OID: treeOID, Mode: "040000", Path: "folder"},
+				))
+
+				// New tree structure
+				newBlobOID := gittest.WriteBlob(t, cfg, repoPath, []byte("new_test"))
+				newTreeOID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+					{OID: newBlobOID, Mode: "100644", Path: "new_test"},
+				})
+				newCommitID := gittest.WriteCommit(t, cfg, repoPath, gittest.WithTreeEntries(
+					gittest.TreeEntry{OID: newTreeOID, Mode: "040000", Path: "folder"},
+				))
+
+				stream, err := client.GetTreeEntries(ctx, &gitalypb.GetTreeEntriesRequest{
+					Repository: repo,
+					Revision:   []byte(initialCommitID),
+					Path:       []byte("."),
+					Recursive:  true,
+					PaginationParams: &gitalypb.PaginationParameter{
+						Limit: 1,
+					},
+				})
+				require.NoError(t, err)
+
+				var resp *gitalypb.GetTreeEntriesResponse
+				resp, err = stream.Recv()
+				require.NoError(t, err)
+				require.NotNil(t, resp.PaginationCursor)
+				require.NotEmpty(t, resp.PaginationCursor.NextCursor)
+				initialPageToken := resp.PaginationCursor.NextCursor
+
+				return setupData{
+					request: &gitalypb.GetTreeEntriesRequest{
+						Repository: repo,
+						Revision:   []byte(newCommitID),
+						Path:       []byte("."),
+						Recursive:  true,
+						PaginationParams: &gitalypb.PaginationParameter{
+							PageToken: initialPageToken,
+							Limit:     1,
+						},
+					},
+					expectedErr: status.Error(codes.Internal, "could not find starting OID: folder"),
+				}
+			},
+		},
+		{
 			desc: "sorted by trees first and paginated",
 			setup: func(t *testing.T) setupData {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
