@@ -5,7 +5,8 @@ must have access to Git. Gitaly supports three ways of accessing Git:
 
 - Bundled Git (recommended): Gitaly accesses bundled Git binaries. Unlike the
   other two ways of accessing Git, this is not a complete Git installation but
-  only contains a subset of binaries that are required at runtime.
+  only contains a subset of binaries that are required at runtime. Bundled Git
+  binaries are directly embedded into the Gitaly binary during compilation.
 - External Git distribution (not recommended): Gitaly accesses Git provided by
   the operating system or manually installed by the administrator.
 - Gitaly Git distribution (not recommended): Gitaly accesses it's own version of
@@ -19,30 +20,29 @@ The bundled Git execution environment is the recommended way to set up Gitaly.
 Instead of using a full Git distribution, you can use a bundled Git execution
 environment.
 
-To install bundled Git binaries, run `make install-bundled-git`. This Make
-target installs the bundled Git binaries in the `bin` directory of a location
-set with the `PREFIX` environment variable. For example:
+Bundled Git binaries are compiled whenever Gitaly is compiled. There's no
+need to explicitly build and install them. If you're running a test without
+using the `make test...` Makefile target, you must run `make build-bundled-git`
+to ensure the binaries are present in the `_build/bin` directory.
 
-```shell
-make install-bundled-git PREFIX=/usr/local
-```
+When Gitaly is compiled for production, the bundled Git binaries are embedded
+into the Gitaly binary using the go:embed feature. See `packed_binaries.go`.
 
 Bundled Git binaries all have a `gitaly-` prefix so they do not clash with
 normal Git executables. Furthermore, bundled Git binaries may have a version
-suffix which allows Gitaly to install multiple different versions of Git at the
-same time. For example, `make install-bundled-git PREFIX=/usr/local` may install
-`gitaly-git-v2.35.1` and `gitaly-git-v2.36.0` into `/usr/local/bin`.
+suffix which allows Gitaly to use multiple different versions of Git at the
+same time.
 
-Being able to install multiple Git versions in parallel solves two important
-issues:
+Bundled Git solves two important problems:
 
-- When doing zero-downtime upgrades, a new Gitaly package can avoid replacing
-  Git binaries that are used by the currently running version of Gitaly. Gitaly
-  doesn't need to run in an intermediate state where the old version of Gitaly
-  is unexpectedly using newer Git binaries.
-- Gitaly can roll out new Git versions with the help of feature flags. This
-  means we can roll back to old versions of Git if a new version is exhibiting
-  faulty behavior.
+- Being able to use multiple Git versions in parallel allows us roll out new
+  Git versions with the help of feature flags. This means we can roll back to
+  old versions of Git if a new version is exhibiting faulty behavior.
+
+- Embedding the Git binaries allows seamless zero-downtime upgrades, as Gitaly
+  and Git can be upgraded as an atomic unit. Gitaly doesn't need to run in an
+  intermediate state where the old version of Gitaly is unexpectedly using newer
+  Git binaries.
 
 Git binaries expect to be able to locate helper binaries at runtime. However,
 because the bundled Git binaries all have a `gitaly-` prefix, the mechanisms Git
@@ -60,10 +60,6 @@ environment.
 Gitaly can be configured to use bundled binaries by setting the following keys:
 
 ```toml
-# The binary directory where Gitaly's own binaries are installed. This directory
-# will also contain the bundled Git binaries.
-bin_dir = "/usr/local/bin"
-
 [git]
 use_bundled_binaries = true
 ```
