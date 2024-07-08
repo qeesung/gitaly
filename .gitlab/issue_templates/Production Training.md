@@ -12,19 +12,23 @@ Please help correct, clarify, or otherwise improve any documentation you find la
 
 ## Questions
 
-Edit this section like a workbook. Please discuss your answers (and how you got them) with your mentor / onboarding buddy / any senior team member / any other onboarding team member.
+**This is not a test, it's an interactive learning guide.**
+
+Please edit this section like a workbook, adding not just the answer but also how you got there.
+
+Discuss your answers with your mentor / onboarding buddy / any senior team member / any other onboarding team member.
 
 ### Statistics
 
 - [ ] What was Gitaly's SLO availability last month?
 - [ ] Which repository had the most errors in `gprd` last week?
 - [ ] What was the top error they had? If it's a real bug, please file an issue. :slight_smile:
-- [ ] What was the p95 latency of the `TreeEntry` RPC in `gstg` last week?
+- [ ] What was the p95 latency of the `SSHUploadPack` RPC in `gstg` last week?
 
 ### Feature flags
 
 - [ ] When was the last feature flag enabled on `gprd`?
-- [ ] How would you roll it back?
+- [ ] ...How would you roll it back?
 - [ ] Are there any feature flags currently rolling out? What stage are they in?
 
 ### Releases
@@ -36,8 +40,7 @@ Edit this section like a workbook. Please discuss your answers (and how you got 
 
 - [ ] Clones are "slow". How can you validate whether `bundle-uri` is in use?
 
-
-### Activity
+## Follow-up activities
 
 Link: [Gitaly Customer Issues](https://gitlab.com/gitlab-org/gitaly/-/issues/?sort=due_date&state=opened&label_name%5B%5D=Gitaly%20Customer%20Issue&first_page_size=100)
 
@@ -45,6 +48,11 @@ Link: [Gitaly Customer Issues](https://gitlab.com/gitlab-org/gitaly/-/issues/?so
 - [ ] Join an ongoing investigation, or pick up a new incoming issue. (Add the current milestone and ~"workflow::in dev" while assignign the issue to yourself.) Ask for help and guidance shamelessly. :slight_smile:
 - [ ] Monitor `#g_gitaly` for incoming questions, direct them to our [intake flow](https://handbook.gitlab.com/handbook/engineering/infrastructure/core-platform/systems/gitaly/#customer-issues)
 
+## Finally
+
+Add yourself to the oncall rotation by raising a MR.
+
+FIXME: details
 
 /confidential
 /assign me
