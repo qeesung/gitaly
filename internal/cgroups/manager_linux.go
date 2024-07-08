@@ -112,7 +112,6 @@ func newCgroupManagerWithMode(cfg cgroupscfg.Config, logger log.Logger, pid int,
 		cfg:     cfg,
 		pid:     pid,
 		handler: handler,
-		repoRes: configRepositoryResources(cfg),
 		status:  newCgroupStatus(cfg, handler.repoPath),
 		rand:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
@@ -123,6 +122,11 @@ func (cgm *CGroupManager) Setup() error {
 	if err := cgm.handler.setupParent(cgm.configParentResources()); err != nil {
 		return err
 	}
+	repoResources, err := configRepositoryResources(cgm.cfg)
+	if errors.As(err, &CgroupValidationError{}) {
+		fmt.Printf("Validation failed: %s\n", err)
+	}
+	cgm.repoRes = repoResources
 	cgm.enabled = true
 
 	return nil
@@ -279,25 +283,34 @@ func (cgm *CGroupManager) configParentResources() *specs.LinuxResources {
 	return &parentResources
 }
 
-func configRepositoryResources(cfg cgroupscfg.Config) *specs.LinuxResources {
+func configRepositoryResources(cfg cgroupscfg.Config) (*specs.LinuxResources, error) {
 	cfsPeriodUs := cfsPeriodUs
 	var reposResources specs.LinuxResources
 	// Leave them `nil` so it takes kernel default unless cfg value above `0`.
 	reposResources.CPU = &specs.LinuxCPU{}
 
-	if cfg.Repositories.CPUShares > 0 {
-		reposResources.CPU.Shares = &cfg.Repositories.CPUShares
+	if cfg.Repositories.CPUShares <= 0 || cfg.Repositories.CPUShares > cfg.CPUShares {
+		return nil, CgroupValidationError{Field: "CPUShares",
+			Msg: "Repository CPUShares must be less than or equal to parent's CPUShares"}
 	}
 
-	if cfg.Repositories.CPUQuotaUs > 0 {
-		reposResources.CPU.Quota = &cfg.Repositories.CPUQuotaUs
-		reposResources.CPU.Period = &cfsPeriodUs
+	reposResources.CPU.Shares = &cfg.Repositories.CPUShares
+
+	if cfg.Repositories.CPUQuotaUs <= 0 || cfg.Repositories.CPUQuotaUs > cfg.CPUQuotaUs {
+		return nil, CgroupValidationError{Field: "name",
+			Msg: "Repository CPUQuotaUs must be less than or equal to parent's CPUQuotaUs"}
 	}
 
-	if cfg.Repositories.MemoryBytes > 0 {
-		reposResources.Memory = &specs.LinuxMemory{Limit: &cfg.Repositories.MemoryBytes}
+	reposResources.CPU.Quota = &cfg.Repositories.CPUQuotaUs
+	reposResources.CPU.Period = &cfsPeriodUs
+
+	if cfg.Repositories.MemoryBytes <= 0 || cfg.Repositories.MemoryBytes > cfg.MemoryBytes {
+		return nil, CgroupValidationError{Field: "name",
+			Msg: "Repository MemoryBytes must be less than or equal to parent's MemoryBytes"}
 	}
-	return &reposResources
+
+	reposResources.Memory = &specs.LinuxMemory{Limit: &cfg.Repositories.MemoryBytes}
+	return &reposResources, nil
 }
 
 func pruneOldCgroups(cfg cgroupscfg.Config, logger log.Logger) {
