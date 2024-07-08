@@ -141,7 +141,7 @@ testing of this scenario should be left to the relevant package.
 			if testCase.isDir {
 				require.NoError(t, os.MkdirAll(importedRepoPath, perm.PrivateDir))
 			} else {
-				require.NoError(t, os.MkdirAll(filepath.Dir(importedRepoPath), perm.PublicDir))
+				require.NoError(t, os.MkdirAll(filepath.Dir(importedRepoPath), perm.PrivateDir))
 				require.NoError(t, os.WriteFile(importedRepoPath, nil, perm.SharedFile))
 			}
 			t.Cleanup(func() { require.NoError(t, os.RemoveAll(importedRepoPath)) })

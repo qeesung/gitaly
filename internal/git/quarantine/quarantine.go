@@ -128,7 +128,7 @@ func migrate(sourcePath, targetPath string) error {
 		nestedSourcePath := filepath.Join(sourcePath, entry.Name())
 
 		if entry.IsDir() {
-			if err := os.Mkdir(nestedTargetPath, perm.PublicDir); err != nil {
+			if err := os.Mkdir(nestedTargetPath, perm.PrivateDir); err != nil {
 				if !errors.Is(err, os.ErrExist) {
 					return fmt.Errorf("creating target directory %q: %w", nestedTargetPath, err)
 				}

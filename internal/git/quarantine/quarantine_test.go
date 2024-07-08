@@ -27,7 +27,7 @@ func (e entry) create(t *testing.T, root string) {
 	require.True(t, e.contents == "" || e.children == nil, "An entry cannot have both file contents and children")
 
 	if e.children != nil {
-		require.NoError(t, os.Mkdir(root, perm.PublicDir))
+		require.NoError(t, os.Mkdir(root, perm.PrivateDir))
 
 		for name, child := range e.children {
 			child.create(t, filepath.Join(root, name))

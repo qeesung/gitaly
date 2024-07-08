@@ -311,7 +311,7 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 func CreateGlobalDirectory(tb testing.TB, name string) string {
 	require.NotEmpty(tb, testDirectory, "global temporary directory does not exist")
 	path := filepath.Join(testDirectory, name)
-	require.NoError(tb, os.Mkdir(path, perm.PublicDir))
+	require.NoError(tb, os.Mkdir(path, perm.PrivateDir))
 	return path
 }
 

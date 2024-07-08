@@ -71,7 +71,7 @@ func TestRemoveWorktree(t *testing.T) {
 	require.NoError(t, os.RemoveAll(disconnectedWorktreePath))
 
 	orphanedWorktreePath := filepath.Join(repoPath, GitlabWorktreePrefix, "orphaned")
-	require.NoError(t, os.MkdirAll(orphanedWorktreePath, perm.PublicDir))
+	require.NoError(t, os.MkdirAll(orphanedWorktreePath, perm.PrivateDir))
 
 	for _, tc := range []struct {
 		worktree     string

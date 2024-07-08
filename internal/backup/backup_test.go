@@ -121,7 +121,7 @@ func TestManager_Create(t *testing.T) {
 				setup: func(tb testing.TB, vanityRepo storage.Repository) setupData {
 					repo, repoPath := gittest.CreateRepository(tb, ctx, cfg)
 					gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
-					require.NoError(tb, os.Mkdir(filepath.Join(repoPath, "custom_hooks"), perm.PublicDir))
+					require.NoError(tb, os.Mkdir(filepath.Join(repoPath, "custom_hooks"), perm.PrivateDir))
 					require.NoError(tb, os.WriteFile(filepath.Join(repoPath, "custom_hooks/pre-commit.sample"), []byte("Some hooks"), perm.PublicFile))
 
 					return setupData{
@@ -503,7 +503,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 							relativePath + ".refs":   repoRefs,
 						})
 
-						require.NoError(tb, os.MkdirAll(filepath.Join(backupRoot, relativePath), perm.PublicDir))
+						require.NoError(tb, os.MkdirAll(filepath.Join(backupRoot, relativePath), perm.PrivateDir))
 
 						return repo, repoChecksum
 					},
@@ -558,7 +558,7 @@ custom_hooks_path = '%[2]s/custom_hooks.tar'
 							relativePath + ".refs":   repoRefs,
 						})
 
-						require.NoError(tb, os.MkdirAll(filepath.Join(backupRoot, relativePath), perm.PublicDir))
+						require.NoError(tb, os.MkdirAll(filepath.Join(backupRoot, relativePath), perm.PrivateDir))
 						testhelper.CopyFile(tb, mustCreateCustomHooksArchive(t, ctx), customHooksPath)
 
 						return repo, repoChecksum

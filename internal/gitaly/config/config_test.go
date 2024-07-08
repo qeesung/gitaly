@@ -553,7 +553,7 @@ func TestValidateStorages(t *testing.T) {
 	repositories := testhelper.TempDir(t)
 	repositories2 := testhelper.TempDir(t)
 	nestedRepositories := filepath.Join(repositories, "nested")
-	require.NoError(t, os.MkdirAll(nestedRepositories, perm.PublicDir))
+	require.NoError(t, os.MkdirAll(nestedRepositories, perm.PrivateDir))
 
 	filePath := filepath.Join(testhelper.TempDir(t), "temporary-file")
 	require.NoError(t, os.WriteFile(filePath, []byte{}, perm.PublicFile))
@@ -1068,7 +1068,7 @@ func TestSetupRuntimeDirectory_validateInternalSocket(t *testing.T) {
 			desc: "symlinked runtime directory",
 			setup: func(t *testing.T) string {
 				runtimeDir := testhelper.TempDir(t)
-				require.NoError(t, os.Mkdir(filepath.Join(runtimeDir, "sock.d"), perm.PublicDir))
+				require.NoError(t, os.Mkdir(filepath.Join(runtimeDir, "sock.d"), perm.PrivateDir))
 
 				// Create a symlink which points to the real runtime directory.
 				symlinkDir := testhelper.TempDir(t)
@@ -1095,7 +1095,7 @@ func TestSetupRuntimeDirectory_validateInternalSocket(t *testing.T) {
 
 				runtimeDirTooLongForSockets := filepath.Join(tempDir, strings.Repeat("/nested_directory", 10))
 				socketDir := filepath.Join(runtimeDirTooLongForSockets, "sock.d")
-				require.NoError(t, os.MkdirAll(socketDir, perm.PublicDir))
+				require.NoError(t, os.MkdirAll(socketDir, perm.PrivateDir))
 
 				return runtimeDirTooLongForSockets
 			},

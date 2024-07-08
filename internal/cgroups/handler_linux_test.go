@@ -665,8 +665,8 @@ func TestPruneOldCgroups(t *testing.T) {
 					tc.cfg.HierarchyRoot,
 				)
 
-				require.NoError(t, os.MkdirAll(cpuRoot, perm.PublicDir))
-				require.NoError(t, os.MkdirAll(memoryRoot, perm.PublicDir))
+				require.NoError(t, os.MkdirAll(cpuRoot, perm.PrivateDir))
+				require.NoError(t, os.MkdirAll(memoryRoot, perm.PrivateDir))
 
 				pid := tc.setup(t, tc.cfg, mock)
 
@@ -703,7 +703,7 @@ func TestPruneOldCgroups(t *testing.T) {
 					tc.cfg.Mountpoint,
 					tc.cfg.HierarchyRoot,
 				)
-				require.NoError(t, os.MkdirAll(root, perm.PublicDir))
+				require.NoError(t, os.MkdirAll(root, perm.PrivateDir))
 
 				pid := tc.setup(t, tc.cfg, mock)
 

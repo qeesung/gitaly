@@ -142,7 +142,7 @@ func TestCreate(t *testing.T) {
 		{
 			desc: "preexisting directory",
 			setup: func(t *testing.T, repo *gitalypb.Repository, repoPath string) {
-				require.NoError(t, os.MkdirAll(repoPath, perm.PublicDir))
+				require.NoError(t, os.MkdirAll(repoPath, perm.PrivateDir))
 			},
 			verify: func(t *testing.T, tempRepo *gitalypb.Repository, tempRepoPath string, realRepo *gitalypb.Repository, realRepoPath string) {
 				require.NoDirExists(t, tempRepoPath)
@@ -159,16 +159,16 @@ func TestCreate(t *testing.T) {
 		{
 			desc: "pre-lock stat fails",
 			setup: func(t *testing.T, repo *gitalypb.Repository, repoPath string) {
-				require.NoError(t, os.MkdirAll(repoPath, perm.PublicDir))
+				require.NoError(t, os.MkdirAll(repoPath, perm.PrivateDir))
 				parentDir := filepath.Dir(repoPath)
 				// Drop permissions to trigger a stat failure.
 				require.NoError(t, os.Chmod(parentDir, 0))
 				// Restore the permissions so the directory can be cleaned up.
-				t.Cleanup(func() { require.NoError(t, os.Chmod(parentDir, perm.PublicDir)) })
+				t.Cleanup(func() { require.NoError(t, os.Chmod(parentDir, perm.PrivateDir)) })
 			},
 			verify: func(t *testing.T, tempRepo *gitalypb.Repository, tempRepoPath string, realRepo *gitalypb.Repository, realRepoPath string) {
 				// Restore the permissions so the below checks work.
-				require.NoError(t, os.Chmod(filepath.Dir(realRepoPath), perm.PublicDir))
+				require.NoError(t, os.Chmod(filepath.Dir(realRepoPath), perm.PrivateDir))
 
 				require.NoDirExists(t, tempRepoPath)
 
@@ -190,7 +190,7 @@ func TestCreate(t *testing.T) {
 		{
 			desc: "locked",
 			setup: func(t *testing.T, repo *gitalypb.Repository, repoPath string) {
-				require.NoError(t, os.MkdirAll(filepath.Dir(repoPath), perm.PublicDir))
+				require.NoError(t, os.MkdirAll(filepath.Dir(repoPath), perm.PrivateDir))
 
 				// Lock the target repository such that we must fail.
 				lock, err := os.Create(repoPath + ".lock")
@@ -270,7 +270,7 @@ func TestCreate(t *testing.T) {
 				// should try locking the repository before casting any votes, we do
 				// not expect to see a voting error.
 
-				require.NoError(t, os.MkdirAll(filepath.Dir(repoPath), perm.PublicDir))
+				require.NoError(t, os.MkdirAll(filepath.Dir(repoPath), perm.PrivateDir))
 				lock, err := os.Create(repoPath + ".lock")
 				require.NoError(t, err)
 				require.NoError(t, lock.Close())

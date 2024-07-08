@@ -151,7 +151,7 @@ func TestRandomWalk(t *testing.T) {
 			root := testhelper.TempDir(t)
 
 			for _, dir := range tc.dirs {
-				require.NoError(t, os.MkdirAll(filepath.Join(root, dir), perm.PublicDir))
+				require.NoError(t, os.MkdirAll(filepath.Join(root, dir), perm.PrivateDir))
 			}
 
 			for _, file := range tc.files {
@@ -195,7 +195,7 @@ func TestRandomWalk_withRemovedDirs(t *testing.T) {
 	root := testhelper.TempDir(t)
 
 	for _, dir := range []string{"foo/bar", "foo/bar/deleteme", "foo/baz/qux", "foo/baz/other"} {
-		require.NoError(t, os.MkdirAll(filepath.Join(root, dir), perm.PublicDir))
+		require.NoError(t, os.MkdirAll(filepath.Join(root, dir), perm.PrivateDir))
 	}
 
 	walker := newRandomWalker(root, rand.New(rand.NewSource(1)))

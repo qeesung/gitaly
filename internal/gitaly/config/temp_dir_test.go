@@ -74,7 +74,7 @@ func TestPruneOldGitalyProcessDirectories(t *testing.T) {
 			"gitaly-invalidpid",
 		} {
 			dirPath := filepath.Join(baseDir, dirName)
-			require.NoError(t, os.Mkdir(dirPath, perm.PublicDir))
+			require.NoError(t, os.Mkdir(dirPath, perm.PrivateDir))
 			expectedLogs[dirPath] = "could not prune entry"
 			expectedErrs[dirPath] = errors.New("gitaly process directory contains an unexpected directory")
 			nonPrunableDirs = append(nonPrunableDirs, dirPath)
