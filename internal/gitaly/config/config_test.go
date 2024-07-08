@@ -306,7 +306,7 @@ func TestLoadConfigCommand(t *testing.T) {
 			desc: "command points to non-executable file",
 			setup: func(t *testing.T) setupData {
 				cmd := filepath.Join(testhelper.TempDir(t), "script")
-				require.NoError(t, os.WriteFile(cmd, nil, perm.PrivateFile))
+				require.NoError(t, os.WriteFile(cmd, nil, perm.PrivateWriteOnceFile))
 
 				return setupData{
 					cfg: Cfg{

@@ -27,7 +27,7 @@ func setupTestDirectory(t *testing.T, path string) {
 	require.NoError(t, os.WriteFile(filepath.Join(privateSubDir, "file-2"), []byte("file-2"), perm.SharedFile))
 	sharedSubDir := filepath.Join(path, "subdir-shared")
 	require.NoError(t, os.Mkdir(sharedSubDir, perm.PrivateDir))
-	require.NoError(t, os.WriteFile(filepath.Join(sharedSubDir, "file-3"), []byte("file-3"), perm.PrivateFile))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedSubDir, "file-3"), []byte("file-3"), perm.PrivateWriteOnceFile))
 }
 
 func TestEntry(t *testing.T) {
@@ -37,7 +37,7 @@ func TestEntry(t *testing.T) {
 
 	firstLevelDir := "test-dir"
 	secondLevelDir := "second-level/test-dir"
-	require.NoError(t, os.WriteFile(filepath.Join(storageRoot, "root-file"), []byte("root file"), perm.PrivateFile))
+	require.NoError(t, os.WriteFile(filepath.Join(storageRoot, "root-file"), []byte("root file"), perm.PrivateWriteOnceFile))
 	setupTestDirectory(t, filepath.Join(storageRoot, firstLevelDir))
 	setupTestDirectory(t, filepath.Join(storageRoot, secondLevelDir))
 
@@ -267,12 +267,12 @@ func TestRecordAlternateUnlink(t *testing.T) {
 			"objects":                {Mode: fs.ModeDir | perm.PrivateDir},
 			"objects/info":           {Mode: fs.ModeDir | perm.PrivateDir},
 			"objects/3f":             {Mode: fs.ModeDir | perm.PrivateDir},
-			"objects/3f/1":           {Mode: perm.PrivateFile},
+			"objects/3f/1":           {Mode: perm.PrivateWriteOnceFile},
 			"objects/3f/2":           {Mode: perm.SharedFile},
 			"objects/4f":             {Mode: fs.ModeDir | perm.PrivateDir},
 			"objects/4f/3":           {Mode: perm.SharedFile},
 			"objects/pack":           {Mode: fs.ModeDir | perm.PrivateDir},
-			"objects/pack/pack.pack": {Mode: perm.PrivateFile},
+			"objects/pack/pack.pack": {Mode: perm.PrivateWriteOnceFile},
 			"objects/pack/pack.idx":  {Mode: perm.SharedFile},
 		})
 	}
@@ -309,7 +309,7 @@ func TestRecordAlternateUnlink(t *testing.T) {
 					".":                     {Mode: fs.ModeDir | perm.PrivateDir},
 					"objects":               {Mode: fs.ModeDir | perm.PrivateDir},
 					"objects/3f":            {Mode: fs.ModeDir | perm.PrivateDir},
-					"objects/3f/1":          {Mode: perm.PrivateFile},
+					"objects/3f/1":          {Mode: perm.PrivateWriteOnceFile},
 					"objects/4f":            {Mode: fs.ModeDir | perm.PrivateDir},
 					"objects/4f/3":          {Mode: perm.SharedFile},
 					"objects/pack":          {Mode: fs.ModeDir | perm.PrivateDir},

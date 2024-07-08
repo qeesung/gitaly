@@ -135,7 +135,7 @@ func TestExtractHooks(t *testing.T) {
 			Name: "custom_hooks/subdirectory/",
 			Mode: int64(perm.PrivateDir),
 		}))
-		writeFile(writer, "custom_hooks/subdirectory/supporting-file", perm.PrivateFile, "supporting-file content")
+		writeFile(writer, "custom_hooks/subdirectory/supporting-file", perm.PrivateWriteOnceFile, "supporting-file content")
 		writeFile(writer, "ignored_file", fs.ModePerm, "ignored content")
 		writeFile(writer, "ignored_directory/ignored_file", fs.ModePerm, "ignored content")
 		defer testhelper.MustClose(t, writer)
@@ -193,7 +193,7 @@ func TestExtractHooks(t *testing.T) {
 				"/custom_hooks":              {Mode: umask.Mask(fs.ModeDir | fs.ModePerm)},
 				"/custom_hooks/pre-receive":  {Mode: umask.Mask(fs.ModePerm), Content: []byte("pre-receive content")},
 				"/custom_hooks/subdirectory": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-				"/custom_hooks/subdirectory/supporting-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("supporting-file content")},
+				"/custom_hooks/subdirectory/supporting-file": {Mode: umask.Mask(perm.PrivateWriteOnceFile), Content: []byte("supporting-file content")},
 			},
 		},
 		{
@@ -204,7 +204,7 @@ func TestExtractHooks(t *testing.T) {
 				"/":                             {Mode: umask.Mask(fs.ModeDir | fs.ModePerm)},
 				"/pre-receive":                  {Mode: umask.Mask(fs.ModePerm), Content: []byte("pre-receive content")},
 				"/subdirectory":                 {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-				"/subdirectory/supporting-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("supporting-file content")},
+				"/subdirectory/supporting-file": {Mode: umask.Mask(perm.PrivateWriteOnceFile), Content: []byte("supporting-file content")},
 			},
 		},
 		{

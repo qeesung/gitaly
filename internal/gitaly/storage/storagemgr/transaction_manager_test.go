@@ -40,7 +40,7 @@ var errSimulatedCrash = errors.New("simulated crash")
 
 func manifestDirectoryEntry(expected *gitalypb.LogEntry) testhelper.DirectoryEntry {
 	return testhelper.DirectoryEntry{
-		Mode:    perm.PrivateFile,
+		Mode:    perm.PrivateWriteOnceFile,
 		Content: expected,
 		ParseContent: func(tb testing.TB, path string, content []byte) any {
 			var logEntry gitalypb.LogEntry
@@ -76,7 +76,7 @@ func validCustomHooks(tb testing.TB) []byte {
 	require.NoError(tb, writer.WriteHeader(&tar.Header{
 		Name: "custom_hooks/private-dir/private-file",
 		Size: int64(len("private content")),
-		Mode: int64(perm.PrivateFile),
+		Mode: int64(perm.PrivateWriteOnceFile),
 	}))
 	_, err = writer.Write([]byte("private content"))
 	require.NoError(tb, err)

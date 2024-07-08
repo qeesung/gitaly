@@ -490,7 +490,7 @@ func TestOptimizeRepository(t *testing.T) {
 		require.NoError(t, os.WriteFile(
 			alternatesPath,
 			[]byte(alternatesContent),
-			perm.PrivateFile,
+			perm.PrivateWriteOnceFile,
 		))
 		require.NoError(t, os.Chtimes(alternatesPath, date, date))
 	}

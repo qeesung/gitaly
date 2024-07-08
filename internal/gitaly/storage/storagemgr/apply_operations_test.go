@@ -34,12 +34,12 @@ func TestApplyOperations(t *testing.T) {
 		".":                                          {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent":                                     {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent/relative-path":                       {Mode: fs.ModeDir | perm.PrivateDir},
-		"parent/relative-path/private-file":          {Mode: perm.PrivateFile, Data: []byte("private")},
+		"parent/relative-path/private-file":          {Mode: perm.PrivateWriteOnceFile, Data: []byte("private")},
 		"parent/relative-path/shared-file":           {Mode: perm.SharedFile, Data: []byte("shared")},
 		"parent/relative-path/empty-dir":             {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent/relative-path/removed-dir":           {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent/relative-path/dir-with-removed-file": {Mode: fs.ModeDir | perm.PrivateDir},
-		"parent/relative-path/dir-with-removed-file/removed-file": {Mode: perm.PrivateFile, Data: []byte("removed")},
+		"parent/relative-path/dir-with-removed-file/removed-file": {Mode: perm.PrivateWriteOnceFile, Data: []byte("removed")},
 	})
 	umask := testhelper.Umask()
 

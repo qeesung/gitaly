@@ -349,7 +349,7 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 			desc: "garbage",
 			setup: func(t *testing.T, repoPath string) setupData {
 				garbagePath := filepath.Join(repoPath, "objects", "pack", "garbage")
-				require.NoError(t, os.WriteFile(garbagePath, []byte("x"), perm.PrivateFile))
+				require.NoError(t, os.WriteFile(garbagePath, []byte("x"), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					expectedInfo: RepositoryInfo{
@@ -380,7 +380,7 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 				}
 
 				garbagePath := filepath.Join(repoPath, "reftable", "garbage")
-				require.NoError(t, os.WriteFile(garbagePath, []byte("x"), perm.PrivateFile))
+				require.NoError(t, os.WriteFile(garbagePath, []byte("x"), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					expectedInfo: RepositoryInfo{
@@ -594,7 +594,7 @@ func TestRepositoryInfoForRepository(t *testing.T) {
 				// everywhere.
 				for _, file := range []string{"garbage1", "garbage2", "garbage3"} {
 					garbagePath := filepath.Join(repoPath, "objects", "pack", file)
-					require.NoError(t, os.WriteFile(garbagePath, []byte("x"), perm.PrivateFile))
+					require.NoError(t, os.WriteFile(garbagePath, []byte("x"), perm.PrivateWriteOnceFile))
 				}
 
 				return setupData{
@@ -1802,7 +1802,7 @@ func TestMultiPackIndexInfoForPath(t *testing.T) {
 		return func(t *testing.T) string {
 			t.Helper()
 			path := filepath.Join(testhelper.TempDir(t), "midx")
-			require.NoError(t, os.WriteFile(path, content, perm.PrivateFile))
+			require.NoError(t, os.WriteFile(path, content, perm.PrivateWriteOnceFile))
 			return path
 		}
 	}
@@ -1939,7 +1939,7 @@ func TestMultiPackIndexInfoForPath(t *testing.T) {
 				require.NoError(t, os.WriteFile(
 					filepath.Join(repoPath, "objects", "info", "alternates"),
 					[]byte(filepath.Join(poolPath, "objects")),
-					perm.PrivateFile,
+					perm.PrivateWriteOnceFile,
 				))
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithParents(sharedCommit), gittest.WithBranch("main"))
 				gittest.Exec(t, cfg, "-C", repoPath, "repack", "-Adl", "--write-midx")
@@ -2057,6 +2057,6 @@ func hashDependentSize(tb testing.TB, sha1, sha256 uint64) uint64 {
 
 func writeFileWithMtime(tb testing.TB, path string, content []byte, date time.Time) {
 	tb.Helper()
-	require.NoError(tb, os.WriteFile(path, content, perm.PrivateFile))
+	require.NoError(tb, os.WriteFile(path, content, perm.PrivateWriteOnceFile))
 	require.NoError(tb, os.Chtimes(path, date, date))
 }

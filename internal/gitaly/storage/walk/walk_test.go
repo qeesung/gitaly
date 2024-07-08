@@ -75,7 +75,7 @@ func TestWalkStorage(t *testing.T) {
 				err := os.MkdirAll(dir, perm.PrivateDir)
 				require.NoError(t, err)
 
-				f, err := os.OpenFile(fullPath, os.O_WRONLY|os.O_CREATE, perm.PrivateFile)
+				f, err := os.OpenFile(fullPath, os.O_WRONLY|os.O_CREATE, perm.PrivateWriteOnceFile)
 				require.NoError(t, err)
 				require.NoError(t, f.Close())
 			}

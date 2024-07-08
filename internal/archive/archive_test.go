@@ -89,5 +89,5 @@ func TestWriteTarball(t *testing.T) {
 func writeFile(tb testing.TB, path string, data []byte) {
 	tb.Helper()
 	require.NoError(tb, os.MkdirAll(filepath.Dir(path), perm.PrivateDir))
-	require.NoError(tb, os.WriteFile(path, data, perm.PrivateFile))
+	require.NoError(tb, os.WriteFile(path, data, perm.PrivateWriteOnceFile))
 }

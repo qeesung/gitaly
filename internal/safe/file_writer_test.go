@@ -49,7 +49,7 @@ func TestFileWriter_mode(t *testing.T) {
 	dir := testhelper.TempDir(t)
 
 	target := filepath.Join(dir, "file")
-	require.NoError(t, os.WriteFile(target, []byte("contents"), perm.PrivateFile))
+	require.NoError(t, os.WriteFile(target, []byte("contents"), perm.PrivateWriteOnceFile))
 
 	writer, err := safe.NewFileWriter(target, safe.FileWriterConfig{
 		FileMode: 0o060,

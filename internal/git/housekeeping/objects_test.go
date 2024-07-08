@@ -394,7 +394,7 @@ func TestRepackObjects(t *testing.T) {
 				require.Len(t, packPath, 1)
 
 				keepPath := strings.TrimSuffix(packPath[0], ".pack") + ".keep"
-				require.NoError(t, os.WriteFile(keepPath, nil, perm.PrivateFile))
+				require.NoError(t, os.WriteFile(keepPath, nil, perm.PrivateWriteOnceFile))
 			},
 			repackCfg: config.RepackObjectsConfig{
 				Strategy: config.RepackObjectsStrategyGeometric,
@@ -771,7 +771,7 @@ func TestRepackObjects_incrementalWithUnreachable(t *testing.T) {
 				require.NoError(t, os.WriteFile(
 					filepath.Join(repoPath, "objects", "info", "alternates"),
 					[]byte(filepath.Join(alternateRepoPath, "objects")),
-					perm.PrivateFile,
+					perm.PrivateWriteOnceFile,
 				))
 
 				return setupData{
@@ -807,7 +807,7 @@ func TestRepackObjects_incrementalWithUnreachable(t *testing.T) {
 				require.NoError(t, os.WriteFile(
 					filepath.Join(repoPath, "objects", "info", "alternates"),
 					[]byte(filepath.Join(alternateRepoPath, "objects")),
-					perm.PrivateFile,
+					perm.PrivateWriteOnceFile,
 				))
 
 				return setupData{

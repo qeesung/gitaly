@@ -289,7 +289,7 @@ func expectDeletion(entry *fileEntry) {
 func f(name string, opts ...entryOption) *fileEntry {
 	entry := &fileEntry{
 		name:       name,
-		mode:       perm.PrivateFile,
+		mode:       perm.PrivateWriteOnceFile,
 		age:        ancient,
 		finalState: Keep,
 	}
