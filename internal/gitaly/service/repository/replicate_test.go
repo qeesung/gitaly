@@ -105,7 +105,7 @@ func TestReplicateRepository(t *testing.T) {
 				attrFilePath := filepath.Join(sourcePath, "info", "attributes")
 				require.NoError(t, os.MkdirAll(filepath.Dir(attrFilePath), perm.PrivateDir))
 				attributesData := []byte("*.pbxproj binary\n")
-				require.NoError(t, os.WriteFile(attrFilePath, attributesData, perm.SharedFile))
+				require.NoError(t, os.WriteFile(attrFilePath, attributesData, perm.PrivateWriteOnceFile))
 
 				return setupData{
 					source: source,

@@ -294,7 +294,7 @@ func TestReceivePack_invalidGitconfig(t *testing.T) {
 	// Remove the config file first as files are read-only with transactions.
 	configPath := filepath.Join(remoteRepoPath, "config")
 	require.NoError(t, os.Remove(configPath))
-	require.NoError(t, os.WriteFile(configPath, []byte("x x x foobar"), perm.SharedFile))
+	require.NoError(t, os.WriteFile(configPath, []byte("x x x foobar"), perm.PrivateWriteOnceFile))
 	remoteRepo.GlProjectPath = "something"
 
 	lHead, rHead, err := setupRepoAndPush(t, ctx, cfg, &gitalypb.SSHReceivePackRequest{

@@ -77,7 +77,7 @@ func TestFsck(t *testing.T) {
 				// This makes the repo severely broken so that `git` does not
 				// identify it as a proper repository anymore.
 				require.NoError(t, os.RemoveAll(filepath.Join(repoPath, "objects")))
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "objects"), nil, perm.SharedFile))
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "objects"), nil, perm.PrivateWriteOnceFile))
 
 				setupData := setupData{
 					repo: repo,

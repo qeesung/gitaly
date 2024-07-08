@@ -358,7 +358,7 @@ func TestCache_unWriteableFile(t *testing.T) {
 	c := newCache(t, tmp)
 
 	innerCache(c).createFile = func() (namedWriteCloser, error) {
-		return os.OpenFile(filepath.Join(tmp, "unwriteable"), os.O_RDONLY|os.O_CREATE|os.O_EXCL, perm.SharedFile)
+		return os.OpenFile(filepath.Join(tmp, "unwriteable"), os.O_RDONLY|os.O_CREATE|os.O_EXCL, perm.PrivateWriteOnceFile)
 	}
 
 	_, _, err := c.Fetch(ctx, "key", io.Discard, func(w io.Writer) error {
@@ -379,7 +379,7 @@ func TestCache_unCloseableFile(t *testing.T) {
 	c := newCache(t, tmp)
 
 	innerCache(c).createFile = func() (namedWriteCloser, error) {
-		f, err := os.OpenFile(filepath.Join(tmp, "uncloseable"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm.SharedFile)
+		f, err := os.OpenFile(filepath.Join(tmp, "uncloseable"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm.PrivateWriteOnceFile)
 		if err != nil {
 			return nil, err
 		}
@@ -401,7 +401,7 @@ func TestCache_cannotOpenFileForReading(t *testing.T) {
 	c := newCache(t, tmp)
 
 	innerCache(c).createFile = func() (namedWriteCloser, error) {
-		f, err := os.OpenFile(filepath.Join(tmp, "unopenable"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm.SharedFile)
+		f, err := os.OpenFile(filepath.Join(tmp, "unopenable"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm.PrivateWriteOnceFile)
 		if err != nil {
 			return nil, err
 		}

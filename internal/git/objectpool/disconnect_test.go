@@ -92,7 +92,7 @@ func TestDisconnect(t *testing.T) {
 
 		altPath, err := repo.InfoAlternatesPath(ctx)
 		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(altPath, []byte(altContent), perm.SharedFile))
+		require.NoError(t, os.WriteFile(altPath, []byte(altContent), perm.PrivateWriteOnceFile))
 
 		return repo
 	}
@@ -188,7 +188,7 @@ func TestDisconnect(t *testing.T) {
 
 				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(altPath, []byte(altObjectDir), perm.SharedFile))
+				require.NoError(t, os.WriteFile(altPath, []byte(altObjectDir), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					repository: repo,
@@ -382,7 +382,7 @@ func TestRemoveAlternatesIfOk(t *testing.T) {
 		altPath, err := repo.InfoAlternatesPath(ctx)
 		require.NoError(t, err)
 		altContent := testhelper.TempDir(t) + "\n"
-		require.NoError(t, os.WriteFile(altPath, []byte(altContent), perm.SharedFile))
+		require.NoError(t, os.WriteFile(altPath, []byte(altContent), perm.PrivateWriteOnceFile))
 
 		// Intentionally break the repository so that the consistency check will cause an
 		// error.
@@ -412,7 +412,7 @@ func TestRemoveAlternatesIfOk(t *testing.T) {
 		altPath, err := repo.InfoAlternatesPath(ctx)
 		require.NoError(t, err)
 		altContent := testhelper.TempDir(t) + "\n"
-		require.NoError(t, os.WriteFile(altPath, []byte(altContent), perm.SharedFile))
+		require.NoError(t, os.WriteFile(altPath, []byte(altContent), perm.PrivateWriteOnceFile))
 
 		// In order to test the scenario where a commit is in a commit graph but not in the
 		// object database, we will first write a new commit, write the commit graph, then

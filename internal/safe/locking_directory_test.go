@@ -29,7 +29,7 @@ func TestLockingDirectory(t *testing.T) {
 		require.NoError(t, os.WriteFile(
 			filepath.Join(path, "somefile"),
 			[]byte("data"),
-			perm.SharedFile),
+			perm.PrivateWriteOnceFile),
 		)
 		assert.ErrorIs(t, secondLockingDir.Lock(), safe.ErrFileAlreadyLocked)
 		require.NoError(t, lockingDir.Unlock())

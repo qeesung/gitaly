@@ -35,7 +35,7 @@ func TestApplyOperations(t *testing.T) {
 		"parent":                                     {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent/relative-path":                       {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent/relative-path/private-file":          {Mode: perm.PrivateWriteOnceFile, Data: []byte("private")},
-		"parent/relative-path/shared-file":           {Mode: perm.SharedFile, Data: []byte("shared")},
+		"parent/relative-path/shared-file":           {Mode: perm.PrivateWriteOnceFile, Data: []byte("shared")},
 		"parent/relative-path/empty-dir":             {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent/relative-path/removed-dir":           {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent/relative-path/dir-with-removed-file": {Mode: fs.ModeDir | perm.PrivateDir},

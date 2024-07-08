@@ -28,7 +28,7 @@ func WriteShellSecretFile(tb testing.TB, dir, secretToken string) string {
 
 	require.NoError(tb, os.MkdirAll(dir, perm.PrivateDir))
 	filePath := filepath.Join(dir, ".gitlab_shell_secret")
-	require.NoError(tb, os.WriteFile(filePath, []byte(secretToken), perm.SharedFile))
+	require.NoError(tb, os.WriteFile(filePath, []byte(secretToken), perm.PrivateWriteOnceFile))
 	return filePath
 }
 

@@ -99,7 +99,7 @@ func TestSink_SignedURL(t *testing.T) {
 			setup: func(t *testing.T, sinkDir string, sink *Sink) {
 				path := filepath.Join(sinkDir, sink.relativePath(repo, "default"))
 				require.NoError(t, os.MkdirAll(filepath.Dir(path), perm.PrivateDir))
-				require.NoError(t, os.WriteFile(path, []byte("hello"), perm.SharedFile))
+				require.NoError(t, os.WriteFile(path, []byte("hello"), perm.PrivateWriteOnceFile))
 			},
 		},
 		{

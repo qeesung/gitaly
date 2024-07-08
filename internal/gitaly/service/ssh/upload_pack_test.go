@@ -835,7 +835,7 @@ func testUploadPackGitFailure(t *testing.T, ctx context.Context) {
 	// Remove the config file first as files are read-only with transactions.
 	configPath := filepath.Join(repoPath, "config")
 	require.NoError(t, os.Remove(configPath))
-	require.NoError(t, os.WriteFile(configPath, []byte("Not a valid gitconfig"), perm.SharedFile))
+	require.NoError(t, os.WriteFile(configPath, []byte("Not a valid gitconfig"), perm.PrivateWriteOnceFile))
 
 	stream, err := client.SSHUploadPack(ctx)
 	require.NoError(t, err)

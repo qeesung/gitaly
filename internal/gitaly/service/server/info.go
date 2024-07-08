@@ -55,7 +55,7 @@ func shardCheck(shardPath string) (readable bool, writeable bool) {
 	testPath := filepath.Join(shardPath, "+testWrite")
 
 	content := []byte("testWrite")
-	if err := os.WriteFile(testPath, content, perm.SharedFile); err == nil {
+	if err := os.WriteFile(testPath, content, perm.PrivateWriteOnceFile); err == nil {
 		writeable = true
 	}
 	_ = os.Remove(testPath)

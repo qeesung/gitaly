@@ -51,7 +51,7 @@ func TestInitLanguageStats(t *testing.T) {
 		{
 			desc: "corrupt cache",
 			run: func(t *testing.T, repo *localrepo.Repo, repoPath string) {
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, languageStatsFilename), []byte("garbage"), perm.SharedFile))
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, languageStatsFilename), []byte("garbage"), perm.PrivateWriteOnceFile))
 
 				stats, err := initLanguageStats(ctx, repo)
 				require.Errorf(t, err, "new language stats zlib reader: invalid header")

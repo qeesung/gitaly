@@ -165,7 +165,7 @@ func WriteTemporaryGitalyConfigFile(tb testing.TB, cfg config.Cfg) string {
 
 	contents, err := toml.Marshal(cfg)
 	require.NoError(tb, err)
-	require.NoError(tb, os.WriteFile(path, contents, perm.SharedFile))
+	require.NoError(tb, os.WriteFile(path, contents, perm.PrivateWriteOnceFile))
 
 	return path
 }

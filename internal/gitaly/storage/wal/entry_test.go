@@ -24,7 +24,7 @@ func setupTestDirectory(t *testing.T, path string) {
 	require.NoError(t, os.WriteFile(filepath.Join(path, "file-1"), []byte("file-1"), perm.PrivateExecutable))
 	privateSubDir := filepath.Join(filepath.Join(path, "subdir-private"))
 	require.NoError(t, os.Mkdir(privateSubDir, perm.PrivateDir))
-	require.NoError(t, os.WriteFile(filepath.Join(privateSubDir, "file-2"), []byte("file-2"), perm.SharedFile))
+	require.NoError(t, os.WriteFile(filepath.Join(privateSubDir, "file-2"), []byte("file-2"), perm.PrivateWriteOnceFile))
 	sharedSubDir := filepath.Join(path, "subdir-shared")
 	require.NoError(t, os.Mkdir(sharedSubDir, perm.PrivateDir))
 	require.NoError(t, os.WriteFile(filepath.Join(sharedSubDir, "file-3"), []byte("file-3"), perm.PrivateWriteOnceFile))
@@ -268,12 +268,12 @@ func TestRecordAlternateUnlink(t *testing.T) {
 			"objects/info":           {Mode: fs.ModeDir | perm.PrivateDir},
 			"objects/3f":             {Mode: fs.ModeDir | perm.PrivateDir},
 			"objects/3f/1":           {Mode: perm.PrivateWriteOnceFile},
-			"objects/3f/2":           {Mode: perm.SharedFile},
+			"objects/3f/2":           {Mode: perm.PrivateWriteOnceFile},
 			"objects/4f":             {Mode: fs.ModeDir | perm.PrivateDir},
-			"objects/4f/3":           {Mode: perm.SharedFile},
+			"objects/4f/3":           {Mode: perm.PrivateWriteOnceFile},
 			"objects/pack":           {Mode: fs.ModeDir | perm.PrivateDir},
 			"objects/pack/pack.pack": {Mode: perm.PrivateWriteOnceFile},
-			"objects/pack/pack.idx":  {Mode: perm.SharedFile},
+			"objects/pack/pack.idx":  {Mode: perm.PrivateWriteOnceFile},
 		})
 	}
 
@@ -311,9 +311,9 @@ func TestRecordAlternateUnlink(t *testing.T) {
 					"objects/3f":            {Mode: fs.ModeDir | perm.PrivateDir},
 					"objects/3f/1":          {Mode: perm.PrivateWriteOnceFile},
 					"objects/4f":            {Mode: fs.ModeDir | perm.PrivateDir},
-					"objects/4f/3":          {Mode: perm.SharedFile},
+					"objects/4f/3":          {Mode: perm.PrivateWriteOnceFile},
 					"objects/pack":          {Mode: fs.ModeDir | perm.PrivateDir},
-					"objects/pack/pack.idx": {Mode: perm.SharedFile},
+					"objects/pack/pack.idx": {Mode: perm.PrivateWriteOnceFile},
 				})
 			},
 			expectedOperations: func() operations {

@@ -1753,7 +1753,7 @@ func TestSetupRuntimeDirectory(t *testing.T) {
 	t.Run("validation", func(t *testing.T) {
 		dirPath := testhelper.TempDir(t)
 		filePath := filepath.Join(dirPath, "file")
-		require.NoError(t, os.WriteFile(filePath, nil, perm.SharedFile))
+		require.NoError(t, os.WriteFile(filePath, nil, perm.PrivateWriteOnceFile))
 
 		for _, tc := range []struct {
 			desc        string
@@ -2098,7 +2098,7 @@ func TestStorage_Validate(t *testing.T) {
 
 	dirPath := testhelper.TempDir(t)
 	filePath := filepath.Join(dirPath, "file")
-	require.NoError(t, os.WriteFile(filePath, nil, perm.SharedFile))
+	require.NoError(t, os.WriteFile(filePath, nil, perm.PrivateWriteOnceFile))
 	for _, tc := range []struct {
 		name        string
 		storage     Storage
@@ -2140,7 +2140,7 @@ func TestTLS_Validate(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	tmpFile := filepath.Join(tmpDir, "file")
-	require.NoError(t, os.WriteFile(tmpFile, []byte("I am not a certificate"), perm.SharedFile))
+	require.NoError(t, os.WriteFile(tmpFile, []byte("I am not a certificate"), perm.PrivateWriteOnceFile))
 
 	for _, tc := range []struct {
 		name        string
@@ -2241,7 +2241,7 @@ func TestGitlabShell_Validate(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	tmpFile := filepath.Join(tmpDir, "file")
-	require.NoError(t, os.WriteFile(tmpFile, nil, perm.SharedFile))
+	require.NoError(t, os.WriteFile(tmpFile, nil, perm.PrivateWriteOnceFile))
 
 	for _, tc := range []struct {
 		name        string

@@ -112,7 +112,7 @@ func TestLink(t *testing.T) {
 				// Link the repository to object pool using the absolute path of the object pool.
 				// The alternates file should be rewritten to use the relative path.
 				poolObjectsPath := gittest.RepositoryPath(t, ctx, pool, "objects")
-				require.NoError(t, os.WriteFile(altPath, []byte(poolObjectsPath), perm.SharedFile))
+				require.NoError(t, os.WriteFile(altPath, []byte(poolObjectsPath), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					cfg:  cfg,
@@ -130,7 +130,7 @@ func TestLink(t *testing.T) {
 				// nothing and completes normally.
 				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(altPath, []byte(getRelAltPath(t, repo, pool.Repo)), perm.SharedFile))
+				require.NoError(t, os.WriteFile(altPath, []byte(getRelAltPath(t, repo, pool.Repo)), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					cfg:  cfg,
@@ -148,7 +148,7 @@ func TestLink(t *testing.T) {
 				// linking operation fails.
 				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(altPath, []byte("../different/object/pool"), perm.SharedFile))
+				require.NoError(t, os.WriteFile(altPath, []byte("../different/object/pool"), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					cfg:           cfg,
@@ -195,7 +195,7 @@ func TestLink(t *testing.T) {
 				// to the same object pool.
 				altPath, err := repo.InfoAlternatesPath(ctx)
 				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(altPath, []byte(getRelAltPath(t, repo, pool.Repo)), perm.SharedFile))
+				require.NoError(t, os.WriteFile(altPath, []byte(getRelAltPath(t, repo, pool.Repo)), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					cfg:       cfg,

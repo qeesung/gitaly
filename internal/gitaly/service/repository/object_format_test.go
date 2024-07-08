@@ -142,7 +142,7 @@ func TestObjectFormat(t *testing.T) {
 						"[extensions]",
 						"objectFormat = blake2b",
 					}, "\n"),
-				), perm.SharedFile))
+				), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					request: &gitalypb.ObjectFormatRequest{

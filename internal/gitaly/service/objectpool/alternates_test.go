@@ -93,7 +93,7 @@ func TestDisconnectGitAlternatesUnexpectedAlternates(t *testing.T) {
 
 			altPath, err := repo.InfoAlternatesPath(ctx)
 			require.NoError(t, err)
-			require.NoError(t, os.WriteFile(altPath, []byte(tc.altContent), perm.SharedFile))
+			require.NoError(t, os.WriteFile(altPath, []byte(tc.altContent), perm.PrivateWriteOnceFile))
 
 			_, err = client.DisconnectGitAlternates(ctx, &gitalypb.DisconnectGitAlternatesRequest{Repository: repoProto})
 			require.Error(t, err)

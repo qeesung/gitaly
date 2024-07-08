@@ -112,7 +112,7 @@ we can both agree on this line though
 		t.Run(tt.name, func(t *testing.T) {
 			entry := Entry{
 				Path:     tt.path,
-				Mode:     uint(perm.SharedFile),
+				Mode:     uint(perm.PrivateWriteOnceFile),
 				Contents: []byte("something-with-trailing-newline\n"),
 			}
 

@@ -457,7 +457,7 @@ func TestInstance_Stats(t *testing.T) {
 					gittest.TreeEntry{Path: "application.rb", Mode: "100644", Content: strings.Repeat("a", 2943)},
 				))
 
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, languageStatsFilename), []byte("garbage"), perm.SharedFile))
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, languageStatsFilename), []byte("garbage"), perm.PrivateWriteOnceFile))
 
 				return repoProto, repoPath, commitID
 			},

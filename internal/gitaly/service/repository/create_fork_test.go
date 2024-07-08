@@ -310,7 +310,7 @@ func TestCreateFork_targetExists(t *testing.T) {
 				require.NoError(t, os.WriteFile(
 					filepath.Join(targetPath, "config"),
 					nil,
-					perm.SharedFile,
+					perm.PrivateWriteOnceFile,
 				))
 			},
 			expectedErr: func() error {
@@ -325,7 +325,7 @@ func TestCreateFork_targetExists(t *testing.T) {
 			desc: "target file",
 			seed: func(t *testing.T, targetPath string) {
 				require.NoError(t, os.MkdirAll(filepath.Dir(targetPath), perm.PrivateDir))
-				require.NoError(t, os.WriteFile(targetPath, nil, perm.SharedFile))
+				require.NoError(t, os.WriteFile(targetPath, nil, perm.PrivateWriteOnceFile))
 			},
 			expectedErr: func() error {
 				if testhelper.IsWALEnabled() {

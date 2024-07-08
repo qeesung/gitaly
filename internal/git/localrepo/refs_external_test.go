@@ -179,7 +179,7 @@ func TestRepo_SetDefaultBranch_errors(t *testing.T) {
 			require.NoError(t, updater.Prepare())
 			t.Cleanup(func() { require.NoError(t, updater.Close()) })
 		} else {
-			require.NoError(t, os.WriteFile(filepath.Join(repoPath, "HEAD.lock"), []byte(""), perm.SharedFile))
+			require.NoError(t, os.WriteFile(filepath.Join(repoPath, "HEAD.lock"), []byte(""), perm.PrivateWriteOnceFile))
 		}
 
 		err = repo.SetDefaultBranch(ctx, &transaction.MockManager{}, "refs/heads/branch")

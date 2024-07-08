@@ -50,7 +50,7 @@ func TestRemove(t *testing.T) {
 
 				// Simulate a concurrent RPC holding the repository lock.
 				lockPath := repoPath + ".lock"
-				require.NoError(t, os.WriteFile(lockPath, []byte{}, perm.SharedFile))
+				require.NoError(t, os.WriteFile(lockPath, []byte{}, perm.PrivateWriteOnceFile))
 				tb.Cleanup(func() {
 					require.NoError(t, os.RemoveAll(lockPath))
 				})

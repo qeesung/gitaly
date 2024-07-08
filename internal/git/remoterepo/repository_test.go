@@ -117,7 +117,7 @@ func TestRepository_ObjectHash(t *testing.T) {
 						"[extensions]",
 						"objectFormat = blake2b",
 					}, "\n"),
-				), perm.SharedFile))
+				), perm.PrivateWriteOnceFile))
 
 				repo, err := remoterepo.New(ctx, repoProto, pool)
 				require.NoError(t, err)

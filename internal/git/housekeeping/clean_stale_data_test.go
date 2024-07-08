@@ -255,7 +255,7 @@ func TestPruneEmptyConfigSections(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			require.NoError(t, os.WriteFile(configPath, []byte(tc.configData), perm.SharedFile))
+			require.NoError(t, os.WriteFile(configPath, []byte(tc.configData), perm.PrivateWriteOnceFile))
 
 			skippedSections, err := PruneEmptyConfigSections(ctx, repo)
 			require.NoError(t, err)
@@ -364,7 +364,7 @@ func TestRemoveGitLabFullPathConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			require.NoError(t, os.WriteFile(configPath, []byte(tc.configData), perm.SharedFile))
+			require.NoError(t, os.WriteFile(configPath, []byte(tc.configData), perm.PrivateWriteOnceFile))
 
 			cleanupCount, err := removeGitLabFullPathConfig(ctx, repo, &transaction.MockManager{})
 			require.NoError(t, err)

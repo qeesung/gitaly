@@ -676,7 +676,7 @@ func withInfoRefCache(cache infoRefCache) ServerOpt {
 
 func replaceCachedResponse(tb testing.TB, ctx context.Context, cache *cache.DiskCache, req *gitalypb.InfoRefsRequest, newContents string) {
 	path := pathToCachedResponse(tb, ctx, cache, req)
-	require.NoError(tb, os.WriteFile(path, []byte(newContents), perm.SharedFile))
+	require.NoError(tb, os.WriteFile(path, []byte(newContents), perm.PrivateWriteOnceFile))
 }
 
 func setInfoRefsUploadPackMethod(ctx context.Context) context.Context {
