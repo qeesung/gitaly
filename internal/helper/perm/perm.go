@@ -13,10 +13,6 @@ const (
 	// used by gitaly.
 	PrivateDir fs.FileMode = 0o700
 
-	// GroupPrivateDir is the permissions given for a directory that must only
-	// be used by gitaly and the git group.
-	GroupPrivateDir fs.FileMode = 0o770
-
 	// SharedDir is the permission given for a directory that may be read
 	// outside of gitaly.
 	SharedDir fs.FileMode = 0o755

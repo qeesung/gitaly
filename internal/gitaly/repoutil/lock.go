@@ -26,7 +26,7 @@ func Lock(ctx context.Context, logger log.Logger, locator storage.Locator, repos
 	}
 
 	// Create the parent directory in case it doesn't exist yet.
-	if err := os.MkdirAll(filepath.Dir(path), perm.GroupPrivateDir); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), perm.PrivateDir); err != nil {
 		return nil, structerr.NewInternal("create directories: %w", err)
 	}
 
