@@ -119,6 +119,24 @@ func testUserMergeBranch(t *testing.T, ctx context.Context) {
 			},
 		},
 		{
+			desc:  "merge + squash",
+			hooks: []string{},
+			setup: func(data setupData) setupResponse {
+				return setupResponse{
+					firstRequest: &gitalypb.UserMergeBranchRequest{
+						Repository: data.repoProto,
+						User:       gittest.TestUser,
+						CommitId:   data.commitToMerge,
+						Branch:     []byte(data.branch),
+						Message:    []byte(data.message),
+						Squash:     true,
+					},
+					secondRequest:          &gitalypb.UserMergeBranchRequest{Apply: true},
+					secondExpectedResponse: &gitalypb.OperationBranchUpdate{},
+				}
+			},
+		},
+		{
 			desc:  "merge successful + expectedOldOID",
 			hooks: []string{},
 			setup: func(data setupData) setupResponse {
@@ -243,12 +261,14 @@ func testUserMergeBranch(t *testing.T, ctx context.Context) {
 					gittest.TreeEntry{Mode: "100644", Path: "a", Content: "apple"},
 				),
 			)
+			expectedTreeID := gittest.WriteTree(t, cfg, repoPath, []gittest.TreeEntry{
+				{Mode: "100644", Path: "a", Content: "apple"},
+				{Mode: "100644", Path: "foo", Content: "bar"},
+			})
+
 			mergeCommitID := gittest.WriteCommit(t, cfg, repoPath,
 				gittest.WithParents(masterCommitID),
-				gittest.WithTreeEntries(
-					gittest.TreeEntry{Mode: "100644", Path: "a", Content: "apple"},
-					gittest.TreeEntry{Mode: "100644", Path: "foo", Content: "bar"},
-				))
+				gittest.WithTree(expectedTreeID))
 
 			data := tc.setup(setupData{
 				commitToMerge: mergeCommitID.String(),
@@ -313,8 +333,15 @@ func testUserMergeBranch(t *testing.T, ctx context.Context) {
 			commit, err := repo.ReadCommit(ctx, git.Revision(branchToMerge))
 			require.NoError(t, err, "look up git commit after call has finished")
 
-			require.Contains(t, commit.ParentIds, mergeCommitID.String())
+			require.Contains(t, commit.ParentIds, masterCommitID.String())
+			if data.firstRequest.Squash {
+				require.NotContains(t, commit.ParentIds, mergeCommitID.String())
+			} else {
+				require.Contains(t, commit.ParentIds, mergeCommitID.String())
+			}
+
 			require.True(t, strings.HasPrefix(string(commit.Body), message), "expected %q to start with %q", commit.Body, message)
+			require.Equal(t, commit.TreeId, expectedTreeID.String())
 
 			if len(tc.hooks) > 0 {
 				expectedGlID := "GL_ID=" + gittest.TestUser.GlId
