@@ -147,9 +147,9 @@ func MustCreateCustomHooksTar(tb testing.TB) io.Reader {
 	writer := tar.NewWriter(&buffer)
 	defer MustClose(tb, writer)
 
-	writeFile(writer, "custom_hooks/pre-commit", perm.SharedExecutable, "pre-commit content")
-	writeFile(writer, "custom_hooks/pre-push", perm.SharedExecutable, "pre-push content")
-	writeFile(writer, "custom_hooks/pre-receive", perm.SharedExecutable, "pre-receive content")
+	writeFile(writer, "custom_hooks/pre-commit", perm.PrivateExecutable, "pre-commit content")
+	writeFile(writer, "custom_hooks/pre-push", perm.PrivateExecutable, "pre-push content")
+	writeFile(writer, "custom_hooks/pre-receive", perm.PrivateExecutable, "pre-receive content")
 
 	return &buffer
 }

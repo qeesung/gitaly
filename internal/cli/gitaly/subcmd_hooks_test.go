@@ -55,7 +55,7 @@ func TestSetHooksSubcommand(t *testing.T) {
 
 	expectedExecutableMode := testhelper.WithOrWithoutWAL(
 		storage.ModeExecutable,
-		umask.Mask(perm.SharedExecutable),
+		umask.Mask(perm.PrivateExecutable),
 	)
 
 	for _, tc := range []struct {

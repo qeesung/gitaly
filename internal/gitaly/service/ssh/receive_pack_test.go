@@ -437,7 +437,7 @@ func TestReceivePack_hookFailure(t *testing.T) {
 	remoteRepo, _ := gittest.CreateRepository(t, ctx, cfg)
 
 	hookContent := []byte("#!/bin/sh\nexit 1")
-	require.NoError(t, os.WriteFile(filepath.Join(gitCmdFactory.HooksPath(ctx), "pre-receive"), hookContent, perm.SharedExecutable))
+	require.NoError(t, os.WriteFile(filepath.Join(gitCmdFactory.HooksPath(ctx), "pre-receive"), hookContent, perm.PrivateExecutable))
 
 	_, _, err := setupRepoAndPush(t, ctx, cfg, &gitalypb.SSHReceivePackRequest{
 		Repository: remoteRepo,

@@ -451,7 +451,7 @@ type customHookResults struct {
 
 func writeCustomHook(t *testing.T, hookName, dir string, content []byte) func() {
 	require.NoError(t, os.MkdirAll(dir, perm.PrivateDir))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, hookName), content, perm.SharedExecutable))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, hookName), content, perm.PrivateExecutable))
 
 	return func() {
 		require.NoError(t, os.RemoveAll(dir))

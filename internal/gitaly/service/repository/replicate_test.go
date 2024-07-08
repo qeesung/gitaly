@@ -713,7 +713,7 @@ func listenGitalySSHCalls(t *testing.T, conf config.Cfg) func() gitalySSHParams 
 		echo "$@" >%[1]q/arguments
 
 		exec %[2]q "$@"`, tmpDir, updatedPath)
-	require.NoError(t, os.WriteFile(initialPath, []byte(script), perm.SharedExecutable))
+	require.NoError(t, os.WriteFile(initialPath, []byte(script), perm.PrivateExecutable))
 
 	return func() gitalySSHParams {
 		arguments := testhelper.MustReadFile(t, filepath.Join(tmpDir, "arguments"))
