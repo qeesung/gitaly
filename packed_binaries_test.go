@@ -38,7 +38,7 @@ func TestUnpackAuxiliaryBinaries_alreadyExists(t *testing.T) {
 	destinationDir := t.TempDir()
 
 	existingFile := filepath.Join(destinationDir, "gitaly-hooks")
-	require.NoError(t, os.WriteFile(existingFile, []byte("existing file"), perm.PublicFile))
+	require.NoError(t, os.WriteFile(existingFile, []byte("existing file"), perm.PrivateWriteOnceFile))
 
 	err := UnpackAuxiliaryBinaries(destinationDir)
 	require.EqualError(t, err, fmt.Sprintf(`open %s: file exists`, existingFile), "expected unpacking to fail if destination binary already existed")

@@ -122,7 +122,7 @@ func TestManager_Create(t *testing.T) {
 					repo, repoPath := gittest.CreateRepository(tb, ctx, cfg)
 					gittest.WriteCommit(t, cfg, repoPath, gittest.WithBranch(git.DefaultBranch))
 					require.NoError(tb, os.Mkdir(filepath.Join(repoPath, "custom_hooks"), perm.PrivateDir))
-					require.NoError(tb, os.WriteFile(filepath.Join(repoPath, "custom_hooks/pre-commit.sample"), []byte("Some hooks"), perm.PublicFile))
+					require.NoError(tb, os.WriteFile(filepath.Join(repoPath, "custom_hooks/pre-commit.sample"), []byte("Some hooks"), perm.PrivateWriteOnceFile))
 
 					return setupData{
 						repo:     repo,

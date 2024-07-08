@@ -344,7 +344,7 @@ func TestReplicateRepository(t *testing.T) {
 				// Remove the HEAD first as the files are read-only with transactions.
 				headPath := filepath.Join(sourcePath, "HEAD")
 				require.NoError(t, os.Remove(headPath))
-				require.NoError(t, os.WriteFile(headPath, []byte("garbage"), perm.PublicFile))
+				require.NoError(t, os.WriteFile(headPath, []byte("garbage"), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					source:        source,

@@ -930,7 +930,7 @@ func TestConfig_ValidateV2(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		tmpDir := testhelper.TempDir(t)
 		tmpFile := filepath.Join(tmpDir, "file")
-		require.NoError(t, os.WriteFile(tmpFile, nil, perm.PublicFile))
+		require.NoError(t, os.WriteFile(tmpFile, nil, perm.PrivateWriteOnceFile))
 		cfg := Config{
 			BackgroundVerification: BackgroundVerification{
 				VerificationInterval: duration.Duration(-1),

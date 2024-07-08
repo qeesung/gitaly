@@ -208,7 +208,7 @@ func TestCommitLockedFile(t *testing.T) {
 			VoteFn: func(context.Context, txinfo.Transaction, voting.Vote, voting.Phase) error {
 				// This shouldn't typically happen given that the file is locked,
 				// but we concurrently update the file after our first vote.
-				require.NoError(t, os.WriteFile(file, []byte("something"), perm.PublicFile))
+				require.NoError(t, os.WriteFile(file, []byte("something"), perm.PrivateWriteOnceFile))
 				return nil
 			},
 		}, writer)

@@ -117,7 +117,7 @@ func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
 	if cfg.Gitlab.SecretFile == "" {
 		cfg.Gitlab.SecretFile = filepath.Join(root, "gitlab", "http.secret")
 		require.NoError(tb, os.MkdirAll(filepath.Dir(cfg.Gitlab.SecretFile), perm.PrivateDir))
-		require.NoError(tb, os.WriteFile(cfg.Gitlab.SecretFile, nil, perm.PublicFile))
+		require.NoError(tb, os.WriteFile(cfg.Gitlab.SecretFile, nil, perm.PrivateWriteOnceFile))
 	}
 
 	// cfg.SetDefaults() should only be called after cfg.Gitlab.SecretFile is set (so it doesn't override it with

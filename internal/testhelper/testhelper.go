@@ -120,9 +120,9 @@ func WriteFiles(tb testing.TB, root string, files map[string]any) {
 
 		switch content := value.(type) {
 		case string:
-			require.NoError(tb, os.WriteFile(path, []byte(content), perm.PublicFile))
+			require.NoError(tb, os.WriteFile(path, []byte(content), perm.PrivateWriteOnceFile))
 		case []byte:
-			require.NoError(tb, os.WriteFile(path, content, perm.PublicFile))
+			require.NoError(tb, os.WriteFile(path, content, perm.PrivateWriteOnceFile))
 		case io.Reader:
 			func() {
 				f, err := os.Create(path)

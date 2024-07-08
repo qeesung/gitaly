@@ -556,7 +556,7 @@ func TestValidateStorages(t *testing.T) {
 	require.NoError(t, os.MkdirAll(nestedRepositories, perm.PrivateDir))
 
 	filePath := filepath.Join(testhelper.TempDir(t), "temporary-file")
-	require.NoError(t, os.WriteFile(filePath, []byte{}, perm.PublicFile))
+	require.NoError(t, os.WriteFile(filePath, []byte{}, perm.PrivateWriteOnceFile))
 
 	invalidDir := filepath.Join(filepath.Dir(repositories), t.Name())
 
@@ -2356,7 +2356,7 @@ func TestHTTPSettings_Validate(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	tmpFile := filepath.Join(tmpDir, "tmpfile")
-	require.NoError(t, os.WriteFile(tmpFile, []byte{}, perm.PublicFile))
+	require.NoError(t, os.WriteFile(tmpFile, []byte{}, perm.PrivateWriteOnceFile))
 
 	for _, tc := range []struct {
 		name         string
@@ -2411,7 +2411,7 @@ func TestGitlab_Validate(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	tmpFile := filepath.Join(tmpDir, "tmpfile")
-	require.NoError(t, os.WriteFile(tmpFile, []byte{}, perm.PublicFile))
+	require.NoError(t, os.WriteFile(tmpFile, []byte{}, perm.PrivateWriteOnceFile))
 
 	for _, tc := range []struct {
 		name        string
