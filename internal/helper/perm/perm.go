@@ -22,10 +22,6 @@ const (
 	// of gitaly.
 	SharedFile fs.FileMode = 0o644
 
-	// SharedReadOnlyFile is the permission given for a read only file that may also
-	// be read outside of Gitaly.
-	SharedReadOnlyFile fs.FileMode = 0o444
-
 	// PrivateExecutable is the permissions given for an executable that must
 	// only be used by gitaly.
 	PrivateExecutable fs.FileMode = 0o700
