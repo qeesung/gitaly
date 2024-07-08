@@ -364,7 +364,7 @@ func (s *server) syncGitconfig(ctx context.Context, source, target *gitalypb.Rep
 
 func (s *server) writeFile(ctx context.Context, path string, mode os.FileMode, reader io.Reader) (returnedErr error) {
 	parentDir := filepath.Dir(path)
-	if err := os.MkdirAll(parentDir, perm.SharedDir); err != nil {
+	if err := os.MkdirAll(parentDir, perm.PrivateDir); err != nil {
 		return err
 	}
 

@@ -13,10 +13,6 @@ const (
 	// used by gitaly.
 	PrivateDir fs.FileMode = 0o700
 
-	// SharedDir is the permission given for a directory that may be read
-	// outside of gitaly.
-	SharedDir fs.FileMode = 0o755
-
 	// PrivateWriteOnceFile is the most restrictive file permission. Given to
 	// files that are expected to be written only once and must be read only by
 	// gitaly.

@@ -98,7 +98,7 @@ doesn't seem to test a realistic scenario.`)
 				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "shallow"), nil, perm.SharedFile))
 
 				// Custom Git hooks are not included in snapshots.
-				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "hooks"), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "hooks"), perm.PrivateDir))
 
 				// Create a file in the objects directory that does not match the regex.
 				require.NoError(t, os.WriteFile(

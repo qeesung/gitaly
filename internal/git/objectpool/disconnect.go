@@ -90,7 +90,7 @@ func Disconnect(ctx context.Context, repo *localrepo.Repo, logger log.Logger, tx
 		source := filepath.Join(altObjectDir, path)
 		target := filepath.Join(repoPath, "objects", path)
 
-		if err := os.MkdirAll(filepath.Dir(target), perm.SharedDir); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), perm.PrivateDir); err != nil {
 			return err
 		}
 

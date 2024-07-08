@@ -107,8 +107,8 @@ func TestFilestoreCleanwalk(t *testing.T) {
 	dir1 := filepath.Join(tmp, "dir1")
 	dir2 := filepath.Join(tmp, "dir2")
 	file := filepath.Join(dir2, "file")
-	require.NoError(t, os.Mkdir(dir1, perm.SharedDir))
-	require.NoError(t, os.Mkdir(dir2, perm.SharedDir))
+	require.NoError(t, os.Mkdir(dir1, perm.PrivateDir))
+	require.NoError(t, os.Mkdir(dir2, perm.PrivateDir))
 	require.NoError(t, os.WriteFile(file, nil, perm.SharedFile))
 	require.NoError(t, os.Chmod(dir2, 0), "create dir with pathological permissions")
 

@@ -65,7 +65,7 @@ func (keyer leaseKeyer) updateLatest(ctx context.Context, repo *gitalypb.Reposit
 	}
 
 	lPath := latestPath(repoStatePath)
-	if err := os.MkdirAll(filepath.Dir(lPath), perm.SharedDir); err != nil {
+	if err := os.MkdirAll(filepath.Dir(lPath), perm.PrivateDir); err != nil {
 		return "", err
 	}
 
@@ -182,7 +182,7 @@ func (keyer leaseKeyer) newPendingLease(ctx context.Context, repo *gitalypb.Repo
 	}
 
 	pDir := pendingDir(repoStatePath)
-	if err := os.MkdirAll(pDir, perm.SharedDir); err != nil {
+	if err := os.MkdirAll(pDir, perm.PrivateDir); err != nil {
 		return "", err
 	}
 

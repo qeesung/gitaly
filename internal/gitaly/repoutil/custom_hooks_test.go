@@ -375,7 +375,7 @@ func mustWriteCustomHookDirectory(t *testing.T, files []testFile, dirName string
 	tmpDir := testhelper.TempDir(t)
 	hooksPath := filepath.Join(tmpDir, dirName)
 
-	err := os.Mkdir(hooksPath, perm.SharedDir)
+	err := os.Mkdir(hooksPath, perm.PrivateDir)
 	require.NoError(t, err)
 
 	for _, f := range files {

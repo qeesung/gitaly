@@ -116,7 +116,7 @@ func WriteFiles(tb testing.TB, root string, files map[string]any) {
 	for name, value := range files {
 		path := filepath.Join(root, name)
 
-		require.NoError(tb, os.MkdirAll(filepath.Dir(path), perm.SharedDir))
+		require.NoError(tb, os.MkdirAll(filepath.Dir(path), perm.PrivateDir))
 
 		switch content := value.(type) {
 		case string:
@@ -339,7 +339,7 @@ type Cleanup func()
 // executable.
 func WriteExecutable(tb testing.TB, path string, content []byte) string {
 	dir := filepath.Dir(path)
-	require.NoError(tb, os.MkdirAll(dir, perm.SharedDir))
+	require.NoError(tb, os.MkdirAll(dir, perm.PrivateDir))
 	tb.Cleanup(func() {
 		assert.NoError(tb, os.RemoveAll(dir))
 	})

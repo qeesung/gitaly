@@ -191,7 +191,7 @@ func (repo *Repo) StorageTempDir() (string, error) {
 		return "", err
 	}
 
-	if err := os.MkdirAll(tempPath, perm.SharedDir); err != nil {
+	if err := os.MkdirAll(tempPath, perm.PrivateDir); err != nil {
 		return "", err
 	}
 

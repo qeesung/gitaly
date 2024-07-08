@@ -166,7 +166,7 @@ func TestCache_deletedFile(t *testing.T) {
 	require.True(t, created)
 
 	require.NoError(t, os.RemoveAll(tmp), "wipe out underlying files of cache")
-	require.NoError(t, os.MkdirAll(tmp, perm.SharedDir))
+	require.NoError(t, os.MkdirAll(tmp, perm.PrivateDir))
 
 	// File is gone from filesystem but not from cache
 	requireCacheFiles(t, tmp, 0)

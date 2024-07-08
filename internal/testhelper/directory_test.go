@@ -188,7 +188,7 @@ func TestCreateFS(t *testing.T) {
 	rootPath := filepath.Join(tmpDir, "root")
 
 	CreateFS(t, rootPath, fstest.MapFS{
-		".":                              {Mode: fs.ModeDir | perm.SharedDir},
+		".":                              {Mode: fs.ModeDir | perm.PrivateDir},
 		"private-dir":                    {Mode: fs.ModeDir | perm.PrivateDir},
 		"private-dir/private-file":       {Mode: perm.PrivateFile, Data: []byte("private-file")},
 		"private-dir/subdir":             {Mode: fs.ModeDir | perm.PrivateDir},
@@ -199,7 +199,7 @@ func TestCreateFS(t *testing.T) {
 	})
 
 	RequireDirectoryState(t, rootPath, "", DirectoryState{
-		"/":                               {Mode: fs.ModeDir | perm.SharedDir},
+		"/":                               {Mode: fs.ModeDir | perm.PrivateDir},
 		"/private-dir":                    {Mode: fs.ModeDir | perm.PrivateDir},
 		"/private-dir/private-file":       {Mode: perm.PrivateFile, Content: []byte("private-file")},
 		"/private-dir/subdir":             {Mode: fs.ModeDir | perm.PrivateDir},

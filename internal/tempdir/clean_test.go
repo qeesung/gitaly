@@ -22,7 +22,7 @@ func TestCleanSuccess(t *testing.T) {
 	cleanRoot, err := locator.TempDir(cfg.Storages[0].Name)
 	require.NoError(t, err)
 
-	require.NoError(t, os.MkdirAll(cleanRoot, perm.SharedDir), "create clean root before setup")
+	require.NoError(t, os.MkdirAll(cleanRoot, perm.PrivateDir), "create clean root before setup")
 	testhelper.MustRunCommand(t, nil, "chmod", "-R", "0700", cleanRoot)
 	require.NoError(t, os.RemoveAll(cleanRoot), "clean up test clean root")
 

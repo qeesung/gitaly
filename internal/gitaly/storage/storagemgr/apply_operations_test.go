@@ -31,9 +31,9 @@ func TestApplyOperations(t *testing.T) {
 
 	snapshotRoot := filepath.Join(t.TempDir(), "snapshot")
 	testhelper.CreateFS(t, snapshotRoot, fstest.MapFS{
-		".":                                          {Mode: fs.ModeDir | perm.SharedDir},
+		".":                                          {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent":                                     {Mode: fs.ModeDir | perm.PrivateDir},
-		"parent/relative-path":                       {Mode: fs.ModeDir | perm.SharedDir},
+		"parent/relative-path":                       {Mode: fs.ModeDir | perm.PrivateDir},
 		"parent/relative-path/private-file":          {Mode: perm.PrivateFile, Data: []byte("private")},
 		"parent/relative-path/shared-file":           {Mode: perm.SharedFile, Data: []byte("shared")},
 		"parent/relative-path/empty-dir":             {Mode: fs.ModeDir | perm.PrivateDir},

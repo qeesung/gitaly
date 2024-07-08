@@ -25,7 +25,7 @@ func TestGetInfoAttributesExisting(t *testing.T) {
 	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 	infoPath := filepath.Join(repoPath, "info")
-	require.NoError(t, os.MkdirAll(infoPath, perm.SharedDir))
+	require.NoError(t, os.MkdirAll(infoPath, perm.PrivateDir))
 
 	buffSize := streamio.WriteBufferSize + 1
 	data := bytes.Repeat([]byte("*.pbxproj binary\n"), buffSize)

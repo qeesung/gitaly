@@ -84,7 +84,7 @@ func TestCreate(t *testing.T) {
 
 		// We currently allow creating object pools when the target path is an empty
 		// directory. This can be considered a bug, but for now we abide.
-		require.NoError(t, os.MkdirAll(fullPath, perm.SharedDir))
+		require.NoError(t, os.MkdirAll(fullPath, perm.PrivateDir))
 
 		_, _, err := createPool(t, &gitalypb.ObjectPool{
 			Repository: &gitalypb.Repository{

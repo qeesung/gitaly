@@ -103,7 +103,7 @@ func TestReplicateRepository(t *testing.T) {
 				// created in the target repository as expected.
 				// We should get rid of this with https://gitlab.com/groups/gitlab-org/-/epics/9006
 				attrFilePath := filepath.Join(sourcePath, "info", "attributes")
-				require.NoError(t, os.MkdirAll(filepath.Dir(attrFilePath), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Dir(attrFilePath), perm.PrivateDir))
 				attributesData := []byte("*.pbxproj binary\n")
 				require.NoError(t, os.WriteFile(attrFilePath, attributesData, perm.SharedFile))
 

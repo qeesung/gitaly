@@ -148,7 +148,7 @@ func (repo *Repo) WriteCommit(ctx context.Context, cfg WriteCommitConfig) (git.O
 			return "", errors.New("alternate object directory must be an absolute path")
 		}
 
-		if err := os.MkdirAll(cfg.AlternateObjectDir, perm.SharedDir); err != nil {
+		if err := os.MkdirAll(cfg.AlternateObjectDir, perm.PrivateDir); err != nil {
 			return "", err
 		}
 

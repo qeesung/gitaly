@@ -78,7 +78,7 @@ func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
 
 	if cfg.BinDir == "" {
 		cfg.BinDir = filepath.Join(root, "bin.d")
-		require.NoError(tb, os.Mkdir(cfg.BinDir, perm.SharedDir))
+		require.NoError(tb, os.Mkdir(cfg.BinDir, perm.PrivateDir))
 	}
 
 	if cfg.Logging.Dir == "" {
@@ -87,19 +87,19 @@ func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
 			cfg.Logging.Dir = logDir
 		} else {
 			cfg.Logging.Dir = filepath.Join(root, "log.d")
-			require.NoError(tb, os.Mkdir(cfg.Logging.Dir, perm.SharedDir))
+			require.NoError(tb, os.Mkdir(cfg.Logging.Dir, perm.PrivateDir))
 		}
 	}
 
 	if cfg.GitlabShell.Dir == "" {
 		cfg.GitlabShell.Dir = filepath.Join(root, "shell.d")
-		require.NoError(tb, os.Mkdir(cfg.GitlabShell.Dir, perm.SharedDir))
+		require.NoError(tb, os.Mkdir(cfg.GitlabShell.Dir, perm.PrivateDir))
 	}
 
 	if cfg.RuntimeDir == "" {
 		cfg.RuntimeDir = filepath.Join(root, "runtime.d")
 		require.NoError(tb, os.Mkdir(cfg.RuntimeDir, perm.PrivateDir))
-		require.NoError(tb, os.Mkdir(cfg.InternalSocketDir(), perm.SharedDir))
+		require.NoError(tb, os.Mkdir(cfg.InternalSocketDir(), perm.PrivateDir))
 	}
 
 	if len(cfg.Storages) != 0 && len(gc.storages) != 0 {
@@ -116,7 +116,7 @@ func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
 
 	if cfg.Gitlab.SecretFile == "" {
 		cfg.Gitlab.SecretFile = filepath.Join(root, "gitlab", "http.secret")
-		require.NoError(tb, os.MkdirAll(filepath.Dir(cfg.Gitlab.SecretFile), perm.SharedDir))
+		require.NoError(tb, os.MkdirAll(filepath.Dir(cfg.Gitlab.SecretFile), perm.PrivateDir))
 		require.NoError(tb, os.WriteFile(cfg.Gitlab.SecretFile, nil, perm.PublicFile))
 	}
 
@@ -126,7 +126,7 @@ func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
 
 	if len(cfg.Storages) == 0 {
 		storagesDir := filepath.Join(root, "storages.d")
-		require.NoError(tb, os.Mkdir(storagesDir, perm.SharedDir))
+		require.NoError(tb, os.Mkdir(storagesDir, perm.PrivateDir))
 
 		if len(gc.storages) == 0 {
 			gc.storages = []string{"default"}
@@ -136,7 +136,7 @@ func (gc *GitalyCfgBuilder) Build(tb testing.TB) config.Cfg {
 		cfg.Storages = make([]config.Storage, len(gc.storages))
 		for i, storageName := range gc.storages {
 			storagePath := filepath.Join(storagesDir, storageName)
-			require.NoError(tb, os.MkdirAll(storagePath, perm.SharedDir))
+			require.NoError(tb, os.MkdirAll(storagePath, perm.PrivateDir))
 			cfg.Storages[i].Name = storageName
 			cfg.Storages[i].Path = storagePath
 		}

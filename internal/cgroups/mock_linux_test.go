@@ -78,7 +78,7 @@ func newMockV1(t *testing.T) *mockCgroupV1 {
 	require.NoError(t, err)
 
 	for _, s := range subsystems {
-		require.NoError(t, os.MkdirAll(filepath.Join(root, string(s.Name())), perm.SharedDir))
+		require.NoError(t, os.MkdirAll(filepath.Join(root, string(s.Name())), perm.PrivateDir))
 	}
 
 	return &mockCgroupV1{
@@ -130,7 +130,7 @@ func (m *mockCgroupV1) setupMockCgroupFiles(
 ) {
 	for _, s := range m.subsystems {
 		cgroupPath := filepath.Join(m.root, string(s.Name()), manager.currentProcessCgroup())
-		require.NoError(t, os.MkdirAll(cgroupPath, perm.SharedDir))
+		require.NoError(t, os.MkdirAll(cgroupPath, perm.PrivateDir))
 
 		content := map[string]string{}
 		for _, ic := range inputContent {
@@ -161,7 +161,7 @@ func (m *mockCgroupV1) setupMockCgroupFiles(
 
 		for _, shard := range shards {
 			shardPath := filepath.Join(cgroupPath, fmt.Sprintf("repos-%d", shard))
-			require.NoError(t, os.MkdirAll(shardPath, perm.SharedDir))
+			require.NoError(t, os.MkdirAll(shardPath, perm.PrivateDir))
 
 			for filename, content := range content {
 				shardControlFilePath := filepath.Join(shardPath, filename)
@@ -240,7 +240,7 @@ func (m *mockCgroupV2) setupMockCgroupFiles(
 	}
 
 	cgroupPath := filepath.Join(m.root, manager.currentProcessCgroup())
-	require.NoError(t, os.MkdirAll(cgroupPath, perm.SharedDir))
+	require.NoError(t, os.MkdirAll(cgroupPath, perm.PrivateDir))
 
 	for filename, content := range content {
 		controlFilePath := filepath.Join(m.root, manager.cfg.HierarchyRoot, filename)
@@ -254,7 +254,7 @@ func (m *mockCgroupV2) setupMockCgroupFiles(
 
 	for _, shard := range shards {
 		shardPath := filepath.Join(cgroupPath, fmt.Sprintf("repos-%d", shard))
-		require.NoError(t, os.MkdirAll(shardPath, perm.SharedDir))
+		require.NoError(t, os.MkdirAll(shardPath, perm.PrivateDir))
 
 		for filename, content := range content {
 			shardControlFilePath := filepath.Join(shardPath, filename)

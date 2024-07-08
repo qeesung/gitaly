@@ -722,7 +722,7 @@ func TestOptimizeRepository(t *testing.T) {
 
 				// The repack won't repack the following objects because they're
 				// broken, and thus we'll retry to prune them afterwards.
-				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), perm.PrivateDir))
 
 				// We set the object's mtime to be almost two weeks ago. Given that
 				// our timeout is at exactly two weeks this shouldn't caused them to
@@ -760,7 +760,7 @@ func TestOptimizeRepository(t *testing.T) {
 
 				// The repack won't repack the following objects because they're
 				// broken, and thus we'll retry to prune them afterwards.
-				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), perm.PrivateDir))
 
 				moreThanTwoWeeksAgo := time.Now().Add(stats.StaleObjectsGracePeriod).Add(-time.Minute)
 
@@ -1842,7 +1842,7 @@ func TestRepositoryManager_CleanStaleData_references(t *testing.T) {
 			for _, ref := range tc.refs {
 				path := filepath.Join(repoPath, ref.name)
 
-				require.NoError(t, os.MkdirAll(filepath.Dir(path), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Dir(path), perm.PrivateDir))
 				require.NoError(t, os.WriteFile(path, bytes.Repeat([]byte{0}, ref.size), perm.SharedFile))
 				filetime := time.Now().Add(-ref.age)
 				require.NoError(t, os.Chtimes(path, filetime, filetime))

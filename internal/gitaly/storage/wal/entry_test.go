@@ -26,7 +26,7 @@ func setupTestDirectory(t *testing.T, path string) {
 	require.NoError(t, os.Mkdir(privateSubDir, perm.PrivateDir))
 	require.NoError(t, os.WriteFile(filepath.Join(privateSubDir, "file-2"), []byte("file-2"), perm.SharedFile))
 	sharedSubDir := filepath.Join(path, "subdir-shared")
-	require.NoError(t, os.Mkdir(sharedSubDir, perm.SharedDir))
+	require.NoError(t, os.Mkdir(sharedSubDir, perm.PrivateDir))
 	require.NoError(t, os.WriteFile(filepath.Join(sharedSubDir, "file-3"), []byte("file-3"), perm.PrivateFile))
 }
 
@@ -269,7 +269,7 @@ func TestRecordAlternateUnlink(t *testing.T) {
 			"objects/3f":             {Mode: fs.ModeDir | perm.PrivateDir},
 			"objects/3f/1":           {Mode: perm.PrivateFile},
 			"objects/3f/2":           {Mode: perm.SharedFile},
-			"objects/4f":             {Mode: fs.ModeDir | perm.SharedDir},
+			"objects/4f":             {Mode: fs.ModeDir | perm.PrivateDir},
 			"objects/4f/3":           {Mode: perm.SharedFile},
 			"objects/pack":           {Mode: fs.ModeDir | perm.PrivateDir},
 			"objects/pack/pack.pack": {Mode: perm.PrivateFile},
@@ -310,7 +310,7 @@ func TestRecordAlternateUnlink(t *testing.T) {
 					"objects":               {Mode: fs.ModeDir | perm.PrivateDir},
 					"objects/3f":            {Mode: fs.ModeDir | perm.PrivateDir},
 					"objects/3f/1":          {Mode: perm.PrivateFile},
-					"objects/4f":            {Mode: fs.ModeDir | perm.SharedDir},
+					"objects/4f":            {Mode: fs.ModeDir | perm.PrivateDir},
 					"objects/4f/3":          {Mode: perm.SharedFile},
 					"objects/pack":          {Mode: fs.ModeDir | perm.PrivateDir},
 					"objects/pack/pack.idx": {Mode: perm.SharedFile},

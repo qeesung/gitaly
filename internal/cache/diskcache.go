@@ -293,7 +293,7 @@ func (c *DiskCache) PutStream(ctx context.Context, repo *gitalypb.Repository, re
 		}
 	}()
 
-	if err := os.MkdirAll(filepath.Dir(reqPath), perm.SharedDir); err != nil {
+	if err := os.MkdirAll(filepath.Dir(reqPath), perm.PrivateDir); err != nil {
 		return err
 	}
 
