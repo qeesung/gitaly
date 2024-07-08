@@ -43,6 +43,12 @@ Discuss your answers with your mentor / onboarding buddy / any senior team membe
   - [ ] How much CPU was consumed for all clones (http or ssh) for the gitlab-org/gitlab repository in the past hour?
   - [ ] How slow are the slowest clones taking on the gitlab-org/gitlab repository the past day?
 
+### Tracking calls throughout the GitLab ecosystem
+
+- [ ] Pick a [repository files API
+  call](https://docs.gitlab.com/ee/api/repository_files.html#get-file-from-repository) that happened in the past day.  Which Gitaly calls were invoked downstream?
+- [ ] Pick a `GetBlobs` RPC call in the past day. Who were the upstream callers?
+
 ## Follow-up activities
 
 Link: [Gitaly Customer Issues](https://gitlab.com/gitlab-org/gitaly/-/issues/?sort=due_date&state=opened&label_name%5B%5D=Gitaly%20Customer%20Issue&first_page_size=100)
