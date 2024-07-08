@@ -36,9 +36,12 @@ Discuss your answers with your mentor / onboarding buddy / any senior team membe
 - [ ] There's a bug in `git` and it needs to be rolled back. Describe the process and prepare the necessary MR(s).
 - [ ] What commit of Gitaly is running currently in `gprd`?
 
-### Git
+### Git Operations
 
-- [ ] Clones are "slow". How can you validate whether `bundle-uri` is in use?
+- [ ] Clones are "slow"
+  - [ ] How much memory was consumed for clones (http or ssh) for the gitlab-org/gitlab repository in the past hour?
+  - [ ] How much CPU was consumed for all clones (http or ssh) for the gitlab-org/gitlab repository in the past hour?
+  - [ ] How slow are the slowest clones taking on the gitlab-org/gitlab repository the past day?
 
 ## Follow-up activities
 
