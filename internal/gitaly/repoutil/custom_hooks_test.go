@@ -327,7 +327,7 @@ func TestNewDirectoryVote(t *testing.T) {
 				{name: "pre-commit.sample", content: "foo", mode: perm.PrivateExecutable},
 				{name: "pre-push.sample", content: "bar", mode: perm.PrivateExecutable},
 			},
-			expectedHash: "8ca11991268de4c9278488a674fc1a88db449566",
+			expectedHash: "3c0fd54e0428c5ee04c15ee5a52864694771fb20",
 		},
 		{
 			desc: "generated hash matches with changed file name",
@@ -335,7 +335,7 @@ func TestNewDirectoryVote(t *testing.T) {
 				{name: "pre-commit.sample.diff", content: "foo", mode: perm.PrivateExecutable},
 				{name: "pre-push.sample", content: "bar", mode: perm.PrivateExecutable},
 			},
-			expectedHash: "b5ed58ced84103da1ed9d7813a9e39b3b5daf7d7",
+			expectedHash: "2d5080ef5ed0a52254a794915c8fbbec8c694224",
 		},
 		{
 			desc: "generated hash matches with changed file content",
@@ -343,7 +343,7 @@ func TestNewDirectoryVote(t *testing.T) {
 				{name: "pre-commit.sample", content: "foo", mode: perm.PrivateExecutable},
 				{name: "pre-push.sample", content: "bar.diff", mode: perm.PrivateExecutable},
 			},
-			expectedHash: "178083848c8a08e36c4f86c2d318a84b0bb845f2",
+			expectedHash: "18e2d3f9cc9990747b27cf8a7fad281539856194",
 		},
 		{
 			desc: "generated hash matches with changed file mode",
@@ -351,7 +351,7 @@ func TestNewDirectoryVote(t *testing.T) {
 				{name: "pre-commit.sample", content: "foo", mode: perm.PrivateWriteOnceFile},
 				{name: "pre-push.sample", content: "bar", mode: perm.PrivateExecutable},
 			},
-			expectedHash: "c69574241b83496bb4005b4f7a0dfcda96cb317e",
+			expectedHash: "ad20a4fea20e9049bb70e084e757fcc5d2cf2cc7",
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {

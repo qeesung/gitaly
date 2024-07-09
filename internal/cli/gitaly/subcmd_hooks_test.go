@@ -50,7 +50,7 @@ func TestSetHooksSubcommand(t *testing.T) {
 		// TAR does not store the directory mode in the mode field. It's stored
 		// in the type field of the header. Remove the directory mode bit.
 		storage.ModeDirectory^fs.ModeDir,
-		umask.Mask(fs.ModePerm),
+		umask.Mask(perm.PrivateDir),
 	)
 
 	expectedExecutableMode := testhelper.WithOrWithoutWAL(

@@ -2,6 +2,7 @@ package localrepo
 
 import (
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,7 +70,7 @@ func TestRepo_WriteBlob(t *testing.T) {
 			// We should get rid of this with https://gitlab.com/groups/gitlab-org/-/epics/9006
 			attributesPath := filepath.Join(repoPath, "info", "attributes")
 			require.NoError(t, os.MkdirAll(filepath.Dir(attributesPath), perm.PrivateDir))
-			require.NoError(t, os.WriteFile(attributesPath, []byte(tc.attributes), perm.PrivateWriteOnceFile))
+			require.NoError(t, os.WriteFile(attributesPath, []byte(tc.attributes), fs.ModePerm))
 
 			sha, err := repo.WriteBlob(ctx, tc.input, WriteBlobConfig{
 				Path: "file-path",

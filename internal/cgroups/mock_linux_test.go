@@ -22,6 +22,7 @@ package cgroups
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -156,7 +157,7 @@ func (m *mockCgroupV1) setupMockCgroupFiles(
 
 		for filename, content := range content {
 			controlFilePath := filepath.Join(cgroupPath, filename)
-			require.NoError(t, os.WriteFile(controlFilePath, []byte(content), perm.PrivateWriteOnceFile))
+			require.NoError(t, os.WriteFile(controlFilePath, []byte(content), fs.ModePerm))
 		}
 
 		for _, shard := range shards {
@@ -165,7 +166,7 @@ func (m *mockCgroupV1) setupMockCgroupFiles(
 
 			for filename, content := range content {
 				shardControlFilePath := filepath.Join(shardPath, filename)
-				require.NoError(t, os.WriteFile(shardControlFilePath, []byte(content), perm.PrivateWriteOnceFile))
+				require.NoError(t, os.WriteFile(shardControlFilePath, []byte(content), fs.ModePerm))
 			}
 		}
 	}
@@ -244,12 +245,12 @@ func (m *mockCgroupV2) setupMockCgroupFiles(
 
 	for filename, content := range content {
 		controlFilePath := filepath.Join(m.root, manager.cfg.HierarchyRoot, filename)
-		require.NoError(t, os.WriteFile(controlFilePath, []byte(content), perm.PrivateWriteOnceFile))
+		require.NoError(t, os.WriteFile(controlFilePath, []byte(content), fs.ModePerm))
 	}
 
 	for filename, content := range content {
 		controlFilePath := filepath.Join(cgroupPath, filename)
-		require.NoError(t, os.WriteFile(controlFilePath, []byte(content), perm.PrivateWriteOnceFile))
+		require.NoError(t, os.WriteFile(controlFilePath, []byte(content), fs.ModePerm))
 	}
 
 	for _, shard := range shards {
@@ -258,7 +259,7 @@ func (m *mockCgroupV2) setupMockCgroupFiles(
 
 		for filename, content := range content {
 			shardControlFilePath := filepath.Join(shardPath, filename)
-			require.NoError(t, os.WriteFile(shardControlFilePath, []byte(content), perm.PrivateWriteOnceFile))
+			require.NoError(t, os.WriteFile(shardControlFilePath, []byte(content), fs.ModePerm))
 		}
 	}
 }

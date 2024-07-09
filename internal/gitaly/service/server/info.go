@@ -7,7 +7,6 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/fstype"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/version"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
@@ -55,7 +54,7 @@ func shardCheck(shardPath string) (readable bool, writeable bool) {
 	testPath := filepath.Join(shardPath, "+testWrite")
 
 	content := []byte("testWrite")
-	if err := os.WriteFile(testPath, content, perm.PrivateWriteOnceFile); err == nil {
+	if err := os.WriteFile(testPath, content, 0o200); err == nil {
 		writeable = true
 	}
 	_ = os.Remove(testPath)

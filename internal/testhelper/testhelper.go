@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/rand"
 	"net"
 	"net/http"
@@ -120,9 +121,9 @@ func WriteFiles(tb testing.TB, root string, files map[string]any) {
 
 		switch content := value.(type) {
 		case string:
-			require.NoError(tb, os.WriteFile(path, []byte(content), perm.PrivateWriteOnceFile))
+			require.NoError(tb, os.WriteFile(path, []byte(content), fs.ModePerm))
 		case []byte:
-			require.NoError(tb, os.WriteFile(path, content, perm.PrivateWriteOnceFile))
+			require.NoError(tb, os.WriteFile(path, content, fs.ModePerm))
 		case io.Reader:
 			func() {
 				f, err := os.Create(path)

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -59,7 +60,13 @@ func BuildGitaly(tb testing.TB, cfg config.Cfg) string {
 // buildGitalyCommand builds an executable and places it in the correct directory depending
 // whether it is packed in the production build or not.
 func buildGitalyCommand(tb testing.TB, cfg config.Cfg, executableName string) string {
-	return BuildBinary(tb, filepath.Dir(cfg.BinaryPath(executableName)), gitalyCommandPath(executableName))
+	path := BuildBinary(tb, filepath.Dir(cfg.BinaryPath(executableName)), gitalyCommandPath(executableName))
+	if runtime.GOOS == "darwin" {
+		output, err := exec.Command("codesign", "-s", "-", path).CombinedOutput()
+		require.NoError(tb, err, "output: %q", output)
+	}
+
+	return path
 }
 
 var (

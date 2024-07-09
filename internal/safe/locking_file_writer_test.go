@@ -2,6 +2,7 @@ package safe_test
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -234,12 +235,12 @@ func TestLockingFileWriter_concurrentModification(t *testing.T) {
 
 	target := filepath.Join(testhelper.TempDir(t), "file")
 
-	require.NoError(t, os.WriteFile(target, []byte("base"), perm.PrivateWriteOnceFile))
+	require.NoError(t, os.WriteFile(target, []byte("base"), fs.ModePerm))
 	writer, err := safe.NewLockingFileWriter(target)
 	require.NoError(t, err)
 
 	// Concurrently modify the file.
-	require.NoError(t, os.WriteFile(target, []byte("concurrent"), perm.PrivateWriteOnceFile))
+	require.NoError(t, os.WriteFile(target, []byte("concurrent"), fs.ModePerm))
 
 	require.Equal(t, fmt.Errorf("file concurrently modified"), writer.Lock())
 
