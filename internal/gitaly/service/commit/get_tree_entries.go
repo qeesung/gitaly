@@ -96,6 +96,14 @@ func (s *server) sendTreeEntriesUnified(
 		readTreeOpts = append(readTreeOpts, localrepo.WithRecursive())
 	}
 
+	if p != nil && p.GetPageToken() != "" {
+		// Extract root tree OID from the token
+		_, tokenTreeOID, tokenRevision, _ := decodePageToken(p.GetPageToken())
+		if tokenTreeOID != "" {
+			revision = tokenRevision
+		}
+	}
+
 	tree, err := repo.ReadTree(
 		ctx,
 		git.Revision(revision),
@@ -153,9 +161,10 @@ func (s *server) sendTreeEntriesUnified(
 				structerr.MetadataItem{Key: "revision", Value: revision},
 			)
 		}
-
 		return fmt.Errorf("reading tree: %w", err)
 	}
+
+	rootTreeOID := tree.OID.String()
 
 	var entries []*gitalypb.TreeEntry
 	if err := tree.Walk(func(dir string, entry *localrepo.TreeEntry) error {
@@ -194,7 +203,7 @@ func (s *server) sendTreeEntriesUnified(
 
 	cursor := ""
 	if p != nil {
-		entries, cursor, err = paginateTreeEntries(ctx, entries, p)
+		entries, cursor, err = paginateTreeEntries(ctx, entries, p, rootTreeOID, revision)
 		if err != nil {
 			return err
 		}
@@ -326,14 +335,12 @@ func (s *server) GetTreeEntries(in *gitalypb.GetTreeEntriesRequest, stream gital
 	return s.sendTreeEntriesUnified(stream, repo, revision, path, in.Recursive, in.SkipFlatPaths, in.GetSort(), in.GetPaginationParams())
 }
 
-func paginateTreeEntries(ctx context.Context, entries []*gitalypb.TreeEntry, p *gitalypb.PaginationParameter) ([]*gitalypb.TreeEntry, string, error) {
+func paginateTreeEntries(ctx context.Context, entries []*gitalypb.TreeEntry, p *gitalypb.PaginationParameter, rootTreeOID, revision string) ([]*gitalypb.TreeEntry, string, error) {
 	limit := int(p.GetLimit())
-	start, treeOID, tokenType := decodePageToken(p.GetPageToken())
-	index := -1
 
-	if treeOID == "" && tokenType == pageTokenTypeFilename {
-		return nil, "", fmt.Errorf("page token missing tree OID")
-	}
+	start, _, _, tokenType := decodePageToken(p.GetPageToken())
+
+	index := -1
 
 	// No token means we should start from the top
 	if start == "" {
@@ -341,11 +348,8 @@ func paginateTreeEntries(ctx context.Context, entries []*gitalypb.TreeEntry, p *
 	} else {
 		for i, entry := range entries {
 			if buildEntryToken(entry, tokenType) == start {
-				// We need to ensure that the page token is for the same tree we're paginating
-				if tokenType == pageTokenTypeFilename && entry.GetOid() == treeOID || tokenType == pageTokenTypeOID {
-					index = i + 1
-					break
-				}
+				index = i + 1
+				break
 			}
 		}
 	}
@@ -364,7 +368,7 @@ func paginateTreeEntries(ctx context.Context, entries []*gitalypb.TreeEntry, p *
 
 	paginated := entries[index : index+limit]
 
-	newPageToken, err := encodePageToken(paginated[len(paginated)-1])
+	newPageToken, err := encodePageToken(paginated[len(paginated)-1], rootTreeOID, revision)
 	if err != nil {
 		return nil, "", fmt.Errorf("encode page token: %w", err)
 	}
@@ -384,8 +388,11 @@ type pageToken struct {
 	// FileName is the name of the tree entry that acts as continuation point.
 	FileName string `json:"file_name"`
 
-	// TreeOID is the object ID of the tree entry to ensure the page token is always used to access a given tree only.
+	// TreeOID is the object ID of the tree to ensure the page token is always used to access a given tree only.
 	TreeOID string `json:"tree_oid"`
+
+	// Revision allows to ensure the page token is only used with the same revision.
+	Revision string `json:"revision"`
 }
 
 type pageTokenType bool
@@ -400,25 +407,25 @@ const (
 
 // decodePageToken decodes the given Base64-encoded page token. It returns the
 // continuation point of the token and its type.
-func decodePageToken(token string) (string, string, pageTokenType) {
+func decodePageToken(token string) (string, string, string, pageTokenType) {
 	var pageToken pageToken
 
 	decodedString, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
-		return token, "", pageTokenTypeOID
+		return token, "", "", pageTokenTypeOID
 	}
 
 	if err := json.Unmarshal(decodedString, &pageToken); err != nil {
-		return token, "", pageTokenTypeOID
+		return token, "", "", pageTokenTypeOID
 	}
 
-	return pageToken.FileName, pageToken.TreeOID, pageTokenTypeFilename
+	return pageToken.FileName, pageToken.TreeOID, pageToken.Revision, pageTokenTypeFilename
 }
 
 // encodePageToken returns a page token with the TreeEntry's path as the continuation point for
 // the next page. The page token serialized by first JSON marshaling it and then base64 encoding it.
-func encodePageToken(entry *gitalypb.TreeEntry) (string, error) {
-	jsonEncoded, err := json.Marshal(pageToken{FileName: string(entry.GetPath()), TreeOID: entry.GetOid()})
+func encodePageToken(entry *gitalypb.TreeEntry, rootTreeOID, revision string) (string, error) {
+	jsonEncoded, err := json.Marshal(pageToken{FileName: string(entry.GetPath()), TreeOID: rootTreeOID, Revision: revision})
 	if err != nil {
 		return "", err
 	}
