@@ -72,7 +72,7 @@ func restoreFlags() []cli.Flag {
 		},
 		&cli.BoolFlag{
 			Name:  "server-side",
-			Usage: "use server-side backups. Note: The feature is not ready for production use.",
+			Usage: "use server-side backups.",
 			Value: false,
 		},
 	}
