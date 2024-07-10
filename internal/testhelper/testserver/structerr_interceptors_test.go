@@ -9,7 +9,7 @@ import (
 
 	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/loghandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb/testproto"
@@ -97,7 +97,7 @@ func TestFieldsProducer(t *testing.T) {
 		grpc.ChainUnaryInterceptor(
 			logger.UnaryServerInterceptor(
 				grpcmwlogrus.WithMessageProducer(
-					log.MessageProducer(
+					loghandler.MessageProducer(
 						grpcmwlogrus.DefaultMessageProducer,
 						structerr.FieldsProducer,
 					),

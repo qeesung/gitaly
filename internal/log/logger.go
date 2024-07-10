@@ -87,8 +87,8 @@ func (l LogrusLogger) Error(msg string) {
 	l.entry.Error(msg)
 }
 
-// toContext injects the logger into the given context so that it can be retrieved via `FromContext()`.
-func (l LogrusLogger) toContext(ctx context.Context) context.Context {
+// ToContext injects the logger into the given context so that it can be retrieved via `FromContext()`.
+func (l LogrusLogger) ToContext(ctx context.Context) context.Context {
 	return ctxlogrus.ToContext(ctx, l.entry)
 }
 
@@ -127,9 +127,14 @@ func (l LogrusLogger) ErrorContext(ctx context.Context, msg string) {
 	l.log(ctx, logrus.ErrorLevel, msg)
 }
 
-// fromContext extracts the logger from the context. If no logger has been injected then this will return a discarding
-// logger.
-func fromContext(ctx context.Context) LogrusLogger {
+// Data returns the data stored inside the logger entry.
+func (l LogrusLogger) Data() Fields {
+	return l.entry.Data
+}
+
+// FromContext extracts the logger from the context. If no logger has been injected then this will
+// return a discarding logger.
+func FromContext(ctx context.Context) LogrusLogger {
 	return LogrusLogger{
 		entry: ctxlogrus.Extract(ctx),
 	}
@@ -139,4 +144,18 @@ func fromContext(ctx context.Context) LogrusLogger {
 // `InfoContext()` that receives a context as input.
 func AddFields(ctx context.Context, fields Fields) {
 	ctxlogrus.AddFields(ctx, fields)
+}
+
+// ConvertLoggingFields converts Fields in go-grpc-middleware/v2/interceptors/logging package
+// into a general map[string]interface{}. So that other logging packages (such as Logrus) can use them.
+func ConvertLoggingFields(fields grpcmwloggingv2.Fields) map[string]any {
+	// We need len(fields)/2 because fields's type is a slice in the form of [key1, value1, key2, value2, ...]
+	// so in order to parse it into a map, we need a map with len(fields)/2 size.
+	fieldsMap := make(map[string]any, len(fields)/2)
+	i := fields.Iterator()
+	for i.Next() {
+		k, v := i.At()
+		fieldsMap[k] = v
+	}
+	return fieldsMap
 }

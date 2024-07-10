@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/client"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/loghandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"google.golang.org/grpc"
@@ -58,31 +59,31 @@ func TestPayloadBytes(t *testing.T) {
 	hook := testhelper.AddLoggerHook(logger)
 
 	opts := []grpc.ServerOption{
-		grpc.StatsHandler(log.PerRPCLogHandler{
+		grpc.StatsHandler(loghandler.PerRPCLogHandler{
 			Underlying:     &PayloadBytes{},
-			FieldProducers: []log.FieldsProducer{FieldsProducer},
+			FieldProducers: []loghandler.FieldsProducer{FieldsProducer},
 		}),
 		grpc.ChainUnaryInterceptor(
 			logger.UnaryServerInterceptor(
 				grpcmwlogrus.WithMessageProducer(
-					log.MessageProducer(
-						log.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
+					loghandler.MessageProducer(
+						loghandler.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
 						FieldsProducer,
 					),
 				),
 			),
-			log.UnaryLogDataCatcherServerInterceptor(),
+			loghandler.UnaryLogDataCatcherServerInterceptor(),
 		),
 		grpc.ChainStreamInterceptor(
 			logger.StreamServerInterceptor(
 				grpcmwlogrus.WithMessageProducer(
-					log.MessageProducer(
-						log.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
+					loghandler.MessageProducer(
+						loghandler.PropagationMessageProducer(grpcmwlogrus.DefaultMessageProducer),
 						FieldsProducer,
 					),
 				),
 			),
-			log.StreamLogDataCatcherServerInterceptor(),
+			loghandler.StreamLogDataCatcherServerInterceptor(),
 		),
 	}
 

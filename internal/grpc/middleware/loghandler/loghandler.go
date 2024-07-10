@@ -1,11 +1,11 @@
-package log
+package loghandler
 
 import (
 	"context"
 
 	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	grpcmwloggingv2 "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/sirupsen/logrus"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/stats"
@@ -13,12 +13,12 @@ import (
 
 // FieldsProducer returns fields that need to be added into the logging context. error argument is
 // the result of RPC handling.
-type FieldsProducer func(context.Context, error) Fields
+type FieldsProducer func(context.Context, error) log.Fields
 
 // MessageProducer returns a wrapper that extends passed mp to accept additional fields generated
 // by each of the fieldsProducers.
 func MessageProducer(mp grpcmwlogrus.MessageProducer, fieldsProducers ...FieldsProducer) grpcmwlogrus.MessageProducer {
-	return func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
+	return func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields log.Fields) {
 		for _, fieldsProducer := range fieldsProducers {
 			for key, val := range fieldsProducer(ctx, err) {
 				fields[key] = val
@@ -29,13 +29,13 @@ func MessageProducer(mp grpcmwlogrus.MessageProducer, fieldsProducers ...FieldsP
 }
 
 type messageProducerHolder struct {
-	logger LogrusLogger
+	logger log.LogrusLogger
 	actual grpcmwlogrus.MessageProducer
 	format string
 	level  logrus.Level
 	code   codes.Code
 	err    error
-	fields Fields
+	fields log.Fields
 }
 
 type messageProducerHolderKey struct{}
@@ -55,13 +55,13 @@ func messageProducerPropagationFrom(ctx context.Context) *messageProducerHolder 
 // to the special holder that should be present in the context.
 // Should be used only in combination with PerRPCLogHandler.
 func PropagationMessageProducer(actual grpcmwlogrus.MessageProducer) grpcmwlogrus.MessageProducer {
-	return func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields Fields) {
+	return func(ctx context.Context, format string, level logrus.Level, code codes.Code, err error, fields log.Fields) {
 		mpp := messageProducerPropagationFrom(ctx)
 		if mpp == nil {
 			return
 		}
 		*mpp = messageProducerHolder{
-			logger: fromContext(ctx),
+			logger: log.FromContext(ctx),
 			actual: actual,
 			format: format,
 			level:  level,
@@ -107,7 +107,7 @@ func (lh PerRPCLogHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
 		}
 
 		if mpp.fields == nil {
-			mpp.fields = Fields{}
+			mpp.fields = log.Fields{}
 		}
 		for _, fp := range lh.FieldProducers {
 			for k, v := range fp(ctx, mpp.err) {
@@ -118,7 +118,7 @@ func (lh PerRPCLogHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
 		// a logger we need to set logger manually into the context.
 		// It's needed because github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus.DefaultMessageProducer
 		// extracts logger from the context and use it to write the logs.
-		ctx = mpp.logger.toContext(ctx)
+		ctx = mpp.logger.ToContext(ctx)
 		mpp.actual(ctx, mpp.format, mpp.level, mpp.code, mpp.err, mpp.fields)
 		return
 	}
@@ -139,7 +139,7 @@ func UnaryLogDataCatcherServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		mpp := messageProducerPropagationFrom(ctx)
 		if mpp != nil {
-			mpp.fields = fromContext(ctx).entry.Data
+			mpp.fields = log.FromContext(ctx).Data()
 		}
 		return handler(ctx, req)
 	}
@@ -152,22 +152,8 @@ func StreamLogDataCatcherServerInterceptor() grpc.StreamServerInterceptor {
 		ctx := ss.Context()
 		mpp := messageProducerPropagationFrom(ctx)
 		if mpp != nil {
-			mpp.fields = fromContext(ctx).entry.Data
+			mpp.fields = log.FromContext(ctx).Data()
 		}
 		return handler(srv, ss)
 	}
-}
-
-// ConvertLoggingFields converts Fields in go-grpc-middleware/v2/interceptors/logging package
-// into a general map[string]interface{}. So that other logging packages (such as Logrus) can use them.
-func ConvertLoggingFields(fields grpcmwloggingv2.Fields) map[string]any {
-	// We need len(fields)/2 because fields's type is a slice in the form of [key1, value1, key2, value2, ...]
-	// so in order to parse it into a map, we need a map with len(fields)/2 size.
-	fieldsMap := make(map[string]any, len(fields)/2)
-	i := fields.Iterator()
-	for i.Next() {
-		k, v := i.At()
-		fieldsMap[k] = v
-	}
-	return fieldsMap
 }

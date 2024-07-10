@@ -8,7 +8,7 @@ import (
 	grpcmwlogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/featureflag"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/log"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/grpc/middleware/loghandler"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"google.golang.org/grpc"
@@ -41,7 +41,7 @@ func TestFeatureFlagLogs(t *testing.T) {
 			grpcmwlogrus.UnaryServerInterceptor(
 				logger.LogrusEntry(), //nolint:staticcheck
 				grpcmwlogrus.WithMessageProducer(
-					log.MessageProducer(
+					loghandler.MessageProducer(
 						grpcmwlogrus.DefaultMessageProducer,
 						FieldsProducer,
 					),
