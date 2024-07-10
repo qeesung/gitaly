@@ -157,7 +157,7 @@ func TestPruneIfNeeded(t *testing.T) {
 
 			for _, looseObjectPath := range tc.looseObjects {
 				looseObjectPath := filepath.Join(repoPath, "objects", looseObjectPath)
-				require.NoError(t, os.MkdirAll(filepath.Dir(looseObjectPath), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Dir(looseObjectPath), perm.PrivateDir))
 
 				looseObjectFile, err := os.Create(looseObjectPath)
 				require.NoError(t, err)

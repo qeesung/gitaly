@@ -54,7 +54,7 @@ func remove(
 		return structerr.NewInternal("temporary directory: %w", err)
 	}
 
-	if err := os.MkdirAll(tempDir, perm.SharedDir); err != nil {
+	if err := os.MkdirAll(tempDir, perm.PrivateDir); err != nil {
 		return structerr.NewInternal("%w", err)
 	}
 

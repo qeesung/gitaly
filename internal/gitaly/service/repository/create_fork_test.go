@@ -293,7 +293,7 @@ func TestCreateFork_targetExists(t *testing.T) {
 		{
 			desc: "empty target directory",
 			seed: func(t *testing.T, targetPath string) {
-				require.NoError(t, os.MkdirAll(targetPath, perm.GroupPrivateDir))
+				require.NoError(t, os.MkdirAll(targetPath, perm.PrivateDir))
 			},
 			expectedErr: func() error {
 				if testhelper.IsWALEnabled() {
@@ -306,11 +306,11 @@ func TestCreateFork_targetExists(t *testing.T) {
 		{
 			desc: "non-empty target directory",
 			seed: func(t *testing.T, targetPath string) {
-				require.NoError(t, os.MkdirAll(targetPath, perm.GroupPrivateDir))
+				require.NoError(t, os.MkdirAll(targetPath, perm.PrivateDir))
 				require.NoError(t, os.WriteFile(
 					filepath.Join(targetPath, "config"),
 					nil,
-					perm.SharedFile,
+					perm.PrivateWriteOnceFile,
 				))
 			},
 			expectedErr: func() error {
@@ -324,8 +324,8 @@ func TestCreateFork_targetExists(t *testing.T) {
 		{
 			desc: "target file",
 			seed: func(t *testing.T, targetPath string) {
-				require.NoError(t, os.MkdirAll(filepath.Dir(targetPath), perm.GroupPrivateDir))
-				require.NoError(t, os.WriteFile(targetPath, nil, perm.SharedFile))
+				require.NoError(t, os.MkdirAll(filepath.Dir(targetPath), perm.PrivateDir))
+				require.NoError(t, os.WriteFile(targetPath, nil, perm.PrivateWriteOnceFile))
 			},
 			expectedErr: func() error {
 				if testhelper.IsWALEnabled() {

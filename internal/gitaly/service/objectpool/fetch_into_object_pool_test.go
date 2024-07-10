@@ -74,8 +74,8 @@ func TestFetchIntoObjectPool_Success(t *testing.T) {
 	// break many Git commands, including git-fetch(1). We should know to prune stale broken
 	// references though and thus be able to recover.
 	brokenRef := filepath.Join(poolPath, "refs", "heads", "broken")
-	require.NoError(t, os.MkdirAll(filepath.Dir(brokenRef), perm.SharedDir))
-	require.NoError(t, os.WriteFile(brokenRef, []byte{}, perm.PublicFile))
+	require.NoError(t, os.MkdirAll(filepath.Dir(brokenRef), perm.PrivateDir))
+	require.NoError(t, os.WriteFile(brokenRef, []byte{}, perm.PrivateWriteOnceFile))
 	oldTime := time.Now().Add(-25 * time.Hour)
 	require.NoError(t, os.Chtimes(brokenRef, oldTime, oldTime))
 

@@ -19,7 +19,7 @@ import (
 // prepared such that git-http-backend(1) will serve it by creating the "git-daemon-export-ok" magic
 // file.
 func HTTPServer(tb testing.TB, ctx context.Context, gitCmdFactory git.CommandFactory, repoPath string, middleware func(http.ResponseWriter, *http.Request, http.Handler)) int {
-	require.NoError(tb, os.WriteFile(filepath.Join(repoPath, "git-daemon-export-ok"), nil, perm.SharedFile))
+	require.NoError(tb, os.WriteFile(filepath.Join(repoPath, "git-daemon-export-ok"), nil, perm.PrivateWriteOnceFile))
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(tb, err)

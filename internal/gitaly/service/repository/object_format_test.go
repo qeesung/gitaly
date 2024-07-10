@@ -130,7 +130,11 @@ func TestObjectFormat(t *testing.T) {
 
 				// We write the config file manually so that we can use an
 				// exact-match for the error down below.
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "config"), []byte(
+				//
+				// Remove the config file first as files are read-only with transactions.
+				configPath := filepath.Join(repoPath, "config")
+				require.NoError(t, os.Remove(configPath))
+				require.NoError(t, os.WriteFile(configPath, []byte(
 					strings.Join([]string{
 						"[core]",
 						"repositoryformatversion = 1",
@@ -138,7 +142,7 @@ func TestObjectFormat(t *testing.T) {
 						"[extensions]",
 						"objectFormat = blake2b",
 					}, "\n"),
-				), perm.SharedFile))
+				), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					request: &gitalypb.ObjectFormatRequest{

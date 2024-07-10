@@ -74,7 +74,7 @@ func TestBundledGitEnvironmentConstructor(t *testing.T) {
 	seedDirWithExecutables := func(t *testing.T, executableNames ...string) string {
 		dir := testhelper.TempDir(t)
 		for _, executableName := range executableNames {
-			require.NoError(t, os.WriteFile(filepath.Join(dir, executableName), nil, perm.SharedExecutable))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, executableName), nil, perm.PrivateExecutable))
 		}
 		return dir
 	}
@@ -242,7 +242,7 @@ func TestFallbackGitEnvironmentConstructor(t *testing.T) {
 	t.Run("successfully resolved executable", func(t *testing.T) {
 		tempDir := testhelper.TempDir(t)
 		gitPath := filepath.Join(tempDir, "git")
-		require.NoError(t, os.WriteFile(gitPath, nil, perm.SharedExecutable))
+		require.NoError(t, os.WriteFile(gitPath, nil, perm.PrivateExecutable))
 
 		t.Setenv("PATH", "/does/not/exist:"+tempDir)
 

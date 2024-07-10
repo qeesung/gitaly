@@ -83,7 +83,7 @@ logic will be removed once transaction managements is always enabled.`)
 
 	// Simulate a concurrent RPC holding the repository lock.
 	lockPath := repoPath + ".lock"
-	require.NoError(t, os.WriteFile(lockPath, []byte{}, perm.SharedFile))
+	require.NoError(t, os.WriteFile(lockPath, []byte{}, perm.PrivateWriteOnceFile))
 	defer func() { require.NoError(t, os.RemoveAll(lockPath)) }()
 
 	_, err := client.RemoveRepository(ctx, &gitalypb.RemoveRepositoryRequest{Repository: repo})

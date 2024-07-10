@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -59,7 +60,13 @@ func BuildGitaly(tb testing.TB, cfg config.Cfg) string {
 // buildGitalyCommand builds an executable and places it in the correct directory depending
 // whether it is packed in the production build or not.
 func buildGitalyCommand(tb testing.TB, cfg config.Cfg, executableName string) string {
-	return BuildBinary(tb, filepath.Dir(cfg.BinaryPath(executableName)), gitalyCommandPath(executableName))
+	path := BuildBinary(tb, filepath.Dir(cfg.BinaryPath(executableName)), gitalyCommandPath(executableName))
+	if runtime.GOOS == "darwin" {
+		output, err := exec.Command("codesign", "-s", "-", path).CombinedOutput()
+		require.NoError(tb, err, "output: %q", output)
+	}
+
+	return path
 }
 
 var (
@@ -126,7 +133,7 @@ func BuildBinary(tb testing.TB, targetDir, sourcePath string) string {
 	require.FileExists(tb, sharedBinaryPath, "%s does not exist", executableName)
 	require.NoFileExists(tb, targetPath, "%s exists already -- do you try to build it twice?", executableName)
 
-	require.NoError(tb, os.MkdirAll(targetDir, perm.PublicDir))
+	require.NoError(tb, os.MkdirAll(targetDir, perm.PrivateDir))
 
 	// We hard-link the file into place instead of copying it because copying used to cause
 	// ETXTBSY errors in CI. This is likely caused by a bug in the overlay filesystem used by

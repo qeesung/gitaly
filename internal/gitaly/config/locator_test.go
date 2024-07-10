@@ -41,7 +41,7 @@ func TestConfigLocator_GetRepoPath(t *testing.T) {
 
 	// The repository path exists on the disk, but it is not a git repository.
 	const notRepositoryFolder = "not-a-git-repo"
-	require.NoError(t, os.MkdirAll(filepath.Join(cfg.Storages[0].Path, notRepositoryFolder), perm.SharedDir))
+	require.NoError(t, os.MkdirAll(filepath.Join(cfg.Storages[0].Path, notRepositoryFolder), perm.PrivateDir))
 
 	for _, tc := range []struct {
 		desc        string

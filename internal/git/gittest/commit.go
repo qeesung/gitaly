@@ -220,7 +220,7 @@ func WriteCommit(tb testing.TB, cfg config.Cfg, repoPath string, opts ...WriteCo
 	if writeCommitConfig.alternateObjectDir != "" {
 		require.True(tb, filepath.IsAbs(writeCommitConfig.alternateObjectDir),
 			"alternate object directory must be an absolute path")
-		require.NoError(tb, os.MkdirAll(writeCommitConfig.alternateObjectDir, perm.SharedDir))
+		require.NoError(tb, os.MkdirAll(writeCommitConfig.alternateObjectDir, perm.PrivateDir))
 
 		env = append(env,
 			fmt.Sprintf("GIT_OBJECT_DIRECTORY=%s", writeCommitConfig.alternateObjectDir),

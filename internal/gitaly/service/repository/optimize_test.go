@@ -224,7 +224,7 @@ func TestOptimizeRepository(t *testing.T) {
 		// Git will leave behind empty refs directories at times. In order to not slow down
 		// enumerating refs we want to make sure that they get cleaned up properly.
 		emptyRefsDir := filepath.Join(repoPath, "refs", "merge-requests", "1")
-		require.NoError(t, os.MkdirAll(emptyRefsDir, perm.SharedDir))
+		require.NoError(t, os.MkdirAll(emptyRefsDir, perm.PrivateDir))
 
 		// But we don't expect the first call to OptimizeRepository to do anything. This is
 		// because we have a grace period so that we don't delete empty ref directories that

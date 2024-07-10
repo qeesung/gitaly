@@ -103,9 +103,9 @@ func TestReplicateRepository(t *testing.T) {
 				// created in the target repository as expected.
 				// We should get rid of this with https://gitlab.com/groups/gitlab-org/-/epics/9006
 				attrFilePath := filepath.Join(sourcePath, "info", "attributes")
-				require.NoError(t, os.MkdirAll(filepath.Dir(attrFilePath), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Dir(attrFilePath), perm.PrivateDir))
 				attributesData := []byte("*.pbxproj binary\n")
-				require.NoError(t, os.WriteFile(attrFilePath, attributesData, perm.SharedFile))
+				require.NoError(t, os.WriteFile(attrFilePath, attributesData, perm.PrivateWriteOnceFile))
 
 				return setupData{
 					source: source,
@@ -300,7 +300,7 @@ func TestReplicateRepository(t *testing.T) {
 						//
 						// Praefect deletes metdata record of a repository on ErrInvalidSourceRepository. While this functionality
 						// won't work, we have a more general replacement for the ad-hoc repair with the background metadata verifier.
-						structerr.NewInternal("could not create repository from snapshot: creating repository: extracting snapshot: first snapshot read: rpc error: code = Internal desc = begin transaction: get snapshot: new shared snapshot: create repository snapshots: validate git directory: invalid git directory"),
+						structerr.NewInternal("could not create repository from snapshot: creating repository: extracting snapshot: first snapshot read: rpc error: code = Internal desc = begin transaction: get snapshot: new exclusive snapshot: create repository snapshots: validate git directory: invalid git directory"),
 						ErrInvalidSourceRepository,
 					),
 				}
@@ -340,7 +340,11 @@ func TestReplicateRepository(t *testing.T) {
 
 				// Corrupt the repository by writing garbage into HEAD to verify the RPC fails to
 				// fetch the source repository and returns an error as expected.
-				require.NoError(t, os.WriteFile(filepath.Join(sourcePath, "HEAD"), []byte("garbage"), perm.PublicFile))
+				//
+				// Remove the HEAD first as the files are read-only with transactions.
+				headPath := filepath.Join(sourcePath, "HEAD")
+				require.NoError(t, os.Remove(headPath))
+				require.NoError(t, os.WriteFile(headPath, []byte("garbage"), perm.PrivateWriteOnceFile))
 
 				return setupData{
 					source:        source,
@@ -530,7 +534,7 @@ func TestReplicateRepository_transactional(t *testing.T) {
 	// we use a temporary file here to figure out the expected permissions as they would in fact be subject
 	// to change depending on the current umask.
 	noHooksVoteData := [5]byte{'.', 0, 0, 0, 0}
-	binary.BigEndian.PutUint32(noHooksVoteData[1:], uint32(testhelper.Umask().Mask(perm.PublicDir|fs.ModeDir)))
+	binary.BigEndian.PutUint32(noHooksVoteData[1:], uint32(testhelper.Umask().Mask(perm.PrivateDir|fs.ModeDir)))
 	noHooksVote := voting.VoteFromData(noHooksVoteData[:])
 
 	expectedVotes := []voting.Vote{
@@ -709,7 +713,7 @@ func listenGitalySSHCalls(t *testing.T, conf config.Cfg) func() gitalySSHParams 
 		echo "$@" >%[1]q/arguments
 
 		exec %[2]q "$@"`, tmpDir, updatedPath)
-	require.NoError(t, os.WriteFile(initialPath, []byte(script), perm.SharedExecutable))
+	require.NoError(t, os.WriteFile(initialPath, []byte(script), perm.PrivateExecutable))
 
 	return func() gitalySSHParams {
 		arguments := testhelper.MustReadFile(t, filepath.Join(tmpDir, "arguments"))

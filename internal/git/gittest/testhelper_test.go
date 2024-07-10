@@ -34,13 +34,13 @@ func setup(tb testing.TB) (config.Cfg, *gitalypb.Repository, string) {
 			Path: filepath.Join(rootDir, "storage.d"),
 		},
 	}
-	require.NoError(tb, os.Mkdir(cfg.Storages[0].Path, perm.SharedDir))
+	require.NoError(tb, os.Mkdir(cfg.Storages[0].Path, perm.PrivateDir))
 
 	cfg.GitlabShell.Dir = filepath.Join(rootDir, "shell.d")
-	require.NoError(tb, os.Mkdir(cfg.GitlabShell.Dir, perm.SharedDir))
+	require.NoError(tb, os.Mkdir(cfg.GitlabShell.Dir, perm.PrivateDir))
 
 	cfg.BinDir = filepath.Join(rootDir, "bin.d")
-	require.NoError(tb, os.Mkdir(cfg.BinDir, perm.SharedDir))
+	require.NoError(tb, os.Mkdir(cfg.BinDir, perm.PrivateDir))
 
 	cfg.RuntimeDir = filepath.Join(rootDir, "run.d")
 	require.NoError(tb, os.Mkdir(cfg.RuntimeDir, perm.PrivateDir))

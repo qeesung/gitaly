@@ -25,7 +25,7 @@ func TestWriteTarball(t *testing.T) {
 	// regular file
 	writeFile(t, filepath.Join(srcDir, "a.txt"), []byte("a"))
 	// empty dir
-	require.NoError(t, os.Mkdir(filepath.Join(srcDir, "empty_dir"), perm.PublicDir))
+	require.NoError(t, os.Mkdir(filepath.Join(srcDir, "empty_dir"), perm.PrivateDir))
 	// file with long name
 	writeFile(t, filepath.Join(srcDir, strings.Repeat("b", 150)+".txt"), []byte("b"))
 	// regular file that is not expected to be part of the archive (not in the members list)
@@ -70,7 +70,7 @@ func TestWriteTarball(t *testing.T) {
 	cfg := testcfg.Build(t)
 
 	dstDir := filepath.Join(tempDir, "dst")
-	require.NoError(t, os.Mkdir(dstDir, perm.PublicDir))
+	require.NoError(t, os.Mkdir(dstDir, perm.PrivateDir))
 	output, err := exec.Command("tar", "-xf", tarPath, "-C", dstDir).CombinedOutput()
 	require.NoErrorf(t, err, "%s", output)
 	diff := gittest.ExecOpts(t, cfg, gittest.ExecConfig{ExpectedExitCode: 1}, "diff", "--no-index", "--name-only", "--exit-code", dstDir, srcDir)
@@ -89,5 +89,5 @@ func TestWriteTarball(t *testing.T) {
 func writeFile(tb testing.TB, path string, data []byte) {
 	tb.Helper()
 	require.NoError(tb, os.MkdirAll(filepath.Dir(path), perm.PrivateDir))
-	require.NoError(tb, os.WriteFile(path, data, perm.PrivateFile))
+	require.NoError(tb, os.WriteFile(path, data, perm.PrivateWriteOnceFile))
 }

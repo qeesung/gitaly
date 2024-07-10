@@ -74,7 +74,7 @@ func TestRequireDirectoryState(t *testing.T) {
 		os.WriteFile(
 			filepath.Join(rootDir, relativePath, "parsed-file"),
 			[]byte("raw content"),
-			perm.PrivateFile,
+			perm.PrivateWriteOnceFile,
 		),
 	)
 
@@ -144,7 +144,7 @@ func TestRequireDirectoryState(t *testing.T) {
 			expectedState := DirectoryState{
 				"/assertion-root": {Mode: umask.Mask(fs.ModeDir | fs.ModePerm)},
 				"/assertion-root/parsed-file": {
-					Mode:    umask.Mask(perm.PrivateFile),
+					Mode:    umask.Mask(perm.PrivateWriteOnceFile),
 					Content: "parsed content",
 					ParseContent: func(tb testing.TB, path string, content []byte) any {
 						require.Equal(t, filepath.Join(rootDir, "/assertion-root/parsed-file"), path)
@@ -188,24 +188,24 @@ func TestCreateFS(t *testing.T) {
 	rootPath := filepath.Join(tmpDir, "root")
 
 	CreateFS(t, rootPath, fstest.MapFS{
-		".":                              {Mode: fs.ModeDir | perm.SharedDir},
+		".":                              {Mode: fs.ModeDir | perm.PrivateDir},
 		"private-dir":                    {Mode: fs.ModeDir | perm.PrivateDir},
-		"private-dir/private-file":       {Mode: perm.PrivateFile, Data: []byte("private-file")},
+		"private-dir/private-file":       {Mode: perm.PrivateWriteOnceFile, Data: []byte("private-file")},
 		"private-dir/subdir":             {Mode: fs.ModeDir | perm.PrivateDir},
 		"private-dir/subdir/subdir-file": {Mode: perm.PrivateDir, Data: []byte("subdir-file")},
 		"shared-dir":                     {Mode: fs.ModeDir | perm.PrivateDir},
 		"shared-dir/shared-file":         {Mode: perm.PrivateDir, Data: []byte("shared-file")},
-		"root-file":                      {Mode: perm.PrivateFile, Data: []byte("root-file")},
+		"root-file":                      {Mode: perm.PrivateWriteOnceFile, Data: []byte("root-file")},
 	})
 
 	RequireDirectoryState(t, rootPath, "", DirectoryState{
-		"/":                               {Mode: fs.ModeDir | perm.SharedDir},
+		"/":                               {Mode: fs.ModeDir | perm.PrivateDir},
 		"/private-dir":                    {Mode: fs.ModeDir | perm.PrivateDir},
-		"/private-dir/private-file":       {Mode: perm.PrivateFile, Content: []byte("private-file")},
+		"/private-dir/private-file":       {Mode: perm.PrivateWriteOnceFile, Content: []byte("private-file")},
 		"/private-dir/subdir":             {Mode: fs.ModeDir | perm.PrivateDir},
 		"/private-dir/subdir/subdir-file": {Mode: perm.PrivateDir, Content: []byte("subdir-file")},
 		"/shared-dir":                     {Mode: fs.ModeDir | perm.PrivateDir},
 		"/shared-dir/shared-file":         {Mode: perm.PrivateDir, Content: []byte("shared-file")},
-		"/root-file":                      {Mode: perm.PrivateFile, Content: []byte("root-file")},
+		"/root-file":                      {Mode: perm.PrivateWriteOnceFile, Content: []byte("root-file")},
 	})
 }

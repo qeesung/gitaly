@@ -125,12 +125,12 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 						require.NoError(t, os.WriteFile(
 							filepath.Join(repoPath, "packed-refs.lock"),
 							[]byte{},
-							perm.PrivateFile,
+							perm.PrivateWriteOnceFile,
 						))
 						require.NoError(t, os.WriteFile(
 							filepath.Join(repoPath, "packed-refs.new"),
 							[]byte{},
-							perm.PrivateFile,
+							perm.PrivateWriteOnceFile,
 						))
 					},
 				},

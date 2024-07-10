@@ -78,7 +78,7 @@ func TestBootstrap_unixListener(t *testing.T) {
 			require.NoError(t, err)
 
 			if tc.preexistingSocket {
-				require.NoError(t, os.WriteFile(socketPath, nil, perm.PublicFile))
+				require.NoError(t, os.WriteFile(socketPath, nil, perm.PrivateWriteOnceFile))
 			}
 
 			listener, err := b.listen("unix", socketPath)

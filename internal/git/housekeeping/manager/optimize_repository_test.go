@@ -490,7 +490,7 @@ func TestOptimizeRepository(t *testing.T) {
 		require.NoError(t, os.WriteFile(
 			alternatesPath,
 			[]byte(alternatesContent),
-			perm.PrivateFile,
+			perm.PrivateWriteOnceFile,
 		))
 		require.NoError(t, os.Chtimes(alternatesPath, date, date))
 	}
@@ -722,7 +722,7 @@ func TestOptimizeRepository(t *testing.T) {
 
 				// The repack won't repack the following objects because they're
 				// broken, and thus we'll retry to prune them afterwards.
-				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), perm.PrivateDir))
 
 				// We set the object's mtime to be almost two weeks ago. Given that
 				// our timeout is at exactly two weeks this shouldn't caused them to
@@ -731,7 +731,7 @@ func TestOptimizeRepository(t *testing.T) {
 
 				for i := 0; i < housekeeping.LooseObjectLimit+1; i++ {
 					blobPath := filepath.Join(repoPath, "objects", "17", fmt.Sprintf("%d", i))
-					require.NoError(t, os.WriteFile(blobPath, nil, perm.SharedFile))
+					require.NoError(t, os.WriteFile(blobPath, nil, perm.PrivateWriteOnceFile))
 					require.NoError(t, os.Chtimes(blobPath, almostTwoWeeksAgo, almostTwoWeeksAgo))
 				}
 
@@ -760,13 +760,13 @@ func TestOptimizeRepository(t *testing.T) {
 
 				// The repack won't repack the following objects because they're
 				// broken, and thus we'll retry to prune them afterwards.
-				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "objects", "17"), perm.PrivateDir))
 
 				moreThanTwoWeeksAgo := time.Now().Add(stats.StaleObjectsGracePeriod).Add(-time.Minute)
 
 				for i := 0; i < housekeeping.LooseObjectLimit+1; i++ {
 					blobPath := filepath.Join(repoPath, "objects", "17", fmt.Sprintf("%d", i))
-					require.NoError(t, os.WriteFile(blobPath, nil, perm.SharedFile))
+					require.NoError(t, os.WriteFile(blobPath, nil, perm.PrivateWriteOnceFile))
 					require.NoError(t, os.Chtimes(blobPath, moreThanTwoWeeksAgo, moreThanTwoWeeksAgo))
 				}
 
@@ -1733,7 +1733,7 @@ func TestRepositoryManager_CleanStaleData_reftable(t *testing.T) {
 
 			path := filepath.Join(repoPath, "reftable", "tables.list.lock")
 
-			require.NoError(t, os.WriteFile(path, []byte{}, perm.SharedFile))
+			require.NoError(t, os.WriteFile(path, []byte{}, perm.PrivateWriteOnceFile))
 			filetime := time.Now().Add(-tc.age)
 			require.NoError(t, os.Chtimes(path, filetime, filetime))
 
@@ -1842,8 +1842,8 @@ func TestRepositoryManager_CleanStaleData_references(t *testing.T) {
 			for _, ref := range tc.refs {
 				path := filepath.Join(repoPath, ref.name)
 
-				require.NoError(t, os.MkdirAll(filepath.Dir(path), perm.SharedDir))
-				require.NoError(t, os.WriteFile(path, bytes.Repeat([]byte{0}, ref.size), perm.SharedFile))
+				require.NoError(t, os.MkdirAll(filepath.Dir(path), perm.PrivateDir))
+				require.NoError(t, os.WriteFile(path, bytes.Repeat([]byte{0}, ref.size), perm.PrivateWriteOnceFile))
 				filetime := time.Now().Add(-ref.age)
 				require.NoError(t, os.Chtimes(path, filetime, filetime))
 			}
@@ -2492,7 +2492,7 @@ func TestRepositoryManager_CleanStaleData_unsetConfiguration(t *testing.T) {
 	else = untouched
 [totally]
 	unrelated = untouched
-`), perm.SharedFile))
+`), perm.PrivateWriteOnceFile))
 
 	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
@@ -2588,7 +2588,7 @@ func TestRepositoryManager_CleanStaleData_pruneEmptyConfigSections(t *testing.T)
 [remote "tmp-03b5e8c765135b343214d471843a062a"]
 [remote "tmp-f57338181aca1d599669dbb71ce9ce57"]
 [remote "tmp-8c948ca94832c2725733e48cb2902287"]
-`), perm.SharedFile))
+`), perm.PrivateWriteOnceFile))
 
 	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 
@@ -2629,7 +2629,7 @@ func TestRepositoryManager_CleanStaleData_removeGitLabFullPathConfig(t *testing.
 [gitlab]
 	fullpath = foo/bar
 	other = config
-`), perm.SharedFile))
+`), perm.PrivateWriteOnceFile))
 
 	mgr := New(cfg.Prometheus, testhelper.SharedLogger(t), nil, nil)
 

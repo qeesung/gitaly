@@ -40,7 +40,7 @@ var errSimulatedCrash = errors.New("simulated crash")
 
 func manifestDirectoryEntry(expected *gitalypb.LogEntry) testhelper.DirectoryEntry {
 	return testhelper.DirectoryEntry{
-		Mode:    perm.PrivateFile,
+		Mode:    perm.PrivateWriteOnceFile,
 		Content: expected,
 		ParseContent: func(tb testing.TB, path string, content []byte) any {
 			var logEntry gitalypb.LogEntry
@@ -57,7 +57,7 @@ func validCustomHooks(tb testing.TB) []byte {
 	writer := tar.NewWriter(&hooks)
 	require.NoError(tb, writer.WriteHeader(&tar.Header{
 		Name: "custom_hooks/",
-		Mode: int64(perm.PublicDir),
+		Mode: int64(perm.PrivateDir),
 	}))
 
 	require.NoError(tb, writer.WriteHeader(&tar.Header{
@@ -76,7 +76,7 @@ func validCustomHooks(tb testing.TB) []byte {
 	require.NoError(tb, writer.WriteHeader(&tar.Header{
 		Name: "custom_hooks/private-dir/private-file",
 		Size: int64(len("private content")),
-		Mode: int64(perm.PrivateFile),
+		Mode: int64(perm.PrivateWriteOnceFile),
 	}))
 	_, err = writer.Write([]byte("private content"))
 	require.NoError(tb, err)
@@ -259,8 +259,6 @@ func TestTransactionManager(t *testing.T) {
 }
 
 func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactionSetup) []transactionTestCase {
-	umask := testhelper.Umask()
-
 	return []transactionTestCase{
 		{
 			desc: "begin returns if context is canceled before initialization",
@@ -407,7 +405,7 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							},
 						},
 					}),
-					"/wal/0000000000001/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+					"/wal/0000000000001/1": {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 				},
 			},
 		},
@@ -503,13 +501,13 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								setup.Commits.Diverging.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
-									Mode:    umask.Mask(fs.ModePerm),
+									Mode:    storage.ModeExecutable,
 									Content: []byte("hook content"),
 								},
 								"/private-dir":              {Mode: fs.ModeDir | perm.PrivateDir},
-								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+								"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 							},
 						},
 					},
@@ -1159,68 +1157,6 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 			},
 		},
 		{
-			desc: "read-only transaction fails with reference updates staged",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-					ReadOnly:     true,
-				},
-				Commit{
-					ReferenceUpdates: ReferenceUpdates{
-						"refs/heads/main": {OldOID: setup.ObjectHash.ZeroOID, NewOID: setup.Commits.First.OID},
-					},
-					ExpectedError: errReadOnlyReferenceUpdates,
-				},
-			},
-		},
-		{
-			desc: "read-only transaction fails with default branch update staged",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-					ReadOnly:     true,
-				},
-				Commit{
-					DefaultBranchUpdate: &DefaultBranchUpdate{
-						Reference: "refs/heads/main",
-					},
-					ExpectedError: errReadOnlyDefaultBranchUpdate,
-				},
-			},
-		},
-		{
-			desc: "read-only transaction fails with custom hooks update staged",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-					ReadOnly:     true,
-				},
-				Commit{
-					CustomHooksUpdate: &CustomHooksUpdate{
-						CustomHooksTAR: validCustomHooks(t),
-					},
-					ExpectedError: errReadOnlyCustomHooksUpdate,
-				},
-			},
-		},
-		{
-			desc: "read-only transaction fails with objects staged",
-			steps: steps{
-				StartManager{},
-				Begin{
-					RelativePath: setup.RelativePath,
-					ReadOnly:     true,
-				},
-				Commit{
-					IncludeObjects: []git.ObjectID{setup.Commits.First.OID},
-					ExpectedError:  errReadOnlyObjectsIncluded,
-				},
-			},
-		},
-		{
 			desc: "transactions are snapshot isolated from concurrent updates",
 			steps: steps{
 				Prune{},
@@ -1276,13 +1212,13 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
-									Mode:    umask.Mask(fs.ModePerm),
+									Mode:    storage.ModeExecutable,
 									Content: []byte("hook content"),
 								},
-								"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+								"/private-dir":              {Mode: storage.ModeDirectory},
+								"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 							},
 						},
 					},
@@ -1311,13 +1247,13 @@ func generateCommonTests(t *testing.T, ctx context.Context, setup testTransactio
 							setup.Commits.First.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
-								Mode:    umask.Mask(fs.ModePerm),
+								Mode:    storage.ModeExecutable,
 								Content: []byte("hook content"),
 							},
-							"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+							"/private-dir":              {Mode: storage.ModeDirectory},
+							"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 						},
 					},
 				},
@@ -1351,7 +1287,6 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 			i++
 		}
 	}
-	umask := testhelper.Umask()
 
 	return []transactionTestCase{
 		{
@@ -1631,10 +1566,10 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID)),
-						"/0000000000002/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000002/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-2", setup.Commits.First.OID)),
-						"/0000000000003/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000003/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
 				StartManager{},
@@ -1719,7 +1654,7 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 					// appended log entries at the same time.
 					logEntryPath := filepath.Join(t.TempDir(), "log_entry")
 					require.NoError(t, os.Mkdir(logEntryPath, perm.PrivateDir))
-					require.NoError(t, os.WriteFile(filepath.Join(logEntryPath, "1"), []byte(setup.Commits.First.OID+"\n"), perm.SharedFile))
+					require.NoError(t, os.WriteFile(filepath.Join(logEntryPath, "1"), []byte(setup.Commits.First.OID+"\n"), storage.ModeFile))
 					require.NoError(t, tm.appendLogEntry(map[git.ObjectID]struct{}{setup.Commits.First.OID: {}}, refChangeLogEntry(setup, "refs/heads/branch-3", setup.Commits.First.OID), logEntryPath))
 
 					RequireDatabase(t, ctx, tm.db, DatabaseState{
@@ -1730,13 +1665,13 @@ func generateCommittedEntriesTests(t *testing.T, setup testTransactionSetup) []t
 						"/":                       {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-1", setup.Commits.First.OID)),
-						"/0000000000002/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000002/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-2", setup.Commits.First.OID)),
-						"/0000000000003/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000003/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 						"/0000000000004":          {Mode: fs.ModeDir | perm.PrivateDir},
 						"/0000000000004/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/branch-3", setup.Commits.First.OID)),
-						"/0000000000004/1":        {Mode: umask.Mask(perm.SharedFile), Content: []byte(setup.Commits.First.OID + "\n")},
+						"/0000000000004/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 					})
 				}),
 				StartManager{},

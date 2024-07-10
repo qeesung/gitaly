@@ -28,7 +28,7 @@ func TestRepositoryInfo(t *testing.T) {
 		t.Helper()
 		path := filepath.Join(pathComponents...)
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), perm.PrivateDir))
-		require.NoError(t, os.WriteFile(path, bytes.Repeat([]byte{0}, byteCount), perm.PrivateFile))
+		require.NoError(t, os.WriteFile(path, bytes.Repeat([]byte{0}, byteCount), perm.PrivateWriteOnceFile))
 		return path
 	}
 

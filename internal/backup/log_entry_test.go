@@ -344,8 +344,8 @@ func TestLogEntryArchiver(t *testing.T) {
 					require.NoError(t, err)
 					testhelper.RequireTarState(t, archive, testhelper.DirectoryState{
 						lsn.String() + "/":                          {Mode: umask.Mask(perm.PrivateDir)},
-						filepath.Join(lsn.String(), "LSN"):          {Mode: umask.Mask(perm.PrivateFile), Content: []byte(lsn.String())},
-						filepath.Join(lsn.String(), "PARTITION_ID"): {Mode: umask.Mask(perm.PrivateFile), Content: []byte(fmt.Sprintf("%d", info.partitionID))},
+						filepath.Join(lsn.String(), "LSN"):          {Mode: umask.Mask(perm.PrivateWriteOnceFile), Content: []byte(lsn.String())},
+						filepath.Join(lsn.String(), "PARTITION_ID"): {Mode: umask.Mask(perm.PrivateWriteOnceFile), Content: []byte(fmt.Sprintf("%d", info.partitionID))},
 					})
 				}
 			}
@@ -452,8 +452,8 @@ func TestLogEntryArchiver_retry(t *testing.T) {
 
 	testhelper.RequireTarState(t, archive, testhelper.DirectoryState{
 		lsn.String() + "/":                          {Mode: umask.Mask(perm.PrivateDir)},
-		filepath.Join(lsn.String(), "LSN"):          {Mode: umask.Mask(perm.PrivateFile), Content: []byte(lsn.String())},
-		filepath.Join(lsn.String(), "PARTITION_ID"): {Mode: umask.Mask(perm.PrivateFile), Content: []byte(fmt.Sprintf("%d", info.partitionID))},
+		filepath.Join(lsn.String(), "LSN"):          {Mode: umask.Mask(perm.PrivateWriteOnceFile), Content: []byte(lsn.String())},
+		filepath.Join(lsn.String(), "PARTITION_ID"): {Mode: umask.Mask(perm.PrivateWriteOnceFile), Content: []byte(fmt.Sprintf("%d", info.partitionID))},
 	})
 
 	require.NoError(t, testutil.CollectAndCompare(
@@ -474,8 +474,8 @@ func createEntryDir(t *testing.T, entryRootPath string, storageName string, part
 
 	testhelper.CreateFS(t, filepath.Join(partitionPath, lsn.String()), fstest.MapFS{
 		".":            {Mode: fs.ModeDir | perm.PrivateDir},
-		"LSN":          {Mode: perm.PrivateFile, Data: []byte(lsn.String())},
-		"PARTITION_ID": {Mode: perm.PrivateFile, Data: []byte(fmt.Sprintf("%d", partitionID))},
+		"LSN":          {Mode: perm.PrivateWriteOnceFile, Data: []byte(lsn.String())},
+		"PARTITION_ID": {Mode: perm.PrivateWriteOnceFile, Data: []byte(fmt.Sprintf("%d", partitionID))},
 	})
 }
 

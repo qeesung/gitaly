@@ -135,7 +135,7 @@ func TestExtractHooks(t *testing.T) {
 			Name: "custom_hooks/subdirectory/",
 			Mode: int64(perm.PrivateDir),
 		}))
-		writeFile(writer, "custom_hooks/subdirectory/supporting-file", perm.PrivateFile, "supporting-file content")
+		writeFile(writer, "custom_hooks/subdirectory/supporting-file", perm.PrivateWriteOnceFile, "supporting-file content")
 		writeFile(writer, "ignored_file", fs.ModePerm, "ignored content")
 		writeFile(writer, "ignored_directory/ignored_file", fs.ModePerm, "ignored content")
 		defer testhelper.MustClose(t, writer)
@@ -193,7 +193,7 @@ func TestExtractHooks(t *testing.T) {
 				"/custom_hooks":              {Mode: umask.Mask(fs.ModeDir | fs.ModePerm)},
 				"/custom_hooks/pre-receive":  {Mode: umask.Mask(fs.ModePerm), Content: []byte("pre-receive content")},
 				"/custom_hooks/subdirectory": {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-				"/custom_hooks/subdirectory/supporting-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("supporting-file content")},
+				"/custom_hooks/subdirectory/supporting-file": {Mode: umask.Mask(perm.PrivateWriteOnceFile), Content: []byte("supporting-file content")},
 			},
 		},
 		{
@@ -204,7 +204,7 @@ func TestExtractHooks(t *testing.T) {
 				"/":                             {Mode: umask.Mask(fs.ModeDir | fs.ModePerm)},
 				"/pre-receive":                  {Mode: umask.Mask(fs.ModePerm), Content: []byte("pre-receive content")},
 				"/subdirectory":                 {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-				"/subdirectory/supporting-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("supporting-file content")},
+				"/subdirectory/supporting-file": {Mode: umask.Mask(perm.PrivateWriteOnceFile), Content: []byte("supporting-file content")},
 			},
 		},
 		{
@@ -324,34 +324,34 @@ func TestNewDirectoryVote(t *testing.T) {
 		{
 			desc: "generated hash matches",
 			files: []testFile{
-				{name: "pre-commit.sample", content: "foo", mode: perm.SharedExecutable},
-				{name: "pre-push.sample", content: "bar", mode: perm.SharedExecutable},
+				{name: "pre-commit.sample", content: "foo", mode: perm.PrivateExecutable},
+				{name: "pre-push.sample", content: "bar", mode: perm.PrivateExecutable},
 			},
-			expectedHash: "8ca11991268de4c9278488a674fc1a88db449566",
+			expectedHash: "3c0fd54e0428c5ee04c15ee5a52864694771fb20",
 		},
 		{
 			desc: "generated hash matches with changed file name",
 			files: []testFile{
-				{name: "pre-commit.sample.diff", content: "foo", mode: perm.SharedExecutable},
-				{name: "pre-push.sample", content: "bar", mode: perm.SharedExecutable},
+				{name: "pre-commit.sample.diff", content: "foo", mode: perm.PrivateExecutable},
+				{name: "pre-push.sample", content: "bar", mode: perm.PrivateExecutable},
 			},
-			expectedHash: "b5ed58ced84103da1ed9d7813a9e39b3b5daf7d7",
+			expectedHash: "2d5080ef5ed0a52254a794915c8fbbec8c694224",
 		},
 		{
 			desc: "generated hash matches with changed file content",
 			files: []testFile{
-				{name: "pre-commit.sample", content: "foo", mode: perm.SharedExecutable},
-				{name: "pre-push.sample", content: "bar.diff", mode: perm.SharedExecutable},
+				{name: "pre-commit.sample", content: "foo", mode: perm.PrivateExecutable},
+				{name: "pre-push.sample", content: "bar.diff", mode: perm.PrivateExecutable},
 			},
-			expectedHash: "178083848c8a08e36c4f86c2d318a84b0bb845f2",
+			expectedHash: "18e2d3f9cc9990747b27cf8a7fad281539856194",
 		},
 		{
 			desc: "generated hash matches with changed file mode",
 			files: []testFile{
-				{name: "pre-commit.sample", content: "foo", mode: perm.SharedFile},
-				{name: "pre-push.sample", content: "bar", mode: perm.SharedExecutable},
+				{name: "pre-commit.sample", content: "foo", mode: perm.PrivateWriteOnceFile},
+				{name: "pre-push.sample", content: "bar", mode: perm.PrivateExecutable},
 			},
-			expectedHash: "c69574241b83496bb4005b4f7a0dfcda96cb317e",
+			expectedHash: "ad20a4fea20e9049bb70e084e757fcc5d2cf2cc7",
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -375,7 +375,7 @@ func mustWriteCustomHookDirectory(t *testing.T, files []testFile, dirName string
 	tmpDir := testhelper.TempDir(t)
 	hooksPath := filepath.Join(tmpDir, dirName)
 
-	err := os.Mkdir(hooksPath, perm.SharedDir)
+	err := os.Mkdir(hooksPath, perm.PrivateDir)
 	require.NoError(t, err)
 
 	for _, f := range files {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/rand"
 	"net"
 	"net/http"
@@ -116,13 +117,13 @@ func WriteFiles(tb testing.TB, root string, files map[string]any) {
 	for name, value := range files {
 		path := filepath.Join(root, name)
 
-		require.NoError(tb, os.MkdirAll(filepath.Dir(path), perm.SharedDir))
+		require.NoError(tb, os.MkdirAll(filepath.Dir(path), perm.PrivateDir))
 
 		switch content := value.(type) {
 		case string:
-			require.NoError(tb, os.WriteFile(path, []byte(content), perm.PublicFile))
+			require.NoError(tb, os.WriteFile(path, []byte(content), fs.ModePerm))
 		case []byte:
-			require.NoError(tb, os.WriteFile(path, content, perm.PublicFile))
+			require.NoError(tb, os.WriteFile(path, content, fs.ModePerm))
 		case io.Reader:
 			func() {
 				f, err := os.Create(path)
@@ -311,7 +312,7 @@ func ContextWithoutCancel(opts ...ContextOpt) context.Context {
 func CreateGlobalDirectory(tb testing.TB, name string) string {
 	require.NotEmpty(tb, testDirectory, "global temporary directory does not exist")
 	path := filepath.Join(testDirectory, name)
-	require.NoError(tb, os.Mkdir(path, perm.PublicDir))
+	require.NoError(tb, os.Mkdir(path, perm.PrivateDir))
 	return path
 }
 
@@ -339,7 +340,7 @@ type Cleanup func()
 // executable.
 func WriteExecutable(tb testing.TB, path string, content []byte) string {
 	dir := filepath.Dir(path)
-	require.NoError(tb, os.MkdirAll(dir, perm.SharedDir))
+	require.NoError(tb, os.MkdirAll(dir, perm.PrivateDir))
 	tb.Cleanup(func() {
 		assert.NoError(tb, os.RemoveAll(dir))
 	})
@@ -353,7 +354,7 @@ func WriteExecutable(tb testing.TB, path string, content []byte) string {
 	//
 	// We thus need to perform file locking to ensure that all writeable references to this
 	// file have been closed before returning.
-	executable, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm.SharedExecutable)
+	executable, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm.PrivateExecutable)
 	require.NoError(tb, err)
 	_, err = io.Copy(executable, bytes.NewReader(content))
 	require.NoError(tb, err)

@@ -139,16 +139,16 @@ func TestGetSnapshot(t *testing.T) {
 				)
 
 				// The shallow file, used if the repository is a shallow clone, is also included in snapshots.
-				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "shallow"), nil, perm.SharedFile))
+				require.NoError(t, os.WriteFile(filepath.Join(repoPath, "shallow"), nil, perm.PrivateWriteOnceFile))
 
 				// Custom Git hooks are not included in snapshots.
-				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "hooks"), perm.SharedDir))
+				require.NoError(t, os.MkdirAll(filepath.Join(repoPath, "hooks"), perm.PrivateDir))
 
 				// Create a file in the objects directory that does not match the regex.
 				require.NoError(t, os.WriteFile(
 					filepath.Join(repoPath, "objects/this-should-not-be-included"),
 					nil,
-					perm.SharedFile,
+					perm.PrivateWriteOnceFile,
 				))
 
 				return setupData{
@@ -196,7 +196,7 @@ func TestGetSnapshot(t *testing.T) {
 					setupData.requireError = func(actual error) {
 						// Skipping an alternate due to bad permissions could lead to corrupted snapshots. It would be better
 						// to fix the problem, so we don't strive to match the behavior here with transactions.
-						require.Regexp(t, "begin transaction: get snapshot: new shared snapshot: create repository snapshots: get alternate path: read alternates file: open: open .+/objects/info/alternates: permission denied$", actual.Error())
+						require.Regexp(t, "begin transaction: get snapshot: new exclusive snapshot: create repository snapshots: get alternate path: read alternates file: open: open .+/objects/info/alternates: permission denied$", actual.Error())
 					}
 				}
 
@@ -227,7 +227,7 @@ func TestGetSnapshot(t *testing.T) {
 				require.NoError(t, os.WriteFile(
 					altFile,
 					[]byte(fmt.Sprintf("%s\n", altObjectDir)),
-					perm.SharedFile,
+					perm.PrivateWriteOnceFile,
 				))
 				gittest.RequireObjectExists(t, cfg, repoPath, commitID)
 

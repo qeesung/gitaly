@@ -831,7 +831,11 @@ func testUploadPackGitFailure(t *testing.T, ctx context.Context) {
 
 	// Writing an invalid config will allow repo to pass the `ValidateRepository` check but still
 	// trigger an error when git tries to access the repo.
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "config"), []byte("Not a valid gitconfig"), perm.SharedFile))
+	//
+	// Remove the config file first as files are read-only with transactions.
+	configPath := filepath.Join(repoPath, "config")
+	require.NoError(t, os.Remove(configPath))
+	require.NoError(t, os.WriteFile(configPath, []byte("Not a valid gitconfig"), perm.PrivateWriteOnceFile))
 
 	stream, err := client.SSHUploadPack(ctx)
 	require.NoError(t, err)

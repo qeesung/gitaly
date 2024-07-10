@@ -120,7 +120,7 @@ func TestListAllCommits(t *testing.T) {
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("unquarantined"))
 
 				quarantineDir := filepath.Join("objects", "incoming-123456")
-				require.NoError(t, os.Mkdir(filepath.Join(repoPath, quarantineDir), perm.PublicDir))
+				require.NoError(t, os.Mkdir(filepath.Join(repoPath, quarantineDir), perm.PrivateDir))
 
 				repo.GitObjectDirectory = quarantineDir
 				repo.GitAlternateObjectDirectories = nil
@@ -139,7 +139,7 @@ func TestListAllCommits(t *testing.T) {
 				gittest.WriteCommit(t, cfg, repoPath, gittest.WithMessage("unquarantined"))
 
 				quarantineDir := filepath.Join("objects", "incoming-123456")
-				require.NoError(t, os.Mkdir(filepath.Join(repoPath, quarantineDir), perm.PublicDir))
+				require.NoError(t, os.Mkdir(filepath.Join(repoPath, quarantineDir), perm.PrivateDir))
 
 				repo.GitObjectDirectory = quarantineDir
 				repo.GitAlternateObjectDirectories = nil

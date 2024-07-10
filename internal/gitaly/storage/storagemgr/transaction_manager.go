@@ -87,13 +87,9 @@ var (
 	errConcurrentAlternateUnlink = errors.New("concurrent alternate unlinking with repack")
 
 	// Below errors are used to error out in cases when updates have been staged in a read-only transaction.
-	errReadOnlyReferenceUpdates    = errors.New("reference updates staged in a read-only transaction")
-	errReadOnlyDefaultBranchUpdate = errors.New("default branch update staged in a read-only transaction")
-	errReadOnlyCustomHooksUpdate   = errors.New("custom hooks update staged in a read-only transaction")
-	errReadOnlyRepositoryDeletion  = errors.New("repository deletion staged in a read-only transaction")
-	errReadOnlyObjectsIncluded     = errors.New("objects staged in a read-only transaction")
-	errReadOnlyHousekeeping        = errors.New("housekeeping in a read-only transaction")
-	errReadOnlyKeyValue            = errors.New("key-value writes in a read-only transaction")
+	errReadOnlyRepositoryDeletion = errors.New("repository deletion staged in a read-only transaction")
+	errReadOnlyHousekeeping       = errors.New("housekeeping in a read-only transaction")
+	errReadOnlyKeyValue           = errors.New("key-value writes in a read-only transaction")
 
 	// keyAppliedLSN is the database key storing a partition's last applied log entry's LSN.
 	keyAppliedLSN = []byte("applied_lsn")
@@ -311,6 +307,13 @@ type Transaction struct {
 	objectDependencies map[git.ObjectID]struct{}
 }
 
+// BeginOptions contains options supported by begin.
+type BeginOptions struct {
+	// ForceExclusiveSnapshot forces the transactions to use an exclusive snapshot. This is a temporary
+	// workaround for some RPCs that do not work well with shared read-only snapshots yet.
+	ForceExclusiveSnapshot bool
+}
+
 // Begin opens a new transaction. The caller must call either Commit or Rollback to release
 // the resources tied to the transaction. The returned Transaction is not safe for concurrent use.
 //
@@ -324,7 +327,7 @@ type Transaction struct {
 //
 // readOnly indicates whether this is a read-only transaction. Read-only transactions are not
 // configured with a quarantine directory and do not commit a log entry.
-func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, snapshottedRelativePaths []string, readOnly bool) (_ *Transaction, returnedErr error) {
+func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, snapshottedRelativePaths []string, readOnly bool, possibleOpts ...BeginOptions) (_ *Transaction, returnedErr error) {
 	// Wait until the manager has been initialized so the notification channels
 	// and the LSNs are loaded.
 	select {
@@ -334,6 +337,11 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 		if !mgr.initializationSuccessful {
 			return nil, errInitializationFailed
 		}
+	}
+
+	var opts BeginOptions
+	if len(possibleOpts) > 0 {
+		opts = possibleOpts[0]
 	}
 
 	span, _ := tracing.StartSpanIfHasParent(ctx, "transaction.Begin", nil)
@@ -444,7 +452,7 @@ func (mgr *TransactionManager) Begin(ctx context.Context, relativePath string, s
 
 		if txn.snapshot, err = mgr.snapshotManager.GetSnapshot(ctx,
 			snapshottedRelativePaths,
-			!txn.readOnly,
+			!txn.readOnly || opts.ForceExclusiveSnapshot,
 		); err != nil {
 			return nil, fmt.Errorf("get snapshot: %w", err)
 		}
@@ -549,16 +557,8 @@ func (txn *Transaction) Commit(ctx context.Context) (returnedErr error) {
 		// accidentally staged in a read-only transaction. The changes would not be anyway
 		// performed as read-only transactions are not committed through the manager.
 		switch {
-		case txn.referenceUpdates != nil:
-			return errReadOnlyReferenceUpdates
-		case txn.defaultBranchUpdated:
-			return errReadOnlyDefaultBranchUpdate
-		case txn.customHooksUpdated:
-			return errReadOnlyCustomHooksUpdate
 		case txn.deleteRepository:
 			return errReadOnlyRepositoryDeletion
-		case txn.includedObjects != nil:
-			return errReadOnlyObjectsIncluded
 		case txn.runHousekeeping != nil:
 			return errReadOnlyHousekeeping
 		case len(txn.recordingReadWriter.WriteSet()) > 0:
@@ -1449,7 +1449,7 @@ func (mgr *TransactionManager) setupStagingRepository(ctx context.Context, trans
 		if err := os.WriteFile(
 			stats.AlternatesFilePath(mgr.getAbsolutePath(transaction.stagingSnapshot.RelativePath(transaction.relativePath))),
 			[]byte(alternatesContent),
-			perm.PrivateFile,
+			perm.PrivateWriteOnceFile,
 		); err != nil {
 			return fmt.Errorf("insert modified alternate file: %w", err)
 		}
@@ -3095,7 +3095,7 @@ func (mgr *TransactionManager) appendLogEntry(objectDependencies map[git.ObjectI
 
 	// Finalize the log entry by writing the MANIFEST file into the log entry's directory.
 	manifestPath := manifestPath(logEntryPath)
-	if err := os.WriteFile(manifestPath, manifestBytes, perm.PrivateFile); err != nil {
+	if err := os.WriteFile(manifestPath, manifestBytes, perm.PrivateWriteOnceFile); err != nil {
 		return fmt.Errorf("write manifest: %w", err)
 	}
 

@@ -2,6 +2,7 @@ package manager
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -289,7 +290,7 @@ func expectDeletion(entry *fileEntry) {
 func f(name string, opts ...entryOption) *fileEntry {
 	entry := &fileEntry{
 		name:       name,
-		mode:       perm.PrivateFile,
+		mode:       fs.ModePerm,
 		age:        ancient,
 		finalState: Keep,
 	}

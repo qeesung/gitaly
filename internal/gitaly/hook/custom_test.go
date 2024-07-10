@@ -267,7 +267,7 @@ func TestCustomHooksWithSymlinks(t *testing.T) {
 	// bad -> /path/to/nowhere             BAD
 	firstDir := filepath.Join(globalHooksPath, "first_dir")
 	secondDir := filepath.Join(globalHooksPath, "second_dir")
-	require.NoError(t, os.MkdirAll(firstDir, perm.SharedDir))
+	require.NoError(t, os.MkdirAll(firstDir, perm.PrivateDir))
 	require.NoError(t, os.Symlink(firstDir, secondDir))
 	filename := filepath.Join(firstDir, "update")
 
@@ -450,8 +450,8 @@ type customHookResults struct {
 }
 
 func writeCustomHook(t *testing.T, hookName, dir string, content []byte) func() {
-	require.NoError(t, os.MkdirAll(dir, perm.SharedDir))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, hookName), content, perm.SharedExecutable))
+	require.NoError(t, os.MkdirAll(dir, perm.PrivateDir))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, hookName), content, perm.PrivateExecutable))
 
 	return func() {
 		require.NoError(t, os.RemoveAll(dir))

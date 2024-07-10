@@ -306,7 +306,7 @@ func TestLoadConfigCommand(t *testing.T) {
 			desc: "command points to non-executable file",
 			setup: func(t *testing.T) setupData {
 				cmd := filepath.Join(testhelper.TempDir(t), "script")
-				require.NoError(t, os.WriteFile(cmd, nil, perm.PrivateFile))
+				require.NoError(t, os.WriteFile(cmd, nil, perm.PrivateWriteOnceFile))
 
 				return setupData{
 					cfg: Cfg{
@@ -553,10 +553,10 @@ func TestValidateStorages(t *testing.T) {
 	repositories := testhelper.TempDir(t)
 	repositories2 := testhelper.TempDir(t)
 	nestedRepositories := filepath.Join(repositories, "nested")
-	require.NoError(t, os.MkdirAll(nestedRepositories, perm.PublicDir))
+	require.NoError(t, os.MkdirAll(nestedRepositories, perm.PrivateDir))
 
 	filePath := filepath.Join(testhelper.TempDir(t), "temporary-file")
-	require.NoError(t, os.WriteFile(filePath, []byte{}, perm.PublicFile))
+	require.NoError(t, os.WriteFile(filePath, []byte{}, perm.PrivateWriteOnceFile))
 
 	invalidDir := filepath.Join(filepath.Dir(repositories), t.Name())
 
@@ -1068,7 +1068,7 @@ func TestSetupRuntimeDirectory_validateInternalSocket(t *testing.T) {
 			desc: "symlinked runtime directory",
 			setup: func(t *testing.T) string {
 				runtimeDir := testhelper.TempDir(t)
-				require.NoError(t, os.Mkdir(filepath.Join(runtimeDir, "sock.d"), perm.PublicDir))
+				require.NoError(t, os.Mkdir(filepath.Join(runtimeDir, "sock.d"), perm.PrivateDir))
 
 				// Create a symlink which points to the real runtime directory.
 				symlinkDir := testhelper.TempDir(t)
@@ -1095,7 +1095,7 @@ func TestSetupRuntimeDirectory_validateInternalSocket(t *testing.T) {
 
 				runtimeDirTooLongForSockets := filepath.Join(tempDir, strings.Repeat("/nested_directory", 10))
 				socketDir := filepath.Join(runtimeDirTooLongForSockets, "sock.d")
-				require.NoError(t, os.MkdirAll(socketDir, perm.PublicDir))
+				require.NoError(t, os.MkdirAll(socketDir, perm.PrivateDir))
 
 				return runtimeDirTooLongForSockets
 			},
@@ -1753,7 +1753,7 @@ func TestSetupRuntimeDirectory(t *testing.T) {
 	t.Run("validation", func(t *testing.T) {
 		dirPath := testhelper.TempDir(t)
 		filePath := filepath.Join(dirPath, "file")
-		require.NoError(t, os.WriteFile(filePath, nil, perm.SharedFile))
+		require.NoError(t, os.WriteFile(filePath, nil, perm.PrivateWriteOnceFile))
 
 		for _, tc := range []struct {
 			desc        string
@@ -2098,7 +2098,7 @@ func TestStorage_Validate(t *testing.T) {
 
 	dirPath := testhelper.TempDir(t)
 	filePath := filepath.Join(dirPath, "file")
-	require.NoError(t, os.WriteFile(filePath, nil, perm.SharedFile))
+	require.NoError(t, os.WriteFile(filePath, nil, perm.PrivateWriteOnceFile))
 	for _, tc := range []struct {
 		name        string
 		storage     Storage
@@ -2140,7 +2140,7 @@ func TestTLS_Validate(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	tmpFile := filepath.Join(tmpDir, "file")
-	require.NoError(t, os.WriteFile(tmpFile, []byte("I am not a certificate"), perm.SharedFile))
+	require.NoError(t, os.WriteFile(tmpFile, []byte("I am not a certificate"), perm.PrivateWriteOnceFile))
 
 	for _, tc := range []struct {
 		name        string
@@ -2241,7 +2241,7 @@ func TestGitlabShell_Validate(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	tmpFile := filepath.Join(tmpDir, "file")
-	require.NoError(t, os.WriteFile(tmpFile, nil, perm.SharedFile))
+	require.NoError(t, os.WriteFile(tmpFile, nil, perm.PrivateWriteOnceFile))
 
 	for _, tc := range []struct {
 		name        string
@@ -2356,7 +2356,7 @@ func TestHTTPSettings_Validate(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	tmpFile := filepath.Join(tmpDir, "tmpfile")
-	require.NoError(t, os.WriteFile(tmpFile, []byte{}, perm.PublicFile))
+	require.NoError(t, os.WriteFile(tmpFile, []byte{}, perm.PrivateWriteOnceFile))
 
 	for _, tc := range []struct {
 		name         string
@@ -2411,7 +2411,7 @@ func TestGitlab_Validate(t *testing.T) {
 
 	tmpDir := testhelper.TempDir(t)
 	tmpFile := filepath.Join(tmpDir, "tmpfile")
-	require.NoError(t, os.WriteFile(tmpFile, []byte{}, perm.PublicFile))
+	require.NoError(t, os.WriteFile(tmpFile, []byte{}, perm.PrivateWriteOnceFile))
 
 	for _, tc := range []struct {
 		name        string

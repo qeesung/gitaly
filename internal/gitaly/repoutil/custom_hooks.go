@@ -154,7 +154,7 @@ func SetCustomHooks(
 	// it means the repository should be set with an empty `custom_hooks`
 	// directory. Create `custom_hooks` in the temporary directory so that any
 	// existing repository hooks will be replaced with this empty directory.
-	if err := os.Mkdir(tempHooksPath, perm.PublicDir); err != nil && !errors.Is(err, fs.ErrExist) {
+	if err := os.Mkdir(tempHooksPath, perm.PrivateDir); err != nil && !errors.Is(err, fs.ErrExist) {
 		return fmt.Errorf("making temp hooks directory: %w", err)
 	}
 

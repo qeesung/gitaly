@@ -67,11 +67,11 @@ func TestRepositorySize_normalRepository(t *testing.T) {
 	requireRepositorySize(t, ctx, client, repo, 16)
 
 	// Also, updating any other files should cause a size increase.
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "packed-refs"), incompressibleData(7*1024), perm.PrivateFile))
+	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "packed-refs"), incompressibleData(7*1024), perm.PrivateWriteOnceFile))
 	requireRepositorySize(t, ctx, client, repo, 23)
 
 	// Even garbage should increase the size.
-	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "garbage"), incompressibleData(5*1024), perm.PrivateFile))
+	require.NoError(t, os.WriteFile(filepath.Join(repoPath, "garbage"), incompressibleData(5*1024), perm.PrivateWriteOnceFile))
 	requireRepositorySize(t, ctx, client, repo, 28)
 }
 

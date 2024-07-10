@@ -159,6 +159,6 @@ func writeConfigToFile(tb testing.TB, conf config.Config) string {
 	require.NoError(tb, err)
 	tmpDir := testhelper.TempDir(tb)
 	confPath := filepath.Join(tmpDir, "config.toml")
-	require.NoError(tb, os.WriteFile(confPath, confData, perm.PublicFile))
+	require.NoError(tb, os.WriteFile(confPath, confData, perm.PrivateWriteOnceFile))
 	return confPath
 }

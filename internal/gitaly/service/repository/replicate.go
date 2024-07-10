@@ -352,7 +352,7 @@ func (s *server) syncGitconfig(ctx context.Context, source, target *gitalypb.Rep
 	}
 
 	configPath := filepath.Join(repoPath, "config")
-	if err := s.writeFile(ctx, configPath, perm.SharedFile, streamio.NewReader(func() ([]byte, error) {
+	if err := s.writeFile(ctx, configPath, perm.PrivateWriteOnceFile, streamio.NewReader(func() ([]byte, error) {
 		resp, err := stream.Recv()
 		return resp.GetData(), err
 	})); err != nil {
@@ -364,7 +364,7 @@ func (s *server) syncGitconfig(ctx context.Context, source, target *gitalypb.Rep
 
 func (s *server) writeFile(ctx context.Context, path string, mode os.FileMode, reader io.Reader) (returnedErr error) {
 	parentDir := filepath.Dir(path)
-	if err := os.MkdirAll(parentDir, perm.SharedDir); err != nil {
+	if err := os.MkdirAll(parentDir, perm.PrivateDir); err != nil {
 		return err
 	}
 

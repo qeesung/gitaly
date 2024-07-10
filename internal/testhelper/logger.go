@@ -177,7 +177,7 @@ func CreateTestLogDir(tb testing.TB) string {
 
 	logDir := filepath.Join(testLogDir, tb.Name())
 
-	require.NoError(tb, os.MkdirAll(logDir, perm.SharedDir))
+	require.NoError(tb, os.MkdirAll(logDir, perm.PrivateDir))
 
 	return logDir
 }

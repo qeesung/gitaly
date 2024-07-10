@@ -139,10 +139,10 @@ testing of this scenario should be left to the relevant package.
 			importedRepoPath := filepath.Join(cfg.Storages[0].Path, importedRepo.GetRelativePath())
 
 			if testCase.isDir {
-				require.NoError(t, os.MkdirAll(importedRepoPath, perm.GroupPrivateDir))
+				require.NoError(t, os.MkdirAll(importedRepoPath, perm.PrivateDir))
 			} else {
-				require.NoError(t, os.MkdirAll(filepath.Dir(importedRepoPath), perm.PublicDir))
-				require.NoError(t, os.WriteFile(importedRepoPath, nil, perm.SharedFile))
+				require.NoError(t, os.MkdirAll(filepath.Dir(importedRepoPath), perm.PrivateDir))
+				require.NoError(t, os.WriteFile(importedRepoPath, nil, perm.PrivateWriteOnceFile))
 			}
 			t.Cleanup(func() { require.NoError(t, os.RemoveAll(importedRepoPath)) })
 

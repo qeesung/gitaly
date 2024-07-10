@@ -57,7 +57,7 @@ func TestRepo_Path(t *testing.T) {
 		// Recreate the repository as a simple empty directory to simulate
 		// that the repository is in a partially-created state.
 		require.NoError(t, os.RemoveAll(repoPath))
-		require.NoError(t, os.MkdirAll(repoPath, perm.PublicDir))
+		require.NoError(t, os.MkdirAll(repoPath, perm.PrivateDir))
 
 		_, err := repo.Path(ctx)
 		require.Equal(t, structerr.NewFailedPrecondition("%w: %q does not exist", storage.ErrRepositoryNotValid, "objects").WithMetadata("repository_path", repoPath), err)

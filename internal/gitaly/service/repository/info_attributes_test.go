@@ -25,12 +25,12 @@ func TestGetInfoAttributesExisting(t *testing.T) {
 	repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 	infoPath := filepath.Join(repoPath, "info")
-	require.NoError(t, os.MkdirAll(infoPath, perm.SharedDir))
+	require.NoError(t, os.MkdirAll(infoPath, perm.PrivateDir))
 
 	buffSize := streamio.WriteBufferSize + 1
 	data := bytes.Repeat([]byte("*.pbxproj binary\n"), buffSize)
 	attrsPath := filepath.Join(infoPath, "attributes")
-	err := os.WriteFile(attrsPath, data, perm.SharedFile)
+	err := os.WriteFile(attrsPath, data, perm.PrivateWriteOnceFile)
 	require.NoError(t, err)
 
 	gitattributesContent := "*.go diff=go text\n*.md text\n*.jpg -text"

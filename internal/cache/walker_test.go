@@ -37,7 +37,7 @@ func TestDiskCacheObjectWalker(t *testing.T) {
 		require.NoError(t, err)
 
 		path := filepath.Join(cacheDir, tt.name)
-		require.NoError(t, os.MkdirAll(filepath.Dir(path), perm.SharedDir))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), perm.PrivateDir))
 
 		f, err := os.Create(path)
 		require.NoError(t, err)
@@ -78,8 +78,8 @@ func TestDiskCacheInitialClear(t *testing.T) {
 	require.NoError(t, err)
 
 	canary := filepath.Join(cacheDir, "canary.txt")
-	require.NoError(t, os.MkdirAll(filepath.Dir(canary), perm.SharedDir))
-	require.NoError(t, os.WriteFile(canary, []byte("chirp chirp"), perm.PublicFile))
+	require.NoError(t, os.MkdirAll(filepath.Dir(canary), perm.PrivateDir))
+	require.NoError(t, os.WriteFile(canary, []byte("chirp chirp"), perm.PrivateWriteOnceFile))
 
 	cache := New(cfg, locator, testhelper.SharedLogger(t), withDisabledWalker())
 	require.NoError(t, cache.StartWalkers())
@@ -114,9 +114,9 @@ func TestCleanWalkEmptyDirs(t *testing.T) {
 	} {
 		p := filepath.Join(tmp, tt.path)
 		if strings.HasSuffix(tt.path, "/") {
-			require.NoError(t, os.MkdirAll(p, perm.SharedDir))
+			require.NoError(t, os.MkdirAll(p, perm.PrivateDir))
 		} else {
-			require.NoError(t, os.WriteFile(p, nil, perm.SharedFile))
+			require.NoError(t, os.WriteFile(p, nil, perm.PrivateWriteOnceFile))
 			if tt.stale {
 				require.NoError(t, os.Chtimes(p, time.Now(), time.Now().Add(-time.Hour)))
 			}

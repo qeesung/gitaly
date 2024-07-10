@@ -930,7 +930,7 @@ func TestConfig_ValidateV2(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		tmpDir := testhelper.TempDir(t)
 		tmpFile := filepath.Join(tmpDir, "file")
-		require.NoError(t, os.WriteFile(tmpFile, nil, perm.PublicFile))
+		require.NoError(t, os.WriteFile(tmpFile, nil, perm.PrivateWriteOnceFile))
 		cfg := Config{
 			BackgroundVerification: BackgroundVerification{
 				VerificationInterval: duration.Duration(-1),
@@ -1026,7 +1026,7 @@ func TestConfig_ConfigCommand(t *testing.T) {
 			desc: "command points to non-executable file",
 			setup: func(t *testing.T) setupData {
 				cmd := filepath.Join(testhelper.TempDir(t), "script")
-				require.NoError(t, os.WriteFile(cmd, nil, perm.PrivateFile))
+				require.NoError(t, os.WriteFile(cmd, nil, perm.PrivateWriteOnceFile))
 
 				return setupData{
 					cfg: Config{
