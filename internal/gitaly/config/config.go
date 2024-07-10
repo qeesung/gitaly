@@ -234,6 +234,10 @@ type GitlabShell struct {
 
 // Validate runs validation on all fields and compose all found errors.
 func (gs GitlabShell) Validate() error {
+	if len(gs.Dir) == 0 {
+		return nil
+	}
+
 	return cfgerror.New().
 		Append(cfgerror.DirExists(gs.Dir), "dir").
 		AsError()
@@ -731,6 +735,7 @@ func Load(file io.Reader) (Cfg, error) {
 }
 
 // Validate checks the current Config for sanity.
+// Deprecated: Use ValidateV2 instead.
 func (cfg *Cfg) Validate() error {
 	for _, run := range []func() error{
 		cfg.validateListeners,
@@ -818,6 +823,30 @@ func (cfg *Cfg) ValidateV2() error {
 
 // SetDefaults sets the default options for Cfg.
 func (cfg *Cfg) SetDefaults() error {
+	if cfg.BinDir != "" {
+		var err error
+		if cfg.BinDir, err = filepath.Abs(cfg.BinDir); err != nil {
+			return err
+		}
+	}
+
+	if cfg.RuntimeDir != "" {
+		var err error
+		if cfg.RuntimeDir, err = filepath.Abs(cfg.RuntimeDir); err != nil {
+			return err
+		}
+	}
+
+	if cfg.PackObjectsCache.Enabled {
+		if cfg.PackObjectsCache.MaxAge == 0 {
+			cfg.PackObjectsCache.MaxAge = duration.Duration(5 * time.Minute)
+		}
+
+		if cfg.PackObjectsCache.Dir == "" && len(cfg.Storages) > 0 {
+			cfg.PackObjectsCache.Dir = filepath.Join(cfg.Storages[0].Path, GitalyDataPrefix, "PackObjectsCache")
+		}
+	}
+
 	if cfg.GracefulRestartTimeout.Duration() == 0 {
 		cfg.GracefulRestartTimeout = duration.Duration(time.Minute)
 	}
@@ -973,9 +1002,7 @@ func (cfg *Cfg) validateBinDir() error {
 		return err
 	}
 
-	var err error
-	cfg.BinDir, err = filepath.Abs(cfg.BinDir)
-	return err
+	return nil
 }
 
 func (cfg *Cfg) validateRuntimeDir() error {
@@ -987,9 +1014,7 @@ func (cfg *Cfg) validateRuntimeDir() error {
 		return err
 	}
 
-	var err error
-	cfg.RuntimeDir, err = filepath.Abs(cfg.RuntimeDir)
-	return err
+	return nil
 }
 
 func (cfg *Cfg) validateGit() error {
@@ -1078,16 +1103,8 @@ func (cfg *Cfg) configurePackObjectsCache() error {
 		return errPackObjectsCacheNegativeMaxAge
 	}
 
-	if poc.MaxAge == 0 {
-		poc.MaxAge = duration.Duration(5 * time.Minute)
-	}
-
 	if poc.Dir == "" {
-		if len(cfg.Storages) == 0 {
-			return errPackObjectsCacheNoStorages
-		}
-
-		poc.Dir = filepath.Join(cfg.Storages[0].Path, GitalyDataPrefix, "PackObjectsCache")
+		return errPackObjectsCacheNoStorages
 	}
 
 	if !filepath.IsAbs(poc.Dir) {
