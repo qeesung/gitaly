@@ -513,39 +513,18 @@ that we have no such issues with zero-downtime upgrades:
 
 1. We remove the old bundled Git binaries.
 
-Note that because we cannot remove the old Git binaries at the same time when we
-add the new ones. We must ensure that both sets exist in parallel for at least
-one release.
+Note that it is no longer required to wait one release before removing the old
+bundled Git binaries. This is because the binaries are now embedded into the
+Gitaly binary, thus an upgrade can be performed atomically. A Gitaly process
+is in complete control of its Git execution environment when using bundled Git.
 
 [bundled-git]: git-execution-environments.md#bundled-git-recommended
 
 ### Detailed Process
 
-The following detailed steps need to be done to upgrade to a new Git version:
-
-1. Add the new bundled Git distribution to the `Makefile`. See
-   c0d05650be681c2accb4cec5aac74a6dd77a2fa6.
-
-1. Add a new bundled Git execution environment with a feature flag. See
-   b547b368c8f584e9aabe8eef9342f99440b0c248. Please note that execution
-   environments are ordered by decreasing priority: the first environment
-   whose feature flags are all turned on will be picked. You thus have to
-   add your new environment to the top.
-
-1. Roll out the feature flag by following our feature flag process. You may
-   decide to remove the feature flag before the feature flag is removed in
-   case it is a low-risk upgrade of the Git version (e.g. when you perform a
-   patch-release upgrade, only).
-
-1. Remove the feature flag. See 888e6233fd85691f0852ae6c4a3656da9bf3d8e4.
-
-1. Remove the execution environment of the old bundled Git version. See
-   af1a3fe7b536d22a6db9ba6591d222b23d01d83f.
-
-1. Remove the old set of bundled Git binaries from the `Makefile`. See
-   9c700ea473d781eea50eab685d643d95e9c4ffee. Note that this must only happen
-   _after_ both old and new bundled Git binaries have been installed in
-   parallel in a release already.
+The process is detailed in the
+[Git Version Upgrade](https://gitlab.com/gitlab-org/gitaly/-/blob/master/.gitlab/issue_templates/Git%20Version%20Upgrade.md)
+issue template.
 
 ## Gitaly Releases
 

@@ -11,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/text"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 	"gitlab.com/gitlab-org/labkit/correlation"
 	"google.golang.org/grpc/metadata"
@@ -192,10 +193,7 @@ func TestGlobalOption(t *testing.T) {
 }
 
 func TestWithConfig(t *testing.T) {
-	cfg := config.Cfg{
-		BinDir: testhelper.TempDir(t),
-	}
-
+	cfg := testcfg.Build(t)
 	ctx := testhelper.Context(t)
 
 	gitCmdFactory := newCommandFactory(t, cfg, WithSkipHooks())
@@ -265,14 +263,14 @@ func TestWithConfig(t *testing.T) {
 }
 
 func TestExecCommandFactoryGitalyConfigOverrides(t *testing.T) {
-	cfg := config.Cfg{
-		BinDir: testhelper.TempDir(t),
-		Git: config.Git{
-			Config: []config.GitConfig{
-				{Key: "foo.bar", Value: "from-gitaly-config"},
+	cfg := testcfg.Build(t, testcfg.WithBase(
+		config.Cfg{
+			Git: config.Git{
+				Config: []config.GitConfig{
+					{Key: "foo.bar", Value: "from-gitaly-config"},
+				},
 			},
-		},
-	}
+		}))
 
 	ctx := testhelper.Context(t)
 
@@ -294,10 +292,7 @@ func TestExecCommandFactoryGitalyConfigOverrides(t *testing.T) {
 }
 
 func TestWithConfigEnv(t *testing.T) {
-	cfg := config.Cfg{
-		BinDir: testhelper.TempDir(t),
-	}
-
+	cfg := testcfg.Build(t)
 	ctx := testhelper.Context(t)
 
 	gitCmdFactory := newCommandFactory(t, cfg, WithSkipHooks())

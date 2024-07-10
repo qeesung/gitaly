@@ -693,11 +693,13 @@ func TestUploadPack_packObjectsHook(t *testing.T) {
 
 	ctx := testhelper.Context(t)
 
-	cfg := testcfg.Build(t, testcfg.WithPackObjectsCacheEnabled())
-
 	filterDir := testhelper.TempDir(t)
 	outputPath := filepath.Join(filterDir, "output")
-	cfg.BinDir = filterDir
+	cfg := testcfg.Build(t, testcfg.WithPackObjectsCacheEnabled(), testcfg.WithBase(
+		config.Cfg{
+			BinDir: filterDir,
+		},
+	))
 
 	testcfg.BuildGitalySSH(t, cfg)
 

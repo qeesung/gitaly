@@ -1,7 +1,6 @@
 package git_test
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
 )
 
 func TestDistributedGitEnvironmentConstructor(t *testing.T) {
@@ -67,52 +67,16 @@ func TestDistributedGitEnvironmentConstructor(t *testing.T) {
 }
 
 func TestBundledGitEnvironmentConstructor(t *testing.T) {
-	testhelper.Unsetenv(t, "GITALY_TESTING_BUNDLED_GIT_PATH")
-
-	constructor := git.BundledGitEnvironmentConstructor{}
-
-	seedDirWithExecutables := func(t *testing.T, executableNames ...string) string {
-		dir := testhelper.TempDir(t)
-		for _, executableName := range executableNames {
-			require.NoError(t, os.WriteFile(filepath.Join(dir, executableName), nil, perm.SharedExecutable))
-		}
-		return dir
-	}
+	constructor := git.BundledGitConstructors[0]
 
 	t.Run("disabled bundled Git fails", func(t *testing.T) {
 		_, err := constructor.Construct(config.Cfg{})
 		require.Equal(t, git.ErrNotConfigured, err)
 	})
 
-	t.Run("bundled Git without binary directory fails", func(t *testing.T) {
-		_, err := constructor.Construct(config.Cfg{
-			Git: config.Git{
-				UseBundledBinaries: true,
-			},
-		})
-		require.Equal(t, errors.New("cannot use bundled binaries without bin path being set"), err)
-	})
-
-	t.Run("incomplete binary directory succeeds", func(t *testing.T) {
-		_, err := constructor.Construct(config.Cfg{
-			BinDir: seedDirWithExecutables(t, "gitaly-git", "gitaly-git-remote-http"),
-			Git: config.Git{
-				UseBundledBinaries: true,
-			},
-		})
-		require.Error(t, err)
-		require.Equal(t, "checking bundled Git binary \"gitaly-git-http-backend\": no such file or directory", err.Error())
-	})
-
 	t.Run("complete binary directory succeeds", func(t *testing.T) {
-		binDir := seedDirWithExecutables(t, "gitaly-git", "gitaly-git-remote-http", "gitaly-git-http-backend")
-
-		execEnv, err := constructor.Construct(config.Cfg{
-			BinDir: binDir,
-			Git: config.Git{
-				UseBundledBinaries: true,
-			},
-		})
+		cfg := testcfg.Build(t)
+		execEnv, err := constructor.Construct(cfg)
 		require.NoError(t, err)
 		defer func() { require.NoError(t, execEnv.Cleanup()) }()
 
@@ -128,103 +92,7 @@ func TestBundledGitEnvironmentConstructor(t *testing.T) {
 		for _, binary := range []string{"git", "git-remote-http", "git-http-backend"} {
 			target, err := filepath.EvalSymlinks(filepath.Join(execPrefix, binary))
 			require.NoError(t, err)
-			require.Equal(t, filepath.Join(binDir, "gitaly-"+binary), target)
-		}
-	})
-
-	t.Run("cleanup removes temporary directory", func(t *testing.T) {
-		execEnv, err := constructor.Construct(config.Cfg{
-			BinDir: seedDirWithExecutables(t, "gitaly-git", "gitaly-git-remote-http", "gitaly-git-http-backend"),
-			Git: config.Git{
-				UseBundledBinaries: true,
-			},
-		})
-		require.NoError(t, err)
-
-		execPrefix := filepath.Dir(execEnv.BinaryPath)
-		require.DirExists(t, execPrefix)
-
-		require.NoError(t, execEnv.Cleanup())
-
-		require.NoDirExists(t, execPrefix)
-	})
-
-	t.Run("bundled Git path without binary directory fails", func(t *testing.T) {
-		t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", "/does/not/exist")
-		_, err := constructor.Construct(config.Cfg{})
-		require.Equal(t, errors.New("cannot use bundled binaries without bin path being set"), err)
-	})
-
-	t.Run("nonexistent bundled Git path via environment fails", func(t *testing.T) {
-		t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", "/does/not/exist")
-		_, err := constructor.Construct(config.Cfg{
-			BinDir: testhelper.TempDir(t),
-		})
-		require.Error(t, err)
-		require.Equal(t, err.Error(), "statting \"gitaly-git\": stat /does/not/exist/gitaly-git: no such file or directory")
-	})
-
-	t.Run("incomplete bundled Git environment fails", func(t *testing.T) {
-		bundledGitPath := seedDirWithExecutables(t, "gitaly-git", "gitaly-git-remote-http")
-		t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", bundledGitPath)
-
-		_, err := constructor.Construct(config.Cfg{
-			BinDir: testhelper.TempDir(t),
-		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "statting \"gitaly-git-http-backend\": ")
-	})
-
-	t.Run("complete bundled Git environment populates binary directory", func(t *testing.T) {
-		bundledGitPath := seedDirWithExecutables(t, "gitaly-git", "gitaly-git-remote-http", "gitaly-git-http-backend")
-		t.Setenv("GITALY_TESTING_BUNDLED_GIT_PATH", bundledGitPath)
-
-		execEnv, err := constructor.Construct(config.Cfg{
-			BinDir: testhelper.TempDir(t),
-		})
-		require.NoError(t, err)
-		defer func() { require.NoError(t, execEnv.Cleanup()) }()
-
-		require.Equal(t, "git", filepath.Base(execEnv.BinaryPath))
-		execPrefix := filepath.Dir(execEnv.BinaryPath)
-
-		require.Equal(t, []string{
-			"GIT_EXEC_PATH=" + execPrefix,
-		}, execEnv.EnvironmentVariables)
-
-		for _, binary := range []string{"git", "git-remote-http", "git-http-backend"} {
-			target, err := filepath.EvalSymlinks(filepath.Join(execPrefix, binary))
-			require.NoError(t, err)
-			require.Equal(t, filepath.Join(bundledGitPath, "gitaly-"+binary), target)
-		}
-	})
-
-	t.Run("with version suffix", func(t *testing.T) {
-		constructor := git.BundledGitEnvironmentConstructor{
-			Suffix: "-v2.35.1",
-		}
-
-		binDir := seedDirWithExecutables(t, "gitaly-git-v2.35.1", "gitaly-git-remote-http-v2.35.1", "gitaly-git-http-backend-v2.35.1")
-
-		execEnv, err := constructor.Construct(config.Cfg{
-			BinDir: binDir,
-			Git: config.Git{
-				UseBundledBinaries: true,
-			},
-		})
-		require.NoError(t, err)
-		defer func() { require.NoError(t, execEnv.Cleanup()) }()
-
-		require.Equal(t, "git", filepath.Base(execEnv.BinaryPath))
-		execPrefix := filepath.Dir(execEnv.BinaryPath)
-		require.Equal(t, []string{
-			"GIT_EXEC_PATH=" + execPrefix,
-		}, execEnv.EnvironmentVariables)
-
-		for _, binary := range []string{"git", "git-remote-http", "git-http-backend"} {
-			target, err := filepath.EvalSymlinks(filepath.Join(execPrefix, binary))
-			require.NoError(t, err)
-			require.Equal(t, filepath.Join(binDir, "gitaly-"+binary+"-v2.35.1"), target)
+			require.Equal(t, filepath.Join(testhelper.SourceRoot(t), "_build", "bin", fmt.Sprintf("gitaly-%s%s", binary, constructor.Suffix)), target)
 		}
 	})
 }

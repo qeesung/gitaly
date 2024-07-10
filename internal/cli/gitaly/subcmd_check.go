@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/urfave/cli/v2"
+	"gitlab.com/gitlab-org/gitaly/v16"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config/prometheus"
@@ -43,6 +44,12 @@ func checkAction(ctx *cli.Context) error {
 	cfg, err := loadConfig(configPath)
 	if err != nil {
 		return fmt.Errorf("loading configuration %q: %w", configPath, err)
+	}
+
+	// Since this subcommand invokes a Git command, we need to unpack the bundled Git binaries
+	// from the Gitaly binary.
+	if err := gitaly.UnpackAuxiliaryBinaries(cfg.RuntimeDir); err != nil {
+		return fmt.Errorf("unpack auxiliary binaries: %w", err)
 	}
 
 	fmt.Fprint(ctx.App.Writer, "Checking GitLab API access: ")
