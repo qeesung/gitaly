@@ -59,6 +59,27 @@ var repositoryCreatingRPCs = map[string]struct{}{
 	gitalypb.RepositoryService_ReplicateRepository_FullMethodName:          {},
 }
 
+// forceExclusiveSnapshot forces the RPCs to use an exclusive snapshot. This is a temporary
+// workaround for some RPCs that do not work well with shared read-only snapshots yet.
+var forceExclusiveSnapshot = map[string]bool{
+	// GetSnapshot builds the archive using whatever permissions are on the
+	// disk. This leads to returning an archive where all of the directories
+	// are read-only. As this is used by replication, this leads to replication
+	// failures as TAR would fail unarchiving child entries into directories as
+	// they are read-only
+	gitalypb.RepositoryService_GetSnapshot_FullMethodName: true,
+	// GetCustomHooks has a similar issue with producing an archive that contains
+	// read-only directories.
+	gitalypb.RepositoryService_GetCustomHooks_FullMethodName: true,
+	// GetInfoAttributes is a read-only RPC that is performing a write if there
+	// is an 'info/attributes' file in the repository. This is related to
+	// migrating old state.
+	gitalypb.RepositoryService_GetInfoAttributes_FullMethodName: true,
+	// CommitLanguages is a read-only RPC that is performing write if the cache
+	// containing the language statistics is outdated.
+	gitalypb.CommitService_CommitLanguages_FullMethodName: true,
+}
+
 // NewUnaryInterceptor returns an unary interceptor that manages a unary RPC's transaction. It starts a transaction
 // on the target repository of the request and rewrites the request to point to the transaction's snapshot repository.
 // The transaction is committed if the handler doesn't return an error and rolled back otherwise.
@@ -341,6 +362,7 @@ func transactionalizeRequest(ctx context.Context, logger log.Logger, txRegistry 
 		ReadOnly:              methodInfo.Operation == protoregistry.OpAccessor,
 		AlternateRelativePath: alternateRelativePath,
 		AllowPartitionAssignmentWithoutRepository: isRepositoryCreation,
+		ForceExclusiveSnapshot:                    forceExclusiveSnapshot[methodInfo.FullMethodName()],
 	})
 	if err != nil {
 		var relativePath relativePathNotFoundError

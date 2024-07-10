@@ -18,7 +18,6 @@ func generateConsumerTests(t *testing.T, setup testTransactionSetup) []transacti
 
 		return setup
 	}
-	umask := testhelper.Umask()
 
 	return []transactionTestCase{
 		{
@@ -46,7 +45,7 @@ func generateConsumerTests(t *testing.T, setup testTransactionSetup) []transacti
 					"/wal":                        {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/0000000000001":          {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/0000000000001/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/main", setup.Commits.First.OID)),
-					"/wal/0000000000001/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+					"/wal/0000000000001/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -199,7 +198,7 @@ func generateConsumerTests(t *testing.T, setup testTransactionSetup) []transacti
 					"/wal":                        {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/0000000000001":          {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/0000000000001/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/main", setup.Commits.First.OID)),
-					"/wal/0000000000001/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+					"/wal/0000000000001/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -280,10 +279,10 @@ func generateConsumerTests(t *testing.T, setup testTransactionSetup) []transacti
 					"/wal":                        {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/0000000000002":          {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/0000000000002/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/other", setup.Commits.Second.OID)),
-					"/wal/0000000000002/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.Second.OID + "\n")},
+					"/wal/0000000000002/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.Second.OID + "\n")},
 					"/wal/0000000000003":          {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/0000000000003/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/third", setup.Commits.Third.OID)),
-					"/wal/0000000000003/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.Third.OID + "\n")},
+					"/wal/0000000000003/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.Third.OID + "\n")},
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
@@ -332,7 +331,7 @@ func generateConsumerTests(t *testing.T, setup testTransactionSetup) []transacti
 					"/wal":                        {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/0000000000001":          {Mode: fs.ModeDir | perm.PrivateDir},
 					"/wal/0000000000001/MANIFEST": manifestDirectoryEntry(refChangeLogEntry(setup, "refs/heads/main", setup.Commits.First.OID)),
-					"/wal/0000000000001/1":        {Mode: umask.Mask(perm.PublicFile), Content: []byte(setup.Commits.First.OID + "\n")},
+					"/wal/0000000000001/1":        {Mode: storage.ModeFile, Content: []byte(setup.Commits.First.OID + "\n")},
 				},
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
