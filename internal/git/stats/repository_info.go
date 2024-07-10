@@ -11,7 +11,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -293,14 +292,7 @@ func ReferencesInfoForRepository(ctx context.Context, repo *localrepo.Repo) (Ref
 			}
 
 			// Attempt to extract the min and max update indices from the reftable file name.
-			//
-			// e.g. 0x000000000001-0x000000000001-b54f3b59.ref would result in the following matches:
-			//	- 000000000001 (UpdateIndexMin)
-			//	- 000000000001 (UpdateIndexMax)
-			//
-			// See the reftable documentation at https://www.git-scm.com/docs/reftable#_layout for more
-			// information.
-			matches := regexp.MustCompile("0x([0-9]{12})-").FindAllStringSubmatch(reftableName, 2)
+			matches := git.ReftableTableNameRegex.FindAllStringSubmatch(reftableName, 2)
 			if len(matches) != 2 || len(matches[0]) != 2 || len(matches[1]) != 2 {
 				return ReferencesInfo{}, fmt.Errorf("reftable name %q malformed", reftableName)
 			}

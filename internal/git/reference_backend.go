@@ -50,6 +50,15 @@ var (
 			PackedRefsLockedRegex:        regexp.MustCompile(`(packed-refs\.lock': File exists\.\n)|(packed-refs\.new: File exists\n$)`),
 		},
 	}
+
+	// ReftableTableNameRegex is a regex for matching reftable names
+	// e.g. 0x000000000001-0x000000000001-b54f3b59.ref would result in the following matches:
+	//	- 000000000001 (UpdateIndexMin)
+	//	- 000000000001 (UpdateIndexMax)
+	//
+	// See the reftable documentation at https://www.git-scm.com/docs/reftable#_layout for more
+	// information.
+	ReftableTableNameRegex = regexp.MustCompile("0x([0-9]{12})-0x([0-9]{12})-[0-9a-zA-Z]{8}.ref")
 )
 
 type updateRefErrorRegexs struct {

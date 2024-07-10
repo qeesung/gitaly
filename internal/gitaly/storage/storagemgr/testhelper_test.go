@@ -143,22 +143,11 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 	repoPath, err := repo.Path(ctx)
 	require.NoError(tb, err)
 
+	refBackend, err := repo.ReferenceBackend(ctx)
+	require.NoError(tb, err)
+
 	headReference, err := repo.HeadReference(ctx)
 	require.NoError(tb, err)
-
-	actualReferencesState, err := collectReferencesState(tb, expected, repoPath)
-	require.NoError(tb, err)
-
-	// Verify if the combination of packed-refs and loose refs match the point of view of Git.
-	referencesFromFile := map[git.ReferenceName]git.ObjectID{}
-	if actualReferencesState != nil {
-		for name, oid := range actualReferencesState.PackedReferences {
-			referencesFromFile[name] = oid
-		}
-		for name, oid := range actualReferencesState.LooseReferences {
-			referencesFromFile[name] = oid
-		}
-	}
 
 	actualGitReferences := map[git.ReferenceName]git.ObjectID{}
 	gitReferences, err := repo.GetReferences(ctx)
@@ -166,25 +155,64 @@ func RequireRepositoryState(tb testing.TB, ctx context.Context, cfg config.Cfg, 
 	for _, ref := range gitReferences {
 		actualGitReferences[ref.Name] = git.ObjectID(ref.Target)
 	}
-	require.Equalf(tb, referencesFromFile, actualGitReferences, "references perceived by Git don't match the ones in loose reference and packed-refs file")
 
-	// Assert if there is any empty directory in the refs hierarchy excepts for heads and tags
-	rootRefsDir := filepath.Join(repoPath, "refs")
-	ignoredDirs := map[string]struct{}{
-		rootRefsDir:                         {},
-		filepath.Join(rootRefsDir, "heads"): {},
-		filepath.Join(rootRefsDir, "tags"):  {},
-	}
-	require.NoError(tb, filepath.WalkDir(rootRefsDir, func(path string, entry fs.DirEntry, err error) error {
-		if entry.IsDir() {
-			if _, exist := ignoredDirs[path]; !exist {
-				isEmpty, err := isDirEmpty(path)
-				require.NoError(tb, err)
-				require.Falsef(tb, isEmpty, "there shouldn't be any empty directory in the refs hierarchy %s", path)
+	var actualReferencesState *ReferencesState
+
+	if refBackend == git.ReferenceBackendFiles {
+		actualReferencesState, err = collectReferencesState(tb, expected, repoPath)
+		require.NoError(tb, err)
+
+		// Verify if the combination of packed-refs and loose refs match the point of view of Git.
+		referencesFromFile := map[git.ReferenceName]git.ObjectID{}
+		if actualReferencesState != nil {
+			for name, oid := range actualReferencesState.PackedReferences {
+				referencesFromFile[name] = oid
+			}
+
+			for name, oid := range actualReferencesState.LooseReferences {
+				referencesFromFile[name] = oid
 			}
 		}
-		return nil
-	}))
+		require.Equalf(tb, referencesFromFile, actualGitReferences, "references perceived by Git don't match the ones in loose reference and packed-refs file")
+
+		// Assert if there is any empty directory in the refs hierarchy excepts for heads and tags
+		rootRefsDir := filepath.Join(repoPath, "refs")
+		ignoredDirs := map[string]struct{}{
+			rootRefsDir:                         {},
+			filepath.Join(rootRefsDir, "heads"): {},
+			filepath.Join(rootRefsDir, "tags"):  {},
+		}
+		require.NoError(tb, filepath.WalkDir(rootRefsDir, func(path string, entry fs.DirEntry, err error) error {
+			if entry.IsDir() {
+				if _, exist := ignoredDirs[path]; !exist {
+					isEmpty, err := isDirEmpty(path)
+					require.NoError(tb, err)
+					require.Falsef(tb, isEmpty, "there shouldn't be any empty directory in the refs hierarchy %s", path)
+				}
+			}
+			return nil
+		}))
+	} else {
+		// For the reftable backend, there are no loose references and packed references.
+		// So here we simply map all the references to be loose references in the actual
+		// as well as the expected state.
+		if len(gitReferences) > 0 {
+			actualReferencesState = &ReferencesState{
+				LooseReferences: make(map[git.ReferenceName]git.ObjectID),
+			}
+
+			for _, reference := range gitReferences {
+				actualReferencesState.LooseReferences[reference.Name] = git.ObjectID(reference.Target)
+			}
+		}
+
+		if expected.References != nil {
+			for reference, target := range expected.References.PackedReferences {
+				expected.References.LooseReferences[reference] = target
+				delete(expected.References.PackedReferences, reference)
+			}
+		}
+	}
 
 	var (
 		// expectedObjects are the objects that are expected to be seen by Git.
@@ -1116,6 +1144,13 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 				if step.DefaultBranchUpdate != nil {
 					transaction.MarkDefaultBranchUpdated()
+
+					if testhelper.IsReftableEnabled() {
+						transaction.UpdateReferences(map[git.ReferenceName]ReferenceUpdate{
+							"HEAD": {NewTarget: step.DefaultBranchUpdate.Reference},
+						})
+					}
+
 					require.NoError(t, rewrittenRepo.SetDefaultBranch(ctx, nil, step.DefaultBranchUpdate.Reference))
 				}
 

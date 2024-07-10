@@ -14,7 +14,17 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/transaction/voting"
 )
 
-//nolint:revive // This is unintentionally missing documentation.
+// ReferenceTransactionHook captures all reference updates taking place in the
+// repository.
+//
+// When using praefect, this allows us to vote on reference updates and ensure
+// that all nodes are in sync.
+//
+// When using WAL, this allows us to capture all the reference updates that take
+// place in a transaction and add it to the transaction.
+//
+// We only capture regular reference updates, and updates to the default branch.
+// Any other reference updates are ignored.
 func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state ReferenceTransactionState, env []string, stdin io.Reader) error {
 	payload, err := git.HooksPayloadFromEnv(env)
 	if err != nil {
@@ -47,7 +57,7 @@ func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state 
 		phase = voting.Prepared
 
 		if tx != nil {
-			updates, _, err := parseChanges(ctx, objectHash, bytes.NewReader(changes))
+			updates, _, err := parseChanges(objectHash, bytes.NewReader(changes))
 			if err != nil {
 				return fmt.Errorf("parse changes: %w", err)
 			}
@@ -75,7 +85,7 @@ func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state 
 		phase = voting.Committed
 
 		if tx != nil {
-			updates, defaultBranchUpdated, err := parseChanges(ctx, objectHash, bytes.NewReader(changes))
+			updates, defaultBranchUpdated, err := parseChanges(objectHash, bytes.NewReader(changes))
 			if err != nil {
 				return fmt.Errorf("parse changes: %w", err)
 			}
@@ -124,7 +134,7 @@ func (m *GitLabHookManager) ReferenceTransactionHook(ctx context.Context, state 
 // parseChanges parses the changes from the reader. All updates to references lacking a 'refs/' prefix are ignored. These
 // are the various pseudo reference like ORIG_HEAD but also HEAD. See the documentation of the reference-transaction hook
 // for details on the format: https://git-scm.com/docs/githooks#_reference_transaction
-func parseChanges(ctx context.Context, objectHash git.ObjectHash, changes io.Reader) (storagemgr.ReferenceUpdates, bool, error) {
+func parseChanges(objectHash git.ObjectHash, changes io.Reader) (storagemgr.ReferenceUpdates, bool, error) {
 	scanner := bufio.NewScanner(changes)
 	defaultBranchUpdated := false
 
@@ -137,24 +147,42 @@ func parseChanges(ctx context.Context, objectHash git.ObjectHash, changes io.Rea
 		}
 
 		reference := git.ReferenceName(components[2])
-		if !strings.HasPrefix(reference.String(), "refs/") {
-			// We want to track default branch updates, so that the
-			// transaction manager can be notified about it.
-			defaultBranchUpdated = reference.String() == "HEAD"
+
+		if reference.String() == "HEAD" {
+			defaultBranchUpdated = true
+		} else if !strings.HasPrefix(reference.String(), "refs/") {
 			continue
 		}
 
 		update := storagemgr.ReferenceUpdate{}
 
 		var err error
-		update.OldOID, err = objectHash.FromHex(components[0])
-		if err != nil {
-			return nil, defaultBranchUpdated, fmt.Errorf("parse old: %w", err)
+
+		if _, target, ok := strings.Cut(components[0], "ref:"); ok {
+			update.OldTarget = git.ReferenceName(target)
+		} else {
+			update.OldOID, err = objectHash.FromHex(components[0])
+			if err != nil {
+				return nil, defaultBranchUpdated, fmt.Errorf("parse old: %w", err)
+			}
 		}
 
-		update.NewOID, err = objectHash.FromHex(components[1])
-		if err != nil {
-			return nil, defaultBranchUpdated, fmt.Errorf("parse new: %w", err)
+		if _, target, ok := strings.Cut(components[0], "ref:"); ok {
+			update.NewTarget = git.ReferenceName(target)
+		} else {
+			update.NewOID, err = objectHash.FromHex(components[1])
+			if err != nil {
+				return nil, defaultBranchUpdated, fmt.Errorf("parse new: %w", err)
+			}
+		}
+
+		// Only capture default branch changes and ignore all other
+		// symbolic reference updates.
+		if reference.String() != "HEAD" && (update.NewTarget != "" || update.OldTarget != "") {
+			continue
+		}
+		if reference.String() == "HEAD" && update.NewTarget == "" {
+			continue
 		}
 
 		updates[reference] = update

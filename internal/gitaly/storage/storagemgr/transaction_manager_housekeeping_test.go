@@ -14,6 +14,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/config"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
 
 func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPartitionID storage.PartitionID, relativePath string) []transactionTestCase {
@@ -57,7 +58,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 
 	return []transactionTestCase{
 		{
-			desc:        "run pack-refs on a repository without packed-refs",
+			desc: "run pack-refs on a repository without packed-refs",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -111,7 +115,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "run pack-refs on a repository with an existing packed-refs",
+			desc: "run pack-refs on a repository with an existing packed-refs",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{
@@ -181,7 +188,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "run pack-refs, all refs outside refs/heads and refs/tags are packed",
+			desc: "run pack-refs, all refs outside refs/heads and refs/tags are packed",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -235,7 +245,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "concurrent ref creation before pack-refs task is committed",
+			desc: "concurrent ref creation before pack-refs task is committed",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -290,7 +303,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "concurrent ref creation after pack-refs task is committed",
+			desc: "concurrent ref creation after pack-refs task is committed",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -344,7 +360,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "concurrent ref updates before pack-refs task is committed",
+			desc: "concurrent ref updates before pack-refs task is committed",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -401,7 +420,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "concurrent ref updates after pack-refs task is committed",
+			desc: "concurrent ref updates after pack-refs task is committed",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -457,7 +479,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "concurrent ref deletion before pack-refs is committed",
+			desc: "concurrent ref deletion before pack-refs is committed",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -513,7 +538,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "concurrent ref deletion before pack-refs is committed",
+			desc: "concurrent ref deletion before pack-refs is committed",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -574,6 +602,9 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 		},
 		{
 			desc: "concurrent ref deletion in other repository of a pool",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			steps: steps{
 				RemoveRepository{},
 				StartManager{},
@@ -670,7 +701,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "concurrent ref deletion after pack-refs is committed",
+			desc: "concurrent ref deletion after pack-refs is committed",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -718,6 +752,9 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 		},
 		{
 			desc: "empty directories are pruned after interrupted log application",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			steps: steps{
 				StartManager{},
 				Begin{
@@ -785,7 +822,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "housekeeping fails in read-only transaction",
+			desc: "housekeeping fails in read-only transaction",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -839,7 +879,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "housekeeping transaction runs concurrently with another housekeeping transaction",
+			desc: "housekeeping transaction runs concurrently with another housekeeping transaction",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -890,6 +933,9 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 		},
 		{
 			desc: "housekeeping transaction runs after another housekeeping transaction in other repository of a pool",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			steps: steps{
 				RemoveRepository{},
 				StartManager{},
@@ -982,7 +1028,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "housekeeping transaction runs after another housekeeping transaction",
+			desc: "housekeeping transaction runs after another housekeeping transaction",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -1032,7 +1081,10 @@ func generateHousekeepingPackRefsTests(t *testing.T, ctx context.Context, testPa
 			},
 		},
 		{
-			desc:        "housekeeping transaction runs concurrently with a repository deletion",
+			desc: "housekeeping transaction runs concurrently with a repository deletion",
+			skip: func(t *testing.T) {
+				testhelper.SkipWithReftable(t, "transactional housekeeping doesn't support reftabled yet")
+			},
 			customSetup: customSetup,
 			steps: steps{
 				StartManager{},
@@ -1765,9 +1817,6 @@ func generateHousekeepingRepackingConcurrentTests(t *testing.T, ctx context.Cont
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: &ReferencesState{
-							LooseReferences: map[git.ReferenceName]git.ObjectID{},
-						},
 						Packfiles: &PackfilesState{
 							Packfiles: []*PackfileState{},
 						},
@@ -3581,9 +3630,6 @@ func generateHousekeepingCommitGraphsTests(t *testing.T, ctx context.Context, se
 				Repositories: RepositoryStates{
 					setup.RelativePath: {
 						DefaultBranch: "refs/heads/main",
-						References: &ReferencesState{
-							LooseReferences: map[git.ReferenceName]git.ObjectID{},
-						},
 						Packfiles: &PackfilesState{
 							CommitGraphs: &stats.CommitGraphInfo{
 								Exists:                 true,
