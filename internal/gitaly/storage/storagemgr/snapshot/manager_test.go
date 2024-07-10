@@ -11,6 +11,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"golang.org/x/sync/errgroup"
@@ -96,18 +97,16 @@ func TestManager(t *testing.T) {
 
 				require.Equal(t, fs1.Root(), fs2.Root())
 
-				// We shouldn't in reality write to the shared snapshots but this goes to demonstrate
-				// the snapshot is shared.
-				writeFile(t, mgr.storageDir, fs1, "repositories/a/shared-file")
+				// Writing into shared snapshots is not allowed.
+				require.ErrorIs(t, os.WriteFile(filepath.Join(fs1.Root(), "some file"), nil, fs.ModePerm), os.ErrPermission)
 
 				expectedDirectoryState := testhelper.DirectoryState{
-					"/":                           {Mode: fs.ModeDir | umask.Mask(perm.PrivateDir)},
-					"/repositories":               {Mode: fs.ModeDir | umask.Mask(perm.PrivateDir)},
-					"/repositories/a":             {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/a/refs":        {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/a/objects":     {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/a/HEAD":        {Mode: umask.Mask(fs.ModePerm), Content: []byte("a content")},
-					"/repositories/a/shared-file": {Mode: umask.Mask(fs.ModePerm), Content: []byte{}},
+					"/":                       {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories":           {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/a":         {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/a/refs":    {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/a/objects": {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/a/HEAD":    {Mode: umask.Mask(fs.ModePerm), Content: []byte("a content")},
 				}
 
 				testhelper.RequireDirectoryState(t, fs1.Root(), "", expectedDirectoryState)
@@ -133,22 +132,17 @@ func TestManager(t *testing.T) {
 
 				require.Equal(t, fs1.Root(), fs2.Root())
 
-				// We shouldn't in reality write to the shared snapshots but this goes to demonstrate
-				// the snapshot is shared.
-				writeFile(t, mgr.storageDir, fs1, "repositories/a/shared-file")
-
 				expectedDirectoryState := testhelper.DirectoryState{
-					"/":                           {Mode: fs.ModeDir | umask.Mask(perm.PrivateDir)},
-					"/repositories":               {Mode: fs.ModeDir | umask.Mask(perm.PrivateDir)},
-					"/repositories/a":             {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/a/refs":        {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/a/objects":     {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/a/HEAD":        {Mode: umask.Mask(fs.ModePerm), Content: []byte("a content")},
-					"/repositories/a/shared-file": {Mode: umask.Mask(fs.ModePerm), Content: []byte{}},
-					"/repositories/b":             {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/b/refs":        {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/b/objects":     {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/b/HEAD":        {Mode: umask.Mask(fs.ModePerm), Content: []byte("b content")},
+					"/":                       {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories":           {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/a":         {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/a/refs":    {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/a/objects": {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/a/HEAD":    {Mode: umask.Mask(fs.ModePerm), Content: []byte("a content")},
+					"/repositories/b":         {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/b/refs":    {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/b/objects": {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/b/HEAD":    {Mode: umask.Mask(fs.ModePerm), Content: []byte("b content")},
 				}
 
 				testhelper.RequireDirectoryState(t, fs1.Root(), "", expectedDirectoryState)
@@ -168,17 +162,17 @@ func TestManager(t *testing.T) {
 				defer testhelper.MustClose(t, fs1)
 
 				testhelper.RequireDirectoryState(t, fs1.Root(), "", testhelper.DirectoryState{
-					"/":                                       {Mode: fs.ModeDir | umask.Mask(perm.PrivateDir)},
-					"/repositories":                           {Mode: fs.ModeDir | umask.Mask(perm.PrivateDir)},
-					"/repositories/b":                         {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/b/refs":                    {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/b/objects":                 {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
+					"/":                                       {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories":                           {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/b":                         {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/b/refs":                    {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/b/objects":                 {Mode: storage.ModeReadOnlyDirectory},
 					"/repositories/b/HEAD":                    {Mode: umask.Mask(fs.ModePerm), Content: []byte("b content")},
-					"/repositories/c":                         {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/c/refs":                    {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-					"/repositories/c/objects":                 {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
+					"/repositories/c":                         {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/c/refs":                    {Mode: storage.ModeReadOnlyDirectory},
+					"/repositories/c/objects":                 {Mode: storage.ModeReadOnlyDirectory},
 					"/repositories/c/HEAD":                    {Mode: umask.Mask(fs.ModePerm), Content: []byte("c content")},
-					"/repositories/c/objects/info":            {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
+					"/repositories/c/objects/info":            {Mode: storage.ModeReadOnlyDirectory},
 					"/repositories/c/objects/info/alternates": {Mode: umask.Mask(fs.ModePerm), Content: []byte("../../b/objects")},
 				})
 			},

@@ -3,6 +3,7 @@ package repository
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,7 +79,11 @@ func TestCalculateChecksum(t *testing.T) {
 				repo, repoPath := gittest.CreateRepository(t, ctx, cfg)
 
 				// Force an empty HEAD file such that the repository becomes broken.
-				require.NoError(t, os.Truncate(filepath.Join(repoPath, "HEAD"), 0))
+				//
+				// Remove the HEAD file first as files are read-only with transactions.
+				headPath := filepath.Join(repoPath, "HEAD")
+				require.NoError(t, os.Remove(headPath))
+				require.NoError(t, os.WriteFile(headPath, nil, fs.ModePerm))
 
 				return setupData{
 					request: &gitalypb.CalculateChecksumRequest{

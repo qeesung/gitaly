@@ -12,7 +12,8 @@ import (
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/structerr"
 	"gitlab.com/gitlab-org/gitaly/v16/proto/go/gitalypb"
 )
 
@@ -25,6 +26,10 @@ type Entry struct {
 	operations operations
 	// stateDirectory is the directory where the entry's state is stored.
 	stateDirectory string
+}
+
+func newIrregularFileStagedError(mode fs.FileMode) error {
+	return structerr.NewInvalidArgument("irregular file staged").WithMetadata("mode", mode.String())
 }
 
 // NewEntry returns a new Entry that can be used to construct a write-ahead
@@ -42,6 +47,29 @@ func (e *Entry) Operations() []*gitalypb.LogEntry_Operation {
 // The file's name in the state directory is returned and can be used to link the file
 // subsequently into the correct location.
 func (e *Entry) stageFile(path string) (string, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return "", fmt.Errorf("lstat: %w", err)
+	}
+
+	// Error out if there is an attempt to stage someting other than a regular file, ie.
+	// symlink, directory or anything else.
+	if !info.Mode().IsRegular() {
+		return "", newIrregularFileStagedError(info.Mode().Type())
+	}
+
+	// Strip the write permissions of the files. Our snapshot isolation relies on files not
+	// being modified. Also strip permissions of other users than Gitaly's user.
+	//
+	// ModeExecutable is used as the mask since it has the widest permission bits we allow
+	// with both read and execute permissions set.
+	actualPerms := info.Mode().Perm()
+	if expectedPerms := actualPerms & (storage.ModeExecutable); actualPerms != expectedPerms {
+		if err := os.Chmod(path, expectedPerms); err != nil {
+			return "", fmt.Errorf("chmod: %w", err)
+		}
+	}
+
 	e.fileIDSequence++
 
 	// We use base 36 as it produces shorter names and thus smaller log entries.
@@ -109,7 +137,7 @@ func (e *Entry) RecordRepositoryCreation(storageRoot, relativePath string) error
 	var previousParentDir string
 	for _, dirComponent := range dirComponents {
 		currentDir := filepath.Join(previousParentDir, dirComponent)
-		e.operations.createDirectory(currentDir, perm.PrivateDir)
+		e.operations.createDirectory(currentDir)
 
 		previousParentDir = currentDir
 	}
@@ -135,14 +163,9 @@ func (e *Entry) RecordDirectoryCreation(storageRoot, directoryRelativePath strin
 func (e *Entry) recordDirectoryCreation(storageRoot, directoryRelativePath string) error {
 	if err := walkDirectory(storageRoot, directoryRelativePath,
 		func(relativePath string, dirEntry fs.DirEntry) error {
-			info, err := dirEntry.Info()
-			if err != nil {
-				return fmt.Errorf("info: %w", err)
-			}
-
 			// Create the directories before descending in them so they exist when
 			// we try to create the children.
-			e.operations.createDirectory(relativePath, info.Mode().Perm())
+			e.operations.createDirectory(relativePath)
 			return nil
 		},
 		func(relativePath string, dirEntry fs.DirEntry) error {
@@ -225,12 +248,7 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 				return fmt.Errorf("stat: %w", err)
 			}
 
-			info, err := subDir.Info()
-			if err != nil {
-				return fmt.Errorf("subdirectory info: %w", err)
-			}
-
-			e.operations.createDirectory(destinationDir, info.Mode().Perm())
+			e.operations.createDirectory(destinationDir)
 		}
 
 		// Create all of the objects in the directory if they don't yet exist.
@@ -352,12 +370,7 @@ func (e *Entry) RecordReferenceUpdates(ctx context.Context, storageRoot, snapsho
 				return nil
 			}
 
-			info, err := os.Stat(filepath.Join(storageRoot, snapshotPrefix, relativePath, path))
-			if err != nil {
-				return fmt.Errorf("stat for dir permissions: %w", err)
-			}
-
-			e.operations.createDirectory(targetRelativePath, info.Mode().Perm())
+			e.operations.createDirectory(targetRelativePath)
 
 			return nil
 		}
@@ -390,7 +403,7 @@ func (e *Entry) RecordReferenceUpdates(ctx context.Context, storageRoot, snapsho
 		}
 
 		if _, existedPreImaged := preImagePaths[path]; info != nil && !existedPreImaged {
-			e.operations.createDirectory(filepath.Join(relativePath, path), info.Mode().Perm())
+			e.operations.createDirectory(filepath.Join(relativePath, path))
 		}
 
 		return nil

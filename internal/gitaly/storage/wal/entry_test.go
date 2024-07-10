@@ -12,6 +12,7 @@ import (
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/gittest"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git/updateref"
+	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper/testcfg"
@@ -40,6 +41,12 @@ func TestEntry(t *testing.T) {
 	setupTestDirectory(t, filepath.Join(storageRoot, firstLevelDir))
 	setupTestDirectory(t, filepath.Join(storageRoot, secondLevelDir))
 
+	symlinkPath := filepath.Join(storageRoot, "symlink-to-file")
+	require.NoError(t, os.Symlink(
+		filepath.Join(storageRoot, "root-file"),
+		symlinkPath,
+	))
+
 	rootDirPerm := testhelper.Umask().Mask(fs.ModePerm)
 
 	for _, tc := range []struct {
@@ -48,6 +55,21 @@ func TestEntry(t *testing.T) {
 		expectedOperations operations
 		expectedFiles      testhelper.DirectoryState
 	}{
+		{
+			desc: "stage non-regular file",
+			run: func(t *testing.T, entry *Entry) {
+				_, err := entry.stageFile(symlinkPath)
+				require.Equal(t, newIrregularFileStagedError(fs.ModeSymlink), err)
+			},
+			expectedOperations: func() operations {
+				var ops operations
+				ops.removeDirectoryEntry("sentinel-op")
+				return ops
+			}(),
+			expectedFiles: testhelper.DirectoryState{
+				"/": {Mode: fs.ModeDir | rootDirPerm},
+			},
+		},
 		{
 			desc: "RecordFileCreation",
 			run: func(t *testing.T, entry *Entry) {
@@ -64,7 +86,7 @@ func TestEntry(t *testing.T) {
 			}(),
 			expectedFiles: testhelper.DirectoryState{
 				"/":  {Mode: fs.ModeDir | rootDirPerm},
-				"/1": {Mode: perm.PrivateFile, Content: []byte("root file")},
+				"/1": {Mode: storage.ModeFile, Content: []byte("root file")},
 			},
 		},
 		{
@@ -96,7 +118,7 @@ func TestEntry(t *testing.T) {
 			}(),
 			expectedFiles: testhelper.DirectoryState{
 				"/":  {Mode: fs.ModeDir | rootDirPerm},
-				"/1": {Mode: perm.PrivateFile, Content: []byte("root file")},
+				"/1": {Mode: storage.ModeFile, Content: []byte("root file")},
 			},
 		},
 		{
@@ -113,7 +135,7 @@ func TestEntry(t *testing.T) {
 			}(),
 			expectedFiles: testhelper.DirectoryState{
 				"/":  {Mode: fs.ModeDir | rootDirPerm},
-				"/1": {Mode: perm.PrivateExecutable, Content: []byte("file-1")},
+				"/1": {Mode: storage.ModeExecutable, Content: []byte("file-1")},
 			},
 		},
 		{
@@ -124,19 +146,19 @@ func TestEntry(t *testing.T) {
 			expectedOperations: func() operations {
 				var ops operations
 				ops.removeDirectoryEntry("sentinel-op")
-				ops.createDirectory("test-dir", perm.PrivateDir)
+				ops.createDirectory("test-dir")
 				ops.createHardLink("1", "test-dir/file-1", false)
-				ops.createDirectory("test-dir/subdir-private", perm.PrivateDir)
+				ops.createDirectory("test-dir/subdir-private")
 				ops.createHardLink("2", "test-dir/subdir-private/file-2", false)
-				ops.createDirectory("test-dir/subdir-shared", perm.SharedDir)
+				ops.createDirectory("test-dir/subdir-shared")
 				ops.createHardLink("3", "test-dir/subdir-shared/file-3", false)
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
 				"/":  {Mode: fs.ModeDir | rootDirPerm},
-				"/1": {Mode: perm.PrivateExecutable, Content: []byte("file-1")},
-				"/2": {Mode: perm.SharedFile, Content: []byte("file-2")},
-				"/3": {Mode: perm.PrivateFile, Content: []byte("file-3")},
+				"/1": {Mode: storage.ModeExecutable, Content: []byte("file-1")},
+				"/2": {Mode: storage.ModeFile, Content: []byte("file-2")},
+				"/3": {Mode: storage.ModeFile, Content: []byte("file-3")},
 			},
 		},
 		{
@@ -147,19 +169,19 @@ func TestEntry(t *testing.T) {
 			expectedOperations: func() operations {
 				var ops operations
 				ops.removeDirectoryEntry("sentinel-op")
-				ops.createDirectory("second-level/test-dir", perm.PrivateDir)
+				ops.createDirectory("second-level/test-dir")
 				ops.createHardLink("1", "second-level/test-dir/file-1", false)
-				ops.createDirectory("second-level/test-dir/subdir-private", perm.PrivateDir)
+				ops.createDirectory("second-level/test-dir/subdir-private")
 				ops.createHardLink("2", "second-level/test-dir/subdir-private/file-2", false)
-				ops.createDirectory("second-level/test-dir/subdir-shared", perm.SharedDir)
+				ops.createDirectory("second-level/test-dir/subdir-shared")
 				ops.createHardLink("3", "second-level/test-dir/subdir-shared/file-3", false)
 				return ops
 			}(),
 			expectedFiles: testhelper.DirectoryState{
 				"/":  {Mode: fs.ModeDir | rootDirPerm},
-				"/1": {Mode: perm.PrivateExecutable, Content: []byte("file-1")},
-				"/2": {Mode: perm.SharedFile, Content: []byte("file-2")},
-				"/3": {Mode: perm.PrivateFile, Content: []byte("file-3")},
+				"/1": {Mode: storage.ModeExecutable, Content: []byte("file-1")},
+				"/2": {Mode: storage.ModeFile, Content: []byte("file-2")},
+				"/3": {Mode: storage.ModeFile, Content: []byte("file-3")},
 			},
 		},
 		{
@@ -269,10 +291,10 @@ func TestRecordAlternateUnlink(t *testing.T) {
 			},
 			expectedOperations: func() operations {
 				var ops operations
-				ops.createDirectory("target/objects/3f", perm.PrivateDir)
+				ops.createDirectory("target/objects/3f")
 				ops.createHardLink("source/objects/3f/1", "target/objects/3f/1", true)
 				ops.createHardLink("source/objects/3f/2", "target/objects/3f/2", true)
-				ops.createDirectory("target/objects/4f", perm.SharedDir)
+				ops.createDirectory("target/objects/4f")
 				ops.createHardLink("source/objects/4f/3", "target/objects/4f/3", true)
 				ops.createHardLink("source/objects/pack/pack.idx", "target/objects/pack/pack.idx", true)
 				ops.createHardLink("source/objects/pack/pack.pack", "target/objects/pack/pack.pack", true)
@@ -401,20 +423,20 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						var ops operations
 						ops.createHardLink("1", "relative-path/refs/heads/branch-1", false)
 						ops.createHardLink("2", "relative-path/refs/heads/branch-2", false)
-						ops.createDirectory("relative-path/refs/heads/subdir", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/heads/subdir")
 						ops.createHardLink("3", "relative-path/refs/heads/subdir/branch-3", false)
 						ops.createHardLink("4", "relative-path/refs/heads/subdir/branch-4", false)
-						ops.createDirectory("relative-path/refs/heads/subdir/no-refs", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/heads/subdir/no-refs")
 						ops.createHardLink("5", "relative-path/refs/heads/subdir/no-refs/branch-5", false)
 						return ops
 					}(),
 					expectedDirectory: testhelper.DirectoryState{
 						"/":  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-						"/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[0] + "\n")},
-						"/2": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[1] + "\n")},
-						"/3": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[2] + "\n")},
-						"/4": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[3] + "\n")},
-						"/5": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[4] + "\n")},
+						"/1": {Mode: storage.ModeFile, Content: []byte(oids[0] + "\n")},
+						"/2": {Mode: storage.ModeFile, Content: []byte(oids[1] + "\n")},
+						"/3": {Mode: storage.ModeFile, Content: []byte(oids[2] + "\n")},
+						"/4": {Mode: storage.ModeFile, Content: []byte(oids[3] + "\n")},
+						"/5": {Mode: storage.ModeFile, Content: []byte(oids[4] + "\n")},
 					},
 				}
 			},
@@ -486,11 +508,11 @@ func TestRecordReferenceUpdates(t *testing.T) {
 					}(),
 					expectedDirectory: testhelper.DirectoryState{
 						"/":  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-						"/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[1] + "\n")},
-						"/2": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[2] + "\n")},
-						"/3": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[1] + "\n")},
-						"/4": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[2] + "\n")},
-						"/5": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[3] + "\n")},
+						"/1": {Mode: storage.ModeFile, Content: []byte(oids[1] + "\n")},
+						"/2": {Mode: storage.ModeFile, Content: []byte(oids[2] + "\n")},
+						"/3": {Mode: storage.ModeFile, Content: []byte(oids[1] + "\n")},
+						"/4": {Mode: storage.ModeFile, Content: []byte(oids[2] + "\n")},
+						"/5": {Mode: storage.ModeFile, Content: []byte(oids[3] + "\n")},
 					},
 				}
 			},
@@ -552,17 +574,17 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						var ops operations
 						ops.removeDirectoryEntry("relative-path/refs/heads/parent")
 						ops.createHardLink("1", "relative-path/refs/heads/branch-1", false)
-						ops.createDirectory("relative-path/refs/heads/parent", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/heads/parent")
 						ops.createHardLink("2", "relative-path/refs/heads/parent/branch-2", false)
-						ops.createDirectory("relative-path/refs/heads/parent/subdir", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/heads/parent/subdir")
 						ops.createHardLink("3", "relative-path/refs/heads/parent/subdir/branch-3", false)
 						return ops
 					}(),
 					expectedDirectory: testhelper.DirectoryState{
 						"/":  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-						"/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[0] + "\n")},
-						"/2": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[1] + "\n")},
-						"/3": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[2] + "\n")},
+						"/1": {Mode: storage.ModeFile, Content: []byte(oids[0] + "\n")},
+						"/2": {Mode: storage.ModeFile, Content: []byte(oids[1] + "\n")},
+						"/3": {Mode: storage.ModeFile, Content: []byte(oids[2] + "\n")},
 					},
 				}
 			},
@@ -606,14 +628,14 @@ func TestRecordReferenceUpdates(t *testing.T) {
 						//
 						// We assert here the directory created by the deletion is properly logged to ensure
 						// it exists when we attempt to create the child directory.
-						ops.createDirectory("relative-path/refs/remotes", umask.Mask(fs.ModePerm))
-						ops.createDirectory("relative-path/refs/remotes/upstream", umask.Mask(fs.ModePerm))
+						ops.createDirectory("relative-path/refs/remotes")
+						ops.createDirectory("relative-path/refs/remotes/upstream")
 						ops.createHardLink("1", "relative-path/refs/remotes/upstream/created-branch", false)
 						return ops
 					}(),
 					expectedDirectory: testhelper.DirectoryState{
 						"/":  {Mode: fs.ModeDir | umask.Mask(fs.ModePerm)},
-						"/1": {Mode: umask.Mask(perm.PublicFile), Content: []byte(oids[0] + "\n")},
+						"/1": {Mode: storage.ModeFile, Content: []byte(oids[0] + "\n")},
 					},
 				}
 			},

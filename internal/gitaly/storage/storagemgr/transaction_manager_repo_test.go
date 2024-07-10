@@ -1,18 +1,14 @@
 package storagemgr
 
 import (
-	"io/fs"
 	"testing"
 
 	"gitlab.com/gitlab-org/gitaly/v16/internal/git"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/gitaly/storage"
-	"gitlab.com/gitlab-org/gitaly/v16/internal/helper/perm"
 	"gitlab.com/gitlab-org/gitaly/v16/internal/testhelper"
 )
 
 func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
-	umask := testhelper.Umask()
-
 	return []transactionTestCase{
 		{
 			desc: "create repository when it doesn't exist",
@@ -115,13 +111,13 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							setup.Commits.Second.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
-								Mode:    umask.Mask(fs.ModePerm),
+								Mode:    storage.ModeExecutable,
 								Content: []byte("hook content"),
 							},
-							"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+							"/private-dir":              {Mode: storage.ModeDirectory},
+							"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 						},
 					},
 				},
@@ -195,13 +191,13 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+								"/": {Mode: storage.ModeReadOnlyDirectory},
 								"/pre-receive": {
-									Mode:    umask.Mask(fs.ModePerm),
+									Mode:    storage.ModeExecutable,
 									Content: []byte("hook content"),
 								},
-								"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+								"/private-dir":              {Mode: storage.ModeReadOnlyDirectory},
+								"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 							},
 						},
 					},
@@ -351,13 +347,13 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							},
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
-								Mode:    umask.Mask(fs.ModePerm),
+								Mode:    storage.ModeExecutable,
 								Content: []byte("hook content"),
 							},
-							"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+							"/private-dir":              {Mode: storage.ModeDirectory},
+							"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 						},
 						Objects: []git.ObjectID{
 							setup.Commits.First.OID,
@@ -439,13 +435,13 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 							setup.Commits.First.OID,
 						},
 						CustomHooks: testhelper.DirectoryState{
-							"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+							"/": {Mode: storage.ModeDirectory},
 							"/pre-receive": {
-								Mode:    umask.Mask(fs.ModePerm),
+								Mode:    storage.ModeExecutable,
 								Content: []byte("hook content"),
 							},
-							"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-							"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+							"/private-dir":              {Mode: storage.ModeDirectory},
+							"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 						},
 					},
 					"repository-2": {
@@ -469,8 +465,6 @@ func generateCreateRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 }
 
 func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []transactionTestCase {
-	umask := testhelper.Umask()
-
 	return []transactionTestCase{
 		{
 			desc: "repository is successfully deleted",
@@ -896,13 +890,13 @@ func generateDeleteRepositoryTests(t *testing.T, setup testTransactionSetup) []t
 								setup.Commits.First.OID,
 							},
 							CustomHooks: testhelper.DirectoryState{
-								"/": {Mode: umask.Mask(fs.ModeDir | perm.PublicDir)},
+								"/": {Mode: storage.ModeDirectory},
 								"/pre-receive": {
-									Mode:    umask.Mask(fs.ModePerm),
+									Mode:    storage.ModeExecutable,
 									Content: []byte("hook content"),
 								},
-								"/private-dir":              {Mode: umask.Mask(fs.ModeDir | perm.PrivateDir)},
-								"/private-dir/private-file": {Mode: umask.Mask(perm.PrivateFile), Content: []byte("private content")},
+								"/private-dir":              {Mode: storage.ModeDirectory},
+								"/private-dir/private-file": {Mode: storage.ModeFile, Content: []byte("private content")},
 							},
 						},
 					},

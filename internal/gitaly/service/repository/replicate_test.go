@@ -300,7 +300,7 @@ func TestReplicateRepository(t *testing.T) {
 						//
 						// Praefect deletes metdata record of a repository on ErrInvalidSourceRepository. While this functionality
 						// won't work, we have a more general replacement for the ad-hoc repair with the background metadata verifier.
-						structerr.NewInternal("could not create repository from snapshot: creating repository: extracting snapshot: first snapshot read: rpc error: code = Internal desc = begin transaction: get snapshot: new shared snapshot: create repository snapshots: validate git directory: invalid git directory"),
+						structerr.NewInternal("could not create repository from snapshot: creating repository: extracting snapshot: first snapshot read: rpc error: code = Internal desc = begin transaction: get snapshot: new exclusive snapshot: create repository snapshots: validate git directory: invalid git directory"),
 						ErrInvalidSourceRepository,
 					),
 				}
@@ -340,7 +340,11 @@ func TestReplicateRepository(t *testing.T) {
 
 				// Corrupt the repository by writing garbage into HEAD to verify the RPC fails to
 				// fetch the source repository and returns an error as expected.
-				require.NoError(t, os.WriteFile(filepath.Join(sourcePath, "HEAD"), []byte("garbage"), perm.PublicFile))
+				//
+				// Remove the HEAD first as the files are read-only with transactions.
+				headPath := filepath.Join(sourcePath, "HEAD")
+				require.NoError(t, os.Remove(headPath))
+				require.NoError(t, os.WriteFile(headPath, []byte("garbage"), perm.PublicFile))
 
 				return setupData{
 					source:        source,
