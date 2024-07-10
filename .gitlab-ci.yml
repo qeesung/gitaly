@@ -136,7 +136,7 @@ workflow:
     # But the actual tests should run unprivileged. This assures that we pay
     # proper attention to permission bits and that we don't modify the source
     # directory.
-    - setpriv --reuid=${TEST_UID} --regid=${TEST_UID} --clear-groups --no-new-privs make ${TEST_TARGET} $(test "${GIT_VERSION}" = default && echo WITH_BUNDLED_GIT=YesPlease)
+    - setpriv --reuid=${TEST_UID} --regid=${TEST_UID} --clear-groups --no-new-privs make ${TEST_TARGET}
   coverage: /^total:\t+\(statements\)\t+\d+\.\d+%$/
   after_script: &test_after_script
     - go run "${CI_PROJECT_DIR}/tools/panic-parser"

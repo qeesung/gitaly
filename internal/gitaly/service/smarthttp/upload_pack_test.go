@@ -277,7 +277,6 @@ func testServerPostUploadPackWithSidechannelUsesPackObjectsHook(t *testing.T, ct
 
 func testServerPostUploadPackUsesPackObjectsHook(t *testing.T, ctx context.Context, makeRequest requestMaker, opts ...testcfg.Option) {
 	cfg := testcfg.Build(t, append(opts, testcfg.WithPackObjectsCacheEnabled())...)
-	cfg.BinDir = testhelper.TempDir(t)
 
 	outputPath := filepath.Join(cfg.BinDir, "output")
 	//nolint:gitaly-linters

@@ -66,8 +66,6 @@
 - name: Build Gitaly
   make:
     target: build
-    params:
-      WITH_BUNDLED_GIT: YesPlease
     jobs: "{{ ansible_processor_nproc }}"
     chdir: /src/gitaly
   environment:
@@ -78,7 +76,6 @@
   make:
     target: install
     params:
-      WITH_BUNDLED_GIT: YesPlease
       PREFIX: /opt/gitaly
     jobs: "{{ ansible_processor_nproc }}"
     chdir: /src/gitaly
