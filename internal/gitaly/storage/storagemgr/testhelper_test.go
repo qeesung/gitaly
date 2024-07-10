@@ -1074,6 +1074,16 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 					repoPath, err := rewrittenRepo.Path(ctx)
 					require.NoError(t, err)
 
+					alternatesFilePath := stats.AlternatesFilePath(repoPath)
+
+					// Ignore not exists errors as there are test cases testing removing alternate
+					// when one is not set. Additionally, if the alternate was updated, we want to
+					// remove the file first and write a new file as all files in the storage are
+					// read-only.
+					if err := os.Remove(alternatesFilePath); !errors.Is(err, fs.ErrNotExist) {
+						require.NoError(t, err)
+					}
+
 					if step.UpdateAlternate.content != "" {
 						require.NoError(t, os.WriteFile(stats.AlternatesFilePath(repoPath), []byte(step.UpdateAlternate.content), fs.ModePerm))
 
@@ -1082,12 +1092,6 @@ func runTransactionTest(t *testing.T, ctx context.Context, tc transactionTestCas
 
 						for _, alternate := range alternates {
 							require.DirExists(t, filepath.Join(repoPath, "objects", alternate), "alternate must be pointed to a repository: %q", alternate)
-						}
-					} else {
-						// Ignore not exists errors as there are test cases testing removing alternate
-						// when one is not set.
-						if err := os.Remove(stats.AlternatesFilePath(repoPath)); !errors.Is(err, fs.ErrNotExist) {
-							require.NoError(t, err)
 						}
 					}
 				}

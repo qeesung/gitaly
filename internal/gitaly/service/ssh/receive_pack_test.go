@@ -291,7 +291,10 @@ func TestReceivePack_invalidGitconfig(t *testing.T) {
 
 	remoteRepo, remoteRepoPath := gittest.CreateRepository(t, ctx, cfg)
 	gittest.WriteCommit(t, cfg, remoteRepoPath, gittest.WithBranch("main"))
-	require.NoError(t, os.WriteFile(filepath.Join(remoteRepoPath, "config"), []byte("x x x foobar"), perm.SharedFile))
+	// Remove the config file first as files are read-only with transactions.
+	configPath := filepath.Join(remoteRepoPath, "config")
+	require.NoError(t, os.Remove(configPath))
+	require.NoError(t, os.WriteFile(configPath, []byte("x x x foobar"), perm.SharedFile))
 	remoteRepo.GlProjectPath = "something"
 
 	lHead, rHead, err := setupRepoAndPush(t, ctx, cfg, &gitalypb.SSHReceivePackRequest{
