@@ -55,8 +55,8 @@ require (
 	golang.org/x/sys v0.22.0
 	golang.org/x/text v0.16.0
 	golang.org/x/time v0.5.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237
-	google.golang.org/grpc v1.64.0
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157
+	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
 )
 
@@ -148,7 +148,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/godbus/dbus/v5 v5.0.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/glog v1.2.0 // indirect
+	github.com/golang/glog v1.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -238,7 +238,7 @@ require (
 	gonum.org/v1/gonum v0.11.0 // indirect
 	google.golang.org/api v0.169.0 // indirect
 	google.golang.org/genproto v0.0.0-20240311173647-c811ad7063a7 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240528184218-531527333157 // indirect
 	gopkg.in/DataDog/dd-trace-go.v1 v1.32.0 // indirect
 	gopkg.in/neurosnap/sentences.v1 v1.0.7 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
