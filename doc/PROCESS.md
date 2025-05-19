@@ -682,7 +682,7 @@ Slack channel.
 
 Sometimes, we need to work on both Gitaly and GitLab Rails implementations in parallel. Ideally, we can define and
 publish all Protobuf changes beforehand. In practice, a complicated change might require modifying the Protobuf multiple
-times until reaching a stable state. It's more convenient to let GitLab Rails point the gem to the the developing branch
+times until reaching a stable state. It's more convenient to let GitLab Rails point the gem to the developing branch
 in Gitaly.
 
 In the local environment, we can point it to the developing gem using following steps:

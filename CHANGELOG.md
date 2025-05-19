@@ -3125,7 +3125,7 @@ No changes.
 
 ### Removed (1 change)
 
-- repository: Remove harmful `name` paramater in FetchRemote. !3227
+ - repository: Remove harmful `name` parameter in FetchRemote. !3227
 
 ### Fixed (13 changes)
 
@@ -5761,7 +5761,7 @@ Should not be used as it [will break gitlab-rails](https://gitlab.com/gitlab-org
 #### Other
 - Initial design document for High Availability
   https://gitlab.com/gitlab-org/gitaly/merge_requests/1058
-- Reverse proxy pass thru for HA
+- Reverse proxy pass through for HA
   https://gitlab.com/gitlab-org/gitaly/merge_requests/1064
 
 ## v1.19.1

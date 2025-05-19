@@ -45,7 +45,7 @@ Examples:
 			},
 			&cli.StringFlag{
 				Name:  "storage",
-				Usage: "name of the the physical storage associated with the virtual storage with replicas to mark as unverified",
+				Usage: "name of the physical storage associated with the virtual storage with replicas to mark as unverified",
 			},
 		},
 		Before: func(ctx *cli.Context) error {

@@ -469,7 +469,7 @@ message GetTreeEntriesRequest {
   bytes revision = 2;
   // path is the path of the entry that shall be read, relative to the tree of the specified revision.
   bytes path = 3;
-  // recursive denotes wether to recursively fetch sub-trees.
+  // recursive denotes whether to recursively fetch sub-trees.
   bool recursive = 4;
   // sort defines the sorting parameter.
   SortBy sort = 5;

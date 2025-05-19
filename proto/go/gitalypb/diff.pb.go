@@ -1911,7 +1911,7 @@ type RevisionRange struct {
 
 	// rev1 is the first revision.
 	Rev1 string `protobuf:"bytes,1,opt,name=rev1,proto3" json:"rev1,omitempty"`
-	// rev2 is the the second revision.
+       // rev2 is the second revision.
 	Rev2 string `protobuf:"bytes,2,opt,name=rev2,proto3" json:"rev2,omitempty"`
 }
 
@@ -1971,7 +1971,7 @@ type BaseWithRevisions struct {
 	Base string `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
 	// rev1 is the first revision.
 	Rev1 string `protobuf:"bytes,2,opt,name=rev1,proto3" json:"rev1,omitempty"`
-	// rev2 is the the second revision.
+       // rev2 is the second revision.
 	Rev2 string `protobuf:"bytes,3,opt,name=rev2,proto3" json:"rev2,omitempty"`
 }
 
@@ -2136,7 +2136,7 @@ func (*RawRangeDiffRequest_RevisionRange) isRawRangeDiffRequest_RangeSpec() {}
 
 func (*RawRangeDiffRequest_BaseWithRevisions) isRawRangeDiffRequest_RangeSpec() {}
 
-// RawRangeDiffResponse is the the raw range diff response.
+// RawRangeDiffResponse is the raw range diff response.
 type RawRangeDiffResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

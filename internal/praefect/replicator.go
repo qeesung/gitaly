@@ -563,7 +563,7 @@ func (r ReplMgr) backfillReplicaPath(ctx context.Context, event datastore.Replic
 		fallthrough
 	// 14.5 also doesn't schedule DeleteRepo jobs. Any jobs are again old jobs in-flight.
 	// The repository ID in delete jobs scheduled in 14.4 won't be present anymore at the time the
-	// replication job is being executed, as the the 'repositories' record is deleted. Given that,
+	// replication job is being executed, as the 'repositories' record is deleted. Given that,
 	// it's not possible to get the replica path. In 14.4, Praefect intercepts deletes and handles
 	// them without scheduling replication jobs. The 'delete' jobs still in flight are handled as before
 	// for backwards compatibility.

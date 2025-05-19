@@ -250,7 +250,7 @@ func TestGetObjectDirectorySize_quarantine(t *testing.T) {
 		quarantine2, err := quarantine.New(ctx, gittest.RewrittenRepository(t, ctx, cfg, repo2), logger, locator)
 		require.NoError(t, err)
 
-		// We swap out the the object directories of both quarantines. So while both are
+		// We swap out the object directories of both quarantines. So while both are
 		// valid, we still expect that this RPC call fails because we detect that the
 		// swapped-in quarantine directory does not belong to our repository.
 		repo := proto.Clone(quarantine1.QuarantinedRepo()).(*gitalypb.Repository)

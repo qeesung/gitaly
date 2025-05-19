@@ -74,7 +74,7 @@ EOF
 
 # And then finally dump the database schema. We ignore the owner because it
 # would change based on the local user name. Furthermore, we replace the
-# database version such that the output doesn't change based on the the
+# database version such that the output doesn't change based on the
 # Postgres version.
 pg_dump --create --schema-only --no-owner --dbname "$DBNAME" |
     sed -e 's/^\(-- Dumped .* version\) [0-9]\+\(.[0-9]\+\).*/\1 REPLACED/'
