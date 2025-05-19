@@ -85,7 +85,7 @@ func TestMiddleware_partitioning_hint(t *testing.T) {
 						Repository: fork,
 						// We're using different source repository than the object pool we'll link to at the end of the test.
 						// The linking would fail at the end if the repository was partitioned implicitly with the source repository
-						// instead of the the explicitly hinted repository.
+						// instead of the explicitly hinted repository.
 						SourceRepository: sourceRepository,
 					})
 				require.NoError(t, err)

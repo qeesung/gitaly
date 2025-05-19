@@ -459,7 +459,7 @@ message RangePair {
 message RevisionRange {
   // rev1 is the first revision.
   string rev1 = 1;
-  // rev2 is the the second revision.
+  // rev2 is the second revision.
   string rev2 = 2;
 }
 
@@ -469,7 +469,7 @@ message BaseWithRevisions {
   string base = 1;
   // rev1 is the first revision.
   string rev1 = 2;
-  // rev2 is the the second revision.
+  // rev2 is the second revision.
   string rev2 = 3;
 }
 
@@ -487,7 +487,7 @@ message RawRangeDiffRequest {
   }
 }
 
-// RawRangeDiffResponse is the the raw range diff response.
+// RawRangeDiffResponse is the raw range diff response.
 message RawRangeDiffResponse {
   // data is the raw range diff data.
   bytes data = 1;

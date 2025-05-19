@@ -289,7 +289,7 @@ func (e *Entry) RecordAlternateUnlink(storageRoot, relativePath, alternatePath s
 // existence in the pre-image.
 //
 // While going through the reference changes, we'll build two tree representations of the references being updated
-// The first tree consists of operations that create a file, namely refererence updates and creations. The second
+// The first tree consists of operations that create a file, namely reference updates and creations. The second
 // tree consists of operations that may delete files, so reference deletions.
 //
 // With the pre-image state built, the reference changes are applied to the repository. We then figure out the

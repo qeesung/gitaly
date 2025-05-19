@@ -1557,7 +1557,7 @@ type GetTreeEntriesRequest struct {
 	Revision []byte `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	// path is the path of the entry that shall be read, relative to the tree of the specified revision.
 	Path []byte `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	// recursive denotes wether to recursively fetch sub-trees.
+       // recursive denotes whether to recursively fetch sub-trees.
 	Recursive bool `protobuf:"varint,4,opt,name=recursive,proto3" json:"recursive,omitempty"`
 	// sort defines the sorting parameter.
 	Sort GetTreeEntriesRequest_SortBy `protobuf:"varint,5,opt,name=sort,proto3,enum=gitaly.GetTreeEntriesRequest_SortBy" json:"sort,omitempty"`
