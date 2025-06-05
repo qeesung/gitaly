@@ -103,7 +103,7 @@ func ExtractAuthInfo(ctx context.Context) (*AuthInfo, error) {
 func countV2Error(message string) { authErrors.WithLabelValues("v2", message).Inc() }
 
 func v2HmacInfoValid(message string, signedMessage, secret []byte, targetTime time.Time, tokenValidity time.Duration) bool {
-	expectedHMAC := hmacSign(secret, message)
+	expectedHMAC := computeHMAC(secret, message)
 	if !hmac.Equal(signedMessage, expectedHMAC) {
 		countV2Error("wrong hmac signature")
 		return false
@@ -132,7 +132,7 @@ func v2HmacInfoValid(message string, signedMessage, secret []byte, targetTime ti
 	return true
 }
 
-func hmacSign(secret []byte, message string) []byte {
+func computeHMAC(secret []byte, message string) []byte {
 	mac := hmac.New(sha256.New, secret)
 	// hash.Hash never returns an error.
 	_, _ = mac.Write([]byte(message))

@@ -25,7 +25,7 @@ func (*rpcCredentialsV2) RequireTransportSecurity() bool { return false }
 
 func (rc2 *rpcCredentialsV2) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
 	message := strconv.FormatInt(time.Now().Unix(), 10)
-	signature := hmacSign([]byte(rc2.sharedSecret), message)
+	signature := computeHMAC([]byte(rc2.sharedSecret), message)
 
 	return map[string]string{
 		"authorization": "Bearer " + fmt.Sprintf("v2.%x.%s", signature, message),
