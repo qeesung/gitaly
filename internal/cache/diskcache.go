@@ -87,8 +87,8 @@ type DiskCache struct {
 
 	requestTotals              prometheus.Counter
 	missTotals                 prometheus.Counter
-	bytesStoredtotals          prometheus.Counter
-	bytesFetchedtotals         prometheus.Counter
+	bytesStoredTotals          prometheus.Counter
+	bytesFetchedTotals         prometheus.Counter
 	bytesLoserTotals           prometheus.Counter
 	errTotal                   *prometheus.CounterVec
 	walkerCheckTotal           prometheus.Counter
@@ -128,13 +128,13 @@ func New(cfg config.Cfg, locator storage.Locator, logger log.Logger, opts ...Opt
 				Help: "Total number of disk cache misses",
 			},
 		),
-		bytesStoredtotals: prometheus.NewCounter(
+		bytesStoredTotals: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "gitaly_diskcache_bytes_stored_total",
 				Help: "Total number of disk cache bytes stored",
 			},
 		),
-		bytesFetchedtotals: prometheus.NewCounter(
+		bytesFetchedTotals: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "gitaly_diskcache_bytes_fetched_total",
 				Help: "Total number of disk cache bytes fetched",
@@ -198,8 +198,8 @@ func (c *DiskCache) Describe(descs chan<- *prometheus.Desc) {
 func (c *DiskCache) Collect(metrics chan<- prometheus.Metric) {
 	c.requestTotals.Collect(metrics)
 	c.missTotals.Collect(metrics)
-	c.bytesStoredtotals.Collect(metrics)
-	c.bytesFetchedtotals.Collect(metrics)
+	c.bytesStoredTotals.Collect(metrics)
+	c.bytesFetchedTotals.Collect(metrics)
 	c.bytesLoserTotals.Collect(metrics)
 	c.errTotal.Collect(metrics)
 	c.walkerRemovalTotal.Collect(metrics)
@@ -258,7 +258,7 @@ func (c *DiskCache) GetStream(ctx context.Context, repo *gitalypb.Repository, re
 
 	return instrumentedReadCloser{
 		ReadCloser: respF,
-		counter:    c.bytesFetchedtotals,
+		counter:    c.bytesFetchedTotals,
 	}, nil
 }
 
@@ -313,7 +313,7 @@ func (c *DiskCache) PutStream(ctx context.Context, repo *gitalypb.Repository, re
 	if err != nil {
 		return err
 	}
-	c.bytesStoredtotals.Add(float64(n))
+	c.bytesStoredTotals.Add(float64(n))
 
 	if err := sf.Commit(); err != nil {
 		c.errTotal.WithLabelValues("ErrSafefileCommit").Inc()
