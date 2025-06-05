@@ -22,13 +22,6 @@ const (
 	authSchemeBearer = "bearer"
 	tokenDelimiter   = "."
 	tokenVersionV2   = "v2"
-
-	// Error messages
-	errMsgInvalidTokenFormat   = "invalid token format"
-	errMsgWrongHMACSignature   = "wrong hmac signature"
-	errMsgCannotParseTimestamp = "cannot parse timestamp"
-	errMsgTimestampTooOld      = "timestamp too old"
-	errMsgTimestampTooNew      = "timestamp too new"
 )
 
 var (
@@ -102,7 +95,7 @@ func ExtractAuthInfo(ctx context.Context) (*AuthInfo, error) {
 	split := strings.SplitN(token, tokenDelimiter, 3)
 
 	if len(split) != 3 {
-		return nil, fmt.Errorf(errMsgInvalidTokenFormat)
+		return nil, fmt.Errorf("invalid token format")
 	}
 
 	version, sig, msg := split[0], split[1], split[2]
@@ -119,13 +112,13 @@ func countV2Error(message string) { authErrors.WithLabelValues(tokenVersionV2, m
 func v2HmacInfoValid(message string, signedMessage, secret []byte, targetTime time.Time, tokenValidity time.Duration) bool {
 	expectedHMAC := hmacSign(secret, message)
 	if !hmac.Equal(signedMessage, expectedHMAC) {
-		countV2Error(errMsgWrongHMACSignature)
+		countV2Error("wrong hmac signature")
 		return false
 	}
 
 	timestamp, err := strconv.ParseInt(message, 10, 64)
 	if err != nil {
-		countV2Error(errMsgCannotParseTimestamp)
+		countV2Error("cannot parse timestamp")
 		return false
 	}
 
@@ -134,12 +127,12 @@ func v2HmacInfoValid(message string, signedMessage, secret []byte, targetTime ti
 	upperBound := targetTime.Add(tokenValidity)
 
 	if issuedAt.Before(lowerBound) {
-		countV2Error(errMsgTimestampTooOld)
+		countV2Error("timestamp too old")
 		return false
 	}
 
 	if issuedAt.After(upperBound) {
-		countV2Error(errMsgTimestampTooNew)
+		countV2Error("timestamp too new")
 		return false
 	}
 
