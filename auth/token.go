@@ -17,6 +17,20 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	// Authentication constants
+	authSchemeBearer = "bearer"
+	tokenDelimiter   = "."
+	tokenVersionV2   = "v2"
+
+	// Error messages
+	errMsgInvalidTokenFormat   = "invalid token format"
+	errMsgWrongHMACSignature   = "wrong hmac signature"
+	errMsgCannotParseTimestamp = "cannot parse timestamp"
+	errMsgTimestampTooOld      = "timestamp too old"
+	errMsgTimestampTooNew      = "timestamp too new"
+)
+
 var (
 	//nolint:gochecknoglobals
 	// This infrastructure is required for testing purposes and there is no
@@ -69,7 +83,7 @@ func CheckToken(ctx context.Context, secret string, targetTime time.Time) error 
 		return errUnauthenticated
 	}
 
-	if authInfo.Version == "v2" {
+	if authInfo.Version == tokenVersionV2 {
 		if v2HmacInfoValid(authInfo.Message, authInfo.SignedMessage, []byte(secret), targetTime, tokenValidityDuration) {
 			return nil
 		}
@@ -80,15 +94,15 @@ func CheckToken(ctx context.Context, secret string, targetTime time.Time) error 
 
 // ExtractAuthInfo returns an `AuthInfo` with the data extracted from `ctx`
 func ExtractAuthInfo(ctx context.Context) (*AuthInfo, error) {
-	token, err := grpcmwauth.AuthFromMD(ctx, "bearer")
+	token, err := grpcmwauth.AuthFromMD(ctx, authSchemeBearer)
 	if err != nil {
 		return nil, err
 	}
 
-	split := strings.SplitN(token, ".", 3)
+	split := strings.SplitN(token, tokenDelimiter, 3)
 
 	if len(split) != 3 {
-		return nil, fmt.Errorf("invalid token format")
+		return nil, fmt.Errorf(errMsgInvalidTokenFormat)
 	}
 
 	version, sig, msg := split[0], split[1], split[2]
@@ -100,18 +114,18 @@ func ExtractAuthInfo(ctx context.Context) (*AuthInfo, error) {
 	return &AuthInfo{Version: version, SignedMessage: decodedSig, Message: msg}, nil
 }
 
-func countV2Error(message string) { authErrors.WithLabelValues("v2", message).Inc() }
+func countV2Error(message string) { authErrors.WithLabelValues(tokenVersionV2, message).Inc() }
 
 func v2HmacInfoValid(message string, signedMessage, secret []byte, targetTime time.Time, tokenValidity time.Duration) bool {
 	expectedHMAC := hmacSign(secret, message)
 	if !hmac.Equal(signedMessage, expectedHMAC) {
-		countV2Error("wrong hmac signature")
+		countV2Error(errMsgWrongHMACSignature)
 		return false
 	}
 
 	timestamp, err := strconv.ParseInt(message, 10, 64)
 	if err != nil {
-		countV2Error("cannot parse timestamp")
+		countV2Error(errMsgCannotParseTimestamp)
 		return false
 	}
 
@@ -120,12 +134,12 @@ func v2HmacInfoValid(message string, signedMessage, secret []byte, targetTime ti
 	upperBound := targetTime.Add(tokenValidity)
 
 	if issuedAt.Before(lowerBound) {
-		countV2Error("timestamp too old")
+		countV2Error(errMsgTimestampTooOld)
 		return false
 	}
 
 	if issuedAt.After(upperBound) {
-		countV2Error("timestamp too new")
+		countV2Error(errMsgTimestampTooNew)
 		return false
 	}
 
